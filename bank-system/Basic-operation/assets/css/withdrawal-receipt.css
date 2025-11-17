@@ -1,0 +1,730 @@
+/* Color Palette */
+:root {
+  --primary-white: #faf7f7;
+  --secondary-white: #f0eee8;
+  --primary-green: #003631;
+  --primary-black: #000000;
+  --primary-gold: #f1b34a;
+  --secondary-gray: #3a3a3a;
+  --light-gray: #6c757d;
+  --receipt-bg: #e8e6df;
+  --card-white: #f5f4ef;
+}
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #d3d0c7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Navigation Bar */
+.navbar-custom {
+  background-color: var(--primary-green);
+  padding: 0.6rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-custom .container-fluid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.navbar-brand {
+  margin-right: 0;
+  padding-left: 0;
+}
+
+.brand-text {
+  color: var(--primary-white);
+  font-weight: 475;
+  font-size: 23px;
+  letter-spacing: 1px;
+}
+
+.navbar-nav {
+  gap: 50px;
+}
+
+.navbar-custom .nav-link {
+  color: var(--primary-white);
+  font-size: 0.9rem;
+  padding: 0.5rem 1.5rem;
+  transition: opacity 0.3s ease;
+}
+
+.navbar-custom .nav-link:hover {
+  opacity: 0.8;
+}
+
+.navbar-custom .nav-link.active {
+  font-weight: 500;
+  color: var(--primary-gold);
+}
+
+.username-text {
+  color: var(--primary-white);
+  font-size: 0.85rem;
+}
+
+.user-avatar {
+  background-color: var(--primary-white);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.navbar-toggler {
+  border-color: var(--primary-white);
+}
+
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(250, 247, 247, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Main Wrapper */
+.main-wrapper {
+  min-height: calc(100vh - 52px);
+  padding-top: 0;
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: #c5c2b8;
+  padding: 145px 30px;
+  min-height: calc(100vh - 52px);
+  width: 400px;
+}
+
+.sidebar-title {
+  color: var(--primary-green);
+  font-size: 35px;
+  font-weight: 650;
+  margin-bottom: 35px;
+  text-align: center;
+}
+
+.transaction-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+}
+
+.transaction-btn {
+  background-color: var(--secondary-white);
+  color: var(--primary-green);
+  padding: 14px 18px;
+  border-radius: 8px;
+  border: none;
+  text-align: left;
+  font-size: 23px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  width: 80%;
+  box-shadow: 4px 6px 8px rgba(0, 0, 0, 0.15);
+  opacity: 1;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.transaction-btn:hover {
+  background-color: var(--secondary-white);
+  cursor: default;
+}
+
+.transaction-btn.active {
+  background-color: rgba(0, 54, 49, 0.3);
+}
+
+/* Content Area */
+.content-area {
+  padding: 100px 80px 40px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+}
+
+/* Receipt Card Wrapper */
+.receipt-card-wrapper {
+  width: 100%;
+  max-width: 950px;
+}
+
+/* Floating Receipt Card */
+.receipt-card-floating {
+  background-color: #f9f8f5;
+  border-radius: 12px;
+  padding: 40px 45px 40px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.receipt-card-title {
+  color: var(--primary-green);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.receipt-divider {
+  border: none;
+  border-top: 1px solid #d4d2ca;
+  margin: 0 0 20px 0;
+  opacity: 1;
+}
+
+/* Receipt Grid Layout */
+.receipt-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 50px;
+  margin-bottom: 35px;
+}
+
+.receipt-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.receipt-right-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Receipt Info Groups */
+.receipt-info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.receipt-info-item {
+  display: flex;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.receipt-info-label {
+  color: var(--primary-green);
+  opacity: 0.6;
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-width: 150px;
+  flex-shrink: 0;
+}
+
+.receipt-info-value {
+  color: var(--primary-green);
+  font-size: 0.9rem;
+  font-weight: 400;
+  flex: 1;
+}
+
+.status-complete {
+  color: var(--primary-green);
+  font-weight: 600;
+}
+
+/* QR Code Box */
+.qr-code-box {
+  width: 220px;
+  height: 220px;
+  background-color: white;
+  border: 2px solid #d4d2ca;
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-code-box svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ========================================
+   SUCCESS MODAL STYLES
+   ======================================== */
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+}
+
+.success-modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.7);
+  z-index: 9999;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.success-modal.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.modal-content {
+  background-color: #f5f5f0;
+  border-radius: 16px;
+  padding: 50px 80px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+  min-width: 400px;
+}
+
+.modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-title {
+  color: var(--secondary-gray);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
+  text-align: center;
+}
+
+.modal-ok-btn {
+  background-color: transparent;
+  color: var(--secondary-gray);
+  padding: 10px 50px;
+  border-radius: 6px;
+  border: 2px solid var(--secondary-gray);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.modal-ok-btn:hover {
+  background-color: var(--secondary-gray);
+  color: white;
+}
+
+/* Receipt Button Group */
+.receipt-button-group {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  padding-top: 10px;
+}
+
+.receipt-complete-btn {
+  background-color: var(--primary-gold);
+  color: var(--primary-green);
+  padding: 12px 50px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.receipt-complete-btn:hover {
+  background-color: #e5a841;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(241, 178, 74, 0.35);
+}
+
+.receipt-back-btn {
+  background-color: #ffffff;
+  color: var(--secondary-gray);
+  padding: 12px 50px;
+  border-radius: 6px;
+  border: 1.5px solid #d0cdc4;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.receipt-back-btn:hover {
+  background-color: #f7f5f0;
+  border-color: var(--secondary-gray);
+}
+
+/* ========================================
+   DEPOSIT CONFIRMATION STYLES
+   ======================================== */
+
+.deposit-card {
+  max-width: 1300px;
+  padding: 35px 45px 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: #f9f8f5;
+  overflow: hidden;
+}
+
+.confirmation-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+
+.confirmation-left,
+.confirmation-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.section-heading {
+  color: var(--primary-green);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  margin-top: 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 3px 0;
+}
+
+.info-label {
+  color: var(--secondary-gray);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.info-value {
+  color: var(--primary-green);
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-align: right;
+}
+
+.status-completed {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.security-section {
+  margin-top: 0;
+}
+
+.security-text {
+  color: var(--light-gray);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  margin: 0;
+  padding-right: 10px;
+}
+
+/* Details Box */
+.details-box {
+  background-color: #ffffff;
+  border: 1px solid #e5e3db;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0eee8;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: var(--secondary-gray);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: var(--primary-green);
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-align: right;
+}
+
+.amount-large {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary-green);
+}
+
+.new-balance {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #28a745;
+}
+
+.deposit-complete-btn {
+  background: #f1b34a;
+  color: #003631;
+  padding: 12px 50px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.deposit-complete-btn:hover {
+  background: #e5a841;
+  color: #003631;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(241, 178, 74, 0.35);
+}
+.footer {
+  background-color: var(--primary-green);
+  color: var(--primary-white);
+  padding: 20px 1.5rem;
+  margin-top: auto;
+}
+
+.footer-text {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.footer-small {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.footer-link {
+  color: var(--primary-white);
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: opacity 0.3s ease;
+}
+
+.footer-link:hover {
+  opacity: 0.8;
+}
+
+.footer-divider {
+  margin: 0 8px;
+  opacity: 0.5;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    padding: 25px 20px;
+  }
+
+  .transaction-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .transaction-btn {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .content-area {
+    padding: 30px 20px 0;
+  }
+
+  .receipt-card-floating,
+  .deposit-card {
+    padding: 35px 30px;
+  }
+
+  .receipt-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .qr-code-box {
+    width: 200px;
+    height: 200px;
+  }
+
+  .confirmation-layout {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar-custom {
+    padding: 0.6rem 1rem;
+  }
+
+  .sidebar {
+    padding: 20px 15px;
+  }
+
+  .sidebar-title {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+  }
+
+  .content-area {
+    padding: 20px 15px 0;
+  }
+
+  .receipt-main-title {
+    font-size: 1.5rem;
+  }
+
+  .receipt-card-title {
+    font-size: 1.35rem;
+  }
+
+  .receipt-card-floating,
+  .deposit-card {
+    padding: 30px 20px;
+  }
+
+  .receipt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-info-item {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .receipt-info-label {
+    min-width: auto;
+  }
+
+  .qr-code-box {
+    width: 180px;
+    height: 180px;
+  }
+
+  .receipt-button-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .receipt-complete-btn,
+  .receipt-back-btn {
+    width: 100%;
+  }
+
+  .info-row {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .info-value {
+    text-align: left;
+  }
+
+  .footer {
+    padding: 20px 1rem;
+  }
+
+  .footer .row {
+    text-align: center;
+  }
+
+  .footer .col-md-6.text-md-end {
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .navbar-brand .brand-text {
+    font-size: 0.95rem;
+  }
+
+  .username-text {
+    display: none;
+  }
+
+  .receipt-info-label,
+  .info-label,
+  .detail-label {
+    font-size: 0.8rem;
+  }
+
+  .receipt-info-value,
+  .info-value,
+  .detail-value {
+    font-size: 0.8rem;
+  }
+
+  .qr-code-box {
+    width: 160px;
+    height: 160px;
+  }
+
+  .modal-content {
+    min-width: 300px;
+    padding: 40px 50px;
+  }
+
+  .modal-title {
+    font-size: 1.3rem;
+  }
+
+  .modal-icon svg {
+    width: 50px;
+    height: 50px;
+  }
+}

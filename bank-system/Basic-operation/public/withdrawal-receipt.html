@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Withdrawal Receipt - Evergreen Bank</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/withdrawal-receipt.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+          <img
+            src="../assets/img/evergreen_icon2.png"
+            alt="Logo"
+            class="logo"
+          />
+          <span class="brand-text">EVERGREEN</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="navbarNav"
+        >
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link active"
+                href="employee-transaction.html"
+                id="navbar-transactions-link"
+                >Transactions</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="transaction-history.html"
+                >Transaction History</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="d-flex align-items-center ms-auto gap-2">
+          <span class="username-text me-2">Username</span>
+          <div class="user-avatar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" fill="#003631" />
+              <circle cx="12" cy="9" r="3" fill="white" />
+              <path
+                d="M6 18.5C6 16.5 8.5 15 12 15C15.5 15 18 16.5 18 18.5"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+      <div class="row g-0">
+        <!-- Sidebar -->
+        <div class="col-auto sidebar">
+          <h4 class="sidebar-title">Transactions</h4>
+          <div class="transaction-buttons">
+            <button class="btn transaction-btn active">
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+              Withdraw
+            </button>
+            <button class="btn transaction-btn">
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="12" y1="12" x2="12" y2="16" />
+                <line x1="10" y1="14" x2="14" y2="14" />
+              </svg>
+              Deposit
+            </button>
+          </div>
+        </div>
+
+        <!-- Receipt Content -->
+        <div class="col content-area">
+          <div class="receipt-card-wrapper">
+            <div class="receipt-card-floating">
+              <h3 class="receipt-card-title">Withdrawal Receipt</h3>
+              <hr class="receipt-divider" />
+
+              <div class="receipt-grid">
+                <!-- Left Column -->
+                <div class="receipt-left-col">
+                  <div class="receipt-info-group">
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Withdrawal Type:</span>
+                      <span class="receipt-info-value">Cash Withdrawal</span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Date and Time:</span>
+                      <span class="receipt-info-value" id="receipt-date"></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Reference Number:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-reference"
+                      ></span>
+                    </div>
+                  </div>
+
+                  <div class="receipt-info-group">
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Account Number:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-account-number"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Account Name:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-account-name"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Account Type:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-account-type"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Withdrawal Amount:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-amount"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Previous Balance:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-previous-balance"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">New Balance:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-balance"
+                      ></span>
+                    </div>
+                  </div>
+
+                  <div class="receipt-info-group">
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Branch:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-branch"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Terminal:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-terminal"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Processed By:</span>
+                      <span
+                        class="receipt-info-value"
+                        id="receipt-employee"
+                      ></span>
+                    </div>
+                    <div class="receipt-info-item">
+                      <span class="receipt-info-label">Status:</span>
+                      <span class="receipt-info-value status-complete"
+                        >COMPLETED</span
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right Column - QR Code -->
+                <div class="receipt-right-col">
+                  <div class="qr-code-box">
+                    <!-- QR Code will be generated by JavaScript -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Buttons -->
+              <div class="receipt-button-group">
+                <button type="button" class="btn receipt-complete-btn">
+                  Complete
+                </button>
+                <button type="button" class="btn receipt-back-btn">Back</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="success-modal" id="successModal">
+      <div class="modal-content">
+        <div class="modal-icon">
+          <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+            <circle cx="30" cy="30" r="30" fill="#4CAF50" />
+            <path
+              d="M16 30L26 40L44 20"
+              stroke="white"
+              stroke-width="4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <h3 class="modal-title">Transaction Success</h3>
+        <button type="button" class="btn modal-ok-btn">OK</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container-fluid px-4">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <p class="footer-text mb-0">
+              © 2023 Evergreen Bank. All rights reserved.
+            </p>
+            <p class="footer-small mb-0">
+              Member FDIC. Equal Housing Lender. Evergreen Bank, N.A.
+            </p>
+          </div>
+          <div class="col-md-6 text-md-end mt-2 mt-md-0">
+            <a href="#" class="footer-link">Privacy Policy</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">Terms and Agreements</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">FAQS</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">About Us</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/withdrawal-receipt.js?v=3"></script>
+  </body>
+</html>

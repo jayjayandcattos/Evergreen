@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evergreen - Customer Account Creation</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="../assets/css/customer-onboarding-details.css"
+    />
+    <style>
+      .error-message {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+      }
+      .error-message.show {
+        display: block;
+      }
+      .form-control.error {
+        border-color: #dc3545;
+      }
+      .duplicate-warning {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      .add-more-btn {
+        background: none;
+        border: 1px dashed #ccc;
+        color: var(--text-dark);
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        margin-top: 8px;
+        transition: all 0.3s;
+      }
+      .add-more-btn:hover {
+        border-color: var(--accent-gold);
+        color: var(--accent-gold);
+      }
+      .remove-field-btn {
+        background-color: #003631;
+        color: white;
+        border: none;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        margin-left: 8px;
+      }
+      .field-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .field-wrapper .form-control {
+        flex: 1;
+      }
+      .phone-input-group {
+        display: flex;
+        gap: 8px;
+      }
+      .phone-input-group select {
+        width: 140px;
+      }
+      .phone-input-group input {
+        flex: 1;
+      }
+
+      /* Custom validation tooltip styling */
+      .validation-tooltip {
+        position: absolute;
+        background-color: #dc3545;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+        max-width: 250px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        display: none;
+      }
+
+      .validation-tooltip::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        left: 20px;
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-bottom: 5px solid #dc3545;
+      }
+
+      .validation-tooltip.show {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <div class="main-card">
+        <!-- Header -->
+        <div class="header-section">
+          <div class="logo-container">
+            <img
+              src="../assets/img/evergreen_icon.png"
+              alt="Logo"
+              class="logo"
+            />
+            <div class="logo-placeholder">
+              <div class="logo-text">
+                <span class="brand-name">EVERGREEN</span>
+                <span class="brand-tagline">Secure. Invest. Achieve</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+          <h5>Step 1 of 3: Customer Create Account</h5>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-wrapper">
+          <!-- Sidebar Navigation -->
+          <div class="sidebar">
+            <div class="nav-item active">
+              <span class="nav-number">1.</span> Personal Details
+            </div>
+            <div class="nav-item">
+              <span class="nav-number">2.</span> Security
+            </div>
+            <div class="nav-item">
+              <span class="nav-number">3.</span> Review
+            </div>
+          </div>
+
+          <!-- Main Form Content -->
+          <div class="form-section">
+            <form id="accountCreationForm">
+              <!-- Personal Details Section -->
+              <div class="section-title">Personal Details</div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>First Name <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="first_name"
+                    class="form-control"
+                    placeholder="Juan"
+                    required
+                  />
+                  <div class="error-message" id="error-first_name"></div>
+                </div>
+                <div class="form-group">
+                  <label>Middle Name</label>
+                  <input
+                    type="text"
+                    name="middle_name"
+                    class="form-control"
+                    placeholder="Andrade"
+                  />
+                  <div class="error-message" id="error-middle_name"></div>
+                </div>
+                <div class="form-group">
+                  <label>Last Name <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="last_name"
+                    class="form-control"
+                    placeholder="Dela Cruz"
+                    required
+                  />
+                  <div class="error-message" id="error-last_name"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group form-group-large">
+                  <label
+                    >Home Address (House No./Street/Bldg/Barangay)
+                    <span style="color: red">*</span></label
+                  >
+                  <input
+                    type="text"
+                    name="address_line"
+                    class="form-control"
+                    placeholder="Blk 1 Lot 1 Sinforosa Street, Brgy. San Bartolome"
+                    required
+                  />
+                  <div class="error-message" id="error-address_line"></div>
+                </div>
+                <div class="form-group">
+                  <label>City <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="city"
+                    class="form-control"
+                    placeholder="Quezon City"
+                    required
+                  />
+                  <div class="error-message" id="error-city"></div>
+                </div>
+                <div class="form-group">
+                  <label>Province <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="province"
+                    class="form-control"
+                    placeholder="Metro Manila"
+                    required
+                  />
+                  <div class="error-message" id="error-province"></div>
+                </div>
+                <div class="form-group">
+                  <label>Postal Code <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="postal_code"
+                    class="form-control"
+                    placeholder="1100"
+                    required
+                    maxlength="10"
+                  />
+                  <div class="error-message" id="error-postal_code"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Gender <span style="color: red">*</span></label>
+                  <select name="gender" class="form-control" required>
+                    <option value="" disabled selected>Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <div class="error-message" id="error-gender"></div>
+                </div>
+                <div class="form-group">
+                  <label>Date of Birth <span style="color: red">*</span></label>
+                  <div class="date-input-wrapper">
+                    <input
+                      type="date"
+                      name="date_of_birth"
+                      class="form-control date-input"
+                      required
+                    />
+                  </div>
+                  <div class="error-message" id="error-date_of_birth"></div>
+                </div>
+                <div class="form-group">
+                  <label>Place of Birth</label>
+                  <input
+                    type="text"
+                    name="place_of_birth"
+                    class="form-control"
+                    placeholder="Quezon City"
+                  />
+                  <div class="error-message" id="error-place_of_birth"></div>
+                </div>
+                <div class="form-group">
+                  <label>Civil Status <span style="color: red">*</span></label>
+                  <select name="marital_status" class="form-control" required>
+                    <option value="" disabled selected>Select Status</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="widowed">Widowed</option>
+                    <option value="divorced">Divorced</option>
+                  </select>
+                  <div class="error-message" id="error-marital_status"></div>
+                </div>
+                <div class="form-group">
+                  <label>Citizenship <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="nationality"
+                    class="form-control"
+                    placeholder="Filipino"
+                    required
+                  />
+                  <div class="error-message" id="error-nationality"></div>
+                </div>
+              </div>
+
+              <!-- Contact Details Section -->
+              <div class="section-title">Contact Details</div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Email Address <span style="color: red">*</span></label>
+                  <div id="email-container">
+                    <div class="field-wrapper">
+                      <input
+                        type="email"
+                        name="emails[]"
+                        class="form-control email-input"
+                        placeholder="example@gmail.com"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button type="button" class="add-more-btn" id="add-email">
+                    + Add Another Email
+                  </button>
+                  <div class="error-message" id="error-emails"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Phone Numbers <span style="color: red">*</span></label>
+                  <div id="phone-container">
+                    <div class="field-wrapper phone-wrapper">
+                      <div class="phone-input-group">
+                        <select
+                          name="phone_country_codes[]"
+                          class="form-control phone-country-code"
+                          required
+                        >
+                          <option value="">Loading...</option>
+                        </select>
+                        <input
+                          type="tel"
+                          name="phone_numbers[]"
+                          class="form-control phone-input"
+                          placeholder="9123456789"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" class="add-more-btn" id="add-phone">
+                    + Add Another Phone
+                  </button>
+                  <div class="error-message" id="error-phones"></div>
+                </div>
+              </div>
+
+              <!-- Financial Details Section -->
+              <div class="section-title">Financial Details</div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Account Type <span style="color: red">*</span></label>
+                  <select name="account_type" class="form-control" required>
+                    <option value="">Select Account Type</option>
+                    <option value="Savings">Savings Account</option>
+                    <option value="Checking">Checking Account</option>
+                  </select>
+                  <div class="error-message" id="error-account_type"></div>
+                </div>
+                <div class="form-group">
+                  <label>Source of Funds</label>
+                  <select name="source_of_funds" class="form-control">
+                    <option value="">Select Source</option>
+                    <option value="Employment">Employment</option>
+                    <option value="Business">Business</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Employment Status</label>
+                  <select name="employment_status" class="form-control">
+                    <option value="">Select Status</option>
+                    <option value="Employed">Employed</option>
+                    <option value="Self-Employed">Self-Employed</option>
+                    <option value="Unemployed">Unemployed</option>
+                    <option value="Retired">Retired</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Name of Employer</label>
+                  <input
+                    type="text"
+                    name="employer_name"
+                    class="form-control"
+                    placeholder="Company Name"
+                  />
+                </div>
+                <div class="form-group form-group-large">
+                  <label>Employer Address</label>
+                  <input
+                    type="text"
+                    name="employer_address"
+                    class="form-control"
+                    placeholder="123 Bldg. Metro Manila"
+                  />
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="button-group">
+                <button type="submit" class="btn btn-continue">Continue</button>
+                <button
+                  type="button"
+                  class="btn btn-cancel"
+                  onclick="window.location.href='/'"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Detect API path dynamically based on current page location
+      function getApiBaseUrl() {
+        // Get the current page path
+        const currentPath = window.location.pathname;
+        
+        // If we're in /public/, go up one level to find /api/
+        if (currentPath.includes('/public/')) {
+          const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
+          return window.location.origin + basePath + '/api';
+        }
+        
+        // Fallback: construct from known structure
+        const pathParts = currentPath.split('/');
+        const basicOpIndex = pathParts.indexOf('Basic-operation');
+        if (basicOpIndex !== -1) {
+          const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
+          return window.location.origin + basePath + '/api';
+        }
+        
+        // Final fallback
+        return window.location.origin + '/bank-system/Basic-operation/api';
+      }
+      
+      // API Base URL
+      const API_BASE_URL = getApiBaseUrl();
+      console.log('API Base URL:', API_BASE_URL);
+
+      let countryCodes = [];
+      let emailCount = 1;
+      let phoneCount = 1;
+
+      // Load country codes on page load
+      document.addEventListener("DOMContentLoaded", async function () {
+        await loadCountryCodes();
+        setupFormHandlers();
+        restoreFormData(); // Restore data if coming back from step 2
+      });
+
+      // Load country codes from API
+      async function loadCountryCodes() {
+        try {
+          const apiUrl = `${API_BASE_URL}/common/get-country-codes.php`;
+          console.log("Loading country codes from:", apiUrl);
+          
+          const response = await fetch(apiUrl);
+
+          console.log("Country codes response status:", response.status);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          // Check content type
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await response.text();
+            console.error("Expected JSON but got:", text.substring(0, 200));
+            throw new Error("Server returned non-JSON response");
+          }
+
+          const result = await response.json();
+          console.log("Country codes result:", result);
+
+          if (result.success && result.data && result.data.length > 0) {
+            countryCodes = result.data;
+            console.log("Loaded", countryCodes.length, "country codes");
+            populateCountryCodeDropdowns();
+          } else {
+            console.warn("No country codes in response, using fallback");
+            throw new Error(result.message || "No country codes returned");
+          }
+        } catch (error) {
+          console.error("Error loading country codes:", error);
+          // Fallback to default Philippines
+          countryCodes = [
+            {
+              country_code_id: 1,
+              country_name: "Philippines",
+              phone_code: "+63",
+              iso_code: "PH",
+            },
+            {
+              country_code_id: 2,
+              country_name: "United States",
+              phone_code: "+1",
+              iso_code: "US",
+            },
+            {
+              country_code_id: 3,
+              country_name: "United Kingdom",
+              phone_code: "+44",
+              iso_code: "GB",
+            },
+            {
+              country_code_id: 4,
+              country_name: "Singapore",
+              phone_code: "+65",
+              iso_code: "SG",
+            },
+            {
+              country_code_id: 5,
+              country_name: "Malaysia",
+              phone_code: "+60",
+              iso_code: "MY",
+            },
+          ];
+          console.log("Using fallback country codes:", countryCodes.length);
+          populateCountryCodeDropdowns();
+        }
+      }
+
+      // Populate all country code dropdowns
+      function populateCountryCodeDropdowns() {
+        const selects = document.querySelectorAll(".phone-country-code");
+        console.log("Populating", selects.length, "country code dropdowns");
+        
+        if (countryCodes.length === 0) {
+          console.error("No country codes available to populate!");
+          return;
+        }
+        
+        selects.forEach((select, index) => {
+          if (!select) {
+            console.warn("Select element not found at index", index);
+            return;
+          }
+          
+          const options = countryCodes
+            .map(
+              (cc) =>
+                `<option value="${cc.country_code_id}" ${
+                  cc.iso_code === "PH" ? "selected" : ""
+                }>
+              ${cc.phone_code} ${cc.country_name}
+            </option>`
+            )
+            .join("");
+          
+          select.innerHTML = options;
+          console.log("Populated dropdown", index, "with", countryCodes.length, "options");
+        });
+        
+        // Verify dropdowns are populated
+        const verifySelects = document.querySelectorAll(".phone-country-code");
+        verifySelects.forEach((select, index) => {
+          if (select.options.length === 0) {
+            console.error("Dropdown", index, "is still empty after population!");
+          } else {
+            console.log("Dropdown", index, "has", select.options.length, "options");
+          }
+        });
+      }
+
+      // Setup form handlers
+      function setupFormHandlers() {
+        // Add email button
+        document
+          .getElementById("add-email")
+          .addEventListener("click", addEmailField);
+
+        // Add phone button
+        document
+          .getElementById("add-phone")
+          .addEventListener("click", addPhoneField);
+
+        // Form submission
+        document
+          .getElementById("accountCreationForm")
+          .addEventListener("submit", handleFormSubmit);
+
+        // Real-time duplicate checking
+        document.addEventListener(
+          "blur",
+          function (e) {
+            if (e.target.classList.contains("email-input")) {
+              checkDuplicate("email", e.target.value, e.target);
+            } else if (e.target.classList.contains("phone-input")) {
+              const phoneWrapper = e.target.closest(".phone-wrapper");
+              const countryCodeSelect = phoneWrapper.querySelector(
+                ".phone-country-code"
+              );
+              const countryCode = countryCodes.find(
+                (cc) => cc.country_code_id == countryCodeSelect.value
+              );
+              const fullPhone = countryCode.phone_code + e.target.value;
+              checkDuplicate("phone", fullPhone, e.target);
+            }
+          },
+          true
+        );
+      }
+
+      // Add email field
+      function addEmailField() {
+        emailCount++;
+        const container = document.getElementById("email-container");
+        const wrapper = document.createElement("div");
+        wrapper.className = "field-wrapper";
+        wrapper.innerHTML = `
+          <input type="email" name="emails[]" class="form-control email-input" placeholder="example@gmail.com" required />
+          <button type="button" class="remove-field-btn" onclick="this.parentElement.remove()">Remove</button>
+        `;
+        container.appendChild(wrapper);
+      }
+
+      // Add phone field
+      function addPhoneField() {
+        phoneCount++;
+        const container = document.getElementById("phone-container");
+        const wrapper = document.createElement("div");
+        wrapper.className = "field-wrapper phone-wrapper";
+        wrapper.innerHTML = `
+          <div class="phone-input-group">
+            <select name="phone_country_codes[]" class="form-control phone-country-code" required></select>
+            <input type="tel" name="phone_numbers[]" class="form-control phone-input" placeholder="9123456789" required />
+          </div>
+          <button type="button" class="remove-field-btn" onclick="this.parentElement.remove()">Remove</button>
+        `;
+        container.appendChild(wrapper);
+
+        // Populate the new dropdown
+        const newSelect = wrapper.querySelector(".phone-country-code");
+        newSelect.innerHTML = countryCodes
+          .map(
+            (cc) =>
+              `<option value="${cc.country_code_id}" ${
+                cc.iso_code === "PH" ? "selected" : ""
+              }>
+            ${cc.phone_code} ${cc.country_name}
+          </option>`
+          )
+          .join("");
+      }
+
+      // Check for duplicates
+      async function checkDuplicate(type, value, inputElement) {
+        if (!value) return;
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/customer/check-duplicate.php`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type, value }),
+            }
+          );
+
+          const result = await response.json();
+
+          if (result.exists) {
+            inputElement.classList.add("error");
+            showError(inputElement, result.message);
+          } else {
+            inputElement.classList.remove("error");
+            hideError(inputElement);
+          }
+        } catch (error) {
+          console.error("Error checking duplicate:", error);
+        }
+      }
+
+      // Handle form submission
+      async function handleFormSubmit(e) {
+        e.preventDefault();
+
+        // Clear previous errors
+        clearAllErrors();
+
+        // Collect form data
+        const formData = collectFormData();
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/customer/create-step1.php`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formData),
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Server error:", errorText);
+            alert("Server error. Please try again.");
+            return;
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Save form data to sessionStorage for back button
+            saveFormData(formData);
+            // Mark step 1 as completed
+            sessionStorage.setItem("step1_completed", "true");
+            // Redirect to step 2
+            window.location.href = "customer-onboarding-security.html";
+          } else {
+            // Show validation errors
+            if (result.errors) {
+              displayErrors(result.errors);
+            } else {
+              alert(result.message || "An error occurred");
+            }
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert(
+            "Could not connect to server. Please ensure XAMPP is running and try again."
+          );
+        }
+      }
+
+      // Collect form data
+      function collectFormData() {
+        const form = document.getElementById("accountCreationForm");
+        const formData = new FormData(form);
+
+        // Convert FormData to object
+        const data = {};
+
+        // Handle regular fields
+        for (let [key, value] of formData.entries()) {
+          if (key.includes("[]")) {
+            const cleanKey = key.replace("[]", "");
+            if (!data[cleanKey]) data[cleanKey] = [];
+            data[cleanKey].push(value);
+          } else {
+            data[key] = value;
+          }
+        }
+
+        // Format emails array
+        data.emails = data.emails || [];
+
+        // Format phones array with country codes
+        if (data.phone_country_codes && data.phone_numbers) {
+          data.phones = data.phone_country_codes.map((codeId, index) => {
+            const cc = countryCodes.find((c) => c.country_code_id == codeId);
+
+            if (!cc) {
+              return {
+                country_code_id: codeId,
+                number: data.phone_numbers[index],
+                full_number: "+63" + data.phone_numbers[index],
+              };
+            }
+
+            return {
+              country_code_id: codeId,
+              number: data.phone_numbers[index],
+              full_number: cc.phone_code + data.phone_numbers[index],
+            };
+          });
+          delete data.phone_country_codes;
+          delete data.phone_numbers;
+        }
+
+        return data;
+      } // Display validation errors
+      function displayErrors(errors) {
+        for (let [field, message] of Object.entries(errors)) {
+          const input = document.querySelector(`[name="${field}"]`);
+          if (input) {
+            input.classList.add("error");
+            showError(input, message);
+          } else {
+            // Handle array field errors (email_0, phone_0, etc.)
+            const errorElement = document.getElementById(`error-${field}`);
+            if (errorElement) {
+              errorElement.textContent = message;
+              errorElement.classList.add("show");
+            }
+          }
+        }
+      }
+
+      // Show error message
+      function showError(inputElement, message) {
+        const wrapper =
+          inputElement.closest(".field-wrapper") || inputElement.parentElement;
+        let errorDiv = wrapper.querySelector(".duplicate-warning");
+        if (!errorDiv) {
+          errorDiv = document.createElement("div");
+          errorDiv.className = "duplicate-warning";
+          wrapper.appendChild(errorDiv);
+        }
+        errorDiv.textContent = message;
+      }
+
+      // Hide error message
+      function hideError(inputElement) {
+        const wrapper =
+          inputElement.closest(".field-wrapper") || inputElement.parentElement;
+        const errorDiv = wrapper.querySelector(".duplicate-warning");
+        if (errorDiv) {
+          errorDiv.remove();
+        }
+      }
+
+      // Clear all errors
+      function clearAllErrors() {
+        document
+          .querySelectorAll(".form-control")
+          .forEach((el) => el.classList.remove("error"));
+        document.querySelectorAll(".error-message").forEach((el) => {
+          el.textContent = "";
+          el.classList.remove("show");
+        });
+        document
+          .querySelectorAll(".duplicate-warning")
+          .forEach((el) => el.remove());
+      }
+
+      // Save form data to sessionStorage
+      function saveFormData(data) {
+        sessionStorage.setItem("step1_formData", JSON.stringify(data));
+      }
+
+      // Restore form data from sessionStorage
+      function restoreFormData() {
+        const savedData = sessionStorage.getItem("step1_formData");
+        if (!savedData) return;
+
+        try {
+          const data = JSON.parse(savedData);
+
+          // Restore regular fields
+          for (let [key, value] of Object.entries(data)) {
+            if (key === "emails" || key === "phones") continue;
+
+            const input = document.querySelector(`[name="${key}"]`);
+            if (input) {
+              input.value = value;
+            }
+          }
+
+          // Restore emails
+          if (data.emails && data.emails.length > 0) {
+            const emailContainer = document.getElementById("email-container");
+            // Clear existing
+            emailContainer.innerHTML = "";
+
+            data.emails.forEach((email, index) => {
+              if (index === 0) {
+                // First email field already exists
+                const wrapper = document.createElement("div");
+                wrapper.className = "field-wrapper";
+                wrapper.innerHTML = `
+                  <input type="email" name="emails[]" class="form-control email-input" placeholder="example@gmail.com" required value="${email}" />
+                `;
+                emailContainer.appendChild(wrapper);
+              } else {
+                // Add additional email fields
+                const wrapper = document.createElement("div");
+                wrapper.className = "field-wrapper";
+                wrapper.innerHTML = `
+                  <input type="email" name="emails[]" class="form-control email-input" placeholder="example@gmail.com" required value="${email}" />
+                  <button type="button" class="remove-field-btn" onclick="this.parentElement.remove()">Remove</button>
+                `;
+                emailContainer.appendChild(wrapper);
+              }
+            });
+          }
+
+          // Restore phones
+          if (data.phones && data.phones.length > 0) {
+            const phoneContainer = document.getElementById("phone-container");
+            phoneContainer.innerHTML = "";
+
+            data.phones.forEach((phone, index) => {
+              const wrapper = document.createElement("div");
+              wrapper.className = "field-wrapper phone-wrapper";
+
+              if (index === 0) {
+                wrapper.innerHTML = `
+                  <div class="phone-input-group">
+                    <select name="phone_country_codes[]" class="form-control phone-country-code" required></select>
+                    <input type="tel" name="phone_numbers[]" class="form-control phone-input" placeholder="9123456789" required value="${phone.number}" />
+                  </div>
+                `;
+              } else {
+                wrapper.innerHTML = `
+                  <div class="phone-input-group">
+                    <select name="phone_country_codes[]" class="form-control phone-country-code" required></select>
+                    <input type="tel" name="phone_numbers[]" class="form-control phone-input" placeholder="9123456789" required value="${phone.number}" />
+                  </div>
+                  <button type="button" class="remove-field-btn" onclick="this.parentElement.remove()">Remove</button>
+                `;
+              }
+
+              phoneContainer.appendChild(wrapper);
+
+              // Populate country code dropdown and select correct value
+              const select = wrapper.querySelector(".phone-country-code");
+              select.innerHTML = countryCodes
+                .map(
+                  (cc) =>
+                    `<option value="${cc.country_code_id}" ${
+                      cc.country_code_id == phone.country_code_id
+                        ? "selected"
+                        : ""
+                    }>
+                  ${cc.phone_code} ${cc.country_name}
+                </option>`
+                )
+                .join("");
+            });
+          }
+        } catch (error) {
+          console.error("Error restoring form data:", error);
+        }
+      }
+    </script>
+    <script src="../assets/js/custom-validation.js"></script>
+  </body>
+</html>

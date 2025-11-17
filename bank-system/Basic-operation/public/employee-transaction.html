@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Employee Transaction - Evergreen Bank</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets//css/employee-transaction.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+          <img
+            src="../assets/img/evergreen_icon2.png"
+            alt="Logo"
+            class="logo"
+          />
+          <span class="brand-text">EVERGREEN</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="navbarNav"
+        >
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link active"
+                href="employee-transaction.html"
+                id="navbar-transactions-link"
+                >Transactions</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="transaction-history.html"
+                >Transaction History</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="d-flex align-items-center ms-auto gap-2">
+          <span class="username-text me-2">Username</span>
+          <div class="user-avatar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" fill="#003631" />
+              <circle cx="12" cy="9" r="3" fill="white" />
+              <path
+                d="M6 18.5C6 16.5 8.5 15 12 15C15.5 15 18 16.5 18 18.5"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+      <div class="row g-0">
+        <!-- Sidebar -->
+        <div class="col-auto sidebar">
+          <h4 class="sidebar-title">Transactions</h4>
+          <div class="transaction-buttons">
+            <button class="btn transaction-btn active">
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+              Withdraw
+            </button>
+            <button class="btn transaction-btn">
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="12" y1="12" x2="12" y2="16" />
+                <line x1="10" y1="14" x2="14" y2="14" />
+              </svg>
+              Deposit
+            </button>
+          </div>
+        </div>
+
+        <!-- Transaction Form -->
+        <div class="col content-area">
+          <div class="transaction-card">
+            <h3 class="transaction-title">Withdraw</h3>
+            <hr class="title-divider" />
+
+            <form id="transactionForm">
+              <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                  <label for="accountNumber" class="form-label"
+                    >Account Number</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control custom-input"
+                    id="accountNumber"
+                    placeholder="CHA-XXXX-XXXX or SA-XXXX-XXXX"
+                    maxlength="13"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label for="transactionDate" class="form-label"
+                    >Transaction Date</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control custom-input"
+                    id="transactionDate"
+                    placeholder="Default Date & Time"
+                    readonly
+                  />
+                </div>
+              </div>
+
+              <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                  <label for="name" class="form-label">Name</label>
+                  <input
+                    type="text"
+                    class="form-control custom-input"
+                    id="name"
+                    placeholder="Juan Dela Cruz"
+                    readonly
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label for="currentBalance" class="form-label"
+                    >Current Balance</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control custom-input"
+                    id="currentBalance"
+                    placeholder="Default Balance"
+                    readonly
+                  />
+                </div>
+              </div>
+
+              <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                  <label for="withdrawAmount" class="form-label"
+                    >Withdraw Amount</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control custom-input"
+                    id="withdrawAmount"
+                    placeholder="PHP 000,000"
+                  />
+                </div>
+              </div>
+
+              <div class="button-group">
+                <button type="submit" class="btn submit-btn">Submit</button>
+                <button type="button" class="btn cancel-btn">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spacer for footer -->
+    <div class="footer-spacer"></div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container-fluid px-4">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <p class="footer-text mb-0">
+              © 2023 Evergreen Bank. All rights reserved.
+            </p>
+            <p class="footer-small mb-0">
+              Member FDIC. Equal Housing Lender. Evergreen Bank, N.A.
+            </p>
+          </div>
+          <div class="col-md-6 text-md-end mt-2 mt-md-0">
+            <a href="#" class="footer-link">Privacy Policy</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">Terms and Agreements</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">FAQS</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">About Us</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/employee-transaction.js"></script>
+  </body>
+</html>

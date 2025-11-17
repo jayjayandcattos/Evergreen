@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evergreen - Review Your Information</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="../assets/css/customer-onboarding-review.css"
+    />
+  </head>
+  <body>
+    <div class="page-container">
+      <div class="main-card">
+        <!-- Header -->
+        <div class="header-section">
+          <div class="logo-container">
+            <img
+              src="../assets/img/evergreen_icon.png"
+              alt="Logo"
+              class="logo"
+            />
+            <div class="logo-placeholder">
+              <div class="logo-text">
+                <span class="brand-name">EVERGREEN</span>
+                <span class="brand-tagline">Secure. Invest. Achieve</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+          <h5>Step 3 of 3: Review Your Information</h5>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-wrapper">
+          <!-- Sidebar Navigation -->
+          <div class="sidebar">
+            <div class="nav-item">
+              <span class="nav-number">1.</span> Personal Details
+            </div>
+            <div class="nav-item">
+              <span class="nav-number">2.</span> Security
+            </div>
+            <div class="nav-item active">
+              <span class="nav-number">3.</span> Review
+            </div>
+          </div>
+
+          <!-- Main Form Content -->
+          <div class="form-section">
+            <div class="review-content">
+              <!-- Main Title -->
+              <h4 class="main-title">Review Your Information</h4>
+
+              <!-- Single White Card with All Content -->
+              <div class="review-card">
+                <div class="review-scroll-area">
+                  <!-- Personal Details Section -->
+                  <div class="detail-section" id="section-personal-details">
+                    <div class="section-header-inline">
+                      <h5 class="section-subtitle">Personal Details</h5>
+                      <button type="button" class="btn-edit-icon">
+                        <span>Edit</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path
+                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                          ></path>
+                          <path
+                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="detail-list">
+                      <div class="detail-item">
+                        <span class="label">Full Name</span>
+                        <span class="value" id="review-full-name"
+                          >Juan Dela Cruz</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Home Address</span>
+                        <span class="value" id="review-address"
+                          >29 Sinforosa st. Brgy. Nagkaisas, Metro Manila,
+                          Philippines</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">City</span>
+                        <span class="value" id="review-city">Quezon City</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Province</span>
+                        <span class="value" id="review-province"
+                          >Metro Manila</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Postal Code</span>
+                        <span class="value" id="review-postal-code">1100</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Gender</span>
+                        <span class="value" id="review-gender">Male</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Date of Birth</span>
+                        <span class="value" id="review-birth-date"
+                          >January 1, 1997</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Place of Birth</span>
+                        <span class="value" id="review-birth-place"
+                          >Quezon City</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Civil Status</span>
+                        <span class="value" id="review-civil-status"
+                          >Single</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Nationality</span>
+                        <span class="value" id="review-nationality"
+                          >Filipino</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Divider Line -->
+                  <div class="section-divider"></div>
+
+                  <!-- Contact Details Section -->
+                  <div class="detail-section" id="section-contact-details">
+                    <div class="section-header-inline">
+                      <h5 class="section-subtitle">Contact Details</h5>
+                      <button type="button" class="btn-edit-icon">
+                        <span>Edit</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path
+                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                          />
+                          <path
+                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="detail-list">
+                      <div class="detail-item">
+                        <span class="label">Email Address</span>
+                        <span class="value" id="review-email"
+                          >juandelacruz@gmail.com</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Mobile Number</span>
+                        <span class="value" id="review-mobile"
+                          >0912 345 6789</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Divider Line -->
+                  <div class="section-divider"></div>
+
+                  <!-- Employment Information Section -->
+                  <div
+                    class="detail-section"
+                    id="section-employment-information"
+                  >
+                    <div class="section-header-inline">
+                      <h5 class="section-subtitle">Employment Information</h5>
+                      <button type="button" class="btn-edit-icon">
+                        <span>Edit</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path
+                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                          ></path>
+                          <path
+                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="detail-list">
+                      <div class="detail-item">
+                        <span class="label">Employment Status</span>
+                        <span class="value" id="review-occupation"
+                          >Employed</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Employer Name</span>
+                        <span class="value" id="review-employer"
+                          >ABC Corporation</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Source of Funds</span>
+                        <span class="value" id="review-annual-income"
+                          >Employment</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Divider Line -->
+                  <div class="section-divider"></div>
+
+                  <!-- Account Security Section -->
+                  <div class="detail-section" id="section-account-security">
+                    <div class="section-header-inline">
+                      <h5 class="section-subtitle">Account Security</h5>
+                      <button type="button" class="btn-edit-icon">
+                        <span>Edit</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path
+                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                          ></path>
+                          <path
+                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="detail-list">
+                      <div class="detail-item">
+                        <span class="label">Username</span>
+                        <span class="value" id="review-username"
+                          >juandc123</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Password</span>
+                        <span class="value" id="review-password">••••••••</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Terms and Conditions Checkbox -->
+              <div class="terms-section">
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="terms-checkbox"
+                  />
+                  <label class="form-check-label" for="terms-checkbox">
+                    I have reviewed and confirm that all the information
+                    provided is accurate and I agree to the Evergreen Bank's
+                    <a href="#" class="terms-link">Terms and Conditions</a>
+                  </label>
+                  <div
+                    id="terms-error"
+                    class="text-danger"
+                    style="font-size: 0.875rem; margin-top: 0.25rem"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="button-group">
+                <button type="button" class="btn btn-confirm" id="submit-btn">
+                  <span class="btn-text">Confirm</span>
+                  <span
+                    class="spinner-border spinner-border-sm d-none"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                </button>
+                <button type="button" class="btn btn-back" id="back-btn">
+                  Back
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div
+      class="modal fade"
+      id="successModal"
+      tabindex="-1"
+      aria-labelledby="successModalLabel"
+      aria-hidden="true"
+      data-bs-backdrop="static"
+      data-bs-keyboard="false"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content success-modal-content">
+          <div class="modal-body">
+            <h1 class="success-title">Account Created Successfully!</h1>
+
+            <div class="success-icon">
+              <svg
+                width="120"
+                height="120"
+                viewBox="0 0 120 120"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx="60" cy="60" r="60" fill="#81C784" />
+                <path
+                  d="M35 60L52 77L85 44"
+                  stroke="white"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div class="account-info">
+              <p class="account-label">Account Number</p>
+              <p class="account-number">143824123098</p>
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-back-home"
+              data-bs-dismiss="modal"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Show success modal when Confirm button is clicked
+      document
+        .getElementById("confirmBtn")
+        .addEventListener("click", function () {
+          // Here you would normally do form validation and submit data to backend
+          // For now, we'll just show the success modal
+
+          var successModal = new bootstrap.Modal(
+            document.getElementById("successModal")
+          );
+          successModal.show();
+        });
+
+      // Optional: Redirect to home page when "Back to Home" is clicked
+      document
+        .querySelector(".btn-back-home")
+        .addEventListener("click", function () {
+          // Redirect to home page (update the URL as needed)
+          // window.location.href = 'employee-dashboard.html';
+        });
+    </script>
+    <script src="../assets/js/customer-onboarding-review.js"></script>
+  </body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transaction History - Evergreen Bank</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/transaction-history.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+          <img
+            src="../assets/img/evergreen_icon2.png"
+            alt="Logo"
+            class="logo"
+          />
+          <span class="brand-text">EVERGREEN</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="navbarNav"
+        >
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="employee-transaction.html"
+                >Transactions</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="transaction-history.html"
+                >Transaction History</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="d-flex align-items-center ms-auto gap-2">
+          <span class="username-text me-2">Username</span>
+          <div class="user-avatar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" fill="#003631" />
+              <circle cx="12" cy="9" r="3" fill="white" />
+              <path
+                d="M6 18.5C6 16.5 8.5 15 12 15C15.5 15 18 16.5 18 18.5"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="container-fluid px-4">
+        <h1 class="page-title">Transaction History</h1>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+          <div class="filter-row">
+            <!-- RIGHT: Transaction Type Dropdown -->
+            <div class="filter-row-right">
+              <div class="filter-item">
+                <select class="form-select filter-select" id="transactionType">
+                  <option selected>All Transaction Types</option>
+                  <option value="withdrawal">Withdrawal</option>
+                  <option value="deposit">Deposit</option>
+                  <option value="transfer">Transfer</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- CENTER: Date Filter Buttons -->
+            <div class="filter-row-center">
+              <button class="btn filter-btn date-group">Last 30 Days</button>
+              <button class="btn filter-btn">Last Month</button>
+              <button class="btn filter-btn">This Year</button>
+            </div>
+
+            <!-- LEFT: Date Range Inputs -->
+            <div class="filter-row-left">
+              <div class="filter-item date-input-group">
+                <input
+                  type="text"
+                  class="form-control date-input"
+                  placeholder="From Date"
+                  id="fromDate"
+                />
+                <span class="calendar-icon">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect
+                      x="3"
+                      y="4"
+                      width="18"
+                      height="18"
+                      rx="2"
+                      ry="2"
+                    ></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                </span>
+              </div>
+
+              <div class="filter-item date-input-group">
+                <input
+                  type="text"
+                  class="form-control date-input"
+                  placeholder="To Date"
+                  id="toDate"
+                />
+                <span class="calendar-icon">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect
+                      x="3"
+                      y="4"
+                      width="18"
+                      height="18"
+                      rx="2"
+                      ry="2"
+                    ></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Export Button -->
+          <div class="export-section">
+            <a href="#" class="export-link">Export to CSV/PDF</a>
+          </div>
+        </div>
+
+        <!-- Transaction Table -->
+        <div class="table-container">
+          <table class="transaction-table">
+            <thead>
+              <tr>
+                <th>Date and Time</th>
+                <th>Transaction ID</th>
+                <th>Account No.</th>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Method</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Transactions will be loaded dynamically -->
+              <tr>
+                <td colspan="8" style="text-align: center; padding: 40px">
+                  Loading transactions...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div
+      class="modal fade"
+      id="exportModal"
+      tabindex="-1"
+      aria-labelledby="exportModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content export-modal-content">
+          <div class="modal-header export-modal-header">
+            <h5 class="modal-title export-modal-title" id="exportModalLabel">
+              Export Transaction History
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body export-modal-body">
+            <p class="export-info">Choose your preferred export format:</p>
+            <div class="export-options">
+              <button class="export-option-btn" id="exportCSV">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span class="export-format-name">CSV File</span>
+                <span class="export-format-desc">Spreadsheet format</span>
+              </button>
+              <button class="export-option-btn" id="exportPDF">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <circle cx="12" cy="15" r="3"></circle>
+                </svg>
+                <span class="export-format-name">PDF File</span>
+                <span class="export-format-desc">Document format</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container-fluid px-4">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <p class="footer-text mb-0">
+              © 2023 Evergreen Bank. All rights reserved.
+            </p>
+            <p class="footer-small mb-0">
+              Member FDIC. Equal Housing Lender. Evergreen Bank, N.A.
+            </p>
+          </div>
+          <div class="col-md-6 text-md-end mt-2 mt-md-0">
+            <a href="#" class="footer-link">Privacy Policy</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">Terms and Agreements</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">FAQS</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">About Us</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/transaction-history.js?v=4"></script>
+  </body>
+</html>

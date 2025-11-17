@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evergreen - Security & Credentials</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="../assets/css/customer-onboarding-security.css"
+    />
+  </head>
+  <body>
+    <div class="page-container">
+      <div class="main-card">
+        <!-- Header -->
+        <div class="header-section">
+          <div class="logo-container">
+            <img
+              src="../assets/img/evergreen_icon.png"
+              alt="Logo"
+              class="logo"
+            />
+            <div class="logo-placeholder">
+              <div class="logo-text">
+                <span class="brand-name">EVERGREEN</span>
+                <span class="brand-tagline">Secure. Invest. Achieve</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+          <h5>Step 2 of 3: Security & Credentials</h5>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-wrapper">
+          <!-- Sidebar Navigation -->
+          <div class="sidebar">
+            <div class="nav-item">
+              <span class="nav-number">1.</span> Personal Details
+            </div>
+            <div class="nav-item active">
+              <span class="nav-number">2.</span> Security
+            </div>
+            <div class="nav-item">
+              <span class="nav-number">3.</span> Review
+            </div>
+          </div>
+
+          <!-- Main Form Content -->
+          <div class="form-section">
+            <form id="securityForm">
+              <!-- Security & Credentials Section -->
+              <div class="section-title">Security & Credentials</div>
+
+              <div class="security-layout">
+                <!-- Left Column: Credentials -->
+                <div class="credentials-column">
+                  <div class="subsection-title">Create your Credentials</div>
+
+                  <div class="form-group">
+                    <label>Password <span style="color: red">*</span></label>
+                    <input
+                      type="password"
+                      name="password"
+                      class="form-control"
+                      placeholder="************"
+                      required
+                    />
+                    <small style="color: #666; font-size: 11px">
+                      Must contain: 8+ characters, uppercase, lowercase, number,
+                      and special character
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label
+                      >Confirm Password <span style="color: red">*</span></label
+                    >
+                    <input
+                      type="password"
+                      name="confirm_password"
+                      class="form-control"
+                      placeholder="************"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <!-- Right Column: MFA -->
+                <div class="mfa-column">
+                  <div class="subsection-title">
+                    Multi-factor Authentication (MFA)
+                  </div>
+
+                  <div class="form-group">
+                    <label
+                      >Mobile Number <span style="color: red">*</span></label
+                    >
+                    <div class="mobile-input-group">
+                      <select
+                        name="phone_country_code"
+                        class="form-control phone-country-code"
+                        required
+                        style="width: 200px; flex: none"
+                      >
+                        <option value="">Loading...</option>
+                      </select>
+                      <input
+                        type="tel"
+                        name="mobile_number"
+                        class="form-control"
+                        placeholder="9123456789"
+                        required
+                        style="flex: 1"
+                      />
+                      <button type="button" class="btn btn-send-code">
+                        Send Code
+                      </button>
+                    </div>
+                    <small style="color: #666; font-size: 11px">
+                      Select country code and enter your number
+                    </small>
+                  </div>
+
+                  <div class="form-group">
+                    <label
+                      >Verification Code
+                      <span style="color: red">*</span></label
+                    >
+                    <div class="code-inputs">
+                      <input
+                        type="text"
+                        class="code-box"
+                        maxlength="1"
+                        disabled
+                      />
+                      <input
+                        type="text"
+                        class="code-box"
+                        maxlength="1"
+                        disabled
+                      />
+                      <input
+                        type="text"
+                        class="code-box"
+                        maxlength="1"
+                        disabled
+                      />
+                      <input
+                        type="text"
+                        class="code-box"
+                        maxlength="1"
+                        disabled
+                      />
+                    </div>
+
+                    <!-- Mock Code Display for Testing -->
+                    <div
+                      class="mock-code-display"
+                      id="mockCodeDisplay"
+                      style="display: none"
+                    >
+                      <div class="mock-code-header">
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path
+                            d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                          ></path>
+                          <polyline points="17 8 12 3 7 8"></polyline>
+                          <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Test Mode - Your Verification Code:</span>
+                      </div>
+                      <div class="mock-code-value" id="mockCodeValue">0000</div>
+                      <small class="mock-code-note"
+                        >This is only visible in test mode. In production, codes
+                        will be sent via SMS.</small
+                      >
+                    </div>
+
+                    <div class="resend-text">
+                      Didn't receive the code?
+                      <a href="#" class="resend-link">Resend Code</a>
+                      <div class="timer-text"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="button-group">
+                <button type="submit" class="btn btn-continue">Continue</button>
+                <button type="button" class="btn btn-cancel">Cancel</button>
+                <button type="button" class="btn btn-back">Back</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Auto-focus next code input box
+      document.querySelectorAll(".code-box").forEach((input, index, inputs) => {
+        input.addEventListener("input", (e) => {
+          if (e.target.value.length === 1 && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          }
+        });
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && e.target.value === "" && index > 0) {
+            inputs[index - 1].focus();
+          }
+        });
+      });
+    </script>
+    <script src="../assets/js/customer-onboarding-security.js"></script>
+  </body>
+</html>
