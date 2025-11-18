@@ -322,16 +322,6 @@ $current_user = getCurrentUser();
                             <label for="transaction-to">To</label>
                             <input type="date" id="transaction-to" class="gl-input">
                         </div>
-                        <div class="gl-toolbar__field gl-toolbar__field--compact">
-                            <label for="transaction-type">Type</label>
-                            <select id="transaction-type" class="gl-select">
-                                <option value="">All types</option>
-                                <option value="sale">Sales</option>
-                                <option value="purchase">Purchases</option>
-                                <option value="payment">Payments</option>
-                                <option value="receipt">Receipts</option>
-                            </select>
-                        </div>
                     </div>
                     <div class="gl-toolbar__actions">
                         <button class="btn-filter" type="button" onclick="applyTransactionFilter()">

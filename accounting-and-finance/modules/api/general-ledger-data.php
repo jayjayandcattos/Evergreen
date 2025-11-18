@@ -76,6 +76,10 @@ try {
             echo json_encode(getAccountTypesList());
             break;
             
+        case 'get_bank_transaction_details':
+            echo json_encode(getBankTransactionDetails());
+            break;
+            
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
@@ -1543,6 +1547,62 @@ function getAccountTypesList() {
         return [
             'success' => true,
             'data' => ['Savings', 'Checking', 'Fixed Deposit', 'Loan']
+        ];
+    }
+}
+
+function getBankTransactionDetails() {
+    global $conn;
+    
+    try {
+        $transactionId = $_GET['id'] ?? '';
+        
+        if (empty($transactionId)) {
+            return ['success' => false, 'message' => 'Transaction ID is required'];
+        }
+        
+        $sql = "SELECT 
+                    bt.transaction_id,
+                    bt.transaction_ref,
+                    bt.account_id,
+                    bt.transaction_type_id,
+                    bt.amount,
+                    bt.description,
+                    bt.created_at,
+                    ca.account_number,
+                    tt.type_name as transaction_type
+                FROM bank_transactions bt
+                INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
+                INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                WHERE bt.transaction_id = ?
+                LIMIT 1";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('i', $transactionId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $transaction = $result->fetch_assoc();
+        
+        if (!$transaction) {
+            return ['success' => false, 'message' => 'Bank transaction not found'];
+        }
+        
+        return [
+            'success' => true,
+            'data' => [
+                'transaction_ref' => $transaction['transaction_ref'],
+                'account_number' => $transaction['account_number'],
+                'transaction_type' => $transaction['transaction_type'],
+                'amount' => (float)$transaction['amount'],
+                'description' => $transaction['description'] ?? 'Bank Transaction',
+                'created_at' => $transaction['created_at']
+            ]
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => $e->getMessage()
         ];
     }
 }

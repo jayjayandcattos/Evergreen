@@ -653,14 +653,12 @@ function loadTransactionsTable() {
     // Get filter parameters
     const dateFrom = document.getElementById('transaction-from')?.value || '';
     const dateTo = document.getElementById('transaction-to')?.value || '';
-    const type = document.getElementById('transaction-type')?.value || '';
 
     // Build query string
     const params = new URLSearchParams();
     params.append('action', 'get_transactions');
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
-    if (type) params.append('type', type);
 
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
@@ -694,15 +692,27 @@ function displayTransactionsTable(transactions) {
     
     let html = '';
     transactions.slice(0, 10).forEach((txn, index) => {
+        const rawId = txn.id || txn.entry_id || '';
+        const journalNo = escapeHtml(txn.journal_no || '');
+        const source = txn.source || 'journal';
+        // Extract numeric ID from string like "JE-123" or "BT-456"
+        let entryId = 0;
+        if (rawId) {
+            const match = rawId.toString().match(/(\d+)$/);
+            entryId = match ? parseInt(match[1]) : 0;
+        }
+        // Store the full ID and source in data attributes
         html += `
-            <tr style="animation-delay: ${index * 0.1}s" data-entry-id="${txn.id || ''}">
-                <td><strong class="transaction-id">${txn.journal_no}</strong></td>
-                <td><span class="transaction-date">${txn.entry_date}</span></td>
-                <td><span class="transaction-desc">${txn.description || '-'}</span></td>
-                <td class="text-end amount-debit">₱${formatCurrency(txn.total_debit)}</td>
-                <td class="text-end amount-credit">₱${formatCurrency(txn.total_credit)}</td>
+            <tr style="animation-delay: ${index * 0.1}s" data-entry-id="${rawId}" data-source="${source}">
+                <td><strong class="transaction-id">${escapeHtml(txn.journal_no || '-')}</strong></td>
+                <td><span class="transaction-date">${escapeHtml(txn.entry_date || '-')}</span></td>
+                <td><span class="transaction-desc">${escapeHtml(txn.description || '-')}</span></td>
+                <td class="text-end amount-debit">₱${formatCurrency(txn.total_debit || 0)}</td>
+                <td class="text-end amount-credit">₱${formatCurrency(txn.total_credit || 0)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewTransactionDetailsById(${txn.id || 0}, '${txn.journal_no}')">View</button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewTransactionDetailsById('${rawId}', '${journalNo}', '${source}')" title="View transaction details">
+                        <i class="fas fa-eye me-1"></i>View
+                    </button>
                 </td>
             </tr>
         `;
@@ -800,7 +810,6 @@ function resetAccountFilter() {
 function applyTransactionFilter() {
     const dateFrom = document.getElementById('transaction-from')?.value || '';
     const dateTo = document.getElementById('transaction-to')?.value || '';
-    const type = document.getElementById('transaction-type')?.value || '';
 
     if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
         showNotification('From date cannot be after To date', 'error');
@@ -814,11 +823,9 @@ function applyTransactionFilter() {
 function resetTransactionFilter() {
     const dateFromInput = document.getElementById('transaction-from');
     const dateToInput = document.getElementById('transaction-to');
-    const typeInput = document.getElementById('transaction-type');
 
     if (dateFromInput) dateFromInput.value = '';
     if (dateToInput) dateToInput.value = '';
-    if (typeInput) typeInput.value = '';
 
     showNotification('Transaction filters reset', 'info');
     loadTransactionsTable();
@@ -1158,12 +1165,46 @@ function getFallbackTransactions() {
 
 let currentJournalEntryId = null;
 
-function viewTransactionDetailsById(entryId, journalNo) {
-    if (entryId && entryId > 0) {
-        loadJournalEntryDetails(entryId);
+function viewTransactionDetailsById(entryId, journalNo, source = 'journal') {
+    console.log('View transaction details:', { entryId, journalNo, source });
+    
+    // Show loading state immediately
+    const modalBody = document.getElementById('journalEntryDetailBody');
+    if (!modalBody) {
+        showNotification('Error: Modal not found', 'error');
+        return;
+    }
+    
+    modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-3">Loading transaction details...</p></div>';
+    const modalElement = document.getElementById('journalEntryDetailModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+    
+    // Extract numeric ID from string like "JE-123" or "BT-456"
+    let numericId = 0;
+    if (entryId) {
+        const match = entryId.toString().match(/(\d+)$/);
+        numericId = match ? parseInt(match[1]) : 0;
+    }
+    
+    if (!numericId || numericId <= 0) {
+        console.warn('Invalid entry ID, trying journal number:', journalNo);
+        if (journalNo) {
+            viewTransactionDetails(journalNo);
+        } else {
+            showNotification('Transaction ID or journal number is required', 'error');
+            modalBody.innerHTML = '<div class="alert alert-danger">Invalid transaction ID</div>';
+        }
+        return;
+    }
+    
+    // Load details based on source
+    if (source === 'bank') {
+        loadBankTransactionDetails(numericId, journalNo);
     } else {
-        // Fallback to journal number search
-        viewTransactionDetails(journalNo);
+        loadJournalEntryDetails(numericId);
     }
 }
 
@@ -1188,24 +1229,153 @@ function viewTransactionDetails(journalNo) {
 }
 
 function loadJournalEntryDetails(entryId) {
+    console.log('Loading journal entry details for ID:', entryId);
+    
+    if (!entryId || entryId <= 0) {
+        showNotification('Invalid journal entry ID', 'error');
+        return;
+    }
+    
     fetch(`../modules/api/general-ledger-data.php?action=get_journal_entry_details&id=${entryId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            console.log('Journal entry details response:', data);
+            if (data.success && data.data) {
                 displayJournalEntryDetails(data.data);
                 currentJournalEntryId = entryId;
             } else {
-                showNotification(data.message || 'Error loading details', 'error');
+                const errorMsg = data.message || 'Error loading journal entry details';
+                console.error('API error:', errorMsg);
+                showNotification(errorMsg, 'error');
+                const modalBody = document.getElementById('journalEntryDetailBody');
+                if (modalBody) {
+                    modalBody.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtml(errorMsg)}</div>`;
+                }
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error loading journal entry details', 'error');
+            console.error('Error loading journal entry details:', error);
+            showNotification('Error loading journal entry details: ' + error.message, 'error');
+            const modalBody = document.getElementById('journalEntryDetailBody');
+            if (modalBody) {
+                modalBody.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error: ${escapeHtml(error.message)}</div>`;
+            }
         });
+}
+
+function loadBankTransactionDetails(transactionId, journalNo) {
+    console.log('Loading bank transaction details for ID:', transactionId);
+    
+    // For bank transactions, show a simplified view
+    const modalBody = document.getElementById('journalEntryDetailBody');
+    if (!modalBody) {
+        showNotification('Error: Modal not found', 'error');
+        return;
+    }
+    
+    // Fetch bank transaction details
+    fetch(`../modules/api/general-ledger-data.php?action=get_bank_transaction_details&id=${transactionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                displayBankTransactionDetails(data.data);
+            } else {
+                // Fallback: show basic info from the transaction list
+                displayBankTransactionDetails({
+                    transaction_ref: journalNo,
+                    description: 'Bank Transaction',
+                    amount: 0,
+                    created_at: new Date().toISOString()
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading bank transaction:', error);
+            // Show basic info even if API fails
+            displayBankTransactionDetails({
+                transaction_ref: journalNo,
+                description: 'Bank Transaction',
+                amount: 0,
+                created_at: new Date().toISOString()
+            });
+        });
+}
+
+function displayBankTransactionDetails(txn) {
+    const body = document.getElementById('journalEntryDetailBody');
+    if (!body) return;
+    
+    const date = txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
+    const amount = parseFloat(txn.amount || 0);
+    
+    let html = `
+        <div class="bank-transaction-header mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3"><i class="fas fa-university me-2"></i>Bank Transaction Information</h5>
+                    <div class="info-group">
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-hashtag me-2 text-muted"></i>Reference:</strong> 
+                            <span class="ms-2">${escapeHtml(txn.transaction_ref || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-calendar me-2 text-muted"></i>Date:</strong> 
+                            <span class="ms-2">${date}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-dollar-sign me-2 text-muted"></i>Amount:</strong> 
+                            <span class="ms-2 ${amount >= 0 ? 'text-success' : 'text-danger'}">₱${formatCurrency(Math.abs(amount))}</span>
+                        </div>
+                        ${txn.account_number ? `
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-credit-card me-2 text-muted"></i>Account Number:</strong> 
+                            <span class="ms-2">${escapeHtml(txn.account_number)}</span>
+                        </div>
+                        ` : ''}
+                        ${txn.transaction_type ? `
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-tag me-2 text-muted"></i>Transaction Type:</strong> 
+                            <span class="badge bg-info ms-2">${escapeHtml(txn.transaction_type)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <strong><i class="fas fa-align-left me-2"></i>Description:</strong>
+            <p class="mt-2 p-3 bg-light rounded">${escapeHtml(txn.description || 'N/A')}</p>
+        </div>
+    `;
+    
+    body.innerHTML = html;
+    
+    // Hide action buttons for bank transactions
+    const postBtn = document.getElementById('postJournalEntryBtn');
+    const voidBtn = document.getElementById('voidJournalEntryBtn');
+    if (postBtn) postBtn.classList.add('d-none');
+    if (voidBtn) voidBtn.classList.add('d-none');
 }
 
 function displayJournalEntryDetails(entry) {
     const body = document.getElementById('journalEntryDetailBody');
+    
+    if (!body) {
+        console.error('Journal entry detail body not found');
+        showNotification('Error: Modal element not found', 'error');
+        return;
+    }
+    
+    if (!entry) {
+        body.innerHTML = '<div class="alert alert-danger">No data available</div>';
+        return;
+    }
     
     // Format dates
     const entryDate = entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
@@ -1213,57 +1383,98 @@ function displayJournalEntryDetails(entry) {
     const postedDate = entry.posted_at ? new Date(entry.posted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
     
     let html = `
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <strong>Journal Number:</strong> ${entry.journal_no}<br>
-                <strong>Type:</strong> ${entry.type_name} (${entry.type_code})<br>
-                <strong>Date:</strong> ${entryDate}<br>
-                <strong>Status:</strong> <span class="badge bg-${getStatusColor(entry.status)}">${entry.status.toUpperCase()}</span>
-            </div>
-            <div class="col-md-6">
-                <strong>Fiscal Period:</strong> ${entry.period_name || 'N/A'}<br>
-                <strong>Reference:</strong> ${entry.reference_no || 'N/A'}<br>
-                <strong>Created By:</strong> ${entry.created_by_name} on ${createdDate}<br>
-                ${entry.posted_by_name ? `<strong>Posted By:</strong> ${entry.posted_by_name} on ${postedDate}<br>` : ''}
+        <div class="journal-entry-header mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3"><i class="fas fa-file-invoice me-2"></i>Journal Entry Information</h5>
+                    <div class="info-group">
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-hashtag me-2 text-muted"></i>Journal Number:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.journal_no || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-tag me-2 text-muted"></i>Type:</strong> 
+                            <span class="badge bg-info ms-2">${escapeHtml(entry.type_name || 'N/A')} (${escapeHtml(entry.type_code || 'N/A')})</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-calendar me-2 text-muted"></i>Date:</strong> 
+                            <span class="ms-2">${entryDate}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-info-circle me-2 text-muted"></i>Status:</strong> 
+                            <span class="badge bg-${getStatusColor(entry.status)} ms-2">${escapeHtml((entry.status || 'unknown').toUpperCase())}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="text-secondary mb-3"><i class="fas fa-info-circle me-2"></i>Additional Information</h5>
+                    <div class="info-group">
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-calendar-alt me-2 text-muted"></i>Fiscal Period:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.period_name || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-file-alt me-2 text-muted"></i>Reference:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.reference_no || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-user me-2 text-muted"></i>Created By:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.created_by_name || entry.created_by_username || 'N/A')} on ${createdDate}</span>
+                        </div>
+                        ${entry.posted_by_name || entry.posted_by_username ? `
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-check-circle me-2 text-muted"></i>Posted By:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.posted_by_name || entry.posted_by_username || 'N/A')} on ${postedDate}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
             </div>
         </div>
+        
         <div class="mb-3">
-            <strong>Description:</strong><br>
-            <p>${entry.description || 'N/A'}</p>
+            <strong><i class="fas fa-align-left me-2"></i>Description:</strong>
+            <p class="mt-2 p-3 bg-light rounded">${escapeHtml(entry.description || 'N/A')}</p>
         </div>
+        
         <div class="table-responsive">
-            <table class="table table-sm table-bordered">
+            <h6 class="mb-3"><i class="fas fa-list me-2"></i>Account Lines</h6>
+            <table class="table table-sm table-bordered table-hover">
                 <thead class="table-light">
                     <tr>
-                        <th>Account</th>
-                        <th>Account Name</th>
-                        <th class="text-end">Debit</th>
-                        <th class="text-end">Credit</th>
-                        <th>Memo</th>
+                        <th><i class="fas fa-hashtag me-1"></i>Account Code</th>
+                        <th><i class="fas fa-book me-1"></i>Account Name</th>
+                        <th class="text-end"><i class="fas fa-arrow-up me-1"></i>Debit</th>
+                        <th class="text-end"><i class="fas fa-arrow-down me-1"></i>Credit</th>
+                        <th><i class="fas fa-comment me-1"></i>Memo</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
     
-    entry.lines.forEach(line => {
-        html += `
-            <tr>
-                <td>${line.account_code}</td>
-                <td>${line.account_name}</td>
-                <td class="text-end">${line.debit > 0 ? '₱' + formatCurrency(line.debit) : '-'}</td>
-                <td class="text-end">${line.credit > 0 ? '₱' + formatCurrency(line.credit) : '-'}</td>
-                <td>${line.memo || '-'}</td>
-            </tr>
-        `;
-    });
+    if (entry.lines && entry.lines.length > 0) {
+        entry.lines.forEach((line, index) => {
+            html += `
+                <tr>
+                    <td><strong>${escapeHtml(line.account_code || 'N/A')}</strong></td>
+                    <td>${escapeHtml(line.account_name || 'N/A')}</td>
+                    <td class="text-end text-success">${line.debit > 0 ? '₱' + formatCurrency(line.debit) : '-'}</td>
+                    <td class="text-end text-danger">${line.credit > 0 ? '₱' + formatCurrency(line.credit) : '-'}</td>
+                    <td>${escapeHtml(line.memo || '-')}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html += '<tr><td colspan="5" class="text-center text-muted py-3">No account lines found</td></tr>';
+    }
     
     html += `
                 </tbody>
                 <tfoot class="table-light">
                     <tr>
-                        <th colspan="2">Total</th>
-                        <th class="text-end">₱${formatCurrency(entry.total_debit)}</th>
-                        <th class="text-end">₱${formatCurrency(entry.total_credit)}</th>
+                        <th colspan="2"><strong>Total</strong></th>
+                        <th class="text-end text-success"><strong>₱${formatCurrency(entry.total_debit || 0)}</strong></th>
+                        <th class="text-end text-danger"><strong>₱${formatCurrency(entry.total_credit || 0)}</strong></th>
                         <th></th>
                     </tr>
                 </tfoot>
@@ -1274,11 +1485,21 @@ function displayJournalEntryDetails(entry) {
     body.innerHTML = html;
     
     // Show/hide action buttons based on permissions
-    document.getElementById('postJournalEntryBtn').classList.toggle('d-none', !entry.can_post);
-    document.getElementById('voidJournalEntryBtn').classList.toggle('d-none', !entry.can_void);
+    const postBtn = document.getElementById('postJournalEntryBtn');
+    const voidBtn = document.getElementById('voidJournalEntryBtn');
+    if (postBtn) {
+        postBtn.classList.toggle('d-none', !entry.can_post);
+    }
+    if (voidBtn) {
+        voidBtn.classList.toggle('d-none', !entry.can_void);
+    }
     
-    const modal = new bootstrap.Modal(document.getElementById('journalEntryDetailModal'));
-    modal.show();
+    // Show modal if not already shown
+    const modalElement = document.getElementById('journalEntryDetailModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+        modal.show();
+    }
 }
 
 function getStatusColor(status) {
@@ -1869,6 +2090,8 @@ function exportAccountTransactions() {
 window.viewAccountDetails = viewAccountDetails;
 window.viewTransactionDetails = viewTransactionDetails;
 window.viewTransactionDetailsById = viewTransactionDetailsById;
+window.loadJournalEntryDetails = loadJournalEntryDetails;
+window.loadBankTransactionDetails = loadBankTransactionDetails;
 window.postJournalEntry = postJournalEntry;
 window.voidJournalEntry = voidJournalEntry;
 window.loadAuditTrail = loadAuditTrail;
