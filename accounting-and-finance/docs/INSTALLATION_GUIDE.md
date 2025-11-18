@@ -25,13 +25,13 @@
 3. Click **Go** to execute
 
 **Alternative:** Use the automated setup script:
-1. Navigate to: `http://localhost/Accounting and finance/database/init.php`
+1. Navigate to: `http://localhost/accounting-and-finance/database/init.php`
 2. Follow the on-screen instructions
 3. This will create both the database schema AND the admin user automatically
 
 ### Step 4: Access the System
 1. Open your web browser
-2. Navigate to: `http://localhost/Accounting%20and%20finance/core/index.php`
+2. Navigate to: `http://localhost/accounting-and-finance/core/index.php`
 
 ### Step 5: Login with Admin Credentials
 Use the following credentials to login:
@@ -55,7 +55,7 @@ If you get "Invalid username or password" when trying to log in:
 **Root Cause:** The admin user was not created in the database.
 
 **Quick Fix:**
-1. Run the automated setup: `http://localhost/Accounting and finance/database/init.php`
+1. Run the automated setup: `http://localhost/accounting-and-finance/database/init.php`
 2. Or use the utility script: `utils/fix_admin_password.php`
 
 **Manual Fix:**
@@ -88,7 +88,7 @@ You should see one row with the admin user details.
 
 ## File Structure
 ```
-Accounting and finance/
+accounting-and-finance/
 ├── assets/
 │   └── css/
 │       └── style.css

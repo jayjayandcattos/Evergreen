@@ -9,7 +9,7 @@
 
 ### Step 2: Initialize Database
 1. Open your web browser
-2. Navigate to: `http://localhost/Accounting and finance/database/init.php`
+2. Navigate to: `http://localhost/accounting-and-finance/database/init.php`
 3. You should see "Database initialized successfully!" message
 4. Click "Go to Login Page" link
 
@@ -56,7 +56,7 @@ The system comes pre-loaded with:
 ## 📁 File Structure
 
 ```
-Accounting and finance/
+accounting-and-finance/
 ├── index.php              # Login page
 ├── admin/                 # Admin dashboard
 ├── accounting/            # Accounting officer dashboard
@@ -133,7 +133,7 @@ Accounting and finance/
 This is the most common setup problem! If you get "Invalid username or password" errors:
 
 **Quick Fix:**
-1. Run the automated setup: `http://localhost/Accounting and finance/database/init.php`
+1. Run the automated setup: `http://localhost/accounting-and-finance/database/init.php`
 2. Or manually run `database/insert_admin.sql` in phpMyAdmin
 3. Or use the utility script: `utils/fix_admin_password.php`
 

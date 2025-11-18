@@ -8,7 +8,7 @@ This guide covers migrating your Accounting & Finance System between devices, se
 ### Automated Migration (Recommended)
 1. **Copy Files:** Transfer entire project folder to new device
 2. **Start XAMPP:** Ensure Apache and MySQL are running
-3. **Run Setup:** Navigate to `http://localhost/Accounting and finance/database/init.php`
+3. **Run Setup:** Navigate to `http://localhost/accounting-and-finance/database/init.php`
 4. **Login:** Use `admin` / `admin123` credentials
 5. **Done!** System is ready to use
 
@@ -40,7 +40,7 @@ This guide covers migrating your Accounting & Finance System between devices, se
 2. **Start Services:** Apache and MySQL
 3. **Copy Project Files** to `htdocs` directory
 4. **Run Initialization:**
-   - Navigate to: `http://localhost/Accounting and finance/database/init.php`
+   - Navigate to: `http://localhost/accounting-and-finance/database/init.php`
    - Follow on-screen instructions
    - System will create database, schema, and admin user automatically
 
@@ -80,7 +80,7 @@ This guide covers migrating your Accounting & Finance System between devices, se
 1. **Copy Project Files:**
    ```bash
    # Windows
-   xcopy "C:\xampp\htdocs\Accounting and finance" "D:\new_location" /E /I
+   xcopy "C:\xampp\htdocs\accounting-and-finance" "D:\new_location" /E /I
    
    # Linux/Mac
    cp -r /path/to/source /path/to/destination
@@ -94,7 +94,7 @@ This guide covers migrating your Accounting & Finance System between devices, se
 ### Phase 4: Verification & Testing
 
 #### **System Verification Checklist**
-- [ ] **Database Connection:** `http://localhost/Accounting and finance/test_db_connection.php`
+- [ ] **Database Connection:** `http://localhost/accounting-and-finance/test_db_connection.php`
 - [ ] **Admin Login:** Test with `admin` / `admin123`
 - [ ] **Module Access:** Verify all modules load correctly
 - [ ] **Data Integrity:** Check that data migrated correctly
@@ -120,7 +120,7 @@ SELECT COUNT(*) as transaction_count FROM journal_entries;
 **Root Cause:** Admin user not created during migration
 
 **Solutions:**
-1. **Quick Fix:** Run `http://localhost/Accounting and finance/database/init.php`
+1. **Quick Fix:** Run `http://localhost/accounting-and-finance/database/init.php`
 2. **Manual Fix:** Import `database/insert_admin.sql` in phpMyAdmin
 3. **Utility Fix:** Run `utils/fix_admin_password.php`
 

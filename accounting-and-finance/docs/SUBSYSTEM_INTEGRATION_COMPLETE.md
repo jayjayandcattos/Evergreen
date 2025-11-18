@@ -165,7 +165,7 @@ The following will happen **AUTOMATICALLY** from now on:
 
 ### Re-install Triggers (if needed)
 ```bash
-cd "c:\xampp\htdocs\Accounting and finance\database\sql"
+cd "c:\xampp\htdocs\accounting-and-finance\database\sql"
 php install_triggers.php
 ```
 

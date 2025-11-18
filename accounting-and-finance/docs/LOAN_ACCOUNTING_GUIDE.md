@@ -28,7 +28,7 @@ This will create:
 - Sample payment history
 
 ### 3. Access the Module
-Navigate to: `http://localhost/Accounting and finance/modules/loan-accounting.php`
+Navigate to: `http://localhost/accounting-and-finance/modules/loan-accounting.php`
 
 ## Features
 

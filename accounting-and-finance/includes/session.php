@@ -12,7 +12,22 @@ function isLoggedIn() {
 // Function to require login
 function requireLogin() {
     if (!isLoggedIn()) {
-        header("Location: login.php");
+        // Calculate the correct path to login.php based on current script location
+        $script_path = $_SERVER['SCRIPT_NAME'] ?? '';
+        
+        // Determine the correct relative path based on where the script is located
+        if (strpos($script_path, '/core/') !== false) {
+            // If we're in the core directory, login.php is in the same directory
+            $login_path = 'login.php';
+        } elseif (strpos($script_path, '/modules/') !== false || strpos($script_path, '/utils/') !== false) {
+            // If we're in modules or utils, go up one level then into core
+            $login_path = '../core/login.php';
+        } else {
+            // Default: assume we're at root level or in includes
+            $login_path = '../core/login.php';
+        }
+        
+        header("Location: " . $login_path);
         exit();
     }
 }

@@ -40,7 +40,7 @@ A comprehensive Enterprise Resource Planning (ERP) and financial management syst
 ### 1. Clone/Download the Project
 ```bash
 # Place the project in your XAMPP htdocs directory
-C:\xampp\htdocs\Accounting and finance\
+C:\xampp\htdocs\accounting-and-finance\
 ```
 
 ### 2. Database Setup
@@ -57,7 +57,7 @@ C:\xampp\htdocs\Accounting and finance\
    - **Without this step, you cannot log in to the system!**
 
 **Alternative:** Use the automated setup script:
-- Navigate to: `http://localhost/Accounting and finance/database/init.php`
+- Navigate to: `http://localhost/accounting-and-finance/database/init.php`
 - This will create database, schema, and admin user automatically
 
 ### 3. Configuration
@@ -70,11 +70,11 @@ The database configuration is already set up in `config/database.php` for XAMPP 
 ### 4. Access the System
 Open your browser and navigate to:
 ```
-http://localhost/Accounting and finance/core/login.php
+http://localhost/accounting-and-finance/core/login.php
 ```
 Or simply:
 ```
-http://localhost/Accounting and finance/
+http://localhost/accounting-and-finance/
 ```
 (The root index.php will redirect you to the login page)
 
@@ -330,7 +330,7 @@ When migrating your Accounting & Finance System to a new device or server:
 1. **Install XAMPP** on the new device
 2. **Start Apache and MySQL** services
 3. **Run Automated Setup:**
-   - Navigate to: `http://localhost/Accounting and finance/database/init.php`
+   - Navigate to: `http://localhost/accounting-and-finance/database/init.php`
    - This will create database, schema, and admin user automatically
 4. **Or Manual Setup:**
    - Create database `accounting_finance` in phpMyAdmin
@@ -344,7 +344,7 @@ When migrating your Accounting & Finance System to a new device or server:
 - **Tables missing** → Re-import `database/schema.sql`
 
 #### **Verification Steps:**
-1. Test database connection: `http://localhost/Accounting and finance/test_db_connection.php`
+1. Test database connection: `http://localhost/accounting-and-finance/test_db_connection.php`
 2. Verify admin user exists in database
 3. Test login functionality
 4. Check all modules are accessible
