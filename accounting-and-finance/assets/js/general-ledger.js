@@ -12,6 +12,17 @@ function initializeGeneralLedger() {
     // Add smooth animations
     addSmoothAnimations();
     
+    // Add Enter key support for account search
+    const accountSearchInput = document.getElementById('account-search');
+    if (accountSearchInput) {
+        accountSearchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyAccountFilter();
+            }
+        });
+    }
+    
     // Load initial data with better error handling
     loadStatistics();
     loadCharts();
@@ -514,27 +525,43 @@ function loadAccountsTable(searchTerm = '') {
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error('Network response was not ok: ' + response.status);
             }
             return response.json();
         })
         .then(data => {
+            console.log('Accounts API response:', data);
             if (data.success) {
-                displayAccountsTable(data.data);
+                if (data.data && data.data.length > 0) {
+                    displayAccountsTable(data.data);
+                } else {
+                    console.warn('API returned success but no accounts found');
+                    showNotification('No accounts found in database. Please check that bank customer accounts exist.', 'warning');
+                    displayAccountsTable([]);
+                }
             } else {
-                console.warn('API returned error, using fallback accounts data');
-                displayAccountsTable(getFallbackAccounts());
+                console.error('API returned error:', data.message || 'Unknown error');
+                showNotification('Error loading accounts: ' + (data.message || 'Unknown error'), 'error');
+                if (data.debug) {
+                    console.error('Debug info:', data.debug);
+                }
+                displayAccountsTable([]);
             }
         })
         .catch(error => {
             console.error('Error loading accounts:', error);
-            console.log('Using fallback accounts data');
-            displayAccountsTable(getFallbackAccounts());
+            showNotification('Error loading accounts. Please check console for details.', 'error');
+            displayAccountsTable([]);
         });
 }
 
 function displayAccountsTable(accounts) {
     const tbody = document.querySelector('#accounts-table tbody');
+    
+    if (!tbody) {
+        console.error('Accounts table tbody not found');
+        return;
+    }
     
     if (accounts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No accounts found</td></tr>';
@@ -542,15 +569,15 @@ function displayAccountsTable(accounts) {
     }
     
     let html = '';
-    // Show all accounts (removed .slice(0, 10) limit)
+    // Show all bank customer accounts
     accounts.forEach((account, index) => {
         html += `
             <tr style="animation-delay: ${index * 0.1}s">
-                <td><strong class="account-code">${escapeHtml(account.code)}</strong></td>
-                <td><span class="account-name">${escapeHtml(account.name)}</span></td>
-                <td><span class="badge bg-${getAccountTypeBadge(account.category)}">${escapeHtml(account.category)}</span></td>
-                <td class="amount-cell">₱${formatCurrency(account.balance)}</td>
-                <td><button class="btn btn-sm btn-outline-primary" onclick="viewAccountDetails('${escapeHtml(account.code)}', '${escapeHtml(account.source)}')">View</button></td>
+                <td><strong class="account-number">${escapeHtml(account.account_number)}</strong></td>
+                <td><span class="account-name">${escapeHtml(account.account_name)}</span></td>
+                <td><span class="badge bg-info">${escapeHtml(account.account_type)}</span></td>
+                <td class="amount-cell">₱${formatCurrency(account.available_balance)}</td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="viewAccountDetails('${escapeHtml(account.account_number)}', 'bank')">View</button></td>
             </tr>
         `;
     });
@@ -686,12 +713,20 @@ function viewDrillDown() {
 }
 
 function applyAccountFilter() {
-    const searchTerm = document.getElementById('account-search')?.value || '';
-    console.log('Applying account filter:', searchTerm);
-    loadAccountsTable(searchTerm.trim());
-    if (searchTerm.trim()) {
-        showNotification(`Searching for "${searchTerm}"`, 'info');
+    const searchInput = document.getElementById('account-search');
+    if (!searchInput) {
+        console.error('Account search input not found');
+        return;
     }
+    
+    const searchTerm = searchInput.value.trim();
+    console.log('Applying account filter:', searchTerm);
+    
+    if (searchTerm) {
+        showNotification(`Searching for "${searchTerm}"...`, 'info');
+    }
+    
+    loadAccountsTable(searchTerm);
 }
 
 function resetAccountFilter() {
@@ -700,7 +735,7 @@ function resetAccountFilter() {
         searchInput.value = '';
     }
     console.log('Resetting account filter...');
-    loadAccountsTable();
+    loadAccountsTable('');
     showNotification('Account filter reset', 'info');
 }
 
@@ -800,14 +835,13 @@ function displayAccountTransactions(data) {
         <div class="account-detail-header mb-4">
             <div class="row">
                 <div class="col-md-6">
-                    <h5 class="text-primary"><i class="fas fa-building me-2"></i>${escapeHtml(accountInfo.name)}</h5>
-                    <p class="mb-1"><strong>Account Number:</strong> ${escapeHtml(accountInfo.code)}</p>
-                    <p class="mb-1"><strong>Type:</strong> <span class="badge bg-info">${escapeHtml(accountInfo.category)}</span></p>
-                    <p class="mb-1"><strong>Source:</strong> <span class="badge bg-secondary">${escapeHtml(accountInfo.source || 'GL')}</span></p>
+                    <h5 class="text-primary"><i class="fas fa-user me-2"></i>${escapeHtml(accountInfo.account_name)}</h5>
+                    <p class="mb-1"><strong>Account Number:</strong> <code>${escapeHtml(accountInfo.account_number)}</code></p>
+                    <p class="mb-1"><strong>Account Type:</strong> <span class="badge bg-info">${escapeHtml(accountInfo.account_type)}</span></p>
                 </div>
                 <div class="col-md-6 text-end">
-                    <h6>Current Balance</h6>
-                    <h3 class="text-success">₱${formatCurrency(accountInfo.balance)}</h3>
+                    <h6 class="text-muted">Available Balance</h6>
+                    <h3 class="text-success mb-0">₱${formatCurrency(accountInfo.available_balance)}</h3>
                 </div>
             </div>
         </div>
@@ -1045,12 +1079,8 @@ function getFallbackChartData() {
 
 function getFallbackAccounts() {
     return [
-        { code: '1001', name: 'Cash on Hand', category: 'asset', balance: 15000.00, is_active: true },
-        { code: '1002', name: 'Bank Account', category: 'asset', balance: 125000.00, is_active: true },
-        { code: '2001', name: 'Accounts Payable', category: 'liability', balance: 25000.00, is_active: true },
-        { code: '3001', name: 'Owner Equity', category: 'equity', balance: 100000.00, is_active: true },
-        { code: '4001', name: 'Sales Revenue', category: 'revenue', balance: 75000.00, is_active: true },
-        { code: '5001', name: 'Office Supplies', category: 'expense', balance: 5000.00, is_active: true }
+        { account_number: 'SA-6524-2025', account_name: 'Juan tamad', account_type: 'Savings Account', available_balance: 999999.00, source: 'bank' },
+        { account_number: 'CH-1001-2025', account_name: 'Maria Reyes', account_type: 'Checking Account', available_balance: 50000.00, source: 'bank' }
     ];
 }
 

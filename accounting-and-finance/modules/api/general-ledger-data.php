@@ -202,96 +202,90 @@ function getAccounts() {
     
     try {
         $search = $_GET['search'] ?? '';
+        $accounts = [];
         
-        // Combined query to show both GL accounts AND bank customer accounts
-        $sql = "SELECT * FROM (
-            -- GL Accounts from Accounting System
-            SELECT 
-                CONCAT('GL-', a.id) as id,
-                a.code,
-                a.name,
-                at.category,
-                COALESCE(ab.closing_balance, 0) as balance,
-                a.is_active,
-                'gl' as source
-            FROM accounts a
-            INNER JOIN account_types at ON a.type_id = at.id
-            LEFT JOIN account_balances ab ON a.id = ab.account_id 
-                AND ab.fiscal_period_id = (SELECT id FROM fiscal_periods WHERE status = 'open' ORDER BY start_date DESC LIMIT 1)
-            WHERE a.is_active = 1
-            
-            UNION ALL
-            
-            -- Bank Customer Accounts
-            SELECT 
-                CONCAT('BA-', ca.account_id) as id,
-                ca.account_number as code,
-                CONCAT(bc.first_name, ' ', bc.last_name, ' - ', bat.account_type_name) as name,
-                'asset' as category,
-                COALESCE(
-                    (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
-                     FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
-                    0
-                ) as balance,
-                1 as is_active,
-                'bank' as source
-            FROM customer_accounts ca
-            INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
-            INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
-            WHERE ca.is_locked = 0
-        ) combined_accounts
-        WHERE 1=1";
+        // Use the correct table names from bank-system
+        // Check if bank_transactions table exists for balance calculation
+        $hasTransactionsTable = false;
+        $checkTrans = $conn->query("SHOW TABLES LIKE 'bank_transactions'");
+        if ($checkTrans && $checkTrans->num_rows > 0) {
+            $hasTransactionsTable = true;
+        }
         
-        $params = [];
-        $types = '';
+        // Build balance calculation
+        if ($hasTransactionsTable) {
+            $balanceCalc = "(SELECT COALESCE(
+                                SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - 
+                                SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END), 
+                                0
+                            )
+                            FROM bank_transactions bt 
+                            WHERE bt.account_id = ca.account_id)";
+        } else {
+            // Try balance column in accounts table, or default to 0
+            $balanceCalc = "COALESCE(ca.balance, 0)";
+        }
+        
+        // Main query - use customer_accounts, bank_customers, bank_account_types
+        $bankSql = "SELECT 
+            ca.account_id,
+            ca.account_number,
+            CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) as account_name,
+            COALESCE(bat.type_name, 'Unknown') as account_type,
+            $balanceCalc as available_balance
+        FROM customer_accounts ca
+        INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+        INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
+        WHERE ca.is_locked = 0";
         
         if ($search) {
-            $sql .= " AND (name LIKE ? OR code LIKE ?)";
+            $bankSql .= " AND (
+                CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) LIKE ? 
+                OR ca.account_number LIKE ?
+            )";
+        }
+        
+        $bankSql .= " ORDER BY ca.account_number";
+        
+        $bankStmt = $conn->prepare($bankSql);
+        if (!$bankStmt) {
+            throw new Exception("Failed to prepare query: " . $conn->error);
+        }
+        
+        if ($search) {
             $searchParam = "%$search%";
-            $params[] = $searchParam;
-            $params[] = $searchParam;
-            $types .= 'ss';
+            $bankStmt->bind_param('ss', $searchParam, $searchParam);
         }
         
-        $sql .= " ORDER BY source, code LIMIT 100";
+        $bankStmt->execute();
+        $bankResult = $bankStmt->get_result();
         
-        $stmt = $conn->prepare($sql);
-        if (!empty($params)) {
-            $stmt->bind_param($types, ...$params);
+        if (!$bankResult) {
+            throw new Exception("Query execution failed: " . $conn->error);
         }
-        $stmt->execute();
-        $result = $stmt->get_result();
         
-        $accounts = [];
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $bankResult->fetch_assoc()) {
             $accounts[] = [
-                'id' => $row['id'],
-                'code' => $row['code'],
-                'name' => $row['name'],
-                'category' => $row['category'],
-                'balance' => (float)$row['balance'],
-                'is_active' => (bool)$row['is_active'],
-                'source' => $row['source']
+                'account_number' => $row['account_number'],
+                'account_name' => trim($row['account_name']),
+                'account_type' => $row['account_type'],
+                'available_balance' => (float)$row['available_balance'],
+                'source' => 'bank'
             ];
         }
         
         return [
             'success' => true,
-            'data' => $accounts
+            'data' => $accounts,
+            'count' => count($accounts)
         ];
         
     } catch (Exception $e) {
-        // Return fallback data if database query fails
+        error_log("Error in getAccounts: " . $e->getMessage());
         return [
-            'success' => true,
-            'data' => [
-                ['code' => '1001', 'name' => 'Cash on Hand', 'category' => 'asset', 'balance' => 15000.00, 'is_active' => true, 'source' => 'gl'],
-                ['code' => '1002', 'name' => 'Bank Account', 'category' => 'asset', 'balance' => 125000.00, 'is_active' => true, 'source' => 'gl'],
-                ['code' => '2001', 'name' => 'Accounts Payable', 'category' => 'liability', 'balance' => 25000.00, 'is_active' => true, 'source' => 'gl'],
-                ['code' => '3001', 'name' => 'Owner Equity', 'category' => 'equity', 'balance' => 100000.00, 'is_active' => true, 'source' => 'gl'],
-                ['code' => '4001', 'name' => 'Sales Revenue', 'category' => 'revenue', 'balance' => 75000.00, 'is_active' => true, 'source' => 'gl'],
-                ['code' => '5001', 'name' => 'Office Supplies', 'category' => 'expense', 'balance' => 5000.00, 'is_active' => true, 'source' => 'gl']
-            ]
+            'success' => false,
+            'message' => 'Database error: ' . $e->getMessage(),
+            'data' => []
         ];
     }
 }
@@ -1409,64 +1403,36 @@ function getAccountTransactions() {
     global $conn;
     
     try {
-        $accountCode = $_GET['account_code'] ?? '';
-        $source = $_GET['source'] ?? '';
+        $accountNumber = $_GET['account_code'] ?? '';
         
-        if (empty($accountCode)) {
+        if (empty($accountNumber)) {
             return [
                 'success' => false,
-                'message' => 'Account code is required'
+                'message' => 'Account number is required'
             ];
         }
         
-        // First, get account information
-        $accountInfo = null;
+        // Get bank customer account info using ONLY bank-system tables
+        $sql = "SELECT 
+                    ca.account_number,
+                    CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) as account_name,
+                    COALESCE(bat.type_name, 'Unknown') as account_type,
+                    COALESCE(
+                        (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
+                         FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
+                        0
+                    ) as available_balance
+                FROM customer_accounts ca
+                INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+                INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
+                WHERE ca.account_number = ? AND ca.is_locked = 0
+                LIMIT 1";
         
-        if ($source === 'bank') {
-            // Get bank customer account info
-            $sql = "SELECT 
-                        ca.account_number as code,
-                        CONCAT(bc.first_name, ' ', bc.last_name, ' - ', bat.account_type_name) as name,
-                        'asset' as category,
-                        COALESCE(
-                            (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
-                             FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
-                            0
-                        ) as balance,
-                        'bank' as source
-                    FROM customer_accounts ca
-                    INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
-                    INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
-                    WHERE ca.account_number = ?
-                    LIMIT 1";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param('s', $accountCode);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $accountInfo = $result->fetch_assoc();
-            
-        } else {
-            // Get GL account info
-            $sql = "SELECT 
-                        a.code,
-                        a.name,
-                        at.category,
-                        COALESCE(ab.closing_balance, 0) as balance,
-                        'gl' as source
-                    FROM accounts a
-                    INNER JOIN account_types at ON a.type_id = at.id
-                    LEFT JOIN account_balances ab ON a.id = ab.account_id 
-                        AND ab.fiscal_period_id = (SELECT id FROM fiscal_periods WHERE status = 'open' ORDER BY start_date DESC LIMIT 1)
-                    WHERE a.code = ?
-                    LIMIT 1";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param('s', $accountCode);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $accountInfo = $result->fetch_assoc();
-        }
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('s', $accountNumber);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $accountInfo = $result->fetch_assoc();
         
         if (!$accountInfo) {
             return [
@@ -1475,79 +1441,45 @@ function getAccountTransactions() {
             ];
         }
         
-        // Get transactions for this account
-        $transactions = [];
+        // Get bank transactions for this account
+        $sql = "SELECT 
+                    DATE(bt.created_at) as date,
+                    bt.transaction_ref as reference,
+                    COALESCE(bt.description, tt.type_name) as description,
+                    CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END as debit,
+                    CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END as credit
+                FROM bank_transactions bt
+                INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
+                WHERE ca.account_number = ?
+                ORDER BY bt.created_at DESC
+                LIMIT 100";
         
-        if ($source === 'bank') {
-            // Get bank transactions
-            $sql = "SELECT 
-                        DATE(bt.created_at) as date,
-                        bt.transaction_ref as reference,
-                        COALESCE(bt.description, tt.type_name) as description,
-                        CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END as debit,
-                        CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END as credit
-                    FROM bank_transactions bt
-                    INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
-                    INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
-                    WHERE ca.account_number = ?
-                    ORDER BY bt.created_at DESC
-                    LIMIT 100";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param('s', $accountCode);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            while ($row = $result->fetch_assoc()) {
-                $transactions[] = [
-                    'date' => $row['date'],
-                    'reference' => $row['reference'],
-                    'description' => $row['description'],
-                    'debit' => (float)$row['debit'],
-                    'credit' => (float)$row['credit']
-                ];
-            }
-            
-        } else {
-            // Get journal line transactions for this GL account
-            $sql = "SELECT 
-                        je.entry_date as date,
-                        je.journal_no as reference,
-                        COALESCE(jl.description, je.description) as description,
-                        jl.debit,
-                        jl.credit
-                    FROM journal_lines jl
-                    INNER JOIN journal_entries je ON jl.journal_entry_id = je.id
-                    INNER JOIN accounts a ON jl.account_id = a.id
-                    WHERE a.code = ? AND je.status = 'posted'
-                    ORDER BY je.entry_date DESC, je.id DESC
-                    LIMIT 100";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param('s', $accountCode);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            while ($row = $result->fetch_assoc()) {
-                $transactions[] = [
-                    'date' => $row['date'],
-                    'reference' => $row['reference'],
-                    'description' => $row['description'],
-                    'debit' => (float)$row['debit'],
-                    'credit' => (float)$row['credit']
-                ];
-            }
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('s', $accountNumber);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $transactions = [];
+        while ($row = $result->fetch_assoc()) {
+            $transactions[] = [
+                'date' => $row['date'],
+                'reference' => $row['reference'],
+                'description' => $row['description'],
+                'debit' => (float)$row['debit'],
+                'credit' => (float)$row['credit']
+            ];
         }
         
         return [
             'success' => true,
             'data' => [
                 'account' => [
-                    'code' => $accountInfo['code'],
-                    'name' => $accountInfo['name'],
-                    'category' => $accountInfo['category'],
-                    'balance' => (float)$accountInfo['balance'],
-                    'source' => $accountInfo['source']
+                    'account_number' => $accountInfo['account_number'],
+                    'account_name' => trim($accountInfo['account_name']),
+                    'account_type' => $accountInfo['account_type'],
+                    'available_balance' => (float)$accountInfo['available_balance'],
+                    'source' => 'bank'
                 ],
                 'transactions' => $transactions
             ]

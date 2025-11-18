@@ -269,10 +269,10 @@ $current_user = getCurrentUser();
                     <table class="gl-table" id="accounts-table">
                         <thead>
                             <tr>
-                                <th>Account Code</th>
+                                <th>Account Number</th>
                                 <th>Account Name</th>
-                                <th>Type</th>
-                                <th>Balance</th>
+                                <th>Account Type</th>
+                                <th>Available Balance</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
