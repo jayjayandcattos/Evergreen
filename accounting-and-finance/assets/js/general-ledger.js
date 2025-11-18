@@ -23,6 +23,9 @@ function initializeGeneralLedger() {
         });
     }
     
+    // Load account types dynamically for filter dropdown
+    loadAccountTypes();
+    
     // Load initial data with better error handling
     loadStatistics();
     loadCharts();
@@ -510,16 +513,52 @@ function renderAuditCharts(data) {
 }
 
 // ========================================
+// LOAD ACCOUNT TYPES FOR FILTER
+// ========================================
+
+function loadAccountTypes() {
+    fetch('../modules/api/general-ledger-data.php?action=get_account_types')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.length > 0) {
+                const typeFilter = document.getElementById('account-type-filter');
+                if (typeFilter) {
+                    // Clear existing options except "All Account Types"
+                    typeFilter.innerHTML = '<option value="">All Account Types</option>';
+                    
+                    // Add account types from database, excluding USD Account
+                    data.data.forEach(type => {
+                        // Filter out USD Account
+                        if (type.toLowerCase() !== 'usd account') {
+                            const option = document.createElement('option');
+                            option.value = type;
+                            option.textContent = type;
+                            typeFilter.appendChild(option);
+                        }
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading account types:', error);
+            // Keep default options if API fails
+        });
+}
+
+// ========================================
 // LOAD ACCOUNTS TABLE
 // ========================================
 
-function loadAccountsTable(searchTerm = '') {
+function loadAccountsTable(searchTerm = '', accountType = '') {
     showLoadingState('accounts');
 
     const params = new URLSearchParams();
     params.append('action', 'get_accounts');
     if (searchTerm) {
         params.append('search', searchTerm);
+    }
+    if (accountType) {
+        params.append('account_type', accountType);
     }
 
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
@@ -714,28 +753,47 @@ function viewDrillDown() {
 
 function applyAccountFilter() {
     const searchInput = document.getElementById('account-search');
-    if (!searchInput) {
-        console.error('Account search input not found');
+    const typeFilter = document.getElementById('account-type-filter');
+    
+    if (!searchInput || !typeFilter) {
+        console.error('Account filter inputs not found');
         return;
     }
     
     const searchTerm = searchInput.value.trim();
-    console.log('Applying account filter:', searchTerm);
+    const accountType = typeFilter.value;
     
-    if (searchTerm) {
-        showNotification(`Searching for "${searchTerm}"...`, 'info');
+    console.log('Applying account filter:', { search: searchTerm, type: accountType });
+    
+    let filterMsg = '';
+    if (searchTerm && accountType) {
+        filterMsg = `Filtering by "${searchTerm}" and "${accountType}"...`;
+    } else if (searchTerm) {
+        filterMsg = `Searching for "${searchTerm}"...`;
+    } else if (accountType) {
+        filterMsg = `Filtering by account type: "${accountType}"...`;
     }
     
-    loadAccountsTable(searchTerm);
+    if (filterMsg) {
+        showNotification(filterMsg, 'info');
+    }
+    
+    loadAccountsTable(searchTerm, accountType);
 }
 
 function resetAccountFilter() {
     const searchInput = document.getElementById('account-search');
+    const typeFilter = document.getElementById('account-type-filter');
+    
     if (searchInput) {
         searchInput.value = '';
     }
+    if (typeFilter) {
+        typeFilter.value = '';
+    }
+    
     console.log('Resetting account filter...');
-    loadAccountsTable('');
+    loadAccountsTable('', '');
     showNotification('Account filter reset', 'info');
 }
 

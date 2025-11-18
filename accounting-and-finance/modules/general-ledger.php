@@ -252,7 +252,18 @@ $current_user = getCurrentUser();
                     <div class="gl-toolbar__field">
                         <label for="account-search" class="visually-hidden">Search accounts</label>
                         <span class="gl-toolbar__icon"><i class="fas fa-search"></i></span>
-                        <input type="text" class="search-input" placeholder="Search accounts" id="account-search" autocomplete="off">
+                        <input type="text" class="search-input" placeholder="Search by name or account number" id="account-search" autocomplete="off">
+                    </div>
+                    <div class="gl-toolbar__field">
+                        <label for="account-type-filter" class="visually-hidden">Filter by account type</label>
+                        <span class="gl-toolbar__icon"><i class="fas fa-filter"></i></span>
+                        <select class="search-input" id="account-type-filter">
+                            <option value="">All Account Types</option>
+                            <option value="Savings">Savings</option>
+                            <option value="Checking">Checking</option>
+                            <option value="Fixed Deposit">Fixed Deposit</option>
+                            <option value="Loan">Loan</option>
+                        </select>
                     </div>
                     <div class="gl-toolbar__actions">
                         <button class="btn-filter" type="button" onclick="applyAccountFilter()">

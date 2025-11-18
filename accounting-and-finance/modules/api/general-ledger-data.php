@@ -72,6 +72,10 @@ try {
             echo json_encode(getAccountTransactions());
             break;
             
+        case 'get_account_types':
+            echo json_encode(getAccountTypesList());
+            break;
+            
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
@@ -202,6 +206,7 @@ function getAccounts() {
     
     try {
         $search = $_GET['search'] ?? '';
+        $accountType = $_GET['account_type'] ?? '';
         $accounts = [];
         
         // Use the correct table names from bank-system
@@ -238,11 +243,24 @@ function getAccounts() {
         INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
         WHERE ca.is_locked = 0";
         
+        $params = [];
+        $types = '';
+        
         if ($search) {
             $bankSql .= " AND (
                 CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) LIKE ? 
                 OR ca.account_number LIKE ?
             )";
+            $searchParam = "%$search%";
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $types .= 'ss';
+        }
+        
+        if ($accountType) {
+            $bankSql .= " AND bat.type_name = ?";
+            $params[] = $accountType;
+            $types .= 's';
         }
         
         $bankSql .= " ORDER BY ca.account_number";
@@ -252,9 +270,8 @@ function getAccounts() {
             throw new Exception("Failed to prepare query: " . $conn->error);
         }
         
-        if ($search) {
-            $searchParam = "%$search%";
-            $bankStmt->bind_param('ss', $searchParam, $searchParam);
+        if (!empty($params)) {
+            $bankStmt->bind_param($types, ...$params);
         }
         
         $bankStmt->execute();
@@ -1489,6 +1506,43 @@ function getAccountTransactions() {
         return [
             'success' => false,
             'message' => $e->getMessage()
+        ];
+    }
+}
+
+function getAccountTypesList() {
+    global $conn;
+    
+    try {
+        $sql = "SELECT DISTINCT type_name 
+                FROM bank_account_types 
+                WHERE type_name != 'USD Account'
+                ORDER BY type_name";
+        
+        $result = $conn->query($sql);
+        $types = [];
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $types[] = $row['type_name'];
+            }
+        }
+        
+        // Filter out USD Account from the results as well (in case query didn't work)
+        $types = array_filter($types, function($type) {
+            return strtolower($type) !== 'usd account';
+        });
+        
+        return [
+            'success' => true,
+            'data' => array_values($types) // Re-index array
+        ];
+        
+    } catch (Exception $e) {
+        // Return default types if query fails (excluding USD Account)
+        return [
+            'success' => true,
+            'data' => ['Savings', 'Checking', 'Fixed Deposit', 'Loan']
         ];
     }
 }
