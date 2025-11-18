@@ -252,7 +252,18 @@ $current_user = getCurrentUser();
                     <div class="gl-toolbar__field">
                         <label for="account-search" class="visually-hidden">Search accounts</label>
                         <span class="gl-toolbar__icon"><i class="fas fa-search"></i></span>
-                        <input type="text" class="search-input" placeholder="Search accounts" id="account-search" autocomplete="off">
+                        <input type="text" class="search-input" placeholder="Search by name or account number" id="account-search" autocomplete="off">
+                    </div>
+                    <div class="gl-toolbar__field">
+                        <label for="account-type-filter" class="visually-hidden">Filter by account type</label>
+                        <span class="gl-toolbar__icon"><i class="fas fa-filter"></i></span>
+                        <select class="search-input" id="account-type-filter">
+                            <option value="">All Account Types</option>
+                            <option value="Savings">Savings</option>
+                            <option value="Checking">Checking</option>
+                            <option value="Fixed Deposit">Fixed Deposit</option>
+                            <option value="Loan">Loan</option>
+                        </select>
                     </div>
                     <div class="gl-toolbar__actions">
                         <button class="btn-filter" type="button" onclick="applyAccountFilter()">
@@ -269,10 +280,10 @@ $current_user = getCurrentUser();
                     <table class="gl-table" id="accounts-table">
                         <thead>
                             <tr>
-                                <th>Account Code</th>
+                                <th>Account Number</th>
                                 <th>Account Name</th>
-                                <th>Type</th>
-                                <th>Balance</th>
+                                <th>Account Type</th>
+                                <th>Available Balance</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -287,8 +298,17 @@ $current_user = getCurrentUser();
                     </table>
                 </div>
                 <div class="table-actions-row">
-                    <span class="table-actions-hint">Showing the latest 10 active accounts</span>
+                    <span class="table-actions-hint" id="accounts-hint">Showing accounts</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="accounts-per-page" class="me-2">Show:</label>
+                            <select id="accounts-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeAccountsPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportAccounts()">Export</button>
                         <button class="btn-action" type="button" onclick="loadAccountsTable()">Refresh</button>
                     </div>
@@ -310,16 +330,6 @@ $current_user = getCurrentUser();
                         <div class="gl-toolbar__field gl-toolbar__field--compact">
                             <label for="transaction-to">To</label>
                             <input type="date" id="transaction-to" class="gl-input">
-                        </div>
-                        <div class="gl-toolbar__field gl-toolbar__field--compact">
-                            <label for="transaction-type">Type</label>
-                            <select id="transaction-type" class="gl-select">
-                                <option value="">All types</option>
-                                <option value="sale">Sales</option>
-                                <option value="purchase">Purchases</option>
-                                <option value="payment">Payments</option>
-                                <option value="receipt">Receipts</option>
-                            </select>
                         </div>
                     </div>
                     <div class="gl-toolbar__actions">
@@ -356,8 +366,17 @@ $current_user = getCurrentUser();
                     </table>
                 </div>
                 <div class="table-actions-row">
-                    <span class="table-actions-hint">Latest journal entries posted to the ledger</span>
+                    <span class="table-actions-hint" id="transactions-hint">Latest journal entries posted to the ledger</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="transactions-per-page" class="me-2">Show:</label>
+                            <select id="transactions-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeTransactionsPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportTransactions()">Export</button>
                         <button class="btn-action btn-action-outline" type="button" onclick="printTransactions()">Print</button>
                         <button class="btn-action" type="button" onclick="refreshTransactions()">Refresh</button>
@@ -414,8 +433,17 @@ $current_user = getCurrentUser();
                     </table>
                 </div>
                 <div class="table-actions-row">
-                    <span class="table-actions-hint">Showing last 100 audit log entries</span>
+                    <span class="table-actions-hint" id="audit-hint">Showing audit log entries</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="audit-per-page" class="me-2">Show:</label>
+                            <select id="audit-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeAuditPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportAuditTrail()">Export</button>
                         <button class="btn-action" type="button" onclick="loadAuditTrail()">Refresh</button>
                     </div>
@@ -477,6 +505,15 @@ $current_user = getCurrentUser();
                 <div class="table-actions-row">
                     <span class="table-actions-hint" id="trial-balance-hint">Trial balance for selected period</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3" id="trial-balance-pagination" style="display: none;">
+                            <label for="trial-balance-per-page" class="me-2">Show:</label>
+                            <select id="trial-balance-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeTrialBalancePerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportTrialBalance()" id="exportTrialBalanceBtn" style="display: none;">
                             <i class="fas fa-download me-1"></i>Export
                         </button>
@@ -509,6 +546,29 @@ $current_user = getCurrentUser();
                     </button>
                     <button type="button" class="btn btn-danger d-none" id="voidJournalEntryBtn" onclick="voidJournalEntry()">
                         <i class="fas fa-times me-1"></i>Void
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Detail Modal -->
+    <div class="modal fade" id="accountDetailModal" tabindex="-1" aria-labelledby="accountDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="accountDetailModalLabel">
+                        <i class="fas fa-book me-2"></i>Account Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="accountDetailBody">
+                    <p class="text-center text-muted">Loading account details...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="exportAccountTransactions()">
+                        <i class="fas fa-download me-1"></i>Export Transactions
                     </button>
                 </div>
             </div>

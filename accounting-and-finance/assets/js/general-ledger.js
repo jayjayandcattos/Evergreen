@@ -2,6 +2,17 @@
 // GENERAL LEDGER MODULE - BEAUTIFUL & CLEAN JS
 // ========================================
 
+// ========================================
+// PAGINATION STATE
+// ========================================
+
+let paginationState = {
+    accounts: { perPage: 25, currentPage: 1 },
+    transactions: { perPage: 25, currentPage: 1 },
+    audit: { perPage: 25, currentPage: 1 },
+    trialBalance: { perPage: 25, currentPage: 1 }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeGeneralLedger();
 });
@@ -11,6 +22,20 @@ function initializeGeneralLedger() {
     
     // Add smooth animations
     addSmoothAnimations();
+    
+    // Add Enter key support for account search
+    const accountSearchInput = document.getElementById('account-search');
+    if (accountSearchInput) {
+        accountSearchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyAccountFilter();
+            }
+        });
+    }
+    
+    // Load account types dynamically for filter dropdown
+    loadAccountTypes();
     
     // Load initial data with better error handling
     loadStatistics();
@@ -499,56 +524,130 @@ function renderAuditCharts(data) {
 }
 
 // ========================================
+// LOAD ACCOUNT TYPES FOR FILTER
+// ========================================
+
+function loadAccountTypes() {
+    fetch('../modules/api/general-ledger-data.php?action=get_account_types')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.length > 0) {
+                const typeFilter = document.getElementById('account-type-filter');
+                if (typeFilter) {
+                    // Clear existing options except "All Account Types"
+                    typeFilter.innerHTML = '<option value="">All Account Types</option>';
+                    
+                    // Add account types from database, excluding USD Account
+                    data.data.forEach(type => {
+                        // Filter out USD Account
+                        if (type.toLowerCase() !== 'usd account') {
+                            const option = document.createElement('option');
+                            option.value = type;
+                            option.textContent = type;
+                            typeFilter.appendChild(option);
+                        }
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading account types:', error);
+            // Keep default options if API fails
+        });
+}
+
+// ========================================
 // LOAD ACCOUNTS TABLE
 // ========================================
 
-function loadAccountsTable() {
+function loadAccountsTable(searchTerm = '', accountType = '') {
     showLoadingState('accounts');
 
-    fetch('../modules/api/general-ledger-data.php?action=get_accounts')
+    const params = new URLSearchParams();
+    params.append('action', 'get_accounts');
+    if (searchTerm) {
+        params.append('search', searchTerm);
+    }
+    if (accountType) {
+        params.append('account_type', accountType);
+    }
+    params.append('limit', paginationState.accounts.perPage);
+    params.append('offset', (paginationState.accounts.currentPage - 1) * paginationState.accounts.perPage);
+
+    fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error('Network response was not ok: ' + response.status);
             }
             return response.json();
         })
         .then(data => {
+            console.log('Accounts API response:', data);
             if (data.success) {
-                displayAccountsTable(data.data);
+                if (data.data && data.data.length > 0) {
+                    displayAccountsTable(data.data, data);
+                } else {
+                    console.warn('API returned success but no accounts found');
+                    showNotification('No accounts found in database. Please check that bank customer accounts exist.', 'warning');
+                    displayAccountsTable([], data);
+                }
             } else {
-                console.warn('API returned error, using fallback accounts data');
-                displayAccountsTable(getFallbackAccounts());
+                console.error('API returned error:', data.message || 'Unknown error');
+                showNotification('Error loading accounts: ' + (data.message || 'Unknown error'), 'error');
+                if (data.debug) {
+                    console.error('Debug info:', data.debug);
+                }
+                displayAccountsTable([], data);
             }
         })
         .catch(error => {
             console.error('Error loading accounts:', error);
-            console.log('Using fallback accounts data');
-            displayAccountsTable(getFallbackAccounts());
+            showNotification('Error loading accounts. Please check console for details.', 'error');
+            displayAccountsTable([]);
         });
 }
 
-function displayAccountsTable(accounts) {
+function displayAccountsTable(accounts, responseData = {}) {
     const tbody = document.querySelector('#accounts-table tbody');
+    
+    if (!tbody) {
+        console.error('Accounts table tbody not found');
+        return;
+    }
     
     if (accounts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No accounts found</td></tr>';
+        const hintElement = document.getElementById('accounts-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No accounts found';
+        }
         return;
     }
     
     let html = '';
-    accounts.slice(0, 10).forEach((account, index) => {
+    // Show all bank customer accounts
+    accounts.forEach((account, index) => {
         html += `
             <tr style="animation-delay: ${index * 0.1}s">
-                <td><strong class="account-code">${account.code}</strong></td>
-                <td><span class="account-name">${account.name}</span></td>
-                <td><span class="badge bg-${getAccountTypeBadge(account.category)}">${account.category}</span></td>
-                <td class="amount-cell">₱${formatCurrency(account.balance)}</td>
-                <td><button class="btn btn-sm btn-outline-primary" onclick="viewAccountDetails('${account.code}')">View</button></td>
+                <td><strong class="account-number">${escapeHtml(account.account_number)}</strong></td>
+                <td><span class="account-name">${escapeHtml(account.account_name)}</span></td>
+                <td><span class="badge bg-info">${escapeHtml(account.account_type)}</span></td>
+                <td class="amount-cell">₱${formatCurrency(account.available_balance)}</td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="viewAccountDetails('${escapeHtml(account.account_number)}', 'bank')">View</button></td>
             </tr>
         `;
     });
     
     tbody.innerHTML = html;
+    
+    // Update table hint to show count
+    const hintElement = document.getElementById('accounts-hint');
+    if (hintElement) {
+        const total = responseData.total || responseData.count || accounts.length;
+        const start = (paginationState.accounts.currentPage - 1) * paginationState.accounts.perPage + 1;
+        const end = Math.min(start + accounts.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} account${total !== 1 ? 's' : ''}`;
+    }
     
     // Add fade-in animation to table rows
     const rows = tbody.querySelectorAll('tr');
@@ -574,14 +673,14 @@ function loadTransactionsTable() {
     // Get filter parameters
     const dateFrom = document.getElementById('transaction-from')?.value || '';
     const dateTo = document.getElementById('transaction-to')?.value || '';
-    const type = document.getElementById('transaction-type')?.value || '';
 
     // Build query string
     const params = new URLSearchParams();
     params.append('action', 'get_transactions');
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
-    if (type) params.append('type', type);
+    params.append('limit', paginationState.transactions.perPage);
+    params.append('offset', (paginationState.transactions.currentPage - 1) * paginationState.transactions.perPage);
 
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
@@ -592,10 +691,10 @@ function loadTransactionsTable() {
         })
         .then(data => {
             if (data.success) {
-                displayTransactionsTable(data.data);
+                displayTransactionsTable(data.data, data);
             } else {
                 console.warn('API returned error, using fallback transactions data');
-                displayTransactionsTable(getFallbackTransactions());
+                displayTransactionsTable(getFallbackTransactions(), { total: 0 });
             }
         })
         .catch(error => {
@@ -605,31 +704,56 @@ function loadTransactionsTable() {
         });
 }
 
-function displayTransactionsTable(transactions) {
+function displayTransactionsTable(transactions, responseData = {}) {
     const tbody = document.querySelector('#transactions-table tbody');
     
     if (transactions.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No transactions found</td></tr>';
+        const hintElement = document.getElementById('transactions-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No transactions found';
+        }
         return;
     }
     
     let html = '';
-    transactions.slice(0, 10).forEach((txn, index) => {
+    transactions.forEach((txn, index) => {
+        const rawId = txn.id || txn.entry_id || '';
+        const journalNo = escapeHtml(txn.journal_no || '');
+        const source = txn.source || 'journal';
+        // Extract numeric ID from string like "JE-123" or "BT-456"
+        let entryId = 0;
+        if (rawId) {
+            const match = rawId.toString().match(/(\d+)$/);
+            entryId = match ? parseInt(match[1]) : 0;
+        }
+        // Store the full ID and source in data attributes
         html += `
-            <tr style="animation-delay: ${index * 0.1}s" data-entry-id="${txn.id || ''}">
-                <td><strong class="transaction-id">${txn.journal_no}</strong></td>
-                <td><span class="transaction-date">${txn.entry_date}</span></td>
-                <td><span class="transaction-desc">${txn.description || '-'}</span></td>
-                <td class="text-end amount-debit">₱${formatCurrency(txn.total_debit)}</td>
-                <td class="text-end amount-credit">₱${formatCurrency(txn.total_credit)}</td>
+            <tr style="animation-delay: ${index * 0.1}s" data-entry-id="${rawId}" data-source="${source}">
+                <td><strong class="transaction-id">${escapeHtml(txn.journal_no || '-')}</strong></td>
+                <td><span class="transaction-date">${escapeHtml(txn.entry_date || '-')}</span></td>
+                <td><span class="transaction-desc">${escapeHtml(txn.description || '-')}</span></td>
+                <td class="text-end amount-debit">₱${formatCurrency(txn.total_debit || 0)}</td>
+                <td class="text-end amount-credit">₱${formatCurrency(txn.total_credit || 0)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewTransactionDetailsById(${txn.id || 0}, '${txn.journal_no}')">View</button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewTransactionDetailsById('${rawId}', '${journalNo}', '${source}')" title="View transaction details">
+                        <i class="fas fa-eye me-1"></i>View
+                    </button>
                 </td>
             </tr>
         `;
     });
     
     tbody.innerHTML = html;
+    
+    // Update table hint to show count
+    const hintElement = document.getElementById('transactions-hint');
+    if (hintElement) {
+        const total = responseData.total || responseData.count || transactions.length;
+        const start = (paginationState.transactions.currentPage - 1) * paginationState.transactions.perPage + 1;
+        const end = Math.min(start + transactions.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} transaction${total !== 1 ? 's' : ''}`;
+    }
     
     // Add fade-in animation to table rows
     const rows = tbody.querySelectorAll('tr');
@@ -650,51 +774,77 @@ function displayTransactionsTable(transactions) {
 // ========================================
 
 function applyChartFilters() {
-    showNotification('Chart filters applied successfully!', 'success');
-    // Implement chart filter logic
+    console.log('Applying chart filters...');
+    showNotification('Refreshing charts with current data...', 'info');
+    // Reload charts with fresh data
+    loadCharts();
 }
 
 function viewDrillDown() {
-    showNotification('Opening drill-down view...', 'info');
-    // Implement drill-down logic
+    console.log('Opening drill-down view...');
+    showNotification('Drill-down feature: View detailed account breakdown', 'info');
+    // Scroll to accounts table for detailed view
+    const accountsSection = document.getElementById('accounts');
+    if (accountsSection) {
+        accountsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => {
+            const searchInput = document.getElementById('account-search');
+            if (searchInput) {
+                searchInput.focus();
+            }
+        }, 500);
+    }
 }
 
 function applyAccountFilter() {
-    const searchTerm = document.getElementById('account-search').value;
-
-    if (!searchTerm.trim()) {
-        loadAccountsTable();
+    const searchInput = document.getElementById('account-search');
+    const typeFilter = document.getElementById('account-type-filter');
+    
+    if (!searchInput || !typeFilter) {
+        console.error('Account filter inputs not found');
         return;
     }
-
-    showLoadingState('accounts');
-
-    const encodedSearch = encodeURIComponent(searchTerm.trim());
-
-    fetch(`../modules/api/general-ledger-data.php?action=get_accounts&search=${encodedSearch}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayAccountsTable(data.data);
-                showNotification(`Found ${data.data.length} accounts matching "${searchTerm}"`, 'info');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error applying filter', 'error');
-        });
+    
+    const searchTerm = searchInput.value.trim();
+    const accountType = typeFilter.value;
+    
+    console.log('Applying account filter:', { search: searchTerm, type: accountType });
+    
+    let filterMsg = '';
+    if (searchTerm && accountType) {
+        filterMsg = `Filtering by "${searchTerm}" and "${accountType}"...`;
+    } else if (searchTerm) {
+        filterMsg = `Searching for "${searchTerm}"...`;
+    } else if (accountType) {
+        filterMsg = `Filtering by account type: "${accountType}"...`;
+    }
+    
+    if (filterMsg) {
+        showNotification(filterMsg, 'info');
+    }
+    
+    loadAccountsTable(searchTerm, accountType);
 }
 
 function resetAccountFilter() {
-    document.getElementById('account-search').value = '';
-    loadAccountsTable();
+    const searchInput = document.getElementById('account-search');
+    const typeFilter = document.getElementById('account-type-filter');
+    
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    if (typeFilter) {
+        typeFilter.value = '';
+    }
+    
+    console.log('Resetting account filter...');
+    loadAccountsTable('', '');
     showNotification('Account filter reset', 'info');
 }
 
 function applyTransactionFilter() {
     const dateFrom = document.getElementById('transaction-from')?.value || '';
     const dateTo = document.getElementById('transaction-to')?.value || '';
-    const type = document.getElementById('transaction-type')?.value || '';
 
     if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
         showNotification('From date cannot be after To date', 'error');
@@ -708,11 +858,9 @@ function applyTransactionFilter() {
 function resetTransactionFilter() {
     const dateFromInput = document.getElementById('transaction-from');
     const dateToInput = document.getElementById('transaction-to');
-    const typeInput = document.getElementById('transaction-type');
 
     if (dateFromInput) dateFromInput.value = '';
     if (dateToInput) dateToInput.value = '';
-    if (typeInput) typeInput.value = '';
 
     showNotification('Transaction filters reset', 'info');
     loadTransactionsTable();
@@ -746,9 +894,121 @@ function showLoadingState(section) {
 // VIEW DETAILS FUNCTIONS
 // ========================================
 
-function viewAccountDetails(accountCode) {
-    showNotification(`Opening account details for: ${accountCode}`, 'info');
-    // Implement account details modal/page
+function viewAccountDetails(accountCode, source = '') {
+    console.log('Opening account details for:', accountCode, source);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('accountDetailModal'));
+    modal.show();
+    
+    // Set loading state
+    document.getElementById('accountDetailBody').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-3">Loading account details...</p></div>';
+    
+    // Fetch account transaction history
+    const params = new URLSearchParams();
+    params.append('action', 'get_account_transactions');
+    params.append('account_code', accountCode);
+    if (source) {
+        params.append('source', source);
+    }
+    
+    fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAccountTransactions(data.data);
+            } else {
+                document.getElementById('accountDetailBody').innerHTML = `<div class="alert alert-warning">${data.message || 'Unable to load account details'}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading account details:', error);
+            document.getElementById('accountDetailBody').innerHTML = '<div class="alert alert-danger">Error loading account details. Please try again.</div>';
+        });
+}
+
+function displayAccountTransactions(data) {
+    const accountInfo = data.account;
+    const transactions = data.transactions || [];
+    
+    let html = `
+        <div class="account-detail-header mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary"><i class="fas fa-user me-2"></i>${escapeHtml(accountInfo.account_name)}</h5>
+                    <p class="mb-1"><strong>Account Number:</strong> <code>${escapeHtml(accountInfo.account_number)}</code></p>
+                    <p class="mb-1"><strong>Account Type:</strong> <span class="badge bg-info">${escapeHtml(accountInfo.account_type)}</span></p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h6 class="text-muted">Available Balance</h6>
+                    <h3 class="text-success mb-0">₱${formatCurrency(accountInfo.available_balance)}</h3>
+                </div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h6 class="mt-4 mb-3"><i class="fas fa-history me-2"></i>Transaction History</h6>
+        
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    if (transactions.length === 0) {
+        html += '<tr><td colspan="6" class="text-center text-muted py-4">No transactions found for this account</td></tr>';
+    } else {
+        let runningBalance = 0;
+        transactions.forEach(txn => {
+            const debit = parseFloat(txn.debit) || 0;
+            const credit = parseFloat(txn.credit) || 0;
+            runningBalance += debit - credit;
+            
+            html += `
+                <tr>
+                    <td>${escapeHtml(txn.date)}</td>
+                    <td><strong>${escapeHtml(txn.reference)}</strong></td>
+                    <td>${escapeHtml(txn.description)}</td>
+                    <td class="text-end">${debit > 0 ? '₱' + formatCurrency(debit) : '-'}</td>
+                    <td class="text-end">${credit > 0 ? '₱' + formatCurrency(credit) : '-'}</td>
+                    <td class="text-end"><strong>₱${formatCurrency(runningBalance)}</strong></td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3 text-muted text-end">
+            <small>Showing ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}</small>
+        </div>
+    `;
+    
+    document.getElementById('accountDetailBody').innerHTML = html;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
 function viewTransactionDetails(journalNo) {
@@ -773,8 +1033,176 @@ function exportTransactions() {
 }
 
 function printTransactions() {
-    showNotification('Sending transaction table to printer...', 'info');
-    window.print();
+    const table = document.getElementById('transactions-table');
+    if (!table) {
+        showNotification('No transaction data to print', 'error');
+        return;
+    }
+    
+    // Get filter values for header
+    const dateFrom = document.getElementById('transaction-from')?.value || '';
+    const dateTo = document.getElementById('transaction-to')?.value || '';
+    const dateRange = dateFrom && dateTo 
+        ? `${new Date(dateFrom).toLocaleDateString()} to ${new Date(dateTo).toLocaleDateString()}`
+        : 'All Transactions';
+    
+    // Get all transaction rows (including header)
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    
+    if (!thead || !tbody || tbody.children.length === 0) {
+        showNotification('No transaction data to print', 'error');
+        return;
+    }
+    
+    // Create print-friendly HTML
+    let printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Transaction Records Report</title>
+            <style>
+                @media print {
+                    @page {
+                        size: landscape;
+                        margin: 1cm;
+                    }
+                }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 20px; 
+                    font-size: 12px;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 10px;
+                }
+                .header h1 { 
+                    margin: 0 0 5px 0;
+                    font-size: 20px;
+                    color: #333;
+                }
+                .header-info {
+                    font-size: 12px;
+                    color: #666;
+                    margin-top: 5px;
+                }
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 10px;
+                }
+                th, td { 
+                    border: 1px solid #ddd; 
+                    padding: 8px; 
+                    text-align: left;
+                }
+                th { 
+                    background-color: #0a3d3d;
+                    color: white;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                td {
+                    background-color: white;
+                }
+                .text-end { 
+                    text-align: right; 
+                }
+                tr:nth-child(even) td {
+                    background-color: #f9f9f9;
+                }
+                .footer { 
+                    margin-top: 20px; 
+                    font-size: 10px; 
+                    color: #666;
+                    text-align: center;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                }
+                .no-data {
+                    text-align: center;
+                    padding: 20px;
+                    color: #999;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Transaction Records Report</h1>
+                <div class="header-info">
+                    <strong>Date Range:</strong> ${dateRange}<br>
+                    <strong>Generated:</strong> ${new Date().toLocaleString()}
+                </div>
+            </div>
+            <table>
+    `;
+    
+    // Add table header
+    printContent += '<thead><tr>';
+    const headerCells = thead.querySelectorAll('th');
+    headerCells.forEach(th => {
+        const text = th.textContent.trim();
+        // Skip Actions column for print
+        if (text.toLowerCase() !== 'actions') {
+            printContent += `<th>${escapeHtml(text)}</th>`;
+        }
+    });
+    printContent += '</tr></thead>';
+    
+    // Add table body
+    printContent += '<tbody>';
+    const rows = tbody.querySelectorAll('tr');
+    
+    if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('td[colspan]'))) {
+        printContent += '<tr><td colspan="5" class="no-data">No transactions found</td></tr>';
+    } else {
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0 && !row.querySelector('td[colspan]')) {
+                printContent += '<tr>';
+                cells.forEach((cell, index) => {
+                    // Skip Actions column (last column)
+                    if (index < cells.length - 1) {
+                        const cellText = cell.textContent.trim();
+                        const isAmount = cell.classList.contains('text-end') && (cellText.includes('₱') || cellText === '-');
+                        printContent += `<td class="${isAmount ? 'text-end' : ''}">${escapeHtml(cellText)}</td>`;
+                    }
+                });
+                printContent += '</tr>';
+            }
+        });
+    }
+    
+    printContent += `
+            </tbody>
+            </table>
+            <div class="footer">
+                <p>Evergreen Accounting & Finance System | Transaction Records Report</p>
+                <p>Page 1 | Generated on ${new Date().toLocaleString()}</p>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Open print window
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showNotification('Please allow pop-ups to print this report', 'error');
+        return;
+    }
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Wait for content to load, then trigger print
+    setTimeout(() => {
+        printWindow.print();
+        showNotification('Print dialog opened', 'success');
+    }, 500);
 }
 
 function refreshTransactions() {
@@ -919,12 +1347,8 @@ function getFallbackChartData() {
 
 function getFallbackAccounts() {
     return [
-        { code: '1001', name: 'Cash on Hand', category: 'asset', balance: 15000.00, is_active: true },
-        { code: '1002', name: 'Bank Account', category: 'asset', balance: 125000.00, is_active: true },
-        { code: '2001', name: 'Accounts Payable', category: 'liability', balance: 25000.00, is_active: true },
-        { code: '3001', name: 'Owner Equity', category: 'equity', balance: 100000.00, is_active: true },
-        { code: '4001', name: 'Sales Revenue', category: 'revenue', balance: 75000.00, is_active: true },
-        { code: '5001', name: 'Office Supplies', category: 'expense', balance: 5000.00, is_active: true }
+        { account_number: 'SA-6524-2025', account_name: 'Juan tamad', account_type: 'Savings Account', available_balance: 999999.00, source: 'bank' },
+        { account_number: 'CH-1001-2025', account_name: 'Maria Reyes', account_type: 'Checking Account', available_balance: 50000.00, source: 'bank' }
     ];
 }
 
@@ -944,12 +1368,46 @@ function getFallbackTransactions() {
 
 let currentJournalEntryId = null;
 
-function viewTransactionDetailsById(entryId, journalNo) {
-    if (entryId && entryId > 0) {
-        loadJournalEntryDetails(entryId);
+function viewTransactionDetailsById(entryId, journalNo, source = 'journal') {
+    console.log('View transaction details:', { entryId, journalNo, source });
+    
+    // Show loading state immediately
+    const modalBody = document.getElementById('journalEntryDetailBody');
+    if (!modalBody) {
+        showNotification('Error: Modal not found', 'error');
+        return;
+    }
+    
+    modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-3">Loading transaction details...</p></div>';
+    const modalElement = document.getElementById('journalEntryDetailModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+    
+    // Extract numeric ID from string like "JE-123" or "BT-456"
+    let numericId = 0;
+    if (entryId) {
+        const match = entryId.toString().match(/(\d+)$/);
+        numericId = match ? parseInt(match[1]) : 0;
+    }
+    
+    if (!numericId || numericId <= 0) {
+        console.warn('Invalid entry ID, trying journal number:', journalNo);
+        if (journalNo) {
+            viewTransactionDetails(journalNo);
+        } else {
+            showNotification('Transaction ID or journal number is required', 'error');
+            modalBody.innerHTML = '<div class="alert alert-danger">Invalid transaction ID</div>';
+        }
+        return;
+    }
+    
+    // Load details based on source
+    if (source === 'bank') {
+        loadBankTransactionDetails(numericId, journalNo);
     } else {
-        // Fallback to journal number search
-        viewTransactionDetails(journalNo);
+        loadJournalEntryDetails(numericId);
     }
 }
 
@@ -974,24 +1432,153 @@ function viewTransactionDetails(journalNo) {
 }
 
 function loadJournalEntryDetails(entryId) {
+    console.log('Loading journal entry details for ID:', entryId);
+    
+    if (!entryId || entryId <= 0) {
+        showNotification('Invalid journal entry ID', 'error');
+        return;
+    }
+    
     fetch(`../modules/api/general-ledger-data.php?action=get_journal_entry_details&id=${entryId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success) {
+            console.log('Journal entry details response:', data);
+            if (data.success && data.data) {
                 displayJournalEntryDetails(data.data);
                 currentJournalEntryId = entryId;
             } else {
-                showNotification(data.message || 'Error loading details', 'error');
+                const errorMsg = data.message || 'Error loading journal entry details';
+                console.error('API error:', errorMsg);
+                showNotification(errorMsg, 'error');
+                const modalBody = document.getElementById('journalEntryDetailBody');
+                if (modalBody) {
+                    modalBody.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtml(errorMsg)}</div>`;
+                }
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error loading journal entry details', 'error');
+            console.error('Error loading journal entry details:', error);
+            showNotification('Error loading journal entry details: ' + error.message, 'error');
+            const modalBody = document.getElementById('journalEntryDetailBody');
+            if (modalBody) {
+                modalBody.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error: ${escapeHtml(error.message)}</div>`;
+            }
         });
+}
+
+function loadBankTransactionDetails(transactionId, journalNo) {
+    console.log('Loading bank transaction details for ID:', transactionId);
+    
+    // For bank transactions, show a simplified view
+    const modalBody = document.getElementById('journalEntryDetailBody');
+    if (!modalBody) {
+        showNotification('Error: Modal not found', 'error');
+        return;
+    }
+    
+    // Fetch bank transaction details
+    fetch(`../modules/api/general-ledger-data.php?action=get_bank_transaction_details&id=${transactionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                displayBankTransactionDetails(data.data);
+            } else {
+                // Fallback: show basic info from the transaction list
+                displayBankTransactionDetails({
+                    transaction_ref: journalNo,
+                    description: 'Bank Transaction',
+                    amount: 0,
+                    created_at: new Date().toISOString()
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading bank transaction:', error);
+            // Show basic info even if API fails
+            displayBankTransactionDetails({
+                transaction_ref: journalNo,
+                description: 'Bank Transaction',
+                amount: 0,
+                created_at: new Date().toISOString()
+            });
+        });
+}
+
+function displayBankTransactionDetails(txn) {
+    const body = document.getElementById('journalEntryDetailBody');
+    if (!body) return;
+    
+    const date = txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
+    const amount = parseFloat(txn.amount || 0);
+    
+    let html = `
+        <div class="bank-transaction-header mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3"><i class="fas fa-university me-2"></i>Bank Transaction Information</h5>
+                    <div class="info-group">
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-hashtag me-2 text-muted"></i>Reference:</strong> 
+                            <span class="ms-2">${escapeHtml(txn.transaction_ref || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-calendar me-2 text-muted"></i>Date:</strong> 
+                            <span class="ms-2">${date}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-dollar-sign me-2 text-muted"></i>Amount:</strong> 
+                            <span class="ms-2 ${amount >= 0 ? 'text-success' : 'text-danger'}">₱${formatCurrency(Math.abs(amount))}</span>
+                        </div>
+                        ${txn.account_number ? `
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-credit-card me-2 text-muted"></i>Account Number:</strong> 
+                            <span class="ms-2">${escapeHtml(txn.account_number)}</span>
+                        </div>
+                        ` : ''}
+                        ${txn.transaction_type ? `
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-tag me-2 text-muted"></i>Transaction Type:</strong> 
+                            <span class="badge bg-info ms-2">${escapeHtml(txn.transaction_type)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <strong><i class="fas fa-align-left me-2"></i>Description:</strong>
+            <p class="mt-2 p-3 bg-light rounded">${escapeHtml(txn.description || 'N/A')}</p>
+        </div>
+    `;
+    
+    body.innerHTML = html;
+    
+    // Hide action buttons for bank transactions
+    const postBtn = document.getElementById('postJournalEntryBtn');
+    const voidBtn = document.getElementById('voidJournalEntryBtn');
+    if (postBtn) postBtn.classList.add('d-none');
+    if (voidBtn) voidBtn.classList.add('d-none');
 }
 
 function displayJournalEntryDetails(entry) {
     const body = document.getElementById('journalEntryDetailBody');
+    
+    if (!body) {
+        console.error('Journal entry detail body not found');
+        showNotification('Error: Modal element not found', 'error');
+        return;
+    }
+    
+    if (!entry) {
+        body.innerHTML = '<div class="alert alert-danger">No data available</div>';
+        return;
+    }
     
     // Format dates
     const entryDate = entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
@@ -999,57 +1586,98 @@ function displayJournalEntryDetails(entry) {
     const postedDate = entry.posted_at ? new Date(entry.posted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
     
     let html = `
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <strong>Journal Number:</strong> ${entry.journal_no}<br>
-                <strong>Type:</strong> ${entry.type_name} (${entry.type_code})<br>
-                <strong>Date:</strong> ${entryDate}<br>
-                <strong>Status:</strong> <span class="badge bg-${getStatusColor(entry.status)}">${entry.status.toUpperCase()}</span>
-            </div>
-            <div class="col-md-6">
-                <strong>Fiscal Period:</strong> ${entry.period_name || 'N/A'}<br>
-                <strong>Reference:</strong> ${entry.reference_no || 'N/A'}<br>
-                <strong>Created By:</strong> ${entry.created_by_name} on ${createdDate}<br>
-                ${entry.posted_by_name ? `<strong>Posted By:</strong> ${entry.posted_by_name} on ${postedDate}<br>` : ''}
+        <div class="journal-entry-header mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3"><i class="fas fa-file-invoice me-2"></i>Journal Entry Information</h5>
+                    <div class="info-group">
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-hashtag me-2 text-muted"></i>Journal Number:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.journal_no || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-tag me-2 text-muted"></i>Type:</strong> 
+                            <span class="badge bg-info ms-2">${escapeHtml(entry.type_name || 'N/A')} (${escapeHtml(entry.type_code || 'N/A')})</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-calendar me-2 text-muted"></i>Date:</strong> 
+                            <span class="ms-2">${entryDate}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-info-circle me-2 text-muted"></i>Status:</strong> 
+                            <span class="badge bg-${getStatusColor(entry.status)} ms-2">${escapeHtml((entry.status || 'unknown').toUpperCase())}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="text-secondary mb-3"><i class="fas fa-info-circle me-2"></i>Additional Information</h5>
+                    <div class="info-group">
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-calendar-alt me-2 text-muted"></i>Fiscal Period:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.period_name || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-file-alt me-2 text-muted"></i>Reference:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.reference_no || 'N/A')}</span>
+                        </div>
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-user me-2 text-muted"></i>Created By:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.created_by_name || entry.created_by_username || 'N/A')} on ${createdDate}</span>
+                        </div>
+                        ${entry.posted_by_name || entry.posted_by_username ? `
+                        <div class="info-item mb-2">
+                            <strong><i class="fas fa-check-circle me-2 text-muted"></i>Posted By:</strong> 
+                            <span class="ms-2">${escapeHtml(entry.posted_by_name || entry.posted_by_username || 'N/A')} on ${postedDate}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
             </div>
         </div>
+        
         <div class="mb-3">
-            <strong>Description:</strong><br>
-            <p>${entry.description || 'N/A'}</p>
+            <strong><i class="fas fa-align-left me-2"></i>Description:</strong>
+            <p class="mt-2 p-3 bg-light rounded">${escapeHtml(entry.description || 'N/A')}</p>
         </div>
+        
         <div class="table-responsive">
-            <table class="table table-sm table-bordered">
+            <h6 class="mb-3"><i class="fas fa-list me-2"></i>Account Lines</h6>
+            <table class="table table-sm table-bordered table-hover">
                 <thead class="table-light">
                     <tr>
-                        <th>Account</th>
-                        <th>Account Name</th>
-                        <th class="text-end">Debit</th>
-                        <th class="text-end">Credit</th>
-                        <th>Memo</th>
+                        <th><i class="fas fa-hashtag me-1"></i>Account Code</th>
+                        <th><i class="fas fa-book me-1"></i>Account Name</th>
+                        <th class="text-end"><i class="fas fa-arrow-up me-1"></i>Debit</th>
+                        <th class="text-end"><i class="fas fa-arrow-down me-1"></i>Credit</th>
+                        <th><i class="fas fa-comment me-1"></i>Memo</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
     
-    entry.lines.forEach(line => {
-        html += `
-            <tr>
-                <td>${line.account_code}</td>
-                <td>${line.account_name}</td>
-                <td class="text-end">${line.debit > 0 ? '₱' + formatCurrency(line.debit) : '-'}</td>
-                <td class="text-end">${line.credit > 0 ? '₱' + formatCurrency(line.credit) : '-'}</td>
-                <td>${line.memo || '-'}</td>
-            </tr>
-        `;
-    });
+    if (entry.lines && entry.lines.length > 0) {
+        entry.lines.forEach((line, index) => {
+            html += `
+                <tr>
+                    <td><strong>${escapeHtml(line.account_code || 'N/A')}</strong></td>
+                    <td>${escapeHtml(line.account_name || 'N/A')}</td>
+                    <td class="text-end text-success">${line.debit > 0 ? '₱' + formatCurrency(line.debit) : '-'}</td>
+                    <td class="text-end text-danger">${line.credit > 0 ? '₱' + formatCurrency(line.credit) : '-'}</td>
+                    <td>${escapeHtml(line.memo || '-')}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html += '<tr><td colspan="5" class="text-center text-muted py-3">No account lines found</td></tr>';
+    }
     
     html += `
                 </tbody>
                 <tfoot class="table-light">
                     <tr>
-                        <th colspan="2">Total</th>
-                        <th class="text-end">₱${formatCurrency(entry.total_debit)}</th>
-                        <th class="text-end">₱${formatCurrency(entry.total_credit)}</th>
+                        <th colspan="2"><strong>Total</strong></th>
+                        <th class="text-end text-success"><strong>₱${formatCurrency(entry.total_debit || 0)}</strong></th>
+                        <th class="text-end text-danger"><strong>₱${formatCurrency(entry.total_credit || 0)}</strong></th>
                         <th></th>
                     </tr>
                 </tfoot>
@@ -1060,11 +1688,21 @@ function displayJournalEntryDetails(entry) {
     body.innerHTML = html;
     
     // Show/hide action buttons based on permissions
-    document.getElementById('postJournalEntryBtn').classList.toggle('d-none', !entry.can_post);
-    document.getElementById('voidJournalEntryBtn').classList.toggle('d-none', !entry.can_void);
+    const postBtn = document.getElementById('postJournalEntryBtn');
+    const voidBtn = document.getElementById('voidJournalEntryBtn');
+    if (postBtn) {
+        postBtn.classList.toggle('d-none', !entry.can_post);
+    }
+    if (voidBtn) {
+        voidBtn.classList.toggle('d-none', !entry.can_void);
+    }
     
-    const modal = new bootstrap.Modal(document.getElementById('journalEntryDetailModal'));
-    modal.show();
+    // Show modal if not already shown
+    const modalElement = document.getElementById('journalEntryDetailModal');
+    if (modalElement) {
+        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+        modal.show();
+    }
 }
 
 function getStatusColor(status) {
@@ -1160,15 +1798,18 @@ function loadAuditTrail() {
     params.append('action', 'get_audit_trail');
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
+    params.append('limit', paginationState.audit.perPage);
+    params.append('offset', (paginationState.audit.currentPage - 1) * paginationState.audit.perPage);
     
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayAuditTrail(data.data);
+                displayAuditTrail(data.data, data);
             } else {
                 console.error('Error loading audit trail:', data.message);
                 showNotification('Error loading audit trail', 'error');
+                displayAuditTrail([], data);
             }
         })
         .catch(error => {
@@ -1177,29 +1818,47 @@ function loadAuditTrail() {
         });
 }
 
-function displayAuditTrail(logs) {
+function displayAuditTrail(logs, responseData = {}) {
     const tbody = document.querySelector('#audit-trail-table tbody');
     
+    if (!tbody) {
+        console.error('Audit trail table not found');
+        return;
+    }
+    
     if (logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No audit log entries found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No audit log entries found</td></tr>';
+        const hintElement = document.getElementById('audit-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No audit logs found';
+        }
         return;
     }
     
     let html = '';
-    logs.forEach(log => {
+    logs.forEach((log, index) => {
         html += `
-            <tr>
-                <td>${log.created_at}</td>
-                <td>${log.full_name} (${log.username})</td>
-                <td><span class="badge bg-info">${log.action}</span></td>
-                <td>${log.object_type}</td>
-                <td>${log.additional_info || '-'}</td>
-                <td>${log.ip_address || '-'}</td>
+            <tr style="animation-delay: ${index * 0.05}s">
+                <td><small>${escapeHtml(log.created_at)}</small></td>
+                <td>${escapeHtml(log.full_name)} <small class="text-muted">(${escapeHtml(log.username)})</small></td>
+                <td><span class="badge bg-info">${escapeHtml(log.action)}</span></td>
+                <td><span class="badge bg-secondary">${escapeHtml(log.object_type)}</span></td>
+                <td>${escapeHtml(log.description || log.additional_info || '-')}</td>
+                <td><small class="text-muted">${escapeHtml(log.ip_address || '-')}</small></td>
             </tr>
         `;
     });
     
     tbody.innerHTML = html;
+    
+    // Update count hint
+    const hintElement = document.getElementById('audit-hint');
+    if (hintElement) {
+        const total = responseData.total || responseData.count || logs.length;
+        const start = (paginationState.audit.currentPage - 1) * paginationState.audit.perPage + 1;
+        const end = Math.min(start + logs.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} audit log${total !== 1 ? 's' : ''}`;
+    }
 }
 
 function resetAuditFilter() {
@@ -1234,6 +1893,8 @@ function generateTrialBalance() {
     params.append('action', 'get_trial_balance');
     params.append('date_from', dateFrom);
     params.append('date_to', dateTo);
+    params.append('limit', paginationState.trialBalance.perPage);
+    params.append('offset', (paginationState.trialBalance.currentPage - 1) * paginationState.trialBalance.perPage);
     
     const tbody = document.querySelector('#trial-balance-table tbody');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="loading-spinner"></div><p>Generating trial balance...</p></td></tr>';
@@ -1242,7 +1903,7 @@ function generateTrialBalance() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayTrialBalance(data.data);
+                displayTrialBalance(data.data, data);
             } else {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Error: ${data.message || 'Failed to generate trial balance'}</td></tr>`;
                 showNotification(data.message || 'Error generating trial balance', 'error');
@@ -1255,21 +1916,28 @@ function generateTrialBalance() {
         });
 }
 
-function displayTrialBalance(data) {
+function displayTrialBalance(data, responseData = {}) {
     const tbody = document.querySelector('#trial-balance-table tbody');
     const footer = document.getElementById('trial-balance-footer');
     const hint = document.getElementById('trial-balance-hint');
     const exportBtn = document.getElementById('exportTrialBalanceBtn');
     const printBtn = document.getElementById('printTrialBalanceBtn');
+    const paginationControls = document.getElementById('trial-balance-pagination');
     
     if (data.accounts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No transactions found for the selected period</td></tr>';
         footer.style.display = 'none';
         exportBtn.style.display = 'none';
         printBtn.style.display = 'none';
+        if (paginationControls) paginationControls.style.display = 'none';
         hint.textContent = 'No data for selected period';
         return;
     }
+    
+    // Show pagination controls and export/print buttons
+    if (paginationControls) paginationControls.style.display = 'inline-block';
+    exportBtn.style.display = 'inline-block';
+    printBtn.style.display = 'inline-block';
     
     let html = '';
     data.accounts.forEach(account => {
@@ -1314,7 +1982,10 @@ function displayTrialBalance(data) {
     // Update hint and show export/print buttons
     const fromDate = new Date(data.date_from).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const toDate = new Date(data.date_to).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    hint.textContent = `Trial balance from ${fromDate} to ${toDate}`;
+    const total = responseData.total || responseData.count || data.accounts.length;
+    const start = (paginationState.trialBalance.currentPage - 1) * paginationState.trialBalance.perPage + 1;
+    const end = Math.min(start + data.accounts.length - 1, total);
+    hint.textContent = `Showing ${start}-${end} of ${total} account${total !== 1 ? 's' : ''} - ${fromDate} to ${toDate}`;
     exportBtn.style.display = 'inline-block';
     printBtn.style.display = 'inline-block';
     
@@ -1554,62 +2225,102 @@ function exportTransactions() {
         });
 }
 
-function printTransactions() {
-    const table = document.getElementById('recent-transactions-table');
+
+function exportAccountTransactions() {
+    showNotification('Exporting account transactions...', 'info');
+    // Implementation would extract table data from modal and export as CSV
+    const table = document.querySelector('#accountDetailBody table');
     if (!table) {
-        showNotification('No transaction data to print', 'error');
+        showNotification('No transaction data to export', 'error');
         return;
     }
     
-    // Create print-friendly HTML
-    let printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Transaction Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                h1 { text-align: center; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-                .text-end { text-align: right; }
-                .footer { margin-top: 20px; font-size: 12px; color: #666; }
-            </style>
-        </head>
-        <body>
-            <h1>Transaction Report</h1>
-            <table>
-    `;
+    // Create CSV from table
+    let csv = 'Date,Reference,Description,Debit,Credit,Balance\n';
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length > 1) {
+            const rowData = Array.from(cells).map(cell => {
+                let text = cell.textContent.trim();
+                text = text.replace(/₱/g, '').replace(/,/g, '');
+                return `"${text}"`;
+            }).join(',');
+            csv += rowData + '\n';
+        }
+    });
     
-    // Copy table structure
-    printContent += table.outerHTML;
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `account_transactions_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
-    printContent += `
-            </table>
-            <div class="footer">Generated on ${new Date().toLocaleString()}</div>
-        </body>
-        </html>
-    `;
-    
-    // Open print window
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
+    showNotification('Account transactions exported successfully', 'success');
+}
+
+// ========================================
+// PAGINATION CONTROL FUNCTIONS
+// ========================================
+
+function changeAccountsPerPage() {
+    const select = document.getElementById('accounts-per-page');
+    if (select) {
+        paginationState.accounts.perPage = parseInt(select.value);
+        paginationState.accounts.currentPage = 1;
+        const searchInput = document.getElementById('account-search');
+        const typeFilter = document.getElementById('account-type-filter');
+        loadAccountsTable(searchInput?.value || '', typeFilter?.value || '');
+    }
+}
+
+function changeTransactionsPerPage() {
+    const select = document.getElementById('transactions-per-page');
+    if (select) {
+        paginationState.transactions.perPage = parseInt(select.value);
+        paginationState.transactions.currentPage = 1;
+        loadTransactionsTable();
+    }
+}
+
+function changeAuditPerPage() {
+    const select = document.getElementById('audit-per-page');
+    if (select) {
+        paginationState.audit.perPage = parseInt(select.value);
+        paginationState.audit.currentPage = 1;
+        loadAuditTrail();
+    }
+}
+
+function changeTrialBalancePerPage() {
+    const select = document.getElementById('trial-balance-per-page');
+    if (select) {
+        paginationState.trialBalance.perPage = parseInt(select.value);
+        paginationState.trialBalance.currentPage = 1;
+        generateTrialBalance();
+    }
 }
 
 // Make functions globally available
+window.viewAccountDetails = viewAccountDetails;
 window.viewTransactionDetails = viewTransactionDetails;
 window.viewTransactionDetailsById = viewTransactionDetailsById;
+window.loadJournalEntryDetails = loadJournalEntryDetails;
+window.loadBankTransactionDetails = loadBankTransactionDetails;
 window.postJournalEntry = postJournalEntry;
 window.voidJournalEntry = voidJournalEntry;
 window.loadAuditTrail = loadAuditTrail;
 window.resetAuditFilter = resetAuditFilter;
 window.exportAuditTrail = exportAuditTrail;
+window.changeAccountsPerPage = changeAccountsPerPage;
+window.changeTransactionsPerPage = changeTransactionsPerPage;
+window.changeAuditPerPage = changeAuditPerPage;
+window.changeTrialBalancePerPage = changeTrialBalancePerPage;
 window.generateTrialBalance = generateTrialBalance;
 window.resetTrialBalanceFilter = resetTrialBalanceFilter;
 window.exportTrialBalance = exportTrialBalance;
@@ -1617,3 +2328,4 @@ window.printTrialBalance = printTrialBalance;
 window.exportAccounts = exportAccounts;
 window.exportTransactions = exportTransactions;
 window.printTransactions = printTransactions;
+window.exportAccountTransactions = exportAccountTransactions;

@@ -35,16 +35,16 @@ Files: `fix_admin_password.php`, `test_login.php`
 
 ## Entry Points
 
-1. **Main Application**: `http://localhost/Accounting and finance/` or `http://localhost/Accounting and finance/index.php`
+1. **Main Application**: `http://localhost/accounting-and-finance/` or `http://localhost/accounting-and-finance/index.php`
    - Auto-redirects to: `core/login.php`
 
-2. **Direct Login**: `http://localhost/Accounting and finance/core/login.php`
+2. **Direct Login**: `http://localhost/accounting-and-finance/core/login.php`
 
-3. **Dashboard**: `http://localhost/Accounting and finance/core/dashboard.php`
+3. **Dashboard**: `http://localhost/accounting-and-finance/core/dashboard.php`
 
 4. **Admin Tools**:
-   - Password Reset: `http://localhost/Accounting and finance/utils/fix_admin_password.php`
-   - Login Test: `http://localhost/Accounting and finance/utils/test_login.php`
+   - Password Reset: `http://localhost/accounting-and-finance/utils/fix_admin_password.php`
+   - Login Test: `http://localhost/accounting-and-finance/utils/test_login.php`
 
 ## Folder Structure
 
