@@ -502,10 +502,16 @@ function renderAuditCharts(data) {
 // LOAD ACCOUNTS TABLE
 // ========================================
 
-function loadAccountsTable() {
+function loadAccountsTable(searchTerm = '') {
     showLoadingState('accounts');
 
-    fetch('../modules/api/general-ledger-data.php?action=get_accounts')
+    const params = new URLSearchParams();
+    params.append('action', 'get_accounts');
+    if (searchTerm) {
+        params.append('search', searchTerm);
+    }
+
+    fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -536,19 +542,26 @@ function displayAccountsTable(accounts) {
     }
     
     let html = '';
-    accounts.slice(0, 10).forEach((account, index) => {
+    // Show all accounts (removed .slice(0, 10) limit)
+    accounts.forEach((account, index) => {
         html += `
             <tr style="animation-delay: ${index * 0.1}s">
-                <td><strong class="account-code">${account.code}</strong></td>
-                <td><span class="account-name">${account.name}</span></td>
-                <td><span class="badge bg-${getAccountTypeBadge(account.category)}">${account.category}</span></td>
+                <td><strong class="account-code">${escapeHtml(account.code)}</strong></td>
+                <td><span class="account-name">${escapeHtml(account.name)}</span></td>
+                <td><span class="badge bg-${getAccountTypeBadge(account.category)}">${escapeHtml(account.category)}</span></td>
                 <td class="amount-cell">₱${formatCurrency(account.balance)}</td>
-                <td><button class="btn btn-sm btn-outline-primary" onclick="viewAccountDetails('${account.code}')">View</button></td>
+                <td><button class="btn btn-sm btn-outline-primary" onclick="viewAccountDetails('${escapeHtml(account.code)}', '${escapeHtml(account.source)}')">View</button></td>
             </tr>
         `;
     });
     
     tbody.innerHTML = html;
+    
+    // Update table hint to show count
+    const hintElement = document.querySelector('.table-actions-row .table-actions-hint');
+    if (hintElement) {
+        hintElement.textContent = `Showing ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`;
+    }
     
     // Add fade-in animation to table rows
     const rows = tbody.querySelectorAll('tr');
@@ -650,43 +663,43 @@ function displayTransactionsTable(transactions) {
 // ========================================
 
 function applyChartFilters() {
-    showNotification('Chart filters applied successfully!', 'success');
-    // Implement chart filter logic
+    console.log('Applying chart filters...');
+    showNotification('Refreshing charts with current data...', 'info');
+    // Reload charts with fresh data
+    loadCharts();
 }
 
 function viewDrillDown() {
-    showNotification('Opening drill-down view...', 'info');
-    // Implement drill-down logic
+    console.log('Opening drill-down view...');
+    showNotification('Drill-down feature: View detailed account breakdown', 'info');
+    // Scroll to accounts table for detailed view
+    const accountsSection = document.getElementById('accounts');
+    if (accountsSection) {
+        accountsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => {
+            const searchInput = document.getElementById('account-search');
+            if (searchInput) {
+                searchInput.focus();
+            }
+        }, 500);
+    }
 }
 
 function applyAccountFilter() {
-    const searchTerm = document.getElementById('account-search').value;
-
-    if (!searchTerm.trim()) {
-        loadAccountsTable();
-        return;
+    const searchTerm = document.getElementById('account-search')?.value || '';
+    console.log('Applying account filter:', searchTerm);
+    loadAccountsTable(searchTerm.trim());
+    if (searchTerm.trim()) {
+        showNotification(`Searching for "${searchTerm}"`, 'info');
     }
-
-    showLoadingState('accounts');
-
-    const encodedSearch = encodeURIComponent(searchTerm.trim());
-
-    fetch(`../modules/api/general-ledger-data.php?action=get_accounts&search=${encodedSearch}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayAccountsTable(data.data);
-                showNotification(`Found ${data.data.length} accounts matching "${searchTerm}"`, 'info');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error applying filter', 'error');
-        });
 }
 
 function resetAccountFilter() {
-    document.getElementById('account-search').value = '';
+    const searchInput = document.getElementById('account-search');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    console.log('Resetting account filter...');
     loadAccountsTable();
     showNotification('Account filter reset', 'info');
 }
@@ -746,9 +759,122 @@ function showLoadingState(section) {
 // VIEW DETAILS FUNCTIONS
 // ========================================
 
-function viewAccountDetails(accountCode) {
-    showNotification(`Opening account details for: ${accountCode}`, 'info');
-    // Implement account details modal/page
+function viewAccountDetails(accountCode, source = '') {
+    console.log('Opening account details for:', accountCode, source);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('accountDetailModal'));
+    modal.show();
+    
+    // Set loading state
+    document.getElementById('accountDetailBody').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-3">Loading account details...</p></div>';
+    
+    // Fetch account transaction history
+    const params = new URLSearchParams();
+    params.append('action', 'get_account_transactions');
+    params.append('account_code', accountCode);
+    if (source) {
+        params.append('source', source);
+    }
+    
+    fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAccountTransactions(data.data);
+            } else {
+                document.getElementById('accountDetailBody').innerHTML = `<div class="alert alert-warning">${data.message || 'Unable to load account details'}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading account details:', error);
+            document.getElementById('accountDetailBody').innerHTML = '<div class="alert alert-danger">Error loading account details. Please try again.</div>';
+        });
+}
+
+function displayAccountTransactions(data) {
+    const accountInfo = data.account;
+    const transactions = data.transactions || [];
+    
+    let html = `
+        <div class="account-detail-header mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary"><i class="fas fa-building me-2"></i>${escapeHtml(accountInfo.name)}</h5>
+                    <p class="mb-1"><strong>Account Number:</strong> ${escapeHtml(accountInfo.code)}</p>
+                    <p class="mb-1"><strong>Type:</strong> <span class="badge bg-info">${escapeHtml(accountInfo.category)}</span></p>
+                    <p class="mb-1"><strong>Source:</strong> <span class="badge bg-secondary">${escapeHtml(accountInfo.source || 'GL')}</span></p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h6>Current Balance</h6>
+                    <h3 class="text-success">₱${formatCurrency(accountInfo.balance)}</h3>
+                </div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h6 class="mt-4 mb-3"><i class="fas fa-history me-2"></i>Transaction History</h6>
+        
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    if (transactions.length === 0) {
+        html += '<tr><td colspan="6" class="text-center text-muted py-4">No transactions found for this account</td></tr>';
+    } else {
+        let runningBalance = 0;
+        transactions.forEach(txn => {
+            const debit = parseFloat(txn.debit) || 0;
+            const credit = parseFloat(txn.credit) || 0;
+            runningBalance += debit - credit;
+            
+            html += `
+                <tr>
+                    <td>${escapeHtml(txn.date)}</td>
+                    <td><strong>${escapeHtml(txn.reference)}</strong></td>
+                    <td>${escapeHtml(txn.description)}</td>
+                    <td class="text-end">${debit > 0 ? '₱' + formatCurrency(debit) : '-'}</td>
+                    <td class="text-end">${credit > 0 ? '₱' + formatCurrency(credit) : '-'}</td>
+                    <td class="text-end"><strong>₱${formatCurrency(runningBalance)}</strong></td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3 text-muted text-end">
+            <small>Showing ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}</small>
+        </div>
+    `;
+    
+    document.getElementById('accountDetailBody').innerHTML = html;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
 function viewTransactionDetails(journalNo) {
@@ -1180,26 +1306,37 @@ function loadAuditTrail() {
 function displayAuditTrail(logs) {
     const tbody = document.querySelector('#audit-trail-table tbody');
     
+    if (!tbody) {
+        console.error('Audit trail table not found');
+        return;
+    }
+    
     if (logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No audit log entries found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No audit log entries found</td></tr>';
         return;
     }
     
     let html = '';
-    logs.forEach(log => {
+    logs.forEach((log, index) => {
         html += `
-            <tr>
-                <td>${log.created_at}</td>
-                <td>${log.full_name} (${log.username})</td>
-                <td><span class="badge bg-info">${log.action}</span></td>
-                <td>${log.object_type}</td>
-                <td>${log.additional_info || '-'}</td>
-                <td>${log.ip_address || '-'}</td>
+            <tr style="animation-delay: ${index * 0.05}s">
+                <td><small>${escapeHtml(log.created_at)}</small></td>
+                <td>${escapeHtml(log.full_name)} <small class="text-muted">(${escapeHtml(log.username)})</small></td>
+                <td><span class="badge bg-info">${escapeHtml(log.action)}</span></td>
+                <td><span class="badge bg-secondary">${escapeHtml(log.object_type)}</span></td>
+                <td>${escapeHtml(log.description || log.additional_info || '-')}</td>
+                <td><small class="text-muted">${escapeHtml(log.ip_address || '-')}</small></td>
             </tr>
         `;
     });
     
     tbody.innerHTML = html;
+    
+    // Update count hint
+    const hintElement = document.querySelector('#audit-trail .table-actions-hint');
+    if (hintElement) {
+        hintElement.textContent = `Showing ${logs.length} audit log${logs.length !== 1 ? 's' : ''}`;
+    }
 }
 
 function resetAuditFilter() {
@@ -1602,7 +1739,46 @@ function printTransactions() {
     }, 250);
 }
 
+function exportAccountTransactions() {
+    showNotification('Exporting account transactions...', 'info');
+    // Implementation would extract table data from modal and export as CSV
+    const table = document.querySelector('#accountDetailBody table');
+    if (!table) {
+        showNotification('No transaction data to export', 'error');
+        return;
+    }
+    
+    // Create CSV from table
+    let csv = 'Date,Reference,Description,Debit,Credit,Balance\n';
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length > 1) {
+            const rowData = Array.from(cells).map(cell => {
+                let text = cell.textContent.trim();
+                text = text.replace(/₱/g, '').replace(/,/g, '');
+                return `"${text}"`;
+            }).join(',');
+            csv += rowData + '\n';
+        }
+    });
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `account_transactions_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification('Account transactions exported successfully', 'success');
+}
+
 // Make functions globally available
+window.viewAccountDetails = viewAccountDetails;
 window.viewTransactionDetails = viewTransactionDetails;
 window.viewTransactionDetailsById = viewTransactionDetailsById;
 window.postJournalEntry = postJournalEntry;
@@ -1617,3 +1793,4 @@ window.printTrialBalance = printTrialBalance;
 window.exportAccounts = exportAccounts;
 window.exportTransactions = exportTransactions;
 window.printTransactions = printTransactions;
+window.exportAccountTransactions = exportAccountTransactions;

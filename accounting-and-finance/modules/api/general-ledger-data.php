@@ -68,6 +68,10 @@ try {
             echo json_encode(exportTransactions());
             break;
             
+        case 'get_account_transactions':
+            echo json_encode(getAccountTransactions());
+            break;
+            
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
@@ -356,9 +360,11 @@ function getRecentTransactions() {
         }
         
         if ($type) {
-            $sql .= " AND type_code = ?";
-            $params[] = $type;
-            $types .= 's';
+            $sql .= " AND (type_code LIKE ? OR type_name LIKE ?)";
+            $searchType = "%$type%";
+            $params[] = $searchType;
+            $params[] = $searchType;
+            $types .= 'ss';
         }
         
         $sql .= " ORDER BY entry_date DESC, id DESC LIMIT 50";
@@ -413,21 +419,21 @@ function getAuditTrail() {
         $dateFrom = $_GET['date_from'] ?? '';
         $dateTo = $_GET['date_to'] ?? '';
         
+        // Query activity_logs table (the actual table name in the system)
         $sql = "
             SELECT 
                 al.id,
                 al.user_id,
                 al.action,
-                al.object_type,
-                al.object_id,
-                al.additional_info,
+                al.module as object_type,
+                al.details as additional_info,
                 al.ip_address,
                 al.created_at,
                 u.username,
                 u.full_name
-            FROM audit_logs al
+            FROM activity_logs al
             LEFT JOIN users u ON al.user_id = u.id
-            WHERE al.object_type = 'journal_entry'
+            WHERE 1=1
         ";
         
         $params = [];
@@ -458,20 +464,14 @@ function getAuditTrail() {
         
         $audit_logs = [];
         while ($row = $result->fetch_assoc()) {
-            $additionalInfo = $row['additional_info'];
-            if (is_string($additionalInfo)) {
-                $additionalInfo = json_decode($additionalInfo, true);
-            }
-            
             $audit_logs[] = [
                 'id' => $row['id'],
-                'action' => $row['action'],
-                'object_type' => $row['object_type'],
-                'object_id' => $row['object_id'],
-                'additional_info' => is_array($additionalInfo) ? ($additionalInfo['description'] ?? '') : ($additionalInfo ?? ''),
+                'action' => ucfirst($row['action']),
+                'object_type' => ucfirst($row['object_type']),
+                'description' => $row['additional_info'] ?? '',
                 'username' => $row['username'] ?? 'System',
                 'full_name' => $row['full_name'] ?? 'System',
-                'ip_address' => $row['ip_address'] ?? '',
+                'ip_address' => $row['ip_address'] ?? '127.0.0.1',
                 'created_at' => date('M d, Y H:i:s', strtotime($row['created_at']))
             ];
         }
@@ -482,11 +482,11 @@ function getAuditTrail() {
         ];
         
     } catch (Exception $e) {
-        // Return empty array if audit_logs table doesn't exist
+        // Return empty array if table doesn't exist yet
         return [
             'success' => true,
             'data' => [],
-            'error' => $e->getMessage()
+            'message' => 'No activity logs available'
         ];
     }
 }
@@ -1148,7 +1148,7 @@ function getTrialBalance() {
         
         $stmt = $conn->prepare($sql);
         if ($fiscalPeriodId) {
-            $stmt->bind_param('isss', $fiscalPeriodId, $dateFrom, $dateTo);
+            $stmt->bind_param('iss', $fiscalPeriodId, $dateFrom, $dateTo);
         } else {
             // Fallback if no fiscal period
             $stmt = $conn->prepare("
@@ -1395,6 +1395,162 @@ function exportTransactions() {
             'success' => true,
             'data' => $transactions,
             'filename' => 'transactions_export_' . date('Y-m-d') . '.csv'
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => $e->getMessage()
+        ];
+    }
+}
+
+function getAccountTransactions() {
+    global $conn;
+    
+    try {
+        $accountCode = $_GET['account_code'] ?? '';
+        $source = $_GET['source'] ?? '';
+        
+        if (empty($accountCode)) {
+            return [
+                'success' => false,
+                'message' => 'Account code is required'
+            ];
+        }
+        
+        // First, get account information
+        $accountInfo = null;
+        
+        if ($source === 'bank') {
+            // Get bank customer account info
+            $sql = "SELECT 
+                        ca.account_number as code,
+                        CONCAT(bc.first_name, ' ', bc.last_name, ' - ', bat.account_type_name) as name,
+                        'asset' as category,
+                        COALESCE(
+                            (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
+                             FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
+                            0
+                        ) as balance,
+                        'bank' as source
+                    FROM customer_accounts ca
+                    INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+                    INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
+                    WHERE ca.account_number = ?
+                    LIMIT 1";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $accountCode);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $accountInfo = $result->fetch_assoc();
+            
+        } else {
+            // Get GL account info
+            $sql = "SELECT 
+                        a.code,
+                        a.name,
+                        at.category,
+                        COALESCE(ab.closing_balance, 0) as balance,
+                        'gl' as source
+                    FROM accounts a
+                    INNER JOIN account_types at ON a.type_id = at.id
+                    LEFT JOIN account_balances ab ON a.id = ab.account_id 
+                        AND ab.fiscal_period_id = (SELECT id FROM fiscal_periods WHERE status = 'open' ORDER BY start_date DESC LIMIT 1)
+                    WHERE a.code = ?
+                    LIMIT 1";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $accountCode);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $accountInfo = $result->fetch_assoc();
+        }
+        
+        if (!$accountInfo) {
+            return [
+                'success' => false,
+                'message' => 'Account not found'
+            ];
+        }
+        
+        // Get transactions for this account
+        $transactions = [];
+        
+        if ($source === 'bank') {
+            // Get bank transactions
+            $sql = "SELECT 
+                        DATE(bt.created_at) as date,
+                        bt.transaction_ref as reference,
+                        COALESCE(bt.description, tt.type_name) as description,
+                        CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END as debit,
+                        CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END as credit
+                    FROM bank_transactions bt
+                    INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                    INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
+                    WHERE ca.account_number = ?
+                    ORDER BY bt.created_at DESC
+                    LIMIT 100";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $accountCode);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                $transactions[] = [
+                    'date' => $row['date'],
+                    'reference' => $row['reference'],
+                    'description' => $row['description'],
+                    'debit' => (float)$row['debit'],
+                    'credit' => (float)$row['credit']
+                ];
+            }
+            
+        } else {
+            // Get journal line transactions for this GL account
+            $sql = "SELECT 
+                        je.entry_date as date,
+                        je.journal_no as reference,
+                        COALESCE(jl.description, je.description) as description,
+                        jl.debit,
+                        jl.credit
+                    FROM journal_lines jl
+                    INNER JOIN journal_entries je ON jl.journal_entry_id = je.id
+                    INNER JOIN accounts a ON jl.account_id = a.id
+                    WHERE a.code = ? AND je.status = 'posted'
+                    ORDER BY je.entry_date DESC, je.id DESC
+                    LIMIT 100";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $accountCode);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                $transactions[] = [
+                    'date' => $row['date'],
+                    'reference' => $row['reference'],
+                    'description' => $row['description'],
+                    'debit' => (float)$row['debit'],
+                    'credit' => (float)$row['credit']
+                ];
+            }
+        }
+        
+        return [
+            'success' => true,
+            'data' => [
+                'account' => [
+                    'code' => $accountInfo['code'],
+                    'name' => $accountInfo['name'],
+                    'category' => $accountInfo['category'],
+                    'balance' => (float)$accountInfo['balance'],
+                    'source' => $accountInfo['source']
+                ],
+                'transactions' => $transactions
+            ]
         ];
         
     } catch (Exception $e) {

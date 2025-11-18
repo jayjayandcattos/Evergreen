@@ -515,6 +515,29 @@ $current_user = getCurrentUser();
         </div>
     </div>
 
+    <!-- Account Detail Modal -->
+    <div class="modal fade" id="accountDetailModal" tabindex="-1" aria-labelledby="accountDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="accountDetailModalLabel">
+                        <i class="fas fa-book me-2"></i>Account Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="accountDetailBody">
+                    <p class="text-center text-muted">Loading account details...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="exportAccountTransactions()">
+                        <i class="fas fa-download me-1"></i>Export Transactions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="gl-footer">
         <p>&copy; 2025 Evergreen Accounting & Finance. All rights reserved.</p>
