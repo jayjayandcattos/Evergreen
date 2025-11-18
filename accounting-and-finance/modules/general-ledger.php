@@ -298,8 +298,17 @@ $current_user = getCurrentUser();
                     </table>
                 </div>
                 <div class="table-actions-row">
-                    <span class="table-actions-hint">Showing the latest 10 active accounts</span>
+                    <span class="table-actions-hint" id="accounts-hint">Showing accounts</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="accounts-per-page" class="me-2">Show:</label>
+                            <select id="accounts-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeAccountsPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportAccounts()">Export</button>
                         <button class="btn-action" type="button" onclick="loadAccountsTable()">Refresh</button>
                     </div>
@@ -357,8 +366,17 @@ $current_user = getCurrentUser();
                     </table>
                 </div>
                 <div class="table-actions-row">
-                    <span class="table-actions-hint">Latest journal entries posted to the ledger</span>
+                    <span class="table-actions-hint" id="transactions-hint">Latest journal entries posted to the ledger</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="transactions-per-page" class="me-2">Show:</label>
+                            <select id="transactions-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeTransactionsPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportTransactions()">Export</button>
                         <button class="btn-action btn-action-outline" type="button" onclick="printTransactions()">Print</button>
                         <button class="btn-action" type="button" onclick="refreshTransactions()">Refresh</button>
@@ -415,8 +433,17 @@ $current_user = getCurrentUser();
                     </table>
                 </div>
                 <div class="table-actions-row">
-                    <span class="table-actions-hint">Showing last 100 audit log entries</span>
+                    <span class="table-actions-hint" id="audit-hint">Showing audit log entries</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="audit-per-page" class="me-2">Show:</label>
+                            <select id="audit-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeAuditPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportAuditTrail()">Export</button>
                         <button class="btn-action" type="button" onclick="loadAuditTrail()">Refresh</button>
                     </div>
@@ -478,6 +505,15 @@ $current_user = getCurrentUser();
                 <div class="table-actions-row">
                     <span class="table-actions-hint" id="trial-balance-hint">Trial balance for selected period</span>
                     <div class="table-actions">
+                        <div class="pagination-controls me-3" id="trial-balance-pagination" style="display: none;">
+                            <label for="trial-balance-per-page" class="me-2">Show:</label>
+                            <select id="trial-balance-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeTrialBalancePerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                         <button class="btn-action btn-action-outline" type="button" onclick="exportTrialBalance()" id="exportTrialBalanceBtn" style="display: none;">
                             <i class="fas fa-download me-1"></i>Export
                         </button>

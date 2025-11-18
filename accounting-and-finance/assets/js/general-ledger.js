@@ -2,6 +2,17 @@
 // GENERAL LEDGER MODULE - BEAUTIFUL & CLEAN JS
 // ========================================
 
+// ========================================
+// PAGINATION STATE
+// ========================================
+
+let paginationState = {
+    accounts: { perPage: 25, currentPage: 1 },
+    transactions: { perPage: 25, currentPage: 1 },
+    audit: { perPage: 25, currentPage: 1 },
+    trialBalance: { perPage: 25, currentPage: 1 }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeGeneralLedger();
 });
@@ -560,6 +571,8 @@ function loadAccountsTable(searchTerm = '', accountType = '') {
     if (accountType) {
         params.append('account_type', accountType);
     }
+    params.append('limit', paginationState.accounts.perPage);
+    params.append('offset', (paginationState.accounts.currentPage - 1) * paginationState.accounts.perPage);
 
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
@@ -572,11 +585,11 @@ function loadAccountsTable(searchTerm = '', accountType = '') {
             console.log('Accounts API response:', data);
             if (data.success) {
                 if (data.data && data.data.length > 0) {
-                    displayAccountsTable(data.data);
+                    displayAccountsTable(data.data, data);
                 } else {
                     console.warn('API returned success but no accounts found');
                     showNotification('No accounts found in database. Please check that bank customer accounts exist.', 'warning');
-                    displayAccountsTable([]);
+                    displayAccountsTable([], data);
                 }
             } else {
                 console.error('API returned error:', data.message || 'Unknown error');
@@ -584,7 +597,7 @@ function loadAccountsTable(searchTerm = '', accountType = '') {
                 if (data.debug) {
                     console.error('Debug info:', data.debug);
                 }
-                displayAccountsTable([]);
+                displayAccountsTable([], data);
             }
         })
         .catch(error => {
@@ -594,7 +607,7 @@ function loadAccountsTable(searchTerm = '', accountType = '') {
         });
 }
 
-function displayAccountsTable(accounts) {
+function displayAccountsTable(accounts, responseData = {}) {
     const tbody = document.querySelector('#accounts-table tbody');
     
     if (!tbody) {
@@ -604,6 +617,10 @@ function displayAccountsTable(accounts) {
     
     if (accounts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No accounts found</td></tr>';
+        const hintElement = document.getElementById('accounts-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No accounts found';
+        }
         return;
     }
     
@@ -624,9 +641,12 @@ function displayAccountsTable(accounts) {
     tbody.innerHTML = html;
     
     // Update table hint to show count
-    const hintElement = document.querySelector('.table-actions-row .table-actions-hint');
+    const hintElement = document.getElementById('accounts-hint');
     if (hintElement) {
-        hintElement.textContent = `Showing ${accounts.length} account${accounts.length !== 1 ? 's' : ''}`;
+        const total = responseData.total || responseData.count || accounts.length;
+        const start = (paginationState.accounts.currentPage - 1) * paginationState.accounts.perPage + 1;
+        const end = Math.min(start + accounts.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} account${total !== 1 ? 's' : ''}`;
     }
     
     // Add fade-in animation to table rows
@@ -659,6 +679,8 @@ function loadTransactionsTable() {
     params.append('action', 'get_transactions');
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
+    params.append('limit', paginationState.transactions.perPage);
+    params.append('offset', (paginationState.transactions.currentPage - 1) * paginationState.transactions.perPage);
 
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => {
@@ -669,10 +691,10 @@ function loadTransactionsTable() {
         })
         .then(data => {
             if (data.success) {
-                displayTransactionsTable(data.data);
+                displayTransactionsTable(data.data, data);
             } else {
                 console.warn('API returned error, using fallback transactions data');
-                displayTransactionsTable(getFallbackTransactions());
+                displayTransactionsTable(getFallbackTransactions(), { total: 0 });
             }
         })
         .catch(error => {
@@ -682,16 +704,20 @@ function loadTransactionsTable() {
         });
 }
 
-function displayTransactionsTable(transactions) {
+function displayTransactionsTable(transactions, responseData = {}) {
     const tbody = document.querySelector('#transactions-table tbody');
     
     if (transactions.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No transactions found</td></tr>';
+        const hintElement = document.getElementById('transactions-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No transactions found';
+        }
         return;
     }
     
     let html = '';
-    transactions.slice(0, 10).forEach((txn, index) => {
+    transactions.forEach((txn, index) => {
         const rawId = txn.id || txn.entry_id || '';
         const journalNo = escapeHtml(txn.journal_no || '');
         const source = txn.source || 'journal';
@@ -719,6 +745,15 @@ function displayTransactionsTable(transactions) {
     });
     
     tbody.innerHTML = html;
+    
+    // Update table hint to show count
+    const hintElement = document.getElementById('transactions-hint');
+    if (hintElement) {
+        const total = responseData.total || responseData.count || transactions.length;
+        const start = (paginationState.transactions.currentPage - 1) * paginationState.transactions.perPage + 1;
+        const end = Math.min(start + transactions.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} transaction${total !== 1 ? 's' : ''}`;
+    }
     
     // Add fade-in animation to table rows
     const rows = tbody.querySelectorAll('tr');
@@ -998,8 +1033,176 @@ function exportTransactions() {
 }
 
 function printTransactions() {
-    showNotification('Sending transaction table to printer...', 'info');
-    window.print();
+    const table = document.getElementById('transactions-table');
+    if (!table) {
+        showNotification('No transaction data to print', 'error');
+        return;
+    }
+    
+    // Get filter values for header
+    const dateFrom = document.getElementById('transaction-from')?.value || '';
+    const dateTo = document.getElementById('transaction-to')?.value || '';
+    const dateRange = dateFrom && dateTo 
+        ? `${new Date(dateFrom).toLocaleDateString()} to ${new Date(dateTo).toLocaleDateString()}`
+        : 'All Transactions';
+    
+    // Get all transaction rows (including header)
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    
+    if (!thead || !tbody || tbody.children.length === 0) {
+        showNotification('No transaction data to print', 'error');
+        return;
+    }
+    
+    // Create print-friendly HTML
+    let printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Transaction Records Report</title>
+            <style>
+                @media print {
+                    @page {
+                        size: landscape;
+                        margin: 1cm;
+                    }
+                }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 20px; 
+                    font-size: 12px;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 10px;
+                }
+                .header h1 { 
+                    margin: 0 0 5px 0;
+                    font-size: 20px;
+                    color: #333;
+                }
+                .header-info {
+                    font-size: 12px;
+                    color: #666;
+                    margin-top: 5px;
+                }
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 10px;
+                }
+                th, td { 
+                    border: 1px solid #ddd; 
+                    padding: 8px; 
+                    text-align: left;
+                }
+                th { 
+                    background-color: #0a3d3d;
+                    color: white;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                td {
+                    background-color: white;
+                }
+                .text-end { 
+                    text-align: right; 
+                }
+                tr:nth-child(even) td {
+                    background-color: #f9f9f9;
+                }
+                .footer { 
+                    margin-top: 20px; 
+                    font-size: 10px; 
+                    color: #666;
+                    text-align: center;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                }
+                .no-data {
+                    text-align: center;
+                    padding: 20px;
+                    color: #999;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Transaction Records Report</h1>
+                <div class="header-info">
+                    <strong>Date Range:</strong> ${dateRange}<br>
+                    <strong>Generated:</strong> ${new Date().toLocaleString()}
+                </div>
+            </div>
+            <table>
+    `;
+    
+    // Add table header
+    printContent += '<thead><tr>';
+    const headerCells = thead.querySelectorAll('th');
+    headerCells.forEach(th => {
+        const text = th.textContent.trim();
+        // Skip Actions column for print
+        if (text.toLowerCase() !== 'actions') {
+            printContent += `<th>${escapeHtml(text)}</th>`;
+        }
+    });
+    printContent += '</tr></thead>';
+    
+    // Add table body
+    printContent += '<tbody>';
+    const rows = tbody.querySelectorAll('tr');
+    
+    if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('td[colspan]'))) {
+        printContent += '<tr><td colspan="5" class="no-data">No transactions found</td></tr>';
+    } else {
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0 && !row.querySelector('td[colspan]')) {
+                printContent += '<tr>';
+                cells.forEach((cell, index) => {
+                    // Skip Actions column (last column)
+                    if (index < cells.length - 1) {
+                        const cellText = cell.textContent.trim();
+                        const isAmount = cell.classList.contains('text-end') && (cellText.includes('₱') || cellText === '-');
+                        printContent += `<td class="${isAmount ? 'text-end' : ''}">${escapeHtml(cellText)}</td>`;
+                    }
+                });
+                printContent += '</tr>';
+            }
+        });
+    }
+    
+    printContent += `
+            </tbody>
+            </table>
+            <div class="footer">
+                <p>Evergreen Accounting & Finance System | Transaction Records Report</p>
+                <p>Page 1 | Generated on ${new Date().toLocaleString()}</p>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Open print window
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showNotification('Please allow pop-ups to print this report', 'error');
+        return;
+    }
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Wait for content to load, then trigger print
+    setTimeout(() => {
+        printWindow.print();
+        showNotification('Print dialog opened', 'success');
+    }, 500);
 }
 
 function refreshTransactions() {
@@ -1595,15 +1798,18 @@ function loadAuditTrail() {
     params.append('action', 'get_audit_trail');
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
+    params.append('limit', paginationState.audit.perPage);
+    params.append('offset', (paginationState.audit.currentPage - 1) * paginationState.audit.perPage);
     
     fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayAuditTrail(data.data);
+                displayAuditTrail(data.data, data);
             } else {
                 console.error('Error loading audit trail:', data.message);
                 showNotification('Error loading audit trail', 'error');
+                displayAuditTrail([], data);
             }
         })
         .catch(error => {
@@ -1612,7 +1818,7 @@ function loadAuditTrail() {
         });
 }
 
-function displayAuditTrail(logs) {
+function displayAuditTrail(logs, responseData = {}) {
     const tbody = document.querySelector('#audit-trail-table tbody');
     
     if (!tbody) {
@@ -1622,6 +1828,10 @@ function displayAuditTrail(logs) {
     
     if (logs.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No audit log entries found</td></tr>';
+        const hintElement = document.getElementById('audit-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No audit logs found';
+        }
         return;
     }
     
@@ -1642,9 +1852,12 @@ function displayAuditTrail(logs) {
     tbody.innerHTML = html;
     
     // Update count hint
-    const hintElement = document.querySelector('#audit-trail .table-actions-hint');
+    const hintElement = document.getElementById('audit-hint');
     if (hintElement) {
-        hintElement.textContent = `Showing ${logs.length} audit log${logs.length !== 1 ? 's' : ''}`;
+        const total = responseData.total || responseData.count || logs.length;
+        const start = (paginationState.audit.currentPage - 1) * paginationState.audit.perPage + 1;
+        const end = Math.min(start + logs.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} audit log${total !== 1 ? 's' : ''}`;
     }
 }
 
@@ -1680,6 +1893,8 @@ function generateTrialBalance() {
     params.append('action', 'get_trial_balance');
     params.append('date_from', dateFrom);
     params.append('date_to', dateTo);
+    params.append('limit', paginationState.trialBalance.perPage);
+    params.append('offset', (paginationState.trialBalance.currentPage - 1) * paginationState.trialBalance.perPage);
     
     const tbody = document.querySelector('#trial-balance-table tbody');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="loading-spinner"></div><p>Generating trial balance...</p></td></tr>';
@@ -1688,7 +1903,7 @@ function generateTrialBalance() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayTrialBalance(data.data);
+                displayTrialBalance(data.data, data);
             } else {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Error: ${data.message || 'Failed to generate trial balance'}</td></tr>`;
                 showNotification(data.message || 'Error generating trial balance', 'error');
@@ -1701,21 +1916,28 @@ function generateTrialBalance() {
         });
 }
 
-function displayTrialBalance(data) {
+function displayTrialBalance(data, responseData = {}) {
     const tbody = document.querySelector('#trial-balance-table tbody');
     const footer = document.getElementById('trial-balance-footer');
     const hint = document.getElementById('trial-balance-hint');
     const exportBtn = document.getElementById('exportTrialBalanceBtn');
     const printBtn = document.getElementById('printTrialBalanceBtn');
+    const paginationControls = document.getElementById('trial-balance-pagination');
     
     if (data.accounts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No transactions found for the selected period</td></tr>';
         footer.style.display = 'none';
         exportBtn.style.display = 'none';
         printBtn.style.display = 'none';
+        if (paginationControls) paginationControls.style.display = 'none';
         hint.textContent = 'No data for selected period';
         return;
     }
+    
+    // Show pagination controls and export/print buttons
+    if (paginationControls) paginationControls.style.display = 'inline-block';
+    exportBtn.style.display = 'inline-block';
+    printBtn.style.display = 'inline-block';
     
     let html = '';
     data.accounts.forEach(account => {
@@ -1760,7 +1982,10 @@ function displayTrialBalance(data) {
     // Update hint and show export/print buttons
     const fromDate = new Date(data.date_from).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const toDate = new Date(data.date_to).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    hint.textContent = `Trial balance from ${fromDate} to ${toDate}`;
+    const total = responseData.total || responseData.count || data.accounts.length;
+    const start = (paginationState.trialBalance.currentPage - 1) * paginationState.trialBalance.perPage + 1;
+    const end = Math.min(start + data.accounts.length - 1, total);
+    hint.textContent = `Showing ${start}-${end} of ${total} account${total !== 1 ? 's' : ''} - ${fromDate} to ${toDate}`;
     exportBtn.style.display = 'inline-block';
     printBtn.style.display = 'inline-block';
     
@@ -2000,53 +2225,6 @@ function exportTransactions() {
         });
 }
 
-function printTransactions() {
-    const table = document.getElementById('recent-transactions-table');
-    if (!table) {
-        showNotification('No transaction data to print', 'error');
-        return;
-    }
-    
-    // Create print-friendly HTML
-    let printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Transaction Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                h1 { text-align: center; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-                .text-end { text-align: right; }
-                .footer { margin-top: 20px; font-size: 12px; color: #666; }
-            </style>
-        </head>
-        <body>
-            <h1>Transaction Report</h1>
-            <table>
-    `;
-    
-    // Copy table structure
-    printContent += table.outerHTML;
-    
-    printContent += `
-            </table>
-            <div class="footer">Generated on ${new Date().toLocaleString()}</div>
-        </body>
-        </html>
-    `;
-    
-    // Open print window
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
-}
 
 function exportAccountTransactions() {
     showNotification('Exporting account transactions...', 'info');
@@ -2086,6 +2264,48 @@ function exportAccountTransactions() {
     showNotification('Account transactions exported successfully', 'success');
 }
 
+// ========================================
+// PAGINATION CONTROL FUNCTIONS
+// ========================================
+
+function changeAccountsPerPage() {
+    const select = document.getElementById('accounts-per-page');
+    if (select) {
+        paginationState.accounts.perPage = parseInt(select.value);
+        paginationState.accounts.currentPage = 1;
+        const searchInput = document.getElementById('account-search');
+        const typeFilter = document.getElementById('account-type-filter');
+        loadAccountsTable(searchInput?.value || '', typeFilter?.value || '');
+    }
+}
+
+function changeTransactionsPerPage() {
+    const select = document.getElementById('transactions-per-page');
+    if (select) {
+        paginationState.transactions.perPage = parseInt(select.value);
+        paginationState.transactions.currentPage = 1;
+        loadTransactionsTable();
+    }
+}
+
+function changeAuditPerPage() {
+    const select = document.getElementById('audit-per-page');
+    if (select) {
+        paginationState.audit.perPage = parseInt(select.value);
+        paginationState.audit.currentPage = 1;
+        loadAuditTrail();
+    }
+}
+
+function changeTrialBalancePerPage() {
+    const select = document.getElementById('trial-balance-per-page');
+    if (select) {
+        paginationState.trialBalance.perPage = parseInt(select.value);
+        paginationState.trialBalance.currentPage = 1;
+        generateTrialBalance();
+    }
+}
+
 // Make functions globally available
 window.viewAccountDetails = viewAccountDetails;
 window.viewTransactionDetails = viewTransactionDetails;
@@ -2097,6 +2317,10 @@ window.voidJournalEntry = voidJournalEntry;
 window.loadAuditTrail = loadAuditTrail;
 window.resetAuditFilter = resetAuditFilter;
 window.exportAuditTrail = exportAuditTrail;
+window.changeAccountsPerPage = changeAccountsPerPage;
+window.changeTransactionsPerPage = changeTransactionsPerPage;
+window.changeAuditPerPage = changeAuditPerPage;
+window.changeTrialBalancePerPage = changeTrialBalancePerPage;
 window.generateTrialBalance = generateTrialBalance;
 window.resetTrialBalanceFilter = resetTrialBalanceFilter;
 window.exportTrialBalance = exportTrialBalance;

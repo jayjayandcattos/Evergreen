@@ -269,13 +269,37 @@ function getAccounts() {
         
         $bankSql .= " ORDER BY ca.account_number";
         
+        // Get total count for pagination
+        $countSql = "SELECT COUNT(*) as total FROM ($bankSql) as count_query";
+        $countStmt = $conn->prepare($countSql);
+        if (!$countStmt) {
+            throw new Exception("Failed to prepare count query: " . $conn->error);
+        }
+        
+        if (!empty($params)) {
+            $countStmt->bind_param($types, ...$params);
+        }
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $totalCount = $countResult->fetch_assoc()['total'] ?? 0;
+        
+        // Add pagination
+        $limit = (int)($_GET['limit'] ?? 25);
+        $offset = (int)($_GET['offset'] ?? 0);
+        $bankSql .= " LIMIT ? OFFSET ?";
+        
         $bankStmt = $conn->prepare($bankSql);
         if (!$bankStmt) {
             throw new Exception("Failed to prepare query: " . $conn->error);
         }
         
         if (!empty($params)) {
+            $types .= 'ii';
+            $params[] = $limit;
+            $params[] = $offset;
             $bankStmt->bind_param($types, ...$params);
+        } else {
+            $bankStmt->bind_param('ii', $limit, $offset);
         }
         
         $bankStmt->execute();
@@ -298,7 +322,8 @@ function getAccounts() {
         return [
             'success' => true,
             'data' => $accounts,
-            'count' => count($accounts)
+            'count' => count($accounts),
+            'total' => (int)$totalCount
         ];
         
     } catch (Exception $e) {
@@ -382,11 +407,33 @@ function getRecentTransactions() {
             $types .= 'ss';
         }
         
-        $sql .= " ORDER BY entry_date DESC, id DESC LIMIT 50";
+        // Get total count for pagination
+        $countSql = "SELECT COUNT(*) as total FROM ($sql) as count_query";
+        $countStmt = $conn->prepare($countSql);
+        if (!$countStmt) {
+            throw new Exception("Failed to prepare count query: " . $conn->error);
+        }
+        
+        if (!empty($params)) {
+            $countStmt->bind_param($types, ...$params);
+        }
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $totalCount = $countResult->fetch_assoc()['total'] ?? 0;
+        
+        // Add pagination
+        $limit = (int)($_GET['limit'] ?? 25);
+        $offset = (int)($_GET['offset'] ?? 0);
+        $sql .= " ORDER BY entry_date DESC, id DESC LIMIT ? OFFSET ?";
         
         $stmt = $conn->prepare($sql);
         if (!empty($params)) {
+            $types .= 'ii';
+            $params[] = $limit;
+            $params[] = $offset;
             $stmt->bind_param($types, ...$params);
+        } else {
+            $stmt->bind_param('ii', $limit, $offset);
         }
         $stmt->execute();
         $result = $stmt->get_result();
@@ -409,7 +456,9 @@ function getRecentTransactions() {
         
         return [
             'success' => true,
-            'data' => $transactions
+            'data' => $transactions,
+            'count' => count($transactions),
+            'total' => (int)$totalCount
         ];
         
     } catch (Exception $e) {
@@ -466,15 +515,36 @@ function getAuditTrail() {
             $types .= 's';
         }
         
-        $sql .= " ORDER BY al.created_at DESC LIMIT 100";
+        // Get total count for pagination
+        $countSql = "SELECT COUNT(*) as total FROM ($sql) as count_query";
+        if (!empty($params)) {
+            $countStmt = $conn->prepare($countSql);
+            $countStmt->bind_param($types, ...$params);
+            $countStmt->execute();
+            $countResult = $countStmt->get_result();
+        } else {
+            $countResult = $conn->query($countSql);
+        }
+        $totalCount = $countResult->fetch_assoc()['total'] ?? 0;
+        
+        // Add pagination
+        $limit = (int)($_GET['limit'] ?? 25);
+        $offset = (int)($_GET['offset'] ?? 0);
+        $sql .= " ORDER BY al.created_at DESC LIMIT ? OFFSET ?";
         
         if (!empty($params)) {
+            $types .= 'ii';
+            $params[] = $limit;
+            $params[] = $offset;
             $stmt = $conn->prepare($sql);
             $stmt->bind_param($types, ...$params);
             $stmt->execute();
             $result = $stmt->get_result();
         } else {
-            $result = $conn->query($sql);
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('ii', $limit, $offset);
+            $stmt->execute();
+            $result = $stmt->get_result();
         }
         
         $audit_logs = [];
@@ -493,7 +563,9 @@ function getAuditTrail() {
         
         return [
             'success' => true,
-            'data' => $audit_logs
+            'data' => $audit_logs,
+            'count' => count($audit_logs),
+            'total' => (int)$totalCount
         ];
         
     } catch (Exception $e) {
@@ -1248,18 +1320,34 @@ function getTrialBalance() {
             }
         }
         
+        // Apply pagination
+        $totalCount = count($accounts);
+        $limit = (int)($_GET['limit'] ?? 50);
+        $offset = (int)($_GET['offset'] ?? 0);
+        $paginatedAccounts = array_slice($accounts, $offset, $limit);
+        
+        // Recalculate totals for paginated accounts (or keep full totals)
+        $paginatedTotalDebit = 0;
+        $paginatedTotalCredit = 0;
+        foreach ($paginatedAccounts as $acc) {
+            $paginatedTotalDebit += $acc['debit_balance'];
+            $paginatedTotalCredit += $acc['credit_balance'];
+        }
+        
         return [
             'success' => true,
             'data' => [
-                'accounts' => $accounts,
+                'accounts' => $paginatedAccounts,
                 'totals' => [
-                    'total_debit' => $totalDebit,
-                    'total_credit' => $totalCredit,
+                    'total_debit' => $totalDebit, // Full totals, not paginated
+                    'total_credit' => $totalCredit, // Full totals, not paginated
                     'difference' => abs($totalDebit - $totalCredit)
                 ],
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo
-            ]
+            ],
+            'count' => count($paginatedAccounts),
+            'total' => $totalCount
         ];
         
     } catch (Exception $e) {
