@@ -925,8 +925,8 @@ body {
 .gl-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
+    justify-content: flex-start;
+    gap: 1rem;
     margin-bottom: 2rem;
     flex-wrap: wrap;
 }
@@ -945,6 +945,9 @@ body {
     background: rgba(10, 61, 61, 0.04);
     border-radius: 14px;
     border: 1px solid rgba(10, 61, 61, 0.08);
+    min-width: 200px;
+    flex: 1;
+    max-width: 350px;
 }
 
 .gl-toolbar__field:focus-within {
@@ -976,6 +979,8 @@ body {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .gl-input,
@@ -1000,11 +1005,27 @@ body {
 
 .gl-toolbar .search-input {
     flex: 1;
-    max-width: none;
-    padding: 0;
+    min-width: 0;
+    width: 100%;
+    padding: 0.25rem 0;
     background: transparent;
     border: none;
     font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+.gl-toolbar .search-input::placeholder {
+    color: rgba(10, 61, 61, 0.5);
+}
+
+.gl-toolbar select.search-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
 }
 
 .gl-toolbar__field--compact input,
@@ -1340,10 +1361,22 @@ body {
 
     .gl-toolbar__field {
         width: 100%;
+        max-width: 100%;
+        min-width: 100%;
     }
 
     .search-input {
         max-width: 100%;
+    }
+    
+    .gl-toolbar__actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .gl-toolbar__actions button {
+        flex: 1;
     }
 
     .gl-table {
