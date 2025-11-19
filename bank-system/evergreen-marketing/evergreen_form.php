@@ -472,6 +472,188 @@
         background-color: #003631;
       }
 
+      /* Animation Keyframes */
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes checkmarkPop {
+        0% {
+          transform: scale(0) rotate(0deg);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2) rotate(180deg);
+        }
+        100% {
+          transform: scale(1) rotate(360deg);
+          opacity: 1;
+        }
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: -1000px 0;
+        }
+        100% {
+          background-position: 1000px 0;
+        }
+      }
+
+      /* Modal Container Animation */
+      .modal-container {
+        animation: fadeIn 0.3s ease;
+      }
+
+      .modal-container.closing {
+        animation: fadeOut 0.3s ease forwards;
+      }
+
+      /* Details Review Animation */
+      .details-review {
+        animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Success Modal Animation */
+      .successful-modal {
+        animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Checkmark Animation */
+      .check {
+        animation: checkmarkPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+        width: 25%;
+        height: 25%;
+      }
+
+      /* Success Text Animation */
+      .head-text {
+        animation: slideUp 0.5s ease 0.3s backwards;
+      }
+
+      .sub-text {
+        animation: slideUp 0.5s ease 0.4s backwards;
+      }
+
+      .s-wrap {
+        animation: slideUp 0.5s ease 0.5s backwards;
+      }
+
+      #confirm-btn {
+        animation: slideUp 0.5s ease 0.6s backwards;
+        transition: all 0.3s ease;
+      }
+
+      #confirm-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 54, 49, 0.3);
+      }
+
+      /* Loading State for Submit Button */
+      .button-action.submitting {
+        position: relative;
+        color: transparent;
+        pointer-events: none;
+        background: linear-gradient(90deg, #003631 0%, #1a6b62 50%, #003631 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+
+      .button-action.submitting::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        border: 3px solid transparent;
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      /* Panel Transitions */
+      .personal-info-panel,
+      .verification-part,
+      .review-part {
+        animation: fadeInPanel 0.4s ease;
+      }
+
+      @keyframes fadeInPanel {
+        from {
+          opacity: 0;
+          transform: translateX(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      /* Success Confetti Effect (Optional) */
+      @keyframes confetti-fall {
+        0% {
+          transform: translateY(-100vh) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+
+      .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background: #F1B24A;
+        position: absolute;
+        animation: confetti-fall 3s linear forwards;
+      }
+
       /* Responsive Design */
       @media (max-width: 968px) {
         body {
@@ -1080,7 +1262,7 @@
   </head>
   <body>
     <nav>
-      <img src="images/loginlogo.png" alt="logo" class="logo">
+      <img src="images/svgviewer-output.svg" alt="logo" class="logo">
       <div class="wrap-nav">
         <h1 id="title-page">EVERGREEN</h1>
         <P class="motto">Secure, Invest, Achieve</P>
@@ -1363,7 +1545,7 @@
     <!-- Successful Modal -->
      <div class="modal-container" id="success-modal=container" style="display: none;">
       <div class="successful-modal">
-        <img src="contents/circle-check-filled.png" alt="success" class="check">
+        <img src="images/circle-check-filled.png" alt="success" class="check">
         <h2 class="head-text">Success!</h2>
         <h3 class="sub-text">Your application has been successfully submitted.</h3>
         <div class="s-wrap">
@@ -1499,8 +1681,26 @@
       if (!card) return;
       document.querySelectorAll('.acct-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
-      acctType = card.id; // store selected id
+      acctType = card.id;
     });
+
+    // Confetti animation
+    function createConfetti() {
+      const colors = ['#F1B24A', '#003631', '#1a6b62', '#ffd700'];
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+          document.body.appendChild(confetti);
+          
+          setTimeout(() => confetti.remove(), 3000);
+        }, i * 30);
+      }
+    }
 
     // Next/Prev handlers with validation
     prevBtn.addEventListener('click', function() {
@@ -1510,78 +1710,118 @@
 
     nextBtn.addEventListener('click', function(e) {
       e.preventDefault();
+      
       if (step === 1) {
         if (!validatePersonal()) return;
         step++;
         updateStepUI();
         return;
       }
+      
       if (step === 2) {
         if (!validateVerification()) return;
         step++;
         updateStepUI();
         return;
       }
+      
       if (step === 3) {
         if (!validateReview()) return;
-        // All good — gather data and show review modal
-        let injector = {
-          firstName: document.getElementById('f-name').value,
-          lastName: document.getElementById('l-name').value,
-          email: document.getElementById('e-mail').value,
-          phoneNumber: document.getElementById('phone-number').value,
-          dateOfBirth: document.getElementById('date-of-birth').value,
-          streetAddress: document.getElementById('street-address').value,
-          city: document.getElementById('city').value,
-          state: document.getElementById('state').value,
-          zipCode: document.getElementById('zip-code').value,
-          socialSecurityNumber: document.getElementById('ssn').value,
-          idType: document.getElementById('id-type').value,
-          idNumber: document.getElementById('id-number').value,
-          employmentStatus: document.getElementById('employment-status').value,
-          employerName: document.getElementById('employer-name').value,
-          jobTitle: document.getElementById('job-title').value,
-          annualIncome: document.getElementById('annual-income').value,
-          accountType: acctType,
-        };
-        infoData = [injector];
-        // populate review modal
-        displayCred('rev-f-name', injector.firstName);
-        displayCred('rev-l-name', injector.lastName);
-        displayCred('rev-birth', injector.dateOfBirth);
-        displayCred('rev-street', injector.streetAddress);
-        displayCred('rev-city', injector.city);
-        displayCred('rev-state', injector.state);
-        displayCred('rev-zip', injector.zipCode);
-        displayCred('rev-ssn', injector.socialSecurityNumber);
-        displayCred('rev-id-type', injector.idType);
-        displayCred('rev-id-number', injector.idNumber);
-        displayCred('rev-employment-status', injector.employmentStatus);
-        displayCred('rev-employer-name', injector.employerName);
-        displayCred('rev-job-title', injector.jobTitle);
-        displayCred('rev-annual-income', '$' + injector.annualIncome);
+        
+        // Add loading state to button
+        nextBtn.classList.add('submitting');
+        nextBtn.disabled = true;
+        
+        // Simulate processing time
+        setTimeout(() => {
+          // Gather data
+          let injector = {
+            firstName: document.getElementById('f-name').value,
+            lastName: document.getElementById('l-name').value,
+            email: document.getElementById('e-mail').value,
+            phoneNumber: document.getElementById('phone-number').value,
+            dateOfBirth: document.getElementById('date-of-birth').value,
+            streetAddress: document.getElementById('street-address').value,
+            city: document.getElementById('city').value,
+            state: document.getElementById('state').value,
+            zipCode: document.getElementById('zip-code').value,
+            socialSecurityNumber: document.getElementById('ssn').value,
+            idType: document.getElementById('id-type').value,
+            idNumber: document.getElementById('id-number').value,
+            employmentStatus: document.getElementById('employment-status').value,
+            employerName: document.getElementById('employer-name').value,
+            jobTitle: document.getElementById('job-title').value,
+            annualIncome: document.getElementById('annual-income').value,
+            accountType: acctType,
+          };
+          infoData = [injector];
+          
+          // Populate review modal
+          displayCred('rev-f-name', injector.firstName);
+          displayCred('rev-l-name', injector.lastName);
+          displayCred('rev-birth', injector.dateOfBirth);
+          displayCred('rev-street', injector.streetAddress);
+          displayCred('rev-city', injector.city);
+          displayCred('rev-state', injector.state);
+          displayCred('rev-zip', injector.zipCode);
+          displayCred('rev-ssn', injector.socialSecurityNumber);
+          displayCred('rev-id-type', injector.idType);
+          displayCred('rev-id-number', injector.idNumber);
+          displayCred('rev-employment-status', injector.employmentStatus);
+          displayCred('rev-employer-name', injector.employerName);
+          displayCred('rev-job-title', injector.jobTitle);
+          displayCred('rev-annual-income', '$' + injector.annualIncome);
 
-        modalContainer.style.display = 'flex';
+          // Remove loading state
+          nextBtn.classList.remove('submitting');
+          nextBtn.disabled = false;
+          
+          // Show modal with animation
+          modalContainer.style.display = 'flex';
+        }, 1500); // 1.5 second delay for effect
       }
     });
 
     okBtn.addEventListener('click', function() {
-      modalContainer.style.display = 'none';
-      successModal.style.display = 'flex';
+      // Close review modal with animation
+      modalContainer.classList.add('closing');
+      
+      setTimeout(() => {
+        modalContainer.style.display = 'none';
+        modalContainer.classList.remove('closing');
+        
+        // Show success modal
+        successModal.style.display = 'flex';
+        
+        // Trigger confetti
+        createConfetti();
+      }, 300);
     });
 
-    cancelBtn.addEventListener('click', function() { modalContainer.style.display = 'none'; });
+    cancelBtn.addEventListener('click', function() {
+      modalContainer.classList.add('closing');
+      setTimeout(() => {
+        modalContainer.style.display = 'none';
+        modalContainer.classList.remove('closing');
+      }, 300);
+    });
 
-    confirmBtn.addEventListener('click', function() { successModal.style.display = 'none'; location.reload(); });
+    confirmBtn.addEventListener('click', function() {
+      successModal.classList.add('closing');
+      setTimeout(() => {
+        successModal.style.display = 'none';
+        location.reload();
+      }, 300);
+    });
 
-    // display a ref id and date submitted dynamically (Success modal)
+    // Display ref id and date submitted
     let refId = Math.floor(1000 + Math.random() * 9000);
     document.getElementById('ref-id').textContent = 'Reference ID: ' + refId;
     let currentDate = new Date();
     let formattedDate = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear();
     document.getElementById('date-submitted').textContent = 'Date Submitted: ' + formattedDate;
 
-    // display credentials in review modal
+    // Display credentials in review modal
     function displayCred(name, value) {
       let elements = document.getElementsByClassName(name);
       for (let i = 0; i < elements.length; i++) { elements[i].textContent = value; }
@@ -1594,19 +1834,21 @@
       prevBtn.style.display = (step === 2 || step === 3) ? 'flex' : 'none';
       nextBtn.textContent = (step === 3) ? 'Submit' : 'Next';
 
-      // progress
+      // Progress
       setCircle(formPartI, step >= 1);
       setCircle(formPartII, step >= 2);
       setCircle(formPartIII, step >= 3);
 
-      // Progress lines
+      // Progress lines with smooth transition
+      lineI.style.transition = 'background-color 0.3s ease';
+      lineII.style.transition = 'background-color 0.3s ease';
       lineI.style.backgroundColor = (step >= 2) ? '#003631' : '#E6E6E6';
       lineII.style.backgroundColor = (step >= 3) ? '#003631' : '#E6E6E6';
     }
 
-    // Progress circles: add/remove classes instead of assigning return values
     function setCircle(el, active) {
       if (!el) return;
+      el.style.transition = 'all 0.3s ease';
       if (active) {
         el.classList.add('text-progress');
         el.classList.remove('progress');
@@ -1620,8 +1862,7 @@
       }
     }
 
-    // initialize UI
+    // Initialize UI
     updateStepUI();
-
-  </script>
+</script>
 </html>

@@ -1,20 +1,17 @@
 <?php
     session_start([
        'cookie_httponly' => true,
-       'cookie_secure' => isset($_SERVER['HTTPS']), // Set to true if using HTTPS
+       'cookie_secure' => isset($_SERVER['HTTPS']),
        'use_strict_mode' => true
     ]);
-
-    // Check if user is logged in using the correct session variable from login.php
-    if (!isset($_SESSION['customer_id']) || !isset($_SESSION['email'])) {
-        // If not logged in, redirect to login page
-        header("Location: login.php");
-        exit;
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['email'])) {
+        header("Location: viewing.php");
+    exit;
     }
 
     // Get user info from session
-    $fullName = $_SESSION['full_name'] ?? ($_SESSION['customer_first_name'] . ' ' . $_SESSION['customer_last_name']);
-    $firstName = $_SESSION['first_name'] ?? 'Customer';
+        $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION['last_name']);
 ?>
 
 <!DOCTYPE html>
@@ -906,7 +903,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
-                    <img src="../images/Logo.png.png">
+                    <img src="../images/Logo.svg">
                 </a>
             </div>
             <span>
@@ -927,7 +924,7 @@
                 </div>
         </div>
 
-                     <a href="../../../LoanSubsystem/index.php">Loans</a>
+                     <a href="#loans">Loans</a>
                      <a href="../about.php">About Us</a>
         </div>
 
@@ -942,8 +939,8 @@
                 </div>
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
-                    <a href="../../Basic-operation/operations/public/customer/account" role="menuitem">Profile</a>
-                    <a href="../../Basic-operation/operations/public/customer/referral" role="menuitem">Refer to a friend</a>
+                    <a href="#" role="menuitem">Profile</a>
+                    <a href="../refer.php" role="menuitem">Refer to a friend</a>
                     <a href="../cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -1011,7 +1008,7 @@
                 <h3>Blue Card</h3>
                 <p>The Blue Card helps you shop smarter with flexible installment plans. Pay for your groceries and essentials over time while enjoying exclusive perks and rewards.</p>
                 <div class="card-buttons">
-                    <a href="../login.php" class="btn-small btn-yellow">Apply</a>
+                    <a href="../evergreen_form.php" class="btn-small btn-yellow">Apply</a>
                 </div>
             </div>
 
@@ -1025,7 +1022,7 @@
                 <h3>Gold Card</h3>
                 <p>The Gold Card gives you exclusive shopping privileges. Enjoy higher rewards, priority offers, and premium benefits on every purchase.</p><br>
                 <div class="card-buttons">
-                    <a href="../login.php" class="btn-small btn-yellow">Apply</a>
+                    <a href="../evergreen_form.php" class="btn-small btn-yellow">Apply</a>
                 </div>
             </div>
 
@@ -1039,7 +1036,7 @@
                 <h3>Platinum Card</h3>
                 <p>The Platinum Card offers ultimate privileges for your shopping and lifestyle needs. Enjoy the highest rewards, priority access, and exclusive benefits reserved for our top-tier members.</p>
                 <div class="card-buttons">
-                    <a href="../login.php" class="btn-small btn-yellow">Apply</a>
+                    <a href="../evergreen_form.php" class="btn-small btn-yellow">Apply</a>
                 </div>
             </div>
 
@@ -1053,7 +1050,7 @@
                 <h3>Black Elite Card</h3>
                 <p>The Black Elite Card delivers unparalleled privileges for discerning members. Enjoy maximum rewards and personalized benefits designed for a truly elite shopping experience.</p>
                 <div class="card-buttons">
-                    <a href="../login.php" class="btn-small btn-yellow">Apply</a>
+                    <a href="../evergreen_form.php" class="btn-small btn-yellow">Apply</a>
                 </div>
             </div>
         </div>
@@ -1102,7 +1099,7 @@
             <div class="footer-brand">
                 <div class="logo">
                     <div class="logo-icon">
-                        <img src="../images/icon.png" alt="Evergreen Logo">
+                        <img src="../images/Logo.svg" alt="Evergreen Logo">
                     </div>
                 </div>
                 <p>Secure. Invest. Achieve. Your trusted financial partner for a prosperous future.</p>
@@ -1143,7 +1140,7 @@
             <div class="footer-section">
                 <h4>Contact Us</h4>
                 <div class="contact-item">📞 1-800-EVERGREEN</div>
-                <div class="contact-item">✉️ hello@evergreenbank.com</div>
+                <div class="contact-item">✉️ evrgrn.64@gmail.com</div>
                 <div class="contact-item">📍 123 Financial District, Suite 500<br>&nbsp;&nbsp;&nbsp;&nbsp;New York, NY 10004</div>
             </div>
         </div>

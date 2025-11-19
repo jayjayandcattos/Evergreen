@@ -1,21 +1,19 @@
 <?php
-   session_start([
+    session_start([
        'cookie_httponly' => true,
-       'cookie_secure' => isset($_SERVER['HTTPS']), // Set to true if using HTTPS
+       'cookie_secure' => isset($_SERVER['HTTPS']),
        'use_strict_mode' => true
     ]);
-
-    // Check if user is logged in using the correct session variable from login.php
-    if (!isset($_SESSION['customer_id']) || !isset($_SESSION['email'])) {
-        // If not logged in, redirect to login page
-        header("Location: login.php");
-        exit;
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['email'])) {
+        header("Location: viewing.php");
+    exit;
     }
 
-    // Get user info from session
-    $fullName = $_SESSION['full_name'] ?? ($_SESSION['customer_first_name'] . ' ' . $_SESSION['customer_last_name']);
-    $firstName = $_SESSION['first_name'] ?? 'Customer';
+    include("db_connect.php");
 
+    // Get user info from session
+        $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION['last_name']);
 
         $user_id = $_SESSION['user_id'];
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
@@ -38,7 +36,7 @@ switch ($action) {
 }
 
 function getReferralCode($conn, $user_id) {
-    $sql = "SELECT referral_code FROM bank_users WHERE id = ?";
+    $sql = "SELECT referral_code FROM bank_customers WHERE customer_id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -95,7 +93,7 @@ function applyReferral($conn, $user_id) {
     
     try {
         // Check if user is trying to use their own code
-        $sql = "SELECT referral_code FROM bank_users WHERE id = ?";
+        $sql = "SELECT referral_code FROM bank_customers WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
@@ -108,7 +106,7 @@ function applyReferral($conn, $user_id) {
         }
         
         // Find the referrer
-        $sql = "SELECT id, first_name, last_name FROM bank_users WHERE referral_code = ?";
+        $sql = "SELECT customer_id, first_name, last_name FROM bank_customers WHERE referral_code = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $friend_code);
         $stmt->execute();
@@ -119,12 +117,12 @@ function applyReferral($conn, $user_id) {
         }
         
         $referrer = $result->fetch_assoc();
-        $referrer_id = $referrer['id'];
+        $referrer_id = $referrer['customer_id'];
         $referrer_name = $referrer['first_name'] . ' ' . $referrer['last_name'];
         $stmt->close();
         
         // Check if user already used a referral code
-        $sql = "SELECT id FROM referrals WHERE referred_id = ?";
+        $sql = "SELECT customer_id FROM referrals WHERE referred_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
@@ -147,14 +145,14 @@ function applyReferral($conn, $user_id) {
         $stmt->close();
         
         // Award points to referrer
-        $sql = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+        $sql = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("di", $referrer_points, $referrer_id);
         $stmt->execute();
         $stmt->close();
         
         // Award points to referred user
-        $sql = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+        $sql = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("di", $referred_points, $user_id);
         $stmt->execute();
@@ -162,24 +160,24 @@ function applyReferral($conn, $user_id) {
         
         // Add to point history for referrer - FIXED VERSION
         $sql = "INSERT IGNORE INTO user_missions (user_id, mission_id, points_earned, completed_at) 
-                SELECT ?, id, ?, NOW() FROM missions WHERE mission_text LIKE '%Refer a friend%' LIMIT 1";
+                SELECT ?, customer_id, ?, NOW() FROM missions WHERE mission_text LIKE '%Refer a friend%' LIMIT 1";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("id", $referrer_id, $referrer_points);
+        $stmt->bind_param("customer_id", $referrer_id, $referrer_points);
         $stmt->execute();
         $stmt->close();
         
         // Add to point history for referred user - FIXED VERSION
         $sql = "INSERT IGNORE INTO user_missions (user_id, mission_id, points_earned, completed_at) 
-                SELECT ?, id, ?, NOW() FROM missions WHERE mission_text LIKE '%Use a referral code%' LIMIT 1";
+                SELECT ?, customer_id, ?, NOW() FROM missions WHERE mission_text LIKE '%Use a referral code%' LIMIT 1";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("id", $user_id, $referred_points);
+        $stmt->bind_param("customer_id", $user_id, $referred_points);
         $stmt->execute();
         $stmt->close();
         
         $conn->commit();
         
         // Get updated total points for the user - THIS IS IMPORTANT
-        $sql = "SELECT total_points FROM bank_users WHERE id = ?";
+        $sql = "SELECT total_points FROM bank_customers WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
@@ -474,8 +472,8 @@ function applyReferral($conn, $user_id) {
             box-shadow: 0 10px 40px rgba(0,0,0,0.15);
             position: relative;
             overflow: visible;
-            width: 250%;
-            margin-left: -75%;
+            width: 200%;
+            margin-left: -50%;
         }
 
         .gifts-decoration {
@@ -720,326 +718,434 @@ function applyReferral($conn, $user_id) {
             font-size: 0.9rem;
         }
 
-        /* Tablet and smaller desktop */
-@media (max-width: 968px) {
-    nav {
-        padding: 1rem 3%;
-    }
+        /* Responsive Design - COPIED FROM CREDIT.PHP */
+        @media (max-width: 968px) {
+            nav {
+                padding: 1rem 3%;
+            }
 
-    .nav-links {
-        gap: 1rem;
-    }
+            .nav-links {
+                gap: 1rem;
+            }
 
-    .nav-links a {
-        font-size: 0.95rem;
-        margin: 0 0.5rem;
-    }
+            .nav-links a {
+                font-size: 0.95rem;
+                margin: 0 0.5rem;
+            }
 
-    .dropdown-content {
-        padding: 1.2rem 3%;
-        top: 80px;
-    }
+            .dropdown-content {
+                padding: 1.2rem 3%;
+            }
 
-    .dropdown-content a {
-        margin: 0 1rem;
-        font-size: 0.95rem;
-    }
+            .dropdown-content a {
+                margin: 0 1rem;
+                font-size: 0.95rem;
+            }
 
-    .refer-title {
-        font-size: 1.8rem;
-    }
+            .main-content {
+                padding: 100px 5% 50px;
+            }
 
-    .refer-card {
-        width: 200%;
-        margin-left: -50%;
-        padding: 40px 30px;
-    }
+            .refer-title {
+                font-size: 1.75rem;
+            }
 
-    .gifts-decoration {
-        width: 200px;
-        height: 200px;
-        right: 25%;
-    }
+            .refer-card {
+                width: 150%;
+                margin-left: -25%;
+                padding: 40px 30px;
+            }
 
-    .form-input {
-        width: 60%;
-    }
+            .gifts-decoration {
+                width: 200px;
+                height: 200px;
+                right: 20%;
+            }
 
-    .eye-icon {
-        right: 42%;
-    }
+            .gifts-decoration img {
+                width: 250%;
+                height: 140%;
+            }
 
-    .footer-content {
-        grid-template-columns: 1fr 1fr;
-    }
-}
+            .form-label {
+                font-size: 26px;
+            }
 
-/* Mobile landscape and smaller tablets */
-@media (max-width: 768px) {
-    .main-content {
-        padding: 100px 3% 40px;
-    }
+            .form-input {
+                width: 55%;
+                height: 55px;
+            }
 
-    .refer-title {
-        font-size: 1.6rem;
-        margin-bottom: 30px;
-    }
+            .eye-icon {
+                right: 47%;
+                top: 12px;
+            }
 
-    .refer-card {
-        width: 100%;
-        margin-left: 0;
-        padding: 35px 25px;
-    }
+            .confirm-btn {
+                max-width: 180px;
+                padding: 12px 28px;
+                margin-right: 16%;
+            }
 
-    .gifts-decoration {
-        display: none;
-    }
+            .footer-content {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
 
-    .form-label {
-        font-size: 24px;
-    }
+        @media (max-width: 640px) {
+            nav {
+                padding: 1rem 3%;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
 
-    .form-input {
-        width: 100%;
-        height: 55px;
-        font-size: 0.95rem;
-    }
+            .logo {
+                font-size: 1rem;
+            }
 
-    .eye-icon {
-        right: 15px;
-    }
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+            }
 
-    .confirm-btn {
-        max-width: 180px;
-        margin-right: 0;
-    }
+            .nav-links {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                gap: 0.8rem;
+                flex-wrap: wrap;
+            }
 
-    .footer-content {
-        grid-template-columns: 1fr;
-    }
-}
+            .nav-links a {
+                font-size: 0.9rem;
+                margin: 0 0.3rem;
+            }
 
-/* Mobile devices */
-@media (max-width: 640px) {
-    nav {
-        padding: 1rem 3%;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
+            .dropdown-content {
+                top: 120px;
+                padding: 1rem 2%;
+            }
 
-    .logo {
-        font-size: 1rem;
-    }
+            .dropdown-content a {
+                margin: 0.3rem 0.5rem;
+                font-size: 0.85rem;
+                padding: 0.4rem 0.8rem;
+            }
 
-    .logo-icon {
-        width: 40px;
-        height: 40px;
-    }
+            .main-content {
+                padding: 140px 5% 40px;
+            }
 
-    .nav-links {
-        order: 3;
-        width: 100%;
-        justify-content: center;
-        gap: 0.8rem;
-        flex-wrap: wrap;
-    }
+            .profile-avatar {
+                width: 100px;
+                height: 100px;
+                margin-bottom: 25px;
+            }
 
-    .nav-links a {
-        font-size: 0.9rem;
-        margin: 0 0.3rem;
-    }
+            .profile-avatar img {
+                width: 50px;
+                height: 50px;
+            }
 
-    .dropdown-content {
-        top: 120px;
-        padding: 1rem 2%;
-    }
+            .refer-title {
+                font-size: 1.4rem;
+                margin-bottom: 25px;
+            }
 
-    .dropdown-content a {
-        margin: 0.3rem 0.5rem;
-        font-size: 0.85rem;
-        padding: 0.4rem 0.8rem;
-    }
+            .refer-card {
+                width: 100%;
+                margin-left: 0;
+                padding: 30px 20px;
+            }
 
-    .main-content {
-        padding: 140px 5% 40px;
-    }
+            .gifts-decoration {
+                display: none;
+            }
 
-    .profile-avatar {
-        width: 100px;
-        height: 100px;
-        margin-bottom: 25px;
-    }
+            .form-group {
+                padding-top: 2%;
+                margin-bottom: 25px;
+            }
 
-    .profile-avatar img {
-        width: 50px;
-        height: 50px;
-    }
+            .form-label {
+                font-size: 20px;
+                margin-bottom: 12px;
+            }
 
-    .refer-title {
-        font-size: 1.4rem;
-        margin-bottom: 25px;
-    }
+            .input-wrapper {
+                margin-bottom: 25px;
+            }
 
-    .refer-card {
-        padding: 30px 20px;
-    }
+            .form-input {
+                width: 100%;
+                height: 50px;
+                font-size: 0.9rem;
+                padding: 12px 15px;
+                letter-spacing: 2px;
+            }
 
-    .form-label {
-        font-size: 20px;
-        margin-bottom: 12px;
-    }
+            .eye-icon {
+                right: 15px;
+                top: 12px;
+                font-size: 1.1rem;
+            }
 
-    .form-input {
-        height: 50px;
-        font-size: 0.9rem;
-        padding: 12px 15px;
-        letter-spacing: 2px;
-    }
+            .confirm-btn {
+                width: 100%;
+                max-width: 100%;
+                padding: 12px 25px;
+                font-size: 0.95rem;
+                margin-right: 0;
+            }
 
-    .eye-icon {
-        right: 15px;
-        top: 12px;
-        font-size: 1.1rem;
-    }
+            .stats-container {
+                gap: 15px;
+            }
 
-    .confirm-btn {
-        width: 100%;
-        max-width: 100%;
-        padding: 12px 25px;
-        font-size: 0.95rem;
-    }
+            .stat-box {
+                min-width: 130px;
+                padding: 15px 25px;
+            }
 
-    .stat-box {
-        min-width: 120px;
-        padding: 15px 20px;
-    }
+            .stat-value {
+                font-size: 28px;
+            }
 
-    .stat-value {
-        font-size: 28px;
-    }
+            .stat-label {
+                font-size: 13px;
+            }
 
-    .stat-label {
-        font-size: 13px;
-    }
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
 
-    .footer-content {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-    }
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
+            }
 
-    .footer-bottom {
-        flex-direction: column;
-        text-align: center;
-    }
+            .footer-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
 
-    .footer-links {
-        flex-direction: column;
-        gap: 1rem;
-    }
-}
+        @media (max-width: 480px) {
+            nav {
+                padding: 0.8rem 3%;
+            }
 
-/* Extra small mobile devices */
-@media (max-width: 480px) {
-    nav {
-        padding: 0.8rem 3%;
-    }
+            .dropdown-content a {
+                display: inline-block;
+                margin: 0.2rem 0.3rem;
+                font-size: 0.8rem;
+            }
 
-    .dropdown-content a {
-        display: inline-block;
-        margin: 0.2rem 0.3rem;
-        font-size: 0.8rem;
-    }
+            .username-profile {
+                font-size: 0.85rem;
+                padding: 0.4rem 0.8rem;
+            }
 
-    .username-profile {
-        font-size: 0.85rem;
-        padding: 0.4rem 0.8rem;
-    }
+            .nav-buttons {
+                gap: 0.5rem;
+            }
 
-    .nav-buttons {
-        gap: 0.5rem;
-    }
+            .profile-btn {
+                width: 35px;
+                height: 35px;
+            }
 
-    .profile-btn {
-        width: 35px;
-        height: 35px;
-    }
+            .main-content {
+                padding: 150px 3% 30px;
+            }
 
-    .main-content {
-        padding: 150px 3% 30px;
-    }
+            .profile-avatar {
+                width: 80px;
+                height: 80px;
+                margin-bottom: 20px;
+            }
 
-    .profile-avatar {
-        width: 80px;
-        height: 80px;
-        margin-bottom: 20px;
-    }
+            .profile-avatar img {
+                width: 40px;
+                height: 40px;
+            }
 
-    .profile-avatar img {
-        width: 40px;
-        height: 40px;
-    }
+            .refer-title {
+                font-size: 1.2rem;
+                margin-bottom: 20px;
+            }
 
-    .refer-title {
-        font-size: 1.2rem;
-        margin-bottom: 20px;
-    }
+            .refer-card {
+                padding: 25px 15px;
+                border-radius: 15px;
+            }
 
-    .refer-card {
-        padding: 25px 15px;
-    }
+            .form-group {
+                padding-top: 1%;
+                margin-bottom: 20px;
+            }
 
-    .form-group {
-        padding-top: 2%;
-        margin-bottom: 20px;
-    }
+            .form-label {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
 
-    .form-label {
-        font-size: 18px;
-        margin-bottom: 10px;
-    }
+            .input-wrapper {
+                margin-bottom: 20px;
+            }
 
-    .input-wrapper {
-        margin-bottom: 20px;
-    }
+            .form-input {
+                height: 45px;
+                font-size: 0.85rem;
+                padding: 10px 12px;
+                letter-spacing: 1.5px;
+                border-radius: 8px;
+            }
 
-    .form-input {
-        height: 45px;
-        font-size: 0.85rem;
-        padding: 10px 12px;
-        letter-spacing: 1.5px;
-    }
+            .eye-icon {
+                right: 12px;
+                top: 10px;
+                font-size: 1rem;
+            }
 
-    .eye-icon {
-        right: 12px;
-        top: 10px;
-        font-size: 1rem;
-    }
+            .confirm-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+                margin-top: 15px;
+                border-radius: 25px;
+            }
 
-    .confirm-btn {
-        padding: 10px 20px;
-        font-size: 0.9rem;
-        margin-top: 15px;
-    }
+            .stats-container {
+                flex-direction: column;
+                gap: 12px;
+                margin-top: 25px;
+            }
 
-    .stats-container {
-        flex-direction: column;
-        gap: 15px;
-    }
+            .stat-box {
+                width: 100%;
+                min-width: auto;
+                padding: 12px 20px;
+                border-radius: 12px;
+            }
 
-    .stat-box {
-        width: 100%;
-        min-width: auto;
-        padding: 12px 20px;
-    }
+            .stat-value {
+                font-size: 24px;
+                margin-bottom: 3px;
+            }
 
-    .stat-value {
-        font-size: 24px;
-    }
+            .stat-label {
+                font-size: 12px;
+            }
 
-    .stat-label {
-        font-size: 12px;
-    }
-}
+            .footer-content {
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .main-content {
+                padding: 160px 2% 25px;
+            }
+
+            .profile-avatar {
+                width: 70px;
+                height: 70px;
+            }
+
+            .profile-avatar img {
+                width: 35px;
+                height: 35px;
+            }
+
+            .refer-title {
+                font-size: 1.1rem;
+            }
+
+            .refer-card {
+                padding: 20px 12px;
+            }
+
+            .form-label {
+                font-size: 16px;
+            }
+
+            .form-input {
+                height: 42px;
+                font-size: 0.8rem;
+                letter-spacing: 1px;
+            }
+
+            .confirm-btn {
+                padding: 9px 18px;
+                font-size: 0.85rem;
+            }
+
+            .stat-box {
+                padding: 10px 15px;
+            }
+
+            .stat-value {
+                font-size: 22px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+        }
+
+        /* Landscape orientation adjustments */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .main-content {
+                padding: 100px 5% 30px;
+            }
+
+            .profile-avatar {
+                width: 80px;
+                height: 80px;
+                margin-bottom: 20px;
+            }
+
+            .refer-title {
+                font-size: 1.4rem;
+                margin-bottom: 20px;
+            }
+
+            .refer-card {
+                padding: 30px 25px;
+            }
+        }
+
+        /* Very small landscape phones */
+        @media (max-width: 640px) and (orientation: landscape) {
+            .refer-card {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .gifts-decoration {
+                display: none;
+            }
+
+            .form-input {
+                width: 100%;
+            }
+
+            .eye-icon {
+                right: 15px;
+            }
+        }
+
+        /* Improve touch targets on mobile */
+        @media (hover: none) and (pointer: coarse) {
+            .confirm-btn,
+            .eye-icon,
+            .profile-btn,
+            .dropbtn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1047,7 +1153,7 @@ function applyReferral($conn, $user_id) {
     <nav>
         <div class="logo">
             <div class="logo-icon">
-                <img src="images/Logo.png.png">
+                <img src="images/Logo.svg">
             </div>
             <span>
                 <a href="viewingpage.php">EVERGREEN</a>
@@ -1067,7 +1173,7 @@ function applyReferral($conn, $user_id) {
                 </div>
         </div>
 
-                     <a href="../../LoanSubsystem/index.php">Loans</a>
+                     <a href="#loans">Loans</a>
                      <a href="./about.php">About Us</a>
         </div>
 
@@ -1082,8 +1188,8 @@ function applyReferral($conn, $user_id) {
                 </div>
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
-                    <a href="../Basic-operation/operations/public/customer/account" role="menuitem">Profile</a>
-                    <a href="../Basic-operation/operations/public/customer/referral" role="menuitem">Refer to a friend</a>
+                    <a href="#" role="menuitem">Profile</a>
+                    <a href="refer.php" role="menuitem">Refer to a friend</a>
                     <a href="./cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -1120,7 +1226,7 @@ function applyReferral($conn, $user_id) {
                 </form>
 
                 <div class="gifts-decoration">
-                    <img src="images/gift.png" alt="Gifts">
+                    <img src="images/gift.svg" alt="Gifts">
                 </div>
             </div>
         </div>

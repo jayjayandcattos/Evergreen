@@ -790,7 +790,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="../viewing.php">
-                    <img src="../images/Logo.png.png">
+                    <img src="../images/Logo.svg">
                 </a>
             </div>
                 <span>
@@ -1000,7 +1000,7 @@
             <div class="footer-section">
                 <h4>Contact Us</h4>
                 <div class="contact-item">📞 1-800-EVERGREEN</div>
-                <div class="contact-item">✉️ hello@evergreenbank.com</div>
+                <div class="contact-item">✉️ evrgrn.64@gmail.com</div>
                 <div class="contact-item">📍 123 Financial District, Suite 500<br>&nbsp;&nbsp;&nbsp;&nbsp;New York, NY 10004</div>
             </div>
         </div>

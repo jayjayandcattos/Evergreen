@@ -2,85 +2,45 @@
 session_start();
 include("db_connect.php");
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Clear referral session data if present (from signup flow)
-if (isset($_SESSION['referral_code'])) {
-    unset($_SESSION['referral_code']);
-}
-if (isset($_SESSION['referral_processed'])) {
-    unset($_SESSION['referral_processed']);
-}
-
-// If already logged in, redirect to dashboard
-if (isset($_SESSION['customer_id'])) {
-    header("Location: ../Basic-operation/operations/public/index.php");
-    exit;
-}
-
-
 $error = "";
 $success = false;
 $login_failed = false;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // We now use 'email' as the identifier, not 'bank_id'
+    $bank_id = trim($_POST['bank_id']);
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
-    if (empty($email) || empty($password)) {
+    if (empty($bank_id) || empty($email) || empty($password)) {
         $error = "Please fill in all fields.";
-        $login_failed = true; // Show a generic error on the modal if JS is off
     } else {
-        // Query to find the customer by email
-        // We join bank_customers with emails to find the matching user
-        $sql = "
-            SELECT 
-                c.customer_id, 
-                c.first_name, 
-                c.last_name, 
-                c.password_hash,
-                e.email
-            FROM bank_customers c
-            JOIN emails e ON c.customer_id = e.customer_id
-            WHERE e.email = ? AND e.is_primary = 1
-        ";
-        
+        $sql = "SELECT * FROM bank_customers WHERE email = ? AND bank_id = ?";
         $stmt = $conn->prepare($sql);
-        if ($stmt === false) {
-            die("Prepare failed: " . $conn->error);
-        }
-        
-        $stmt->bind_param("s", $email);
+        $stmt->bind_param("ss", $email, $bank_id);
         $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result && $result->num_rows === 1) {
             $row = $result->fetch_assoc();
             
-            // Verify the password
-            if (password_verify($password, $row['password_hash'])) {
-                // Set session variables based on the correct schema
-                $_SESSION['customer_id'] = $row['customer_id'];
+            if (password_verify($password, $row['password'])) {
+                // Set session variables
+                $_SESSION['user_id'] = $row['customer_id'];
                 $_SESSION['email'] = $row['email'];
-                $_SESSION['customer_first_name'] = $row['first_name'];
-                $_SESSION['customer_last_name'] = $row['last_name'];
+                $_SESSION['first_name'] = $row['first_name'];
+                $_SESSION['last_name'] = $row['last_name'];
+                $_SESSION['bank_id'] = $row['bank_id'];
                 $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
 
-                $success = true; // Trigger success modal
+                $success = true;
             } else {
-                // Invalid password
                 $login_failed = true;
             }
         } else {
-            // No user found with that email
             $login_failed = true;
         }
         $stmt->close();
     }
-    $conn->close();
 }
 ?>
 
@@ -113,8 +73,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       display: flex;
       flex-direction: column;
       padding: 40px 60px;
-      /* Adjusted padding-top for better centering */
-      padding-top: 15vh; 
+      padding-top: 230px;
       position: relative;
       box-shadow: 2px 0 30px rgba(0, 0, 0, 0.05);
       z-index: 2;
@@ -167,19 +126,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       right: 60px;
     }
 
+    .back-container a {
+      padding-bottom: 20px;
+    }
+
     .back-link {
       font-size: 24px;
       text-decoration: none;
       color: #003631;
       transition: all 0.3s ease;
-      padding: 10px 14px;
+      padding: 10px 18px;
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: rgba(13, 61, 56, 0.05);
       backdrop-filter: blur(10px);
+      padding-top: -30%;
     }
+
 
     .back-link:hover {
       background: rgba(13, 61, 56, 0.1);
@@ -198,16 +163,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    
-    .form-container {
-        width: 100%;
-        max-width: 380px;
-    }
 
     .subtitle {
       text-align: center;
-      color: #777;
-      font-size: 14px;
+      color: #ffffff77;
+      font-size: 18px;
       margin-bottom: 40px;
       font-weight: 400;
     }
@@ -237,7 +197,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     .input-wrapper {
       margin-bottom: 24px;
-      width: 100%;
     }
 
     .input-label {
@@ -250,7 +209,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     input {
-      width: 100%; /* Changed from fixed 350px */
+      width: 350px;
       padding: 14px 18px;
       border: 2px solid #e9ecef;
       border-radius: 12px;
@@ -259,7 +218,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       color: #333;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       font-family: inherit;
-      }
+     }
 
     input::placeholder {
       color: #adb5bd;
@@ -283,13 +242,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     .password-container input {
-      padding-right: 50px; /* Space for eye icon */
+      padding-right: 20px;
     }
 
     .eye-icon {
       position: absolute;
-      right: 16px;
-      top: 50%;
+      right: 22px;
+      top: 49%;
       transform: translateY(-50%);
       cursor: pointer;
       width: 24px;
@@ -362,7 +321,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       padding: 16px;
       background: #f8f9fa;
       border-radius: 12px;
-      width: 100%;
     }
 
     .signup-text a {
@@ -507,7 +465,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       .left {
         width: 50%;
         padding: 40px 40px;
-        padding-top: 10vh;
+        padding-top: 100px;
       }
 
       .right {
@@ -537,11 +495,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         padding: 30px 30px;
         padding-top: 100px;
         box-shadow: none;
-        min-height: 100vh;
-      }
-      
-      .form-container {
-        max-width: 450px;
       }
 
       .right {
@@ -587,10 +540,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         padding: 20px 20px;
         padding-top: 90px;
       }
-      
-      .form-container {
-        max-width: 100%;
-      }
 
       h2 {
         font-size: 28px;
@@ -599,7 +548,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       .subtitle {
         font-size: 13px;
-        margin-bottom: 30px;
+        margin-bottom: 40px;
       }
 
       input {
@@ -625,56 +574,59 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         min-height: 400px;
       }
     }
+
+    html {
+      scroll-behavior: smooth;
+    }
   </style>
 </head>
 <body>
   <div class="left">
     <div class="logo">
-      <img src="images/loginlogo.png" alt="Logo"> <!-- Make sure this path is correct -->
+      <img src="images/loginlogo.png" alt="Logo">
       <div class="logo-text">
         <span class="name">EVERGREEN</span>
         <span class="tagline">Secure. Invest. Achieve</span>
       </div>
     </div>
 
-    <!-- This back link seems to go to a viewing page, you can change the href -->
     <div class="back-container">
-      <a href="viewing.php" class="back-link">←</a> <!-- Changed to index.php -->
+      <a href="viewing.php" class="back-link">←</a>
     </div>
 
-    <div class="form-container">
-        <h2>Log In</h2>
-        <p class="subtitle">Welcome back! Please enter your details.</p>
+    <h2>Log In</h2>
 
-        <form method="POST" id="loginForm" novalidate autocomplete="on">
-          <!-- REMOVED Bank ID field -->
-          
-          <div class="input-wrapper">
-            <label class="input-label" for="email">Email</label>
-            <input type="email" name="email" id="email" placeholder="example@gmail.com" required autocomplete="email"
-                   value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
-            <span class="error-message" id="email_error">A valid email is required</span>
-          </div>
+    <form method="POST" id="loginForm" novalidate>
+      <div class="input-wrapper">
+        <label class="input-label">Bank ID</label>
+        <input type="text" name="bank_id" id="bank_id" placeholder="Bank ID" required>
+        <span class="error-message" id="bank_id_error">This field is required</span>
+      </div>
 
-          <div class="input-wrapper">
-            <label class="input-label" for="password">Password</label>
-            <div class="password-container">
-              <input type="password" id="password" name="password" placeholder="Password" required autocomplete="current-password">
-              <button type="button" class="eye-icon" id="toggle-password-btn"></button>
-            </div>
-            <span class="error-message" id="password_error">Password is required</span>
-          </div>
+      <div class="input-wrapper">
+        <label class="input-label">Email</label>
+        <input type="email" name="email" id="email" placeholder="example@gmail.com" required>
+        <span class="error-message" id="email_error">This field is required</span>
+      </div>
 
-          <div class="forgot-link">
-            <a href="forgotpassword.php">Forgot Password?</a>
-          </div>
-
-          <button type="submit" class="signin-btn" id="signin-btn">SIGN IN</button>
-        </form>
-
-        <div class="signup-text">
-          Don't have an account? <a href="signup.php">Sign Up</a>
+      <div class="input-wrapper">
+        <label class="input-label">Password</label>
+        <div class="password-container">
+          <input type="password" id="password" name="password" placeholder="Password" required>
+          <button type="button" class="eye-icon" onclick="togglePassword()">👁</button>
         </div>
+        <span class="error-message" id="password_error">This field is required</span>
+      </div>
+
+      <div class="forgot-link">
+        <a href="forgotpassword.php">Forgot Password?</a>
+      </div>
+
+      <button type="submit" class="signin-btn">SIGN IN</button>
+    </form>
+
+    <div class="signup-text">
+      Don't have an account? <a href="signup.php">Sign Up</a>
     </div>
   </div>
 
@@ -685,25 +637,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="right-content">
       <p class="welcome-text">Welcome to</p>
       <h1>EVERGREEN</h1>
-      <p class="subtitle-right">Log in to access your account!</p>
-      <img src="images/laptop.png" alt="Laptop" class="laptop-img"> <!-- Make sure this path is correct -->
+      <p class="subtitle">Log in to access your account!</p>
+      <img src="images/laptop.png" alt="Laptop" class="laptop-img">
     </div>
   </div>
 
   <script>
-    function togglePassword(inputId = 'password') {
-      const passwordInput = document.getElementById(inputId);
-      if (!passwordInput) return;
-      
-      const toggleBtn = document.getElementById('toggle-password-btn');
-      if (!toggleBtn) return;
-      
-      // Preserve the current value
-      const currentValue = passwordInput.value;
+    function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const toggleBtn = document.querySelector('.eye-icon');
       const type = passwordInput.type === 'password' ? 'text' : 'password';
       passwordInput.type = type;
-      passwordInput.value = currentValue; // Restore value after type change
       
+      // Use Font Awesome icons
       if (type === 'text') {
         toggleBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
       } else {
@@ -711,32 +657,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       }
     }
 
+    // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-      const eyeIcon = document.getElementById('toggle-password-btn');
+      const eyeIcon = document.querySelector('.eye-icon');
       if (eyeIcon) {
         eyeIcon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
-        eyeIcon.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          togglePassword('password');
-        });
-      }
-      
-      // Prevent password field from being cleared
-      const passwordField = document.getElementById('password');
-      if (passwordField) {
-        // Store password value on focus to prevent clearing
-        passwordField.addEventListener('focus', function() {
-          this.setAttribute('data-prev-value', this.value);
-        });
-        
-        // Restore if accidentally cleared
-        passwordField.addEventListener('blur', function() {
-          if (!this.value && this.getAttribute('data-prev-value')) {
-            // Don't restore if user intentionally cleared it
-            // Only restore if it was cleared by browser autocomplete issues
-          }
-        });
       }
     });
 
@@ -747,7 +672,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Show error modal if login failed
     <?php if ($login_failed): ?>
-      showErrorModal("<?php echo !empty($error) ? $error : 'Invalid Email or Password. Please try again.'; ?>");
+      showErrorModal();
     <?php endif; ?>
 
     function showSuccessModal() {
@@ -783,11 +708,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               transform: translateY(0);
             }
           }
-          @keyframes draw {
-             to {
-               stroke-dashoffset: 0;
-             }
-           }
         </style>
         <div style="
           background: white;
@@ -808,14 +728,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             align-items: center;
             justify-content: center;
             margin: 0 auto 1.5rem;
-            box-shadow: 0 10px 30px rgba(13, 61, 56, 0.3);
-          ">
-            <svg width="40" height="40" viewBox="0 0 50 50">
-              <path d="M 10 25 L 20 35 L 40 15" stroke="white" stroke-width="5" fill="none" 
-                    stroke-linecap="round" stroke-linejoin="round"
-                    style="stroke-dasharray: 50; stroke-dashoffset: 50; animation: draw 0.5s ease 0.3s forwards;"/>
-            </svg>
-          </div>
+            font-size: 3rem;
+            color: white;
+          ">✓</div>
           
           <h3 style="
             color: #0d3d38;
@@ -829,18 +744,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-bottom: 2rem;
             font-size: 1rem;
             line-height: 1.6;
-          ">Welcome back, <?php echo htmlspecialchars($_SESSION['first_name']); ?>!<br>Redirecting to your account...</p>
+          ">Welcome to EVERGREEN Bank!</p>
         </div>
       `;
       
       document.body.appendChild(modal);
       
       setTimeout(() => {
-        window.location.href = 'cardrewards.php'; // Redirect to dashboard
+        window.location.href = 'viewingpage.php';
       }, 2000);
     }
 
-    function showErrorModal(message) {
+    function showErrorModal() {
       const modal = document.createElement('div');
       modal.style.cssText = `
         position: fixed;
@@ -859,6 +774,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       
       modal.innerHTML = `
         <style>
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
           @keyframes slideUp {
             from { 
               opacity: 0;
@@ -871,8 +790,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
           }
           @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
           }
         </style>
         <div style="
@@ -896,7 +815,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin: 0 auto 1.5rem;
             font-size: 3rem;
             color: white;
-            font-weight: 600;
           ">✕</div>
           
           <h3 style="
@@ -911,7 +829,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-bottom: 2rem;
             font-size: 1rem;
             line-height: 1.6;
-          ">${message}</p>
+          ">Invalid Bank ID, Email, or Password.<br>Please try again.</p>
           
           <button onclick="this.parentElement.parentElement.remove()" style="
             background: #dc3545;
@@ -939,22 +857,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     // Login Form Validation
-    let isSubmitting = false;
     document.getElementById('loginForm').addEventListener('submit', function(e) {
-      // Prevent double submission
-      if (isSubmitting) {
-        e.preventDefault();
-        return false;
-      }
-      
       let isValid = true;
-      const btn = document.getElementById('signin-btn');
+      
+      const bankId = document.getElementById('bank_id');
+      const bankIdError = document.getElementById('bank_id_error');
+      if (!bankId.value.trim()) {
+        bankId.classList.add('error');
+        bankIdError.classList.add('show');
+        isValid = false;
+      } else {
+        bankId.classList.remove('error');
+        bankIdError.classList.remove('show');
+      }
       
       const email = document.getElementById('email');
       const emailError = document.getElementById('email_error');
-      if (!email.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+      if (!email.value.trim()) {
         email.classList.add('error');
-        emailError.textContent = 'A valid email is required';
         emailError.classList.add('show');
         isValid = false;
       } else {
@@ -966,7 +886,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       const passwordError = document.getElementById('password_error');
       if (!password.value.trim()) {
         password.classList.add('error');
-        passwordError.textContent = 'Password is required';
         passwordError.classList.add('show');
         isValid = false;
       } else {
@@ -976,14 +895,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       
       if (!isValid) {
         e.preventDefault();
-        return false;
-      } else {
-        // If valid, show loading spinner and prevent double submission
-        isSubmitting = true;
-        btn.classList.add('loading');
-        btn.disabled = true;
-        // Allow form to submit normally
-        return true;
       }
     });
 

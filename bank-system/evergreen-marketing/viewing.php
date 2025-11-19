@@ -335,7 +335,7 @@
         /* Rewards Section */
         .rewards-section {
             position: relative;
-            background: url('images/bg-rewards.png') no-repeat center center/cover;
+            background: url('images/bg-rewards.svg') no-repeat center center/cover;
             color: #fff;
             overflow: hidden;
             margin: 0 auto;
@@ -1326,7 +1326,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewing.php">
-                    <img src="images/Logo.png.png">
+                    <img src="images/Logo.svg">
                 </a>
             </div>
                 <span>
@@ -1407,7 +1407,7 @@
     </div>
 
     <div class="rewards-image">
-      <img src="images/card.png" alt="Reward Card">
+      <img src="images/card.svg" alt="Reward Card">
     </div>
   </div>
 </section
@@ -1506,7 +1506,7 @@
             <div class="image-container">
                 <div class="image-wrapper">
                     <div class="curved-image">
-                        <img src="images/recruit.png" alt="Professional woman in business suit shaking hands">
+                        <img src="images/recruit.svg" alt="Professional woman in business suit shaking hands">
                         <div class="decorative-dots">
                             <span></span><span></span><span></span><span></span><span></span>
                             <span></span><span></span><span></span><span></span><span></span>
@@ -1514,7 +1514,7 @@
                         </div>
                     </div>
                     <div class="decorative-curve">
-                        <img src="images/recruitstyle.png" alt="Images Design">
+                        <img src="images/recruitstyle.svg" alt="Images Design">
                     </div>
                 </div>
             </div>
@@ -1527,7 +1527,7 @@
             <div class="footer-brand">
                 <div class="logo">
                     <div class="logo-icon">
-                        <img src="images/icon.png">
+                        <img src="images/Logo.svg">
                     </div>
                 </div>
                 <p>Secure. Invest. Achieve. Your trusted financial partner for a prosperous future.</p>

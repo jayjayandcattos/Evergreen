@@ -92,45 +92,16 @@ class PointsSystem {
     // Load available missions
     async loadMissions() {
         try {
-            console.log('Loading missions from:', `${this.apiUrl}?action=get_missions`);
             const response = await fetch(`${this.apiUrl}?action=get_missions`);
-            
-            if (!response.ok) {
-                console.error('API response not OK:', response.status, response.statusText);
-                return [];
-            }
-            
-            const text = await response.text();
-            console.log('Missions API raw response:', text);
-            
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error('Failed to parse JSON response:', e);
-                console.error('Response text:', text);
-                return [];
-            }
-            
-            console.log('Missions API parsed response:', data);
+            const data = await response.json();
             
             if (data.success) {
-                console.log('Missions loaded:', data.missions ? data.missions.length : 0, 'missions');
-                if (data.debug) {
-                    console.log('Debug info:', data.debug);
-                }
-                return data.missions || [];
-            } else {
-                console.error('API returned error:', data.message || 'Unknown error');
-                if (data.debug) {
-                    console.error('Debug info:', data.debug);
-                }
-                return [];
+                return data.missions;
             }
         } catch (error) {
             console.error('Error loading missions:', error);
-            return [];
         }
+        return [];
     }
 
     // Collect mission points
@@ -321,63 +292,56 @@ class PointsSystem {
     }
 
     // Render missions
-    async renderMissions(containerId) {
-        console.log('renderMissions called for container:', containerId);
-        const missions = await this.loadMissions();
-        console.log('Missions to render:', missions);
-        const container = document.getElementById(containerId);
-        
-        if (!container) {
-            console.error('Container not found:', containerId);
-            return;
-        }
-        
-        container.innerHTML = '';
-        
-        if (missions.length === 0) {
-            console.log('No missions to display');
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">🎉</div>
-                    <div class="empty-state-text">All missions collected!</div>
-                </div>
-            `;
-            return;
-        }
-        
-        console.log('Rendering', missions.length, 'missions');
-        
-        missions.forEach(mission => {
-            const card = document.createElement('div');
-            card.className = 'mission-card';
-            card.dataset.missionId = mission.id;
+    // Render missions
+        async renderMissions(containerId) {
+            const missions = await this.loadMissions();
+            const container = document.getElementById(containerId);
             
-            const statusBadge = mission.status === 'pending' 
-                ? '<span style="color:#ff9800;font-size:12px;font-weight:600;">⏳ Pending</span>'
-                : '<span style="color:#4caf50;font-size:12px;font-weight:600;">✓ Available</span>';
+            if (!container) return;
             
-            card.innerHTML = `
-                <div class="mission-timestamp">${statusBadge}</div>
-                <div class="mission-points">
-                    <div class="mission-points-value">${parseFloat(mission.points_value).toFixed(2)}</div>
-                    <div class="mission-points-label">points</div>
-                </div>
-                <div class="mission-divider"></div>
-                <div class="mission-details">
-                    <div class="mission-description">${mission.mission_text}</div>
-                    <div class="mission-actions">
-                        <button class="collect-btn" 
-                                onclick="pointsSystem.collectMission(${mission.id}, this)"
-                                ${mission.status === 'pending' ? 'disabled' : ''}>
-                            ${mission.status === 'pending' ? 'Locked' : 'Collect'}
-                        </button>
+            container.innerHTML = '';
+            
+            if (missions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎉</div>
+                        <div class="empty-state-text">All missions collected!</div>
                     </div>
-                </div>
-            `;
+                `;
+                return;
+            }
             
-            container.appendChild(card);
-        });
-    }
+            missions.forEach(mission => {
+                const card = document.createElement('div');
+                card.className = 'mission-card';
+                card.dataset.missionId = mission.customer_id; // ← Changed from mission.id
+                
+                const statusBadge = mission.status === 'pending' 
+                    ? '<span style="color:#ff9800;font-size:12px;font-weight:600;">⏳ Pending</span>'
+                    : '<span style="color:#4caf50;font-size:12px;font-weight:600;">✓ Available</span>';
+                
+                card.innerHTML = `
+                    <div class="mission-timestamp">${statusBadge}</div>
+                    <div class="mission-points">
+                        <div class="mission-points-value">${parseFloat(mission.points_value).toFixed(2)}</div>
+                        <div class="mission-points-label">points</div>
+                    </div>
+                    <div class="mission-divider"></div>
+                    <div class="mission-details">
+                        <div class="mission-description">${mission.mission_text}</div>
+                        <div class="mission-actions">
+                            <button class="collect-btn" 
+                                    onclick="pointsSystem.collectMission(${mission.customer_id}, this)"
+                                    ${mission.status === 'pending' ? 'disabled' : ''}>
+                                ${mission.status === 'pending' ? 'Locked' : 'Collect'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
 
     // renderPointHistory
         async renderPointHistory(containerId) {
@@ -407,7 +371,7 @@ class PointsSystem {
                 const points = parseFloat(item.points);
                 const isDeduction = points < 0;
                 const pointsColor = isDeduction ? '#dc3545' : '#28a745';
-                const pointsSign = isDeduction ? '' : '+';
+                const pointsSign = isDeduction ? '-' : '+';
                 const badgeText = isDeduction ? 'Redeemed' : 'Collected';
                 
                 card.innerHTML = `
