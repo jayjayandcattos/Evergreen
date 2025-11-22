@@ -6,10 +6,10 @@
  * This can be called via HTTP request or cron job
  * 
  * Usage via HTTP:
- *   GET/POST: /bank-system/Basic-operation/api/apply_interest.php
+ *   GET/POST: /Evergreen/bank-system/Basic-operation/api/apply_interest.php
  * 
  * Cron example (runs on 1st of every month at 2 AM):
- *   0 2 1 * * curl http://localhost/bank-system/Basic-operation/api/apply_interest.php
+ *   0 2 1 * * curl http://localhost/Evergreen/bank-system/Basic-operation/api/apply_interest.php
  */
 
 header('Content-Type: application/json');

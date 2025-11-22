@@ -29,7 +29,7 @@
             <?php if((isset($_SESSION['customer_id']))): ?>
             <ul class="navbar-nav mx-auto">
                 <li class="nav-item me-2">
-                    <a class="nav-link" href="/bank-system/evergreen-marketing/viewingpage.php">Home</a>
+                    <a class="nav-link" href="/Evergreen/bank-system/evergreen-marketing/viewingpage.php">Home</a>
                 </li>
                 <li class="nav-item mx-2">
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Accounts') ? 'active text-warning' : ''; ?>" 

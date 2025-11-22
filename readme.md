@@ -1,29 +1,84 @@
-justin 'to, dito n'yo lagay lahat ng updates imnida
-
-- first commit 10:26pm
-- Create a finance branch 
-
-
 # Evergreen System - Project Documentation
+
+## Project Updates
+
+- **First commit** - 10:26pm
+- **Created Finance branch**
+- **Fixed directory connections** - Updated all hardcoded paths from `/bank-system/` to `/Evergreen/bank-system/` throughout the project
+
+---
 
 ## Directory Structure
 
-### 1. Accounting & Finance - Core Module
-**Location:** `/Evergreen/accounting-and-finance/core/`
-**URL:** http://localhost/Evergreen/accounting-and-finance/core/login.php
+This project contains multiple modules under the `Evergreen` directory:
 
-### 2. HRIS-SIA Module
-**Location:** `/evergreen/hris-sia/`
-**URL:** http://localhost/evergreen/hris-sia/
+```
+Evergreen/
+├── accounting-and-finance/     # Accounting & Finance Core Module
+├── bank-system/                 # Bank System Modules
+│   ├── Basic-operation/        # Bank Operations & Customer Portal
+│   ├── evergreen-marketing/    # Marketing & Public Pages
+│   └── SIATEST-main/           # Test Environment
+├── hris-sia/                   # HRIS-SIA Module
+└── LoanSubsystem/              # Loan Management Subsystem
+```
+
+---
+
+## Module Details
+
+### 1. Accounting & Finance - Core Module
+**Location:** `accounting-and-finance/`  
+**Base URL:** `http://localhost/Evergreen/accounting-and-finance/`  
+**Description:** Core accounting and financial management system
+
+### 2. Bank System - Basic Operation Module
+**Location:** `bank-system/Basic-operation/`  
+**Base URL:** `http://localhost/Evergreen/bank-system/Basic-operation/`  
+**Customer Portal:** `http://localhost/Evergreen/bank-system/Basic-operation/operations/public/`  
+**API Endpoints:** `http://localhost/Evergreen/bank-system/Basic-operation/api/`  
+**Public Pages:** `http://localhost/Evergreen/bank-system/Basic-operation/public/`  
+**Description:** Customer onboarding, account management, transactions, and employee operations
+
 
 ### 3. Bank System - Marketing Module
-**Location:** `/Evergreen/bank-system/evergreen-marketing/`
-**URL:** http://localhost/Evergreen/bank-system/evergreen-marketing/login.php
+**Location:** `bank-system/evergreen-marketing/`  
+**Base URL:** `http://localhost/Evergreen/bank-system/evergreen-marketing/`  
+**Login:** `http://localhost/Evergreen/bank-system/evergreen-marketing/login.php`  
+**Description:** Marketing website, user authentication, and public-facing pages
+
+### 4. HRIS-SIA Module
+**Location:** `hris-sia/`  
+**Base URL:** `http://localhost/Evergreen/hris-sia/`  
+**Description:** Human Resources Information System
+
+### 5. Loan Subsystem
+**Location:** `LoanSubsystem/`  
+**Description:** Loan application and management system
+
+### Basic Operation API
+Base URL: `http://localhost/Evergreen/bank-system/Basic-operation/api/`
 
 
+## Development Notes
 
-## Setup
-1. Configure database connections for each module
-2. Set proper file permissions
-3. Import required database schemas
-4. Configure environment variables
+### Path Structure
+All paths are configured to work with the base directory structure:
+- Web root: `http://localhost/Evergreen/`
+- File system: `C:\xampp\htdocs\Evergreen\`
+
+---
+
+## Contributing
+
+When adding new features or modules:
+1. Follow the existing directory structure
+2. Use dynamic path detection in JavaScript (see existing files)
+3. Update this README with new modules/endpoints
+4. Test all paths work correctly with `/Evergreen/` base directory
+
+---
+
+## Contact & Support
+
+SBIT-3C devs

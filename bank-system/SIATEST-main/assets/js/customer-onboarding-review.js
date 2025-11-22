@@ -23,7 +23,7 @@ function getApiBaseUrl() {
   }
   
   // Final fallback
-  return window.location.origin + '/bank-system/SIATEST-main/api';
+  return window.location.origin + '/Evergreen/bank-system/SIATEST-main/api';
 }
 
 const API_BASE_URL = getApiBaseUrl();
