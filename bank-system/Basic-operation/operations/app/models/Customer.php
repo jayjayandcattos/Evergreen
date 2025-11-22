@@ -368,6 +368,215 @@ class Customer extends Database{
 
         return $this->db->execute(); 
     }
+
+    // --- UPDATE PROFILE ---
+    public function updateCustomerProfile($customer_id, $profile_data) {
+        $success = true;
+        
+        try {
+            // Update email if provided
+            if (isset($profile_data['email_address']) && !empty($profile_data['email_address'])) {
+                // Check if email record exists
+                $this->db->query("SELECT email_id FROM emails WHERE customer_id = :customer_id AND is_primary = 1 LIMIT 1");
+                $this->db->bind(':customer_id', $customer_id);
+                $email_exists = $this->db->single();
+                
+                if ($email_exists) {
+                    // Update existing email
+                    $this->db->query("
+                        UPDATE emails 
+                        SET email = :email 
+                        WHERE customer_id = :customer_id AND is_primary = 1
+                    ");
+                    $this->db->bind(':email', $profile_data['email_address']);
+                    $this->db->bind(':customer_id', $customer_id);
+                    $result = $this->db->execute();
+                    if (!$result) {
+                        error_log("Failed to update email for customer_id: $customer_id");
+                    }
+                    $success = $result && $success;
+                } else {
+                    // Insert new email
+                    $this->db->query("
+                        INSERT INTO emails (customer_id, email, is_primary, created_at)
+                        VALUES (:customer_id, :email, 1, NOW())
+                    ");
+                    $this->db->bind(':customer_id', $customer_id);
+                    $this->db->bind(':email', $profile_data['email_address']);
+                    $result = $this->db->execute();
+                    if (!$result) {
+                        error_log("Failed to insert email for customer_id: $customer_id");
+                    }
+                    $success = $result && $success;
+                }
+            }
+            
+            // Update phone if provided
+            if (isset($profile_data['mobile_number']) && !empty($profile_data['mobile_number'])) {
+                // Check if phone record exists
+                $this->db->query("SELECT phone_id FROM phones WHERE customer_id = :customer_id AND is_primary = 1 LIMIT 1");
+                $this->db->bind(':customer_id', $customer_id);
+                $phone_exists = $this->db->single();
+                
+                if ($phone_exists) {
+                    // Update existing phone
+                    $this->db->query("
+                        UPDATE phones 
+                        SET phone_number = :phone_number 
+                        WHERE customer_id = :customer_id AND is_primary = 1
+                    ");
+                    $this->db->bind(':phone_number', $profile_data['mobile_number']);
+                    $this->db->bind(':customer_id', $customer_id);
+                    $result = $this->db->execute();
+                    if (!$result) {
+                        error_log("Failed to update phone for customer_id: $customer_id");
+                    }
+                    $success = $result && $success;
+                } else {
+                    // Insert new phone
+                    $this->db->query("
+                        INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at)
+                        VALUES (:customer_id, :phone_number, 'mobile', 1, NOW())
+                    ");
+                    $this->db->bind(':customer_id', $customer_id);
+                    $this->db->bind(':phone_number', $profile_data['mobile_number']);
+                    $result = $this->db->execute();
+                    if (!$result) {
+                        error_log("Failed to insert phone for customer_id: $customer_id");
+                    }
+                    $success = $result && $success;
+                }
+            }
+            
+            // Update address if provided (parse the concatenated address)
+            if (isset($profile_data['home_address'])) {
+                // For now, update the address_line field only
+                // Note: Full address parsing would require more complex logic
+                $address_parts = explode(',', $profile_data['home_address']);
+                $address_line = trim($address_parts[0] ?? '');
+                
+                if (!empty($address_line)) {
+                    $this->db->query("
+                        UPDATE addresses 
+                        SET address_line = :address_line 
+                        WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home'
+                    ");
+                    $this->db->bind(':address_line', $address_line);
+                    $this->db->bind(':customer_id', $customer_id);
+                    $success = $this->db->execute() && $success;
+                }
+            }
+            
+            // Get gender_id if gender name is provided
+            $gender_id = null;
+            if (isset($profile_data['gender'])) {
+                $this->db->query("
+                    SELECT gender_id FROM genders WHERE gender_name = :gender_name LIMIT 1
+                ");
+                $this->db->bind(':gender_name', $profile_data['gender']);
+                $gender_result = $this->db->single();
+                if ($gender_result) {
+                    $gender_id = $gender_result->gender_id;
+                }
+            }
+            
+            // Update customer_profiles table
+            $update_fields = [];
+            $bind_params = [':customer_id' => $customer_id];
+            
+            if (isset($profile_data['civil_status'])) {
+                $update_fields[] = "marital_status = :marital_status";
+                $bind_params[':marital_status'] = $profile_data['civil_status'];
+            }
+            
+            if (isset($profile_data['citizenship'])) {
+                $update_fields[] = "nationality = :nationality";
+                $bind_params[':nationality'] = $profile_data['citizenship'];
+            }
+            
+            if (isset($profile_data['occupation'])) {
+                $update_fields[] = "occupation = :occupation";
+                $bind_params[':occupation'] = $profile_data['occupation'];
+            }
+            
+            if (isset($profile_data['name_of_employer'])) {
+                $update_fields[] = "company = :company";
+                $bind_params[':company'] = $profile_data['name_of_employer'];
+            }
+            
+            if ($gender_id !== null) {
+                $update_fields[] = "gender_id = :gender_id";
+                $bind_params[':gender_id'] = $gender_id;
+            }
+            
+            if (!empty($update_fields)) {
+                // Update customer_profiles table
+                $sql = "UPDATE customer_profiles SET " . implode(", ", $update_fields) . " WHERE customer_id = :customer_id";
+                $this->db->query($sql);
+                
+                // Bind all parameters
+                foreach ($bind_params as $param => $value) {
+                    $this->db->bind($param, $value);
+                }
+                
+                $result = $this->db->execute();
+                
+                // If no rows were updated, try to insert (in case profile doesn't exist)
+                if ($result && $this->db->rowCount() === 0) {
+                    // Build INSERT statement for missing profile
+                    $insert_fields = ['customer_id'];
+                    $insert_values = [':customer_id'];
+                    $insert_params = [':customer_id' => $customer_id];
+                    
+                    foreach ($bind_params as $param => $value) {
+                        if ($param !== ':customer_id') {
+                            $field_name = str_replace(':', '', $param);
+                            // Map parameter names to database field names
+                            $field_mapping = [
+                                'marital_status' => 'marital_status',
+                                'nationality' => 'nationality',
+                                'occupation' => 'occupation',
+                                'company' => 'company',
+                                'gender_id' => 'gender_id'
+                            ];
+                            
+                            if (isset($field_mapping[$field_name])) {
+                                $insert_fields[] = $field_mapping[$field_name];
+                                $insert_values[] = $param;
+                                $insert_params[$param] = $value;
+                            }
+                        }
+                    }
+                    
+                    if (count($insert_fields) > 1) {
+                        $insert_sql = "INSERT INTO customer_profiles (" . implode(", ", $insert_fields) . ", profile_created_at) VALUES (" . implode(", ", $insert_values) . ", NOW())";
+                        $this->db->query($insert_sql);
+                        
+                        foreach ($insert_params as $param => $value) {
+                            $this->db->bind($param, $value);
+                        }
+                        
+                        $success = $this->db->execute() && $success;
+                    }
+                } else {
+                    $success = $result && $success;
+                }
+            }
+            
+        } catch (Exception $e) {
+            error_log("Update profile error: " . $e->getMessage());
+            return false;
+        }
+        
+        return $success;
+    }
+    
+    public function getGenderId($gender_name) {
+        $this->db->query("SELECT gender_id FROM genders WHERE gender_name = :gender_name LIMIT 1");
+        $this->db->bind(':gender_name', $gender_name);
+        $result = $this->db->single();
+        return $result ? $result->gender_id : null;
+    }
     
     public function getAccountByNumber($account_number){
         $this->db->query("

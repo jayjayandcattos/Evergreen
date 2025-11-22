@@ -315,6 +315,63 @@ class CustomerController extends Controller {
     // --- PROFILE ---
     public function profile(){
         $customer_id = $_SESSION['customer_id'];
+        
+        // Handle POST request for profile update
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+            
+            $update_data = [];
+            
+            // Only allow updating specific fields (not name or birthday)
+            if (isset($_POST['email_address'])) {
+                $update_data['email_address'] = trim($_POST['email_address']);
+            }
+            if (isset($_POST['mobile_number'])) {
+                $update_data['mobile_number'] = trim($_POST['mobile_number']);
+            }
+            if (isset($_POST['home_address'])) {
+                $update_data['home_address'] = trim($_POST['home_address']);
+            }
+            if (isset($_POST['gender'])) {
+                $update_data['gender'] = trim($_POST['gender']);
+            }
+            if (isset($_POST['civil_status'])) {
+                $update_data['civil_status'] = trim($_POST['civil_status']);
+            }
+            if (isset($_POST['citizenship'])) {
+                $update_data['citizenship'] = trim($_POST['citizenship']);
+            }
+            if (isset($_POST['occupation'])) {
+                $update_data['occupation'] = trim($_POST['occupation']);
+            }
+            if (isset($_POST['name_of_employer'])) {
+                $update_data['name_of_employer'] = trim($_POST['name_of_employer']);
+            }
+            
+            // Validate email if provided
+            if (!empty($update_data['email_address']) && !filter_var($update_data['email_address'], FILTER_VALIDATE_EMAIL)) {
+                $_SESSION['profile_error'] = 'Invalid email address format.';
+            } else {
+                // Check if there's any data to update
+                if (!empty($update_data)) {
+                    // Update profile
+                    $updated = $this->customerModel->updateCustomerProfile($customer_id, $update_data);
+                    
+                    if ($updated) {
+                        $_SESSION['profile_success'] = 'Profile updated successfully!';
+                    } else {
+                        $_SESSION['profile_error'] = 'Failed to update profile. Please check your input and try again.';
+                        error_log("Profile update failed for customer_id: $customer_id");
+                    }
+                } else {
+                    $_SESSION['profile_error'] = 'No data provided to update.';
+                }
+            }
+            
+            // Redirect to refresh the page
+            header('Location: ' . URLROOT . '/customer/profile');
+            exit();
+        }
 
         $profile_data = $this->customerModel->getCustomerProfileData($customer_id);
 
@@ -335,7 +392,13 @@ class CustomerController extends Controller {
             'employment_status' => $profile_data->occupation ? 'Employed' : 'Unemployed',
             'place_of_birth' => 'Quezon City',
             'employer_address' => '123 Bldg, Metro Manila',
+            'success_message' => $_SESSION['profile_success'] ?? '',
+            'error_message' => $_SESSION['profile_error'] ?? '',
         ];
+        
+        // Clear session messages
+        unset($_SESSION['profile_success']);
+        unset($_SESSION['profile_error']);
 
         $this->view('customer/profile', $data);
     }
