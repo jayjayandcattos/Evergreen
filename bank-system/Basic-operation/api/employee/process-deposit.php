@@ -248,15 +248,40 @@ try {
         throw $e; 
     }
 
-} catch (Exception $e) {
-    error_log("Deposit processing error: " . $e->getMessage());
+} catch (PDOException $e) {
+    error_log("Deposit processing PDO error: " . $e->getMessage());
+    error_log("Error code: " . $e->getCode());
+    error_log("SQL State: " . $e->getCode());
     
-    // Only output a generic message if the inner catch hasn't handled it
     if (!headers_sent()) {
         http_response_code(500);
+        header('Content-Type: application/json');
+        
+        // Show detailed error for debugging
+        $errorMessage = 'Transaction failed: ' . $e->getMessage();
+        
+        // Check if it's the account_name error from the trigger
+        if (strpos($e->getMessage(), 'account_name') !== false || strpos($e->getMessage(), 'Unknown column') !== false) {
+            $errorMessage = 'Database trigger error detected. Please run fix_database_trigger.sql in your database to fix this. Original error: ' . $e->getMessage();
+        }
+        
         echo json_encode([
             'success' => false,
-            'message' => 'An unexpected error occurred during processing.'
+            'message' => $errorMessage,
+            'error_code' => $e->getCode(),
+            'error_info' => $e->getMessage()
+        ]);
+    }
+} catch (Exception $e) {
+    error_log("Deposit processing error: " . $e->getMessage());
+    error_log("Error trace: " . $e->getTraceAsString());
+    
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Transaction failed: ' . $e->getMessage()
         ]);
     }
 }
