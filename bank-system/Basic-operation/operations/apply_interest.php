@@ -7,10 +7,10 @@
  *   php apply_interest.php
  * 
  * Cron example (runs on 1st of every month at 2 AM):
- *   0 2 1 * * /usr/bin/php /path/to/Evergreen/bank-system/Basic-operation/operations/apply_interest.php
+ *   0 2 1 * * /usr/bin/php /path/to/bank-system/Basic-operation/operations/apply_interest.php
  * 
  * Windows Task Scheduler example:
- *   php C:\xampp\htdocs\Evergreen\bank-system\Basic-operation\operations\apply_interest.php
+ *   php C:\xampp\htdocs\bank-system\Basic-operation\operations\apply_interest.php
  */
 
 // Set the root path

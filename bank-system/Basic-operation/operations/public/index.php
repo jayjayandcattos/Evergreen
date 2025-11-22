@@ -4,7 +4,7 @@ define('ROOT_PATH', realpath(__DIR__ . '/../'));
 // Dynamically construct URLROOT based on current host to work with any IP or domain
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-define('URLROOT', $protocol . '://' . $host . '/Evergreen/bank-system/Basic-operation/operations/public');
+define('URLROOT', $protocol . '://' . $host . '/bank-system/Basic-operation/operations/public');
 
 $envFile = ROOT_PATH . '/.env';
 if (file_exists($envFile)) {

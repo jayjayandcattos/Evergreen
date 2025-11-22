@@ -10,7 +10,7 @@ class CustomerController extends Controller {
 
         // Redirect to login if not logged in
         if (!isset($_SESSION['customer_id'])) {
-            header('Location: /Evergreen/bank-system/evergreen-marketing/login.php');
+            header('Location: /bank-system/evergreen-marketing/login.php');
             exit();
         }
 
