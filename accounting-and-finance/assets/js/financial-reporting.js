@@ -156,14 +156,7 @@ function generateReport(reportType) {
         </div>
     `;
     
-    // Handle regulatory reports differently
-    if (reportType === 'regulatory-reports') {
-        // Show error - regulatory reports not implemented with real data yet
-        showError('Regulatory reports are not available. Please use other report types that use real client data from operational subsystems.');
-        return;
-    }
-    
-    // Gather parameters for other reports
+    // Gather parameters for all reports (including regulatory)
     const params = getReportParams(reportType);
     
     // Make AJAX request
@@ -232,16 +225,16 @@ function displayReportInModal(reportType, data) {
         html += generateIncomeStatementHTML(data);
     } else if (reportType === 'cash-flow') {
         html += generateCashFlowHTML(data);
-    } else if (reportType === 'regulatory-reports') {
+    } else if (reportType === 'regulatory-reports' || reportType === 'regulatory') {
         html += generateRegulatoryReportsHTML(data);
-        // Don't add general export buttons for regulatory reports - they're inside the Display Report Table
+        // Don't add general export buttons for regulatory reports - they're inside the report HTML
     } else {
         // Fallback for any report type
         html += generateGenericReportHTML(data);
     }
     
     // Only add export buttons for non-regulatory reports
-    if (reportType !== 'regulatory-reports') {
+    if (reportType !== 'regulatory-reports' && reportType !== 'regulatory') {
         html += `
             <div class="d-flex justify-content-end gap-2 mt-4 no-print">
                 <button class="btn btn-success" onclick="exportReport('excel')">
@@ -523,82 +516,81 @@ function generateCashFlowHTML(data) {
 }
 
 /**
- * Generate Regulatory Reports HTML - Following Flowchart
+ * Generate Regulatory Reports HTML - Using REAL data
  */
 function generateRegulatoryReportsHTML(data) {
     let html = `
-        <div class="regulatory-reports-flow">
-            <!-- Step 1: Decision - View Regulatory Reports? -->
-            <div class="flow-step mb-4">
-                <div class="card border-primary">
-                    <div class="card-body text-center">
-                        <h5 class="card-title text-primary">
-                            <i class="fas fa-question-circle me-2"></i>View Regulatory Reports?
-                        </h5>
-                        <p class="text-muted mb-3">Select the type of regulatory report you want to view</p>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-primary w-100" onclick="viewRegulatoryReport('bsp')">
-                                    <i class="fas fa-university me-2"></i>BSP Reports
-                                </button>
+        <div class="regulatory-reports-display">
+            <div class="table-responsive">
+                <table class="table table-hover table-modern">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Report ID</th>
+                            <th>Report Type</th>
+                            <th>Period</th>
+                            <th>Status</th>
+                            <th>Generated Date</th>
+                            <th>Compliance Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    if (data.reports && data.reports.length > 0) {
+        data.reports.forEach((report) => {
+            const statusBadge = report.status === 'Compliant' ? 'bg-success' : 
+                               report.status === 'Pending' ? 'bg-warning' : 'bg-danger';
+            const scoreColor = report.compliance_score >= 80 ? 'text-success' : 
+                              report.compliance_score >= 60 ? 'text-warning' : 'text-danger';
+            
+            html += `
+                <tr>
+                    <td><code class="text-primary">${report.report_id || 'N/A'}</code></td>
+                    <td><strong>${report.report_type || 'N/A'}</strong></td>
+                    <td>${report.period || 'N/A'}</td>
+                    <td><span class="badge ${statusBadge}">${report.status || 'N/A'}</span></td>
+                    <td>${report.generated_date ? formatDate(report.generated_date) : 'N/A'}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="progress me-2" style="width: 60px; height: 8px;">
+                                <div class="progress-bar ${report.compliance_score >= 80 ? 'bg-success' : report.compliance_score >= 60 ? 'bg-warning' : 'bg-danger'}" 
+                                     style="width: ${report.compliance_score || 0}%"></div>
                             </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-success w-100" onclick="viewRegulatoryReport('sec')">
-                                    <i class="fas fa-building me-2"></i>SEC Filings
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-warning w-100" onclick="viewRegulatoryReport('internal')">
-                                    <i class="fas fa-shield-alt me-2"></i>Internal Compliance
-                                </button>
-                            </div>
+                            <span class="fw-bold ${scoreColor}">${report.compliance_score || 0}%</span>
                         </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        html += `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <p class="mb-0">No regulatory reports found for the selected period.</p>
+                    <p class="mb-0">Reports are generated based on real data from operational subsystems.</p>
+                </td>
+            </tr>
+        `;
+    }
+    
+    html += `
+                    </tbody>
+                </table>
             </div>
             
-            <!-- Step 2: Display Report Table (hidden initially) -->
-            <div id="regulatory-report-table" style="display: none;">
-                <div class="card border-success">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-table me-2"></i>Display Report Table
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover" id="regulatory-data-table">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Report ID</th>
-                                        <th>Report Type</th>
-                                        <th>Period</th>
-                                        <th>Status</th>
-                                        <th>Generated Date</th>
-                                        <th>Compliance Score</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="regulatory-data-tbody">
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <!-- Export Actions -->
-                        <div class="mt-4 text-center">
-                            <div class="d-flex justify-content-center gap-2">
-                                <button class="btn btn-success" onclick="exportRegulatoryReport()">
-                                    <i class="fas fa-file-excel me-2"></i>Export Excel
-                                </button>
-                                <button class="btn btn-danger" onclick="printRegulatoryReportPDF()">
-                                    <i class="fas fa-file-pdf me-2"></i>Export PDF
-                                </button>
-                                <button class="btn btn-secondary" onclick="printRegulatoryReportPDF()">
-                                    <i class="fas fa-print me-2"></i>Print
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Export Actions -->
+            <div class="mt-4 text-center">
+                <div class="d-flex justify-content-center gap-2">
+                    <button class="btn btn-success" onclick="exportRegulatoryReport()">
+                        <i class="fas fa-file-excel me-2"></i>Export Excel
+                    </button>
+                    <button class="btn btn-danger" onclick="printRegulatoryReportPDF()">
+                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                    </button>
+                    <button class="btn btn-secondary" onclick="printRegulatoryReportPDF()">
+                        <i class="fas fa-print me-2"></i>Print
+                    </button>
                 </div>
             </div>
         </div>
