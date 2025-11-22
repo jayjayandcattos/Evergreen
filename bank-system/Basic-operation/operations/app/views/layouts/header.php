@@ -32,9 +32,6 @@
                     <a class="nav-link" href="/Evergreen/bank-system/evergreen-marketing/viewingpage.php">Home</a>
                 </li>
                 <li class="nav-item mx-2">
-                    <a class="nav-link" href="/Evergreen/LoanSubsystem/">Loans</a>
-                </li>
-                <li class="nav-item mx-2">
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Accounts') ? 'active text-warning' : ''; ?>" 
                     href="<?= URLROOT ?>/customer/account">Accounts</a>
                 </li>
@@ -57,9 +54,6 @@
                 <li class="nav-item mx-2">
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Pay Loan') ? 'active text-warning' : ''; ?>" 
                     href="<?= URLROOT ?>/customer/pay_loan">Pay Loan</a>
-                </li>
-                <li class="nav-item mx-2">
-                    <a class="nav-link" href="/Evergreen/LoanSubsystem/">Apply for Loan</a>
                 </li>
             </ul>
 

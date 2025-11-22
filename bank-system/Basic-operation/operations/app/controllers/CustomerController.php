@@ -8,6 +8,30 @@ class CustomerController extends Controller {
             session_start();
         }
 
+        // Sync session from evergreen-marketing if logged in there
+        // evergreen-marketing uses 'user_id' (which is customer_id) and 'first_name', 'last_name'
+        // Basic-operation uses 'customer_id' and 'customer_first_name', 'customer_last_name'
+        if (!isset($_SESSION['customer_id']) && isset($_SESSION['user_id'])) {
+            // User is logged in via evergreen-marketing, sync session for Basic-operation
+            $_SESSION['customer_id'] = $_SESSION['user_id'];
+            
+            // Sync name fields from evergreen-marketing session
+            if (!isset($_SESSION['customer_first_name']) && isset($_SESSION['first_name'])) {
+                $_SESSION['customer_first_name'] = $_SESSION['first_name'];
+            }
+            if (!isset($_SESSION['customer_last_name']) && isset($_SESSION['last_name'])) {
+                $_SESSION['customer_last_name'] = $_SESSION['last_name'];
+            }
+        } elseif (isset($_SESSION['customer_id']) && !isset($_SESSION['customer_first_name'])) {
+            // If customer_id exists but names are missing, try to get from evergreen-marketing session
+            if (isset($_SESSION['first_name'])) {
+                $_SESSION['customer_first_name'] = $_SESSION['first_name'];
+            }
+            if (isset($_SESSION['last_name'])) {
+                $_SESSION['customer_last_name'] = $_SESSION['last_name'];
+            }
+        }
+
         // Redirect to login if not logged in
         if (!isset($_SESSION['customer_id'])) {
             header('Location: /Evergreen/bank-system/evergreen-marketing/login.php');
