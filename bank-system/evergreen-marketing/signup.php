@@ -78,24 +78,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match!";
     } else {
+        // Check if email already exists
         $check_sql = "SELECT customer_id FROM bank_customers WHERE email = ?";
         $check_stmt = $conn->prepare($check_sql);
-        $check_stmt->bind_param("s", $email);
-        $check_stmt->execute();
-        $check_result = $check_stmt->get_result();
+        
+        if ($check_stmt === false) {
+            // If prepare fails, log error and show generic message
+            error_log("Database prepare error: " . $conn->error);
+            $error = "Database error. Please try again later.";
+        } else {
+            $check_stmt->bind_param("s", $email);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
 
-        if ($check_result->num_rows > 0) {
-    $error = "Email already registered.";
-} else 
-    $check_sql = "SELECT customer_id FROM bank_customers WHERE email = ?";
-    $check_stmt = $conn->prepare($check_sql);
-    $check_stmt->bind_param("s", $email);
-    $check_stmt->execute();
-    $check_result = $check_stmt->get_result();
-
-    if ($check_result->num_rows > 0) {
-        $error = "Email already registered.";
-    } else {
+            if ($check_result->num_rows > 0) {
+                $error = "Email already registered.";
+            } else {
         // Generate verification code and bank ID
         $verification_code = sprintf("%06d", rand(0, 999999));
         $bank_id = sprintf("%04d", mt_rand(0, 9999));
@@ -197,8 +195,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: verify.php");
                 exit;
             }
+            }
+            $check_stmt->close();
         }
-        $check_stmt->close();
     }
 }
 
