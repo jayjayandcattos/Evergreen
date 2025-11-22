@@ -12,10 +12,8 @@
                 Secure. Invest. Achieve. Your trusted financial partner for a prosperous future.
                 </p>
                 <div class="d-flex gap-3 mt-3">
-                <a href="#" class="text-white"><i class="bi bi-facebook"></i></a>
-                <a href="#" class="text-white"><i class="bi bi-twitter"></i></a>
-                <a href="#" class="text-white"><i class="bi bi-instagram"></i></a>
-                <a href="#" class="text-white"><i class="bi bi-linkedin"></i></a>
+                <a href="https://www.facebook.com/profile.php?id=61582812214198" class="text-white"><i class="bi bi-facebook"></i></a>
+                <a href="https://www.instagram.com/evergreenbanking/" class="text-white"><i class="bi bi-instagram"></i></a>
                 </div>
             </div>
 
