@@ -158,16 +158,8 @@ function generateReport(reportType) {
     
     // Handle regulatory reports differently
     if (reportType === 'regulatory-reports') {
-        // Simulate loading delay
-        setTimeout(() => {
-            const mockData = {
-                report_title: 'Regulatory Reports',
-                period: new Date().toLocaleDateString(),
-                generated_at: new Date().toISOString()
-            };
-            currentReportData = mockData;
-            displayReportInModal(reportType, mockData);
-        }, 1000);
+        // Show error - regulatory reports not implemented with real data yet
+        showError('Regulatory reports are not available. Please use other report types that use real client data from operational subsystems.');
         return;
     }
     
@@ -1050,67 +1042,23 @@ function viewRegulatoryReport(reportType) {
 
 /**
  * Display Regulatory Report Data - Step 2 of Flowchart
+ * DISABLED - No real regulatory data available from subsystems
  */
 function displayRegulatoryReportData(reportType) {
     const tbody = document.getElementById('regulatory-data-tbody');
     
-    // Generate mock data based on report type
-    const mockData = generateMockRegulatoryData(reportType);
+    // Show message that regulatory reports are not available
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                <p class="mb-0">Regulatory reports are not available.</p>
+                <p class="mb-0">This feature requires real regulatory data from operational subsystems.</p>
+            </td>
+        </tr>
+    `;
     
-    let html = '';
-    mockData.forEach((report, index) => {
-        const statusBadge = report.status === 'Compliant' ? 'bg-success' : 
-                           report.status === 'Pending' ? 'bg-warning' : 'bg-danger';
-        
-        html += `
-            <tr>
-                <td><code class="text-primary">${report.id}</code></td>
-                <td><strong>${report.type}</strong></td>
-                <td>${report.period}</td>
-                <td><span class="badge ${statusBadge}">${report.status}</span></td>
-                <td>${formatDate(report.generatedDate)}</td>
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div class="progress me-2" style="width: 60px; height: 8px;">
-                            <div class="progress-bar ${report.score >= 80 ? 'bg-success' : report.score >= 60 ? 'bg-warning' : 'bg-danger'}" 
-                                 style="width: ${report.score}%"></div>
-                        </div>
-                        <span class="fw-bold">${report.score}%</span>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-    
-    tbody.innerHTML = html;
-    
-    // Show success notification
-    showNotification('Regulatory report data loaded successfully', 'success');
-}
-
-/**
- * Generate Mock Regulatory Data
- */
-function generateMockRegulatoryData(reportType) {
-    const baseData = {
-        'bsp': [
-            { id: 'BSP-001', type: 'Monthly Report', period: '2024-01', status: 'Compliant', generatedDate: '2024-01-31', score: 95 },
-            { id: 'BSP-002', type: 'Quarterly Report', period: '2024-Q1', status: 'Compliant', generatedDate: '2024-03-31', score: 92 },
-            { id: 'BSP-003', type: 'Annual Report', period: '2023', status: 'Pending', generatedDate: '2024-01-15', score: 78 }
-        ],
-        'sec': [
-            { id: 'SEC-001', type: '10-K Filing', period: '2023', status: 'Compliant', generatedDate: '2024-03-15', score: 88 },
-            { id: 'SEC-002', type: '10-Q Filing', period: '2024-Q1', status: 'Compliant', generatedDate: '2024-05-15', score: 85 },
-            { id: 'SEC-003', type: '8-K Filing', period: '2024-06', status: 'Pending', generatedDate: '2024-06-20', score: 72 }
-        ],
-        'internal': [
-            { id: 'INT-001', type: 'Compliance Audit', period: '2024-Q1', status: 'Compliant', generatedDate: '2024-03-31', score: 90 },
-            { id: 'INT-002', type: 'Risk Assessment', period: '2024-Q2', status: 'Compliant', generatedDate: '2024-06-30', score: 87 },
-            { id: 'INT-003', type: 'Internal Review', period: '2024-Q3', status: 'Pending', generatedDate: '2024-09-15', score: 75 }
-        ]
-    };
-    
-    return baseData[reportType] || [];
+    showNotification('Regulatory reports are not available with real data', 'warning');
 }
 
 /**
@@ -1404,43 +1352,17 @@ function applyFilters() {
             console.error('Response:', xhr.responseText);
             
             try {
-                // Handle timeout
+                // Handle timeout - no mock data fallback
                 if (status === 'timeout') {
-                    console.log('Request timed out, using mock data...');
-                    try {
-                        const mockData = generateMockFilteredData(dateFrom, dateTo, subsystem, accountType, customSearch);
-                        if (mockData && mockData.length > 0) {
-                            filteredData = mockData;
-                            displayFilteredInformation(mockData);
-                            showNotification('Request timed out. Using sample data.', 'warning');
-                        } else {
-                            showNoResults();
-                            showNotification('Request timed out. No data available.', 'warning');
-                        }
-                    } catch (mockError) {
-                        console.error('Mock data error:', mockError);
-                        showNoResults();
-                        showNotification('Request timed out. Please try again.', 'error');
-                    }
+                    console.log('Request timed out');
+                    showNoResults();
+                    showNotification('Request timed out. Please check your connection and try again.', 'error');
                 }
-                // If it's a 404 or connection error, try mock data as fallback
+                // If it's a 404 or connection error - no mock data fallback
                 else if (xhr.status === 404 || xhr.status === 0) {
-                    console.log('Using mock data as fallback...');
-                    try {
-                        const mockData = generateMockFilteredData(dateFrom, dateTo, subsystem, accountType, customSearch);
-                        if (mockData && mockData.length > 0) {
-                            filteredData = mockData;
-                            displayFilteredInformation(mockData);
-                            showNotification('Using sample data (database not available)', 'warning');
-                        } else {
-                            showNoResults();
-                            showNotification('No data available. Please populate the database first.', 'warning');
-                        }
-                    } catch (mockError) {
-                        console.error('Mock data error:', mockError);
-                        showNoResults();
-                        showNotification('No data available. Please populate the database first.', 'warning');
-                    }
+                    console.log('Connection error - database not available');
+                    showNoResults();
+                    showNotification('Database connection error. Please ensure operational subsystems are properly connected.', 'error');
                 } else {
                     showNoResults();
                     showNotification('Connection error. Please try again.', 'error');
@@ -1453,75 +1375,19 @@ function applyFilters() {
 }
 
 /**
- * Generate mock filtered data
+ * Generate mock filtered data - REMOVED
+ * This function has been completely removed.
+ * All data now comes from real operational subsystems via filter-data.php API:
+ * - Bank System: customer_accounts, bank_transactions, bank_customers
+ * - Loan Subsystem: loan_applications
+ * - HRIS/Payroll: payroll_runs, payslips, employee
+ * 
+ * NO mock data is used. If the API fails, show an error instead of generating fake data.
  */
 function generateMockFilteredData(dateFrom, dateTo, subsystem, accountType, customSearch) {
-    // Base mock accounts data
-    const mockAccounts = [
-        { code: '1001', name: 'Cash in Bank', type: 'asset', balance: 150000 },
-        { code: '1002', name: 'Accounts Receivable', type: 'asset', balance: 75000 },
-        { code: '2001', name: 'Accounts Payable', type: 'liability', balance: 45000 },
-        { code: '3001', name: 'Owner\'s Equity', type: 'equity', balance: 180000 },
-        { code: '4001', name: 'Sales Revenue', type: 'revenue', balance: 250000 },
-        { code: '5001', name: 'Office Supplies', type: 'expense', balance: 15000 },
-        { code: '5002', name: 'Rent Expense', type: 'expense', balance: 12000 },
-        { code: '5003', name: 'Utilities Expense', type: 'expense', balance: 8000 },
-        { code: '1003', name: 'Inventory', type: 'asset', balance: 95000 },
-        { code: '2002', name: 'Short-term Loan', type: 'liability', balance: 60000 },
-        { code: '4002', name: 'Service Revenue', type: 'revenue', balance: 180000 },
-        { code: '5004', name: 'Marketing Expense', type: 'expense', balance: 25000 }
-    ];
-    
-    let filteredAccounts = [...mockAccounts]; // Create a copy
-    
-    // Apply account type filter
-    if (accountType) {
-        filteredAccounts = filteredAccounts.filter(acc => acc.type === accountType);
-    }
-    
-    // Apply custom search filter
-    if (customSearch) {
-        const searchTerm = customSearch.toLowerCase();
-        filteredAccounts = filteredAccounts.filter(acc => 
-            acc.name.toLowerCase().includes(searchTerm) || 
-            acc.code.includes(searchTerm)
-        );
-    }
-    
-    // If no accounts match filters, return some default data
-    if (filteredAccounts.length === 0) {
-        filteredAccounts = mockAccounts.slice(0, 3); // Return first 3 accounts
-    }
-    
-    // Generate transaction records
-    const transactions = [];
-    const startDate = dateFrom ? new Date(dateFrom) : new Date('2024-01-01');
-    const endDate = dateTo ? new Date(dateTo) : new Date();
-    
-    // Ensure we always have at least 3 transactions
-    const numTransactions = Math.max(3, filteredAccounts.length);
-    
-    for (let i = 0; i < numTransactions; i++) {
-        const account = filteredAccounts[i % filteredAccounts.length];
-        const randomDate = new Date(startDate.getTime() + Math.random() * (endDate.getTime() - startDate.getTime()));
-        
-        // Generate realistic transaction amounts
-        const baseAmount = Math.random() * 5000 + 500; // Between 500 and 5500
-        const debitAmount = account.type === 'asset' || account.type === 'expense' ? baseAmount : 0;
-        const creditAmount = account.type === 'liability' || account.type === 'equity' || account.type === 'revenue' ? baseAmount : 0;
-        
-        transactions.push({
-            date: randomDate.toISOString().split('T')[0],
-            account_code: account.code,
-            account_name: account.name,
-            description: `${account.name} transaction - ${subsystem || 'General Ledger'}`,
-            debit: debitAmount,
-            credit: creditAmount,
-            balance: account.balance + (Math.random() * 10000 - 5000) // Add some variation
-        });
-    }
-    
-    return transactions;
+    // Function completely disabled - return empty array
+    console.error('Mock data generation is disabled. All data must come from real operational subsystems.');
+    return [];
 }
 
 /**
