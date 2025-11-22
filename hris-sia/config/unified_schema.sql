@@ -867,20 +867,6 @@ CREATE TABLE audit_logs (
     INDEX idx_created_at (created_at)
 );
 
-CREATE TABLE integration_logs (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    source_system VARCHAR(100) NOT NULL,
-    endpoint VARCHAR(200) NOT NULL,
-    request_type VARCHAR(20) NOT NULL,
-    payload JSON,
-    response JSON,
-    status ENUM('success','error','pending') NOT NULL,
-    error_message TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
-);
-
 ALTER TABLE bank_customers 
 ADD COLUMN referral_code VARCHAR(20) UNIQUE NULL,
 ADD COLUMN total_points DECIMAL(10,2) DEFAULT 0.00,
@@ -976,6 +962,212 @@ SET start_date = DATE(start_date),
     end_date = DATE(end_date)
 WHERE start_date IS NOT NULL AND end_date IS NOT NULL;
 
+-- Step 4: Fix specific leave requests (if they exist)
+-- Employee 22 (Mariana) - Leave Request ID 10: Nov 17-19, 2025
+UPDATE leave_request 
+SET status = 'Approved',
+    start_date = '2025-11-17',
+    end_date = '2025-11-19',
+    total_days = 3
+WHERE leave_request_id = 10 
+AND employee_id = 22;
+
+-- Employee 3 (Jose) - Leave Request ID 2: Nov 15-16, 2025  
+UPDATE leave_request 
+SET status = 'Approved',
+    start_date = '2025-11-15',
+    end_date = '2025-11-16',
+    total_days = 2
+WHERE leave_request_id = 2 
+AND employee_id = 3;
+
+-- Step 5: Add/update index for better query performance
+SET @index_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'leave_request' 
+    AND INDEX_NAME = 'idx_leave_status_date'
+);
+
+SET @sql = IF(@index_exists > 0,
+    'DROP INDEX idx_leave_status_date ON leave_request',
+    'SELECT "Index does not exist, will create new one" as message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Create the index
+CREATE INDEX idx_leave_status_date ON leave_request(employee_id, status, start_date, end_date);
+
+-- ========================================
+-- DATABASE TRIGGERS
+-- ========================================
+
+-- Drop the existing broken trigger if it exists
+DROP TRIGGER IF EXISTS after_bank_transaction_insert;
+
+DELIMITER $$
+
+-- Create trigger for automatic journal entries on bank transactions
+CREATE TRIGGER after_bank_transaction_insert
+AFTER INSERT ON bank_transactions
+FOR EACH ROW
+BEGIN
+    DECLARE v_journal_type_id INT;
+    DECLARE v_journal_no VARCHAR(50);
+    DECLARE v_cash_account_id INT;
+    DECLARE v_customer_receivable_account_id INT;
+    DECLARE v_journal_entry_id INT;
+    DECLARE v_user_id INT DEFAULT 1;
+    DECLARE v_fiscal_period_id INT DEFAULT NULL;
+    
+    -- Get appropriate journal type (CR = Cash Receipt, CD = Cash Disbursement)
+    IF NEW.amount > 0 THEN
+        SELECT id INTO v_journal_type_id FROM journal_types WHERE code = 'CR' LIMIT 1;
+    ELSE
+        SELECT id INTO v_journal_type_id FROM journal_types WHERE code = 'CD' LIMIT 1;
+    END IF;
+    
+    -- Get cash account (typically account code 1001 - Cash on Hand)
+    -- FIXED: Changed account_name to name
+    SELECT id INTO v_cash_account_id FROM accounts WHERE code = '1001' OR name LIKE '%Cash%' LIMIT 1;
+    
+    -- Get customer receivable account (typically account code 1120)
+    -- FIXED: Changed account_name to name
+    SELECT id INTO v_customer_receivable_account_id FROM accounts WHERE code = '1120' OR name LIKE '%Accounts Receivable%' LIMIT 1;
+    
+    -- Get fiscal period if available (required for journal entries)
+    SELECT id INTO v_fiscal_period_id FROM fiscal_periods WHERE status = 'open' ORDER BY start_date DESC LIMIT 1;
+    
+    -- Generate journal number
+    SET v_journal_no = CONCAT('BT-', LPAD(NEW.transaction_id, 8, '0'));
+    
+    -- Only create journal entry if we have ALL required data
+    -- Skip journal entry creation if accounting module is not fully set up
+    -- This prevents the trigger from blocking bank transactions
+    IF v_journal_type_id IS NOT NULL 
+       AND v_cash_account_id IS NOT NULL 
+       AND v_fiscal_period_id IS NOT NULL THEN
+        
+        -- Insert journal entry
+        INSERT INTO journal_entries (
+            journal_no,
+            journal_type_id,
+            entry_date,
+            description,
+            reference_no,
+            total_debit,
+            total_credit,
+            status,
+            created_by,
+            created_at,
+            posted_at,
+            fiscal_period_id
+        ) VALUES (
+            v_journal_no,
+            v_journal_type_id,
+            DATE(NEW.created_at),
+            CONCAT('Bank Transaction - ', COALESCE(NEW.description, 'Auto-generated')),
+            NEW.transaction_ref,
+            ABS(NEW.amount),
+            ABS(NEW.amount),
+            'posted',
+            v_user_id,
+            NOW(),
+            NOW(),
+            v_fiscal_period_id
+        );
+        
+        SET v_journal_entry_id = LAST_INSERT_ID();
+        
+        -- Create journal lines (double entry)
+        -- Note: journal_lines table uses 'memo' not 'description', and doesn't have 'line_number'
+        IF NEW.amount > 0 THEN
+            -- Deposit/Credit: Debit Cash, Credit Customer Receivable
+            INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit, memo)
+            VALUES 
+                (v_journal_entry_id, v_cash_account_id, ABS(NEW.amount), 0, 'Cash received'),
+                (v_journal_entry_id, COALESCE(v_customer_receivable_account_id, v_cash_account_id), 0, ABS(NEW.amount), 'Customer deposit');
+        ELSE
+            -- Withdrawal/Debit: Debit Customer Receivable, Credit Cash
+            INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit, memo)
+            VALUES 
+                (v_journal_entry_id, COALESCE(v_customer_receivable_account_id, v_cash_account_id), ABS(NEW.amount), 0, 'Customer withdrawal'),
+                (v_journal_entry_id, v_cash_account_id, 0, ABS(NEW.amount), 'Cash disbursed');
+        END IF;
+    END IF;
+    -- If accounting module is not set up, silently skip journal entry creation
+    -- This allows bank transactions to proceed without errors
+END$$
+
+DELIMITER ;
+
+-- ========================================
+-- HR MANAGER ROLE SETUP (Enhanced)
+-- ========================================
+
+-- Ensure role column exists and is correct type
+SET @column_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account' 
+    AND COLUMN_NAME = 'role'
+);
+
+-- Add role column if it doesn't exist
+SET @sql = IF(@column_exists = 0,
+    'ALTER TABLE user_account ADD COLUMN role VARCHAR(20) DEFAULT NULL AFTER password_hash',
+    'SELECT "Role column already exists" AS message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Ensure role column is VARCHAR(20) if it exists with different type
+SET @column_type = (
+    SELECT DATA_TYPE 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account' 
+    AND COLUMN_NAME = 'role'
+);
+
+SET @column_length = (
+    SELECT CHARACTER_MAXIMUM_LENGTH 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account' 
+    AND COLUMN_NAME = 'role'
+);
+
+-- Modify column if type or length is incorrect
+SET @sql = IF(@column_exists > 0 AND (@column_type != 'varchar' OR @column_length != 20),
+    'ALTER TABLE user_account MODIFY COLUMN role VARCHAR(20) DEFAULT NULL',
+    'SELECT "Role column type is correct" AS message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Create HR Manager account
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    NULL,
+    'hrmanager',
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'HR Manager',
+    NULL
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
+
 -- ========================================
 -- NOTES
 -- ========================================
@@ -993,4 +1185,10 @@ WHERE start_date IS NOT NULL AND end_date IS NOT NULL;
 -- 2. Employees with approved leave requests are automatically set to 'Active' if status is NULL
 -- 3. Date fields are normalized to DATE type (no time components)
 -- 4. The idx_leave_status_date index improves query performance for attendance lookups
+--
+-- Database Trigger:
+-- 1. The after_bank_transaction_insert trigger automatically creates journal entries for bank transactions
+-- 2. The trigger uses 'name' column (not 'account_name') in the accounts table
+-- 3. Journal entries are only created if all required accounts and fiscal periods exist
+-- 4. If accounting module is not set up, transactions proceed without errors
 
