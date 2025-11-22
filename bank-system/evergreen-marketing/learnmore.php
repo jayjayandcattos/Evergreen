@@ -1037,7 +1037,7 @@ $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION
                 </div>
             </div>
 
-            <a href="#loans">Loans</a>
+            <a href="/Evergreen/LoanSubsystem/">Loans</a>
             <a href="about.php">About Us</a>
         </div>
 

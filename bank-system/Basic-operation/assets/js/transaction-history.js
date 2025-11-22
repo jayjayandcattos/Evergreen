@@ -21,7 +21,7 @@ function getApiBaseUrl() {
   }
   
   // Final fallback
-  return window.location.origin + '/bank-system/Basic-operation/api';
+  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
 }
 
 const API_BASE_URL = getApiBaseUrl();
