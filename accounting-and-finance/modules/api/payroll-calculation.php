@@ -22,8 +22,129 @@
  */
 function calculatePayrollFromAttendance($conn, $employee_external_no, $period_start, $period_end, $base_salary_components = []) {
     
-    // Get attendance data for the period
-    $attendance_query = "SELECT 
+    // Get employee_id from external_employee_no (format: EMP001 -> 1, EMP002 -> 2, etc.)
+    $employee_id_from_external = null;
+    if (preg_match('/EMP(\d+)/i', $employee_external_no, $matches)) {
+        $employee_id_from_external = intval($matches[1]);
+    } else {
+        $employee_id_from_external = is_numeric($employee_external_no) ? intval($employee_external_no) : null;
+    }
+    
+    // Get attendance data for the period from BOTH HRIS attendance AND employee_attendance tables
+    // This combines data from both sources using UNION ALL
+    $attendance_query = "SELECT * FROM (
+                            -- From HRIS attendance table (uses employee_id)
+                            SELECT 
+                                DATE(a.date) as attendance_date,
+                                TIME(a.time_in) as time_in,
+                                TIME(a.time_out) as time_out,
+                                CASE 
+                                    WHEN LOWER(a.status) = 'present' THEN 'present'
+                                    WHEN LOWER(a.status) = 'absent' THEN 'absent'
+                                    WHEN LOWER(a.status) = 'late' THEN 'late'
+                                    WHEN LOWER(a.status) = 'leave' THEN 'leave'
+                                    WHEN LOWER(a.status) LIKE '%half%' OR LOWER(a.status) LIKE '%half_day%' THEN 'half_day'
+                                    ELSE 'present'
+                                END as status,
+                                COALESCE(a.total_hours, 
+                                    CASE 
+                                        WHEN a.time_in IS NOT NULL AND a.time_out IS NOT NULL 
+                                        THEN TIMESTAMPDIFF(HOUR, a.time_in, a.time_out) + (TIMESTAMPDIFF(MINUTE, a.time_in, a.time_out) % 60) / 60.0
+                                        WHEN a.time_in IS NOT NULL AND DATE(a.date) < CURDATE()
+                                        THEN 8.00
+                                        WHEN a.time_in IS NOT NULL 
+                                        THEN TIMESTAMPDIFF(HOUR, a.time_in, NOW()) + (TIMESTAMPDIFF(MINUTE, a.time_in, NOW()) % 60) / 60.0
+                                        ELSE 0.00
+                                    END
+                                ) as hours_worked,
+                                CASE 
+                                    WHEN COALESCE(a.total_hours, 
+                                        CASE 
+                                            WHEN a.time_in IS NOT NULL AND a.time_out IS NOT NULL 
+                                            THEN TIMESTAMPDIFF(HOUR, a.time_in, a.time_out) + (TIMESTAMPDIFF(MINUTE, a.time_in, a.time_out) % 60) / 60.0
+                                            ELSE 0.00
+                                        END
+                                    ) > 8.0 
+                                    THEN COALESCE(a.total_hours, 
+                                        CASE 
+                                            WHEN a.time_in IS NOT NULL AND a.time_out IS NOT NULL 
+                                            THEN TIMESTAMPDIFF(HOUR, a.time_in, a.time_out) + (TIMESTAMPDIFF(MINUTE, a.time_in, a.time_out) % 60) / 60.0
+                                            ELSE 0.00
+                                        END
+                                    ) - 8.0
+                                    ELSE 0.00
+                                END as overtime_hours,
+                                CASE 
+                                    WHEN TIME(a.time_in) > '08:00:00' AND TIME(a.time_in) <= '09:00:00'
+                                    THEN TIMESTAMPDIFF(MINUTE, '08:00:00', TIME(a.time_in))
+                                    WHEN LOWER(a.status) = 'late'
+                                    THEN COALESCE(TIMESTAMPDIFF(MINUTE, '08:00:00', TIME(a.time_in)), 30)
+                                    ELSE 0
+                                END as late_minutes,
+                                COALESCE(a.remarks, '') as remarks,
+                                'hris' as source
+                            FROM attendance a
+                            WHERE a.employee_id = ? 
+                            AND DATE(a.date) BETWEEN ? AND ?
+                            
+                            UNION ALL
+                            
+                            -- From employee_attendance table (uses employee_external_no)
+                            SELECT 
+                                ea.attendance_date,
+                                ea.time_in,
+                                ea.time_out,
+                                CASE 
+                                    WHEN LOWER(ea.status) = 'present' THEN 'present'
+                                    WHEN LOWER(ea.status) = 'absent' THEN 'absent'
+                                    WHEN LOWER(ea.status) = 'late' THEN 'late'
+                                    WHEN LOWER(ea.status) = 'leave' THEN 'leave'
+                                    WHEN LOWER(ea.status) LIKE '%half%' OR LOWER(ea.status) LIKE '%half_day%' THEN 'half_day'
+                                    ELSE 'present'
+                                END as status,
+                                COALESCE(ea.hours_worked, 0.00) as hours_worked,
+                                COALESCE(ea.overtime_hours, 0.00) as overtime_hours,
+                                COALESCE(ea.late_minutes, 0) as late_minutes,
+                                COALESCE(ea.remarks, '') as remarks,
+                                'accounting' as source
+                            FROM employee_attendance ea
+                            WHERE ea.employee_external_no = ?
+                            AND ea.attendance_date BETWEEN ? AND ?
+                        ) combined_attendance
+                        ORDER BY attendance_date ASC";
+    
+    // Prepare and execute query
+    if ($employee_id_from_external) {
+        $stmt = $conn->prepare($attendance_query);
+        if ($stmt) {
+            // Bind parameters: employee_id (for HRIS), period dates, employee_external_no (for accounting), period dates
+            $stmt->bind_param("isssss", 
+                $employee_id_from_external, $period_start, $period_end,  // For HRIS attendance table (i, s, s)
+                $employee_external_no, $period_start, $period_end        // For employee_attendance table (s, s, s)
+            );
+            $stmt->execute();
+            $attendance_result = $stmt->get_result();
+        } else {
+            // Fallback to accounting table only if HRIS query fails
+            $fallback_query = "SELECT 
+                                attendance_date,
+                                status,
+                                hours_worked,
+                                overtime_hours,
+                                late_minutes,
+                                remarks
+                            FROM employee_attendance 
+                            WHERE employee_external_no = ? 
+                            AND attendance_date BETWEEN ? AND ?
+                            ORDER BY attendance_date ASC";
+            $stmt = $conn->prepare($fallback_query);
+            $stmt->bind_param("sss", $employee_external_no, $period_start, $period_end);
+            $stmt->execute();
+            $attendance_result = $stmt->get_result();
+        }
+    } else {
+        // Fallback to accounting table only if employee_id cannot be extracted
+        $fallback_query = "SELECT 
                             attendance_date,
                             status,
                             hours_worked,
@@ -34,11 +155,11 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
                         WHERE employee_external_no = ? 
                         AND attendance_date BETWEEN ? AND ?
                         ORDER BY attendance_date ASC";
-    
-    $stmt = $conn->prepare($attendance_query);
+        $stmt = $conn->prepare($fallback_query);
     $stmt->bind_param("sss", $employee_external_no, $period_start, $period_end);
     $stmt->execute();
     $attendance_result = $stmt->get_result();
+    }
     
     // Initialize calculation results
     $calculation = [
@@ -148,8 +269,122 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     // Late penalty: deduct 1% of daily rate for every 15 minutes late (or customize as needed)
     $late_penalty_per_15min = $daily_rate * 0.01;
     
+    // Fetch leave requests from HRIS and merge with attendance data
+    $leave_attendance_records = [];
+    if ($employee_id_from_external) {
+        // Get approved leave requests for the selected period
+        $leave_query = "SELECT 
+                            lr.leave_request_id,
+                            lr.start_date,
+                            lr.end_date,
+                            lr.total_days,
+                            lr.reason,
+                            lt.leave_name,
+                            lt.paid_unpaid
+                        FROM leave_request lr
+                        LEFT JOIN leave_type lt ON lr.leave_type_id = lt.leave_type_id
+                        WHERE lr.employee_id = ?
+                        AND UPPER(TRIM(lr.status)) = 'APPROVED'";
+        
+        $leave_params = [];
+        $leave_types = "";
+        
+        // For period-based: check if leave overlaps with period
+        $leave_query .= " AND (
+                            (lr.start_date <= ? AND lr.end_date >= ?)
+                            OR (lr.start_date BETWEEN ? AND ?)
+                            OR (lr.end_date BETWEEN ? AND ?)
+                        )";
+        $leave_params = [$employee_id_from_external, $period_end, $period_start, $period_start, $period_end, $period_start, $period_end];
+        $leave_types = "issssss"; // 1 integer + 6 strings = 7 parameters
+        
+        $leave_stmt = $conn->prepare($leave_query);
+        if ($leave_stmt) {
+            $leave_stmt->bind_param($leave_types, ...$leave_params);
+            $leave_stmt->execute();
+            $leave_result = $leave_stmt->get_result();
+            
+            // Create a map of existing attendance dates to avoid duplicates
+            $attendance_dates_map = [];
+            $temp_attendance_data = [];
+            while ($temp_row = $attendance_result->fetch_assoc()) {
+                $date_str = date('Y-m-d', strtotime($temp_row['attendance_date']));
+                $attendance_dates_map[$date_str] = true;
+                $temp_attendance_data[] = $temp_row;
+            }
+            // Reset result pointer by recreating the query result (we'll merge below)
+            $attendance_result->data_seek(0);
+            
+            // Add leave days to attendance data
+            while ($leave = $leave_result->fetch_assoc()) {
+                $start_date = new DateTime($leave['start_date']);
+                $end_date = new DateTime($leave['end_date']);
+                $leave_name = $leave['leave_name'] ?? 'Approved Leave';
+                $leave_reason = $leave['reason'] ?? '';
+                $is_paid = strtolower($leave['paid_unpaid'] ?? 'unpaid') === 'paid';
+                
+                // Generate all dates in the leave range
+                $current_date = clone $start_date;
+                while ($current_date <= $end_date) {
+                    $date_str = $current_date->format('Y-m-d');
+                    $date_check = $current_date->format('Y-m-d');
+                    
+                    // Check if this date is within the selected period
+                    if ($date_check >= $period_start && $date_check <= $period_end) {
+                        // Only add if date is in period and not already in attendance data
+                        if (!isset($attendance_dates_map[$date_str])) {
+                            $leave_attendance_records[] = [
+                                'attendance_date' => $date_str,
+                                'time_in' => null,
+                                'time_out' => null,
+                                'status' => 'leave',
+                                'hours_worked' => $is_paid ? 8.00 : 0.00, // Paid leave = full day, unpaid = 0
+                                'overtime_hours' => 0.00,
+                                'late_minutes' => 0,
+                                'remarks' => "Leave: $leave_name" . ($leave_reason ? " - $leave_reason" : ""),
+                                'source' => 'hris_leave',
+                                'is_paid_leave' => $is_paid
+                            ];
+                            $attendance_dates_map[$date_str] = true;
+                        }
+                    }
+                    
+                    $current_date->modify('+1 day');
+                }
+            }
+            $leave_stmt->close();
+        }
+    }
+    
+    // Merge attendance data and leave records
+    $all_attendance_records = [];
+    
+    // Only process attendance result if it exists and is valid
+    if (isset($attendance_result) && $attendance_result) {
+        $attendance_result->data_seek(0); // Reset pointer
+        while ($row = $attendance_result->fetch_assoc()) {
+        // Normalize date format
+        $row['attendance_date'] = date('Y-m-d', strtotime($row['attendance_date']));
+        // For HRIS records, ensure overtime is calculated correctly
+        if ($row['source'] === 'hris' && $row['hours_worked'] > 8.0) {
+            $row['overtime_hours'] = $row['hours_worked'] - 8.0;
+            $row['hours_worked'] = 8.0; // Regular hours capped at 8
+        }
+            $all_attendance_records[] = $row;
+        }
+    }
+    // Add leave records
+    if (!empty($leave_attendance_records)) {
+        $all_attendance_records = array_merge($all_attendance_records, $leave_attendance_records);
+    }
+    
+    // Sort by date
+    usort($all_attendance_records, function($a, $b) {
+        return strtotime($a['attendance_date']) - strtotime($b['attendance_date']);
+    });
+    
     // Process each attendance record
-    while ($row = $attendance_result->fetch_assoc()) {
+    foreach ($all_attendance_records as $row) {
         $calculation['attendance_records'][] = $row;
         $calculation['attendance_summary']['total_days']++;
         
@@ -229,11 +464,19 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
                 
             case 'leave':
                 $calculation['attendance_summary']['leave_days']++;
+                $is_paid_leave = isset($row['is_paid_leave']) ? $row['is_paid_leave'] : false;
                 
-                // Check if it's paid leave (you may want to add a leave_type field)
-                // For now, we'll assume leave is unpaid unless specified otherwise
-                // You can modify this based on your company policy
+                // Check if it's paid leave from HRIS leave_type table
+                if ($is_paid_leave) {
+                    // Paid leave: Full day pay (no deduction)
+                    $calculation['salary_adjustments']['basic_salary'] += $daily_rate;
+                    $calculation['attendance_summary']['present_days']++; // Count as present for paid leave
+                    $calculation['attendance_summary']['regular_hours'] += 8.00; // Full day
+                    $calculation['attendance_summary']['total_hours'] += 8.00;
+                } else {
+                    // Unpaid leave: Deduct full day pay
                 $calculation['salary_adjustments']['absent_deduction'] += $daily_rate;
+                }
                 break;
         }
     }
