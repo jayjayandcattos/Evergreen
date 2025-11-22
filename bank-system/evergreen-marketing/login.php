@@ -14,7 +14,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($bank_id) || empty($email) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        $sql = "SELECT * FROM bank_customers WHERE email = ? AND bank_id = ?";
+        // Join bank_customers with emails table to get email and verify bank_id
+        $sql = "SELECT 
+                    c.customer_id,
+                    c.first_name,
+                    c.last_name,
+                    c.middle_name,
+                    c.password_hash,
+                    c.bank_id,
+                    e.email
+                FROM bank_customers c
+                INNER JOIN emails e ON c.customer_id = e.customer_id AND e.is_primary = 1
+                WHERE e.email = ? AND c.bank_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $email, $bank_id);
         $stmt->execute();
@@ -23,7 +34,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($result && $result->num_rows === 1) {
             $row = $result->fetch_assoc();
             
-            if (password_verify($password, $row['password'])) {
+            // Use password_hash column (not password)
+            if (password_verify($password, $row['password_hash'])) {
                 // Set session variables
                 $_SESSION['user_id'] = $row['customer_id'];
                 $_SESSION['email'] = $row['email'];
@@ -32,12 +44,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['bank_id'] = $row['bank_id'];
                 $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
 
-                $success = true;
+                // Redirect to viewing page after successful login
+                header("Location: viewingpage.php");
+                exit();
             } else {
                 $login_failed = true;
+                $error = "Invalid email, Bank ID, or password.";
             }
         } else {
             $login_failed = true;
+            $error = "Invalid email, Bank ID, or password.";
         }
         $stmt->close();
     }

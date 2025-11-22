@@ -31,6 +31,7 @@ console.log('API Base URL:', API_BASE_URL);
 let sessionData = null;
 let editMode = {};
 let originalValues = {};
+let isLoadingData = false; // Prevent multiple simultaneous data loads
 
 /**
  * Initialize page on load
@@ -85,6 +86,14 @@ function setupEventListeners() {
  * Load session data from backend
  */
 async function loadSessionData() {
+  // Prevent multiple simultaneous calls
+  if (isLoadingData) {
+    console.log("Already loading session data, skipping...");
+    return;
+  }
+  
+  isLoadingData = true;
+  
   try {
     const response = await fetch(
       `${API_BASE_URL}/customer/get-session-data.php`,
@@ -94,18 +103,27 @@ async function loadSessionData() {
       }
     );
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const result = await response.json();
+    
+    console.log("Session data loaded:", result);
 
     if (result.success && result.data) {
       sessionData = result.data;
       populateReviewData(sessionData);
+      isLoadingData = false;
     } else {
+      isLoadingData = false;
       showGlobalError("Session expired. Please start from the beginning.");
       setTimeout(() => {
         window.location.href = "customer-onboarding-details.html";
       }, 2000);
     }
   } catch (error) {
+    isLoadingData = false;
     console.error("Error loading session data:", error);
     showGlobalError("Error loading your information. Please try again.");
     setTimeout(() => {
@@ -625,14 +643,22 @@ async function saveSection(sectionId) {
     const result = await response.json();
 
     if (result.success) {
-      // Reload session data
-      await loadSessionData();
+      // Update the displayed values without reloading all session data
+      // (reloading can cause loops if there are issues)
+      
+      // Reload session data to get latest values (only if needed)
+      // await loadSessionData();
 
       // Exit edit mode
       disableEditMode(sectionId, section);
 
       // Show success message instead of alert
-      showSuccessMessage("Changes saved successfully!", "success", section);
+      showSuccessMessage("Changes saved successfully! Refreshing page...", "success", section);
+      
+      // Reload page after a delay to show updated data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } else {
       showSuccessMessage(
         "Error: " + (result.message || "Unknown error"),
@@ -774,6 +800,11 @@ async function submitApplication() {
   }
 
   const submitBtn = document.getElementById("submit-btn");
+  if (!submitBtn) {
+    console.error("Submit button not found!");
+    return;
+  }
+  
   const btnText = submitBtn.querySelector(".btn-text");
   const spinner = submitBtn.querySelector(".spinner-border");
 
@@ -812,17 +843,19 @@ async function submitApplication() {
 
       // Re-enable button
       submitBtn.disabled = false;
-      btnText.classList.remove("d-none");
-      spinner.classList.add("d-none");
+      if (btnText) btnText.classList.remove("d-none");
+      if (spinner) spinner.classList.add("d-none");
     }
   } catch (error) {
     console.error("Error submitting application:", error);
     showGlobalError("An error occurred while submitting your application");
 
     // Re-enable button
-    submitBtn.disabled = false;
-    btnText.classList.remove("d-none");
-    spinner.classList.add("d-none");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      if (btnText) btnText.classList.remove("d-none");
+      if (spinner) spinner.classList.add("d-none");
+    }
   }
 }
 

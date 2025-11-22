@@ -320,10 +320,17 @@ async function handleSendCode() {
       // Start resend timer
       startResendTimer(30);
 
+      // Always show bank_id if available (for login purposes)
+      if (result.bank_id) {
+        console.log("Bank ID generated:", result.bank_id);
+        // Show bank_id display even if not in dev mode
+        showBankIdDisplay(result.bank_id);
+      }
+      
       // For development/testing: show code in mock display
       if (result.dev_code) {
         console.log("DEV MODE - Verification code:", result.dev_code);
-        showMockCode(result.dev_code);
+        showMockCode(result.dev_code, result.bank_id);
       }
     } else {
       showError(mobileInput, result.message || "Failed to send code");
@@ -755,26 +762,65 @@ function displayErrors(errors) {
 }
 
 /**
+ * Show bank ID display (always visible)
+ */
+function showBankIdDisplay(bankId) {
+  const bankIdDisplay = document.getElementById("bankIdDisplay");
+  const bankIdValue = document.getElementById("bankIdValue");
+
+  if (bankIdDisplay && bankIdValue && bankId) {
+    bankIdValue.textContent = bankId;
+    bankIdDisplay.style.display = "block";
+    
+    console.log("Displaying Bank ID for login:", bankId);
+
+    // Add click to copy functionality for bank ID
+    bankIdValue.addEventListener("click", function () {
+      navigator.clipboard
+        .writeText(bankId)
+        .then(() => {
+          const originalText = bankIdValue.textContent;
+          bankIdValue.textContent = "✓ Copied!";
+          bankIdValue.style.color = "#28a745";
+          setTimeout(() => {
+            bankIdValue.textContent = originalText;
+            bankIdValue.style.color = "#1a6b62";
+          }, 2000);
+        })
+        .catch((err) => {
+          console.error("Failed to copy:", err);
+          // Fallback: select text
+          const range = document.createRange();
+          range.selectNode(bankIdValue);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+        });
+    });
+  }
+}
+
+/**
  * Show mock code display for testing
  */
-function showMockCode(code) {
+function showMockCode(code, bankId) {
   const mockDisplay = document.getElementById("mockCodeDisplay");
-  const mockValue = document.getElementById("mockCodeValue");
+  const mockCodeValue = document.getElementById("mockCodeValue");
 
-  if (mockDisplay && mockValue) {
-    mockValue.textContent = code;
+  if (mockDisplay && mockCodeValue) {
+    // Display verification code
+    mockCodeValue.textContent = code;
     mockDisplay.style.display = "block";
 
-    // Add click to copy functionality
-    mockValue.addEventListener("click", function () {
+    // Add click to copy functionality for verification code
+    mockCodeValue.addEventListener("click", function () {
       // Copy to clipboard
       navigator.clipboard
         .writeText(code)
         .then(() => {
-          const originalText = mockValue.textContent;
-          mockValue.textContent = "✓ Copied!";
+          const originalText = mockCodeValue.textContent;
+          mockCodeValue.textContent = "✓ Copied!";
           setTimeout(() => {
-            mockValue.textContent = originalText;
+            mockCodeValue.textContent = originalText;
           }, 1000);
         })
         .catch((err) => {

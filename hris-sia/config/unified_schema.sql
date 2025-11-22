@@ -868,6 +868,10 @@ CREATE TABLE audit_logs (
 );
 
 ALTER TABLE bank_customers 
+ADD COLUMN bank_id VARCHAR(10) UNIQUE NULL,
+ADD INDEX idx_bank_id (bank_id);
+
+ALTER TABLE bank_customers 
 ADD COLUMN referral_code VARCHAR(20) UNIQUE NULL,
 ADD COLUMN total_points DECIMAL(10,2) DEFAULT 0.00,
 ADD COLUMN referred_by_customer_id INT NULL,
