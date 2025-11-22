@@ -42,11 +42,25 @@ function toggleFilters() {
 }
 
 // View expense details
-function viewExpense(expenseId) {
+function viewExpense(expenseId, transactionType = '') {
     showLoading('Loading expense details...');
     
-    fetch(`../modules/api/expense-data.php?action=get_expense_details&expense_id=${expenseId}`)
-        .then(response => response.json())
+    // Ensure expenseId is properly encoded
+    const encodedId = encodeURIComponent(expenseId);
+    const params = new URLSearchParams();
+    params.append('action', 'get_expense_details');
+    params.append('expense_id', expenseId);
+    if (transactionType) {
+        params.append('transaction_type', transactionType);
+    }
+    
+    fetch(`../modules/api/expense-data.php?${params.toString()}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             hideLoading();
             if (data.success) {
@@ -58,7 +72,7 @@ function viewExpense(expenseId) {
         .catch(error => {
             hideLoading();
             console.error('Error:', error);
-            showNotification('Failed to load expense details', 'error');
+            showNotification('Failed to load expense details: ' + error.message, 'error');
         });
 }
 
@@ -130,20 +144,46 @@ function displayExpenseModal(expense) {
 function viewAuditTrail(expenseId) {
     showLoading('Loading audit trail...');
     
-    fetch(`../modules/api/expense-data.php?action=get_audit_trail&expense_id=${expenseId}`)
-        .then(response => response.json())
+    // Ensure expenseId is properly encoded
+    const encodedId = encodeURIComponent(expenseId);
+    
+    fetch(`../modules/api/expense-data.php?action=get_audit_trail&expense_id=${encodedId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             hideLoading();
             if (data.success) {
-                displayAuditModal(data.data);
+                if (data.data && data.data.length > 0) {
+                    displayAuditModal(data.data);
+                } else {
+                    // Show a helpful message if no audit trail exists
+                    const modalBody = document.getElementById('auditModalBody');
+                    if (modalBody) {
+                        modalBody.innerHTML = `
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>No audit trail found</strong>
+                                <p class="mt-2">No audit log entries found for this expense. The audit trail will be populated as actions are performed on this expense.</p>
+                                ${data.message ? `<p class="mt-2"><small>${data.message}</small></p>` : ''}
+                            </div>
+                        `;
+                        showModal('auditModal');
+                    } else {
+                        showNotification('Audit trail modal not found', 'error');
+                    }
+                }
             } else {
-                showNotification(data.error || 'Failed to load audit trail', 'error');
+                showNotification(data.error || data.message || 'Failed to load audit trail', 'error');
             }
         })
         .catch(error => {
             hideLoading();
             console.error('Error:', error);
-            showNotification('Failed to load audit trail', 'error');
+            showNotification('Failed to load audit trail: ' + error.message, 'error');
         });
 }
 

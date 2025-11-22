@@ -23,7 +23,9 @@ $applyFilters = isset($_GET['apply_filters']);
 $expenses = [];
 
 // 1. HRIS-SIA: Get expense claims with real employee names
-if ($conn->query("SHOW TABLES LIKE 'expense_claims'")->num_rows > 0) {
+// Only fetch if no transaction type filter OR if filter is set to expense_claim
+if ((empty($transactionType) || $transactionType === 'expense_claim') && 
+    $conn->query("SHOW TABLES LIKE 'expense_claims'")->num_rows > 0) {
     $sql = "SELECT 
                 ec.id,
                 ec.claim_no as transaction_number,
@@ -64,21 +66,20 @@ if ($conn->query("SHOW TABLES LIKE 'expense_claims'")->num_rows > 0) {
             $types .= 's';
         }
         
-        if (!empty($transactionType) && $transactionType === 'expense_claim') {
-            // Only filter if expense_claim is selected
-        }
-        
+        // Status filter only applies to expense_claims (bank_transactions are always 'approved')
         if (!empty($status)) {
             $sql .= " AND ec.status = ?";
             $params[] = $status;
             $types .= 's';
         }
         
+        // Account number filter: search by claim_no or category code
         if (!empty($accountNumber)) {
-            $sql .= " AND (ec.claim_no LIKE ? OR ecat.code LIKE ?)";
+            $sql .= " AND (ec.claim_no LIKE ? OR ecat.code LIKE ? OR ecat.name LIKE ?)";
             $params[] = '%' . $accountNumber . '%';
             $params[] = '%' . $accountNumber . '%';
-            $types .= 'ss';
+            $params[] = '%' . $accountNumber . '%';
+            $types .= 'sss';
         }
     }
     
@@ -100,14 +101,16 @@ if ($conn->query("SHOW TABLES LIKE 'expense_claims'")->num_rows > 0) {
 }
 
 // 2. BANK SYSTEM: Get transaction fees and withdrawals as expenses
-if (empty($transactionType) || $transactionType === 'bank_fee') {
-    if ($conn->query("SHOW TABLES LIKE 'bank_transactions'")->num_rows > 0 &&
-        $conn->query("SHOW TABLES LIKE 'transaction_types'")->num_rows > 0 &&
-        $conn->query("SHOW TABLES LIKE 'customer_accounts'")->num_rows > 0 &&
-        $conn->query("SHOW TABLES LIKE 'bank_customers'")->num_rows > 0) {
+// Only fetch if no transaction type filter OR if filter is set to bank_fee
+if ((empty($transactionType) || $transactionType === 'bank_fee') &&
+    $conn->query("SHOW TABLES LIKE 'bank_transactions'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'transaction_types'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'customer_accounts'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'bank_customers'")->num_rows > 0) {
         
         $sql = "SELECT 
                     bt.transaction_id as id,
+                    bt.transaction_id as transaction_id,
                     COALESCE(bt.transaction_ref, CONCAT('TXN-', bt.transaction_id)) as transaction_number,
                     CONCAT(bc.first_name, ' ', IFNULL(bc.middle_name, ''), ' ', bc.last_name) as employee_name,
                     ca.account_number as employee_external_no,
@@ -147,13 +150,17 @@ if (empty($transactionType) || $transactionType === 'bank_fee') {
                 $types .= 's';
             }
             
+            // Account number filter: search by account_number or transaction_ref
             if (!empty($accountNumber)) {
-                $sql .= " AND (ca.account_number LIKE ? OR bt.transaction_ref LIKE ?)";
+                $sql .= " AND (ca.account_number LIKE ? OR bt.transaction_ref LIKE ? OR tt.type_name LIKE ?)";
                 $params[] = '%' . $accountNumber . '%';
                 $params[] = '%' . $accountNumber . '%';
-                $types .= 'ss';
+                $params[] = '%' . $accountNumber . '%';
+                $types .= 'sss';
             }
         }
+        
+        // Note: Status filter doesn't apply to bank transactions (they're always 'approved')
         
         $sql .= " ORDER BY bt.created_at DESC";
         
@@ -170,7 +177,6 @@ if (empty($transactionType) || $transactionType === 'bank_fee') {
             }
             $stmt->close();
         }
-    }
 }
 
 // 3. LOAN SUBSYSTEM: Get loan payments (if any fee component exists)
@@ -180,23 +186,38 @@ if (empty($transactionType) || $transactionType === 'loan_fee') {
     // This section can be expanded based on actual loan fee structure
 }
 
-// Sort all expenses by date
-usort($expenses, function($a, $b) {
-    $dateA = strtotime($a['transaction_date']);
-    $dateB = strtotime($b['transaction_date']);
-    if ($dateA == $dateB) {
-        return strtotime($b['created_at']) - strtotime($a['created_at']);
-    }
-    return $dateB - $dateA;
-});
-
-// Apply transaction type filter if specified
-if (!empty($transactionType) && $transactionType !== 'expense_claim') {
+// Apply post-query filters (in case some expenses don't have proper transaction_type set)
+if (!empty($transactionType)) {
     $expenses = array_filter($expenses, function($exp) use ($transactionType) {
-        return $exp['transaction_type'] === $transactionType;
+        return isset($exp['transaction_type']) && $exp['transaction_type'] === $transactionType;
     });
     $expenses = array_values($expenses); // Re-index array
 }
+
+// Apply status filter post-query (for bank_transactions that don't support status in WHERE clause)
+if (!empty($status) && $status !== 'approved') {
+    // Bank transactions are always 'approved', so only filter expense_claims if status is not 'approved'
+    $expenses = array_filter($expenses, function($exp) use ($status) {
+        if (isset($exp['transaction_type']) && $exp['transaction_type'] === 'bank_fee') {
+            // Bank transactions are always approved, so exclude them if filtering for other statuses
+            return $status === 'approved';
+        }
+        return isset($exp['status']) && $exp['status'] === $status;
+    });
+    $expenses = array_values($expenses); // Re-index array
+}
+
+// Sort all expenses by date (most recent first)
+usort($expenses, function($a, $b) {
+    $dateA = isset($a['transaction_date']) ? strtotime($a['transaction_date']) : 0;
+    $dateB = isset($b['transaction_date']) ? strtotime($b['transaction_date']) : 0;
+    if ($dateA == $dateB) {
+        $createdA = isset($a['created_at']) ? strtotime($a['created_at']) : 0;
+        $createdB = isset($b['created_at']) ? strtotime($b['created_at']) : 0;
+        return $createdB - $createdA;
+    }
+    return $dateB - $dateA;
+});
 
 // Get filter options
 $statusOptions = ['draft', 'submitted', 'approved', 'rejected', 'paid'];
@@ -442,15 +463,10 @@ if ($conn->query("SHOW TABLES LIKE 'expense_categories'")->num_rows > 0) {
                         </div>
                         
                         <div class="filter-group">
-                            <label for="account_number">Reference/Category:</label>
-                            <select id="account_number" name="account_number">
-                                <option value="">All References</option>
-                                <?php foreach ($accountOptions as $account): ?>
-                                    <option value="<?php echo $account['code']; ?>" <?php echo $accountNumber === $account['code'] ? 'selected' : ''; ?>>
-                                        <?php echo $account['code'] . ' - ' . $account['name']; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label for="account_number">Reference/Category/Account:</label>
+                            <input type="text" id="account_number" name="account_number" 
+                                   value="<?php echo htmlspecialchars($accountNumber); ?>" 
+                                   placeholder="Search by claim number, category, or account">
                         </div>
                     </div>
                     
@@ -577,10 +593,27 @@ if ($conn->query("SHOW TABLES LIKE 'expense_categories'")->num_rows > 0) {
                                         </td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="btn-view" onclick="viewExpense(<?php echo $expense['id']; ?>)" title="View Details">
+                                                <?php 
+                                                // Determine the correct ID format based on transaction type
+                                                $expenseIdForView = isset($expense['id']) ? $expense['id'] : '';
+                                                $expenseIdForAudit = isset($expense['id']) ? $expense['id'] : '';
+                                                $transactionType = isset($expense['transaction_type']) ? $expense['transaction_type'] : 'expense_claim';
+                                                
+                                                // Format ID based on transaction type for proper API routing
+                                                if ($transactionType === 'expense_claim') {
+                                                    // For expense claims, use the ID directly
+                                                    $expenseIdForView = $expenseIdForAudit = $expense['id'];
+                                                } elseif ($transactionType === 'bank_fee') {
+                                                    // For bank transactions, use transaction_id (or id if transaction_id not set)
+                                                    $txnId = isset($expense['transaction_id']) ? $expense['transaction_id'] : (isset($expense['id']) ? $expense['id'] : '');
+                                                    $expenseIdForView = $txnId;
+                                                    $expenseIdForAudit = 'TXN-' . $txnId;
+                                                }
+                                                ?>
+                                                <button class="btn-view" onclick="viewExpense('<?php echo htmlspecialchars($expenseIdForView, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($transactionType, ENT_QUOTES); ?>')" title="View Details">
                                                     <i class="fas fa-eye"></i>
                                                 </button>
-                                                <button class="btn-audit-item" onclick="viewAuditTrail(<?php echo $expense['id']; ?>)" title="Audit Trail">
+                                                <button class="btn-audit-item" onclick="viewAuditTrail('<?php echo htmlspecialchars($expenseIdForAudit, ENT_QUOTES); ?>')" title="Audit Trail">
                                                     <i class="fas fa-history"></i>
                                                 </button>
                                             </div>
