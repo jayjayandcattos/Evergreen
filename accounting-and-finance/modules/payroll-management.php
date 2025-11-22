@@ -364,9 +364,15 @@ if ($selected_employee) {
         } else {
             if ($payroll_period === 'first' || $payroll_period === 'second') {
                 // Bind parameters: employee_id (for HRIS), period dates, employee_external_no (for accounting), period dates
-                $attendance_stmt->bind_param("issss", 
-                    $employee_id_from_external, $period_start, $period_end,  // For HRIS attendance table
-                    $selected_employee, $period_start, $period_end           // For employee_attendance table
+                // Query has 6 placeholders total:
+                // 1. a.employee_id = ? (integer)
+                // 2. DATE(a.date) BETWEEN ? AND ? (2 strings: period_start, period_end)
+                // 3. ea.employee_external_no = ? (string)
+                // 4. ea.attendance_date BETWEEN ? AND ? (2 strings: period_start, period_end)
+                // Total: 1 integer + 5 strings = "isssss"
+                $attendance_stmt->bind_param("isssss", 
+                    $employee_id_from_external, $period_start, $period_end,  // For HRIS attendance table (i, s, s)
+                    $selected_employee, $period_start, $period_end           // For employee_attendance table (s, s, s)
                 );
                 error_log("Fetching attendance for employee_id=$employee_id_from_external / external_no=$selected_employee, period=$period_start to $period_end");
             } else {

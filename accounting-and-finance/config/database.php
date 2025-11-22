@@ -8,26 +8,30 @@ define('DB_PORT', '3306'); // Default MySQL port
 
 // Create global connection with error handling
 try {
+    // First, try to connect to MySQL server (without database)
+    $temp_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, '', DB_PORT);
+    
+    if ($temp_conn->connect_error) {
+        throw new Exception("Connection to MySQL server failed: " . $temp_conn->connect_error);
+    }
+    
+    // Create database if it doesn't exist
+    $create_db_sql = "CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+    
+    if ($temp_conn->query($create_db_sql) !== TRUE) {
+        $temp_conn->close();
+        throw new Exception("Error creating database: " . $temp_conn->error);
+    }
+    
+    // Close temporary connection
+    $temp_conn->close();
+    
+    // Now connect to the specific database
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
     
-    // Check connection
+    // Check if connection to database succeeded
     if ($conn->connect_error) {
-        // Try alternative connection methods
-        if ($conn->connect_error) {
-            // Try connecting without database first
-            $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, '', DB_PORT);
-            if ($conn->connect_error) {
-                throw new Exception("Connection failed: " . $conn->connect_error);
-            }
-            
-            // Create database if it doesn't exist
-            $sql = "CREATE DATABASE IF NOT EXISTS " . DB_NAME;
-            if ($conn->query($sql) === TRUE) {
-                $conn->select_db(DB_NAME);
-            } else {
-                throw new Exception("Error creating database: " . $conn->error);
-            }
-        }
+        throw new Exception("Connection to database failed: " . $conn->connect_error);
     }
 } catch (Exception $e) {
     // Show user-friendly error message
@@ -53,13 +57,39 @@ try {
 // Set charset to UTF-8
 $conn->set_charset("utf8mb4");
 
-// Auto-run database migrations if needed
-require_once __DIR__ . '/../database/AutoMigration.php';
-AutoMigration::runIfNeeded($conn);
+// Auto-run database migrations if needed (with error handling)
+try {
+    if (file_exists(__DIR__ . '/../database/AutoMigration.php')) {
+        require_once __DIR__ . '/../database/AutoMigration.php';
+        AutoMigration::runIfNeeded($conn);
+    }
+} catch (Exception $e) {
+    // Log migration errors but don't break the application
+    error_log("AutoMigration error: " . $e->getMessage());
+}
 
 // Create connection function (for backward compatibility)
 function getDBConnection() {
     global $conn;
+    
+    // Check if connection exists and is valid
+    if (!isset($conn) || !$conn || $conn->connect_error) {
+        // Try to reconnect if connection is invalid
+        try {
+            $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
+            
+            if ($conn->connect_error) {
+                error_log("Database reconnection failed: " . $conn->connect_error);
+                return null;
+            }
+            
+            $conn->set_charset("utf8mb4");
+        } catch (Exception $e) {
+            error_log("Database reconnection error: " . $e->getMessage());
+            return null;
+        }
+    }
+    
     return $conn;
 }
 

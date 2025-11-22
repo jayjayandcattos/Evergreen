@@ -21,50 +21,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         $conn = getDBConnection();
         
-        // Prepare and execute query
-        $stmt = $conn->prepare("SELECT id, username, password_hash, email, full_name, is_active FROM users WHERE username = ?");
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows == 1) {
-            $user = $result->fetch_assoc();
+        if (!$conn) {
+            $error_message = "Database connection failed. Please try again later.";
+        } else {
+            // Prepare and execute query
+            $stmt = $conn->prepare("SELECT id, username, password_hash, email, full_name, is_active FROM users WHERE username = ?");
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
             
-            // Check if password hash is valid (starts with $2y$ or $2a$ for bcrypt)
-            $hash_valid = strpos($user['password_hash'], '$2y$') === 0 || strpos($user['password_hash'], '$2a$') === 0;
-            
-            if (!$hash_valid) {
-                // Password hash format is invalid - likely needs fixing
-                $error_message = "Password format error detected. Please run <a href='../database/fix_user_passwords.php' style='color: #0A3D3D; text-decoration: underline;'>Fix User Passwords</a> to resolve this issue.";
-            } elseif (password_verify($password, $user['password_hash'])) {
-                if ($user['is_active']) {
-                    // Set session
-                    setUserSession($user);
-                    
-                    // Update last login
-                    $update_stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-                    $update_stmt->bind_param("i", $user['id']);
-                    $update_stmt->execute();
-                    $update_stmt->close();
-                    
-                    // Log login activity
-                    logActivity('login', 'authentication', 'User logged in successfully', $conn);
-                    
-                    // Redirect to dashboard
-                    header("Location: dashboard.php");
-                    exit();
+            if ($result->num_rows == 1) {
+                $user = $result->fetch_assoc();
+                
+                // Check if password hash is valid (starts with $2y$ or $2a$ for bcrypt)
+                $hash_valid = strpos($user['password_hash'], '$2y$') === 0 || strpos($user['password_hash'], '$2a$') === 0;
+                
+                if (!$hash_valid) {
+                    // Password hash format is invalid - likely needs fixing
+                    $error_message = "Password format error detected. Please run <a href='../database/fix_user_passwords.php' style='color: #0A3D3D; text-decoration: underline;'>Fix User Passwords</a> to resolve this issue.";
+                } elseif (password_verify($password, $user['password_hash'])) {
+                    if ($user['is_active']) {
+                        // Set session
+                        setUserSession($user);
+                        
+                        // Update last login
+                        $update_stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                        $update_stmt->bind_param("i", $user['id']);
+                        $update_stmt->execute();
+                        $update_stmt->close();
+                        
+                        // Log login activity
+                        logActivity('login', 'authentication', 'User logged in successfully', $conn);
+                        
+                        // Redirect to dashboard
+                        header("Location: dashboard.php");
+                        exit();
+                    } else {
+                        $error_message = "Your account has been deactivated. Please contact the administrator.";
+                    }
                 } else {
-                    $error_message = "Your account has been deactivated. Please contact the administrator.";
+                    $error_message = "Invalid username or password.";
                 }
             } else {
                 $error_message = "Invalid username or password.";
             }
-        } else {
-            $error_message = "Invalid username or password.";
+            
+            $stmt->close();
+            // Note: Don't close connection here as it's a global connection that might be used elsewhere
         }
-        
-        $stmt->close();
-        $conn->close();
     }
 }
 ?>
