@@ -1,0 +1,50 @@
+/* Account Opening Specific Styles */
+/* Most styles are inherited from customer-onboarding-details.css */
+
+/* Account Type Cards */
+.account-type-card {
+  flex: 1;
+  min-width: 250px;
+}
+
+.account-type-card ul {
+  list-style-type: disc;
+  color: var(--text-dark);
+}
+
+.account-type-card ul li {
+  margin-bottom: 5px;
+}
+
+/* Info Box */
+.info-box {
+  margin-top: 0;
+}
+
+/* Form adjustments for account opening */
+.account-opening-form .form-section {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Success message styling */
+.success-message {
+  border: 1px solid #c3e6cb;
+}
+
+.success-message strong {
+  color: #155724;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .account-type-card {
+    min-width: 100%;
+    margin-bottom: 15px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+  }
+}
+

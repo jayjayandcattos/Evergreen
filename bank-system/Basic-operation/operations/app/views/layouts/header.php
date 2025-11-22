@@ -49,7 +49,11 @@
                 </li>
                 <li class="nav-item mx-2">
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Open New Account') ? 'active text-warning' : ''; ?>" 
-                    href="<?= URLROOT ?>/customer/create_account">Create Account</a>
+                    href="/Evergreen/bank-system/Basic-operation/public/customer-onboarding-details.html">Create Account</a>
+                </li>
+                <li class="nav-item mx-2">
+                    <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Account Opening') ? 'active text-warning' : ''; ?>" 
+                    href="/Evergreen/bank-system/Basic-operation/public/account-opening.html">Account Opening</a>
                 </li>
                 <li class="nav-item mx-2">
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Pay Loan') ? 'active text-warning' : ''; ?>" 
