@@ -1443,7 +1443,6 @@
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
                     <a href="../Basic-operation/operations/public/customer/account" role="menuitem">Profile</a>
-                    <a href="../Basic-operation/operations/public/customer/referral" role="menuitem">Refer to a friend</a>
                     <a href="cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
