@@ -1186,6 +1186,10 @@ function logAuditAction($conn, $userId, $action, $objectType, $objectId, $descri
     }
 }
 
+/**
+ * Get Trial Balance using REAL client data from operational subsystems
+ * Uses Bank System, Loan Subsystem, and HRIS-SIA data only
+ */
 function getTrialBalance() {
     global $conn;
     
@@ -1201,124 +1205,170 @@ function getTrialBalance() {
             $dateTo = date('Y-m-t');
         }
         
-        // Get the active fiscal period
-        $fpSql = "SELECT id FROM fiscal_periods WHERE status = 'open' ORDER BY start_date DESC LIMIT 1";
-        $fpResult = $conn->query($fpSql);
-        $fiscalPeriodId = null;
-        if ($fpResult && $fpRow = $fpResult->fetch_assoc()) {
-            $fiscalPeriodId = $fpRow['id'];
-        }
-        
-        // Calculate trial balance with opening balances and period movements
-        $sql = "
-            SELECT 
-                a.id,
-                a.code,
-                a.name,
-                at.category as account_type,
-                COALESCE(ab.opening_balance, 0) as opening_balance,
-                COALESCE(SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE 0 END), 0) as period_debit,
-                COALESCE(SUM(CASE WHEN jl.credit > 0 THEN jl.credit ELSE 0 END), 0) as period_credit
-            FROM accounts a
-            INNER JOIN account_types at ON a.type_id = at.id
-            LEFT JOIN account_balances ab ON a.id = ab.account_id 
-                AND ab.fiscal_period_id = ?
-            LEFT JOIN journal_lines jl ON a.id = jl.account_id
-            LEFT JOIN journal_entries je ON jl.journal_entry_id = je.id 
-                AND je.status = 'posted'
-                AND je.entry_date >= ?
-                AND je.entry_date <= ?
-            WHERE a.is_active = 1
-            GROUP BY a.id, a.code, a.name, at.category, ab.opening_balance
-            ORDER BY a.code
-        ";
-        
-        $stmt = $conn->prepare($sql);
-        if ($fiscalPeriodId) {
-            $stmt->bind_param('iss', $fiscalPeriodId, $dateFrom, $dateTo);
-        } else {
-            // Fallback if no fiscal period
-            $stmt = $conn->prepare("
-                SELECT 
-                    a.id,
-                    a.code,
-                    a.name,
-                    at.category as account_type,
-                    0 as opening_balance,
-                    COALESCE(SUM(CASE WHEN jl.debit > 0 THEN jl.debit ELSE 0 END), 0) as period_debit,
-                    COALESCE(SUM(CASE WHEN jl.credit > 0 THEN jl.credit ELSE 0 END), 0) as period_credit
-                FROM accounts a
-                INNER JOIN account_types at ON a.type_id = at.id
-                LEFT JOIN journal_lines jl ON a.id = jl.account_id
-                LEFT JOIN journal_entries je ON jl.journal_entry_id = je.id 
-                    AND je.status = 'posted'
-                    AND je.entry_date >= ?
-                    AND je.entry_date <= ?
-                WHERE a.is_active = 1
-                GROUP BY a.id, a.code, a.name, at.category
-                ORDER BY a.code
-            ");
-            $stmt->bind_param('ss', $dateFrom, $dateTo);
-        }
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
         $accounts = [];
         $totalDebit = 0;
         $totalCredit = 0;
         
-        while ($row = $result->fetch_assoc()) {
-            $openingBalance = (float)$row['opening_balance'];
-            $periodDebit = (float)$row['period_debit'];
-            $periodCredit = (float)$row['period_credit'];
-            $accountType = $row['account_type'];
+        // 1. BANK SYSTEM: Get bank transactions with real customer accounts (ASSETS)
+        if ($conn->query("SHOW TABLES LIKE 'bank_transactions'")->num_rows > 0 && 
+            $conn->query("SHOW TABLES LIKE 'customer_accounts'")->num_rows > 0 &&
+            $conn->query("SHOW TABLES LIKE 'bank_customers'")->num_rows > 0 &&
+            $conn->query("SHOW TABLES LIKE 'transaction_types'")->num_rows > 0) {
             
-            // Calculate closing balance: opening + debits - credits
-            $closingBalance = $openingBalance + $periodDebit - $periodCredit;
+            $sql = "
+                SELECT 
+                    ca.account_number as code,
+                    CONCAT(bc.first_name, ' ', IFNULL(bc.middle_name, ''), ' ', bc.last_name) as name,
+                    'asset' as account_type,
+                    COALESCE(SUM(CASE 
+                        WHEN tt.type_name LIKE '%deposit%' OR tt.type_name LIKE '%interest%' THEN bt.amount
+                        ELSE 0
+                    END), 0) as total_debit,
+                    COALESCE(SUM(CASE 
+                        WHEN tt.type_name LIKE '%withdrawal%' OR tt.type_name LIKE '%transfer%' THEN bt.amount
+                        ELSE 0
+                    END), 0) as total_credit
+                FROM bank_transactions bt
+                INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
+                INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+                INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                WHERE ca.is_locked = 0
+                    AND DATE(bt.created_at) BETWEEN ? AND ?
+                GROUP BY ca.account_id, ca.account_number, bc.first_name, bc.middle_name, bc.last_name
+            ";
             
-            // For trial balance, we need to show debit and credit columns properly
-            // Assets and Expenses: debit normal (positive = debit, negative = credit)
-            // Liabilities, Equity, Revenue: credit normal (positive = credit, negative = debit)
-            
-            $debitBalance = 0;
-            $creditBalance = 0;
-            
-            if (in_array($accountType, ['asset', 'expense'])) {
-                // Debit normal accounts
-                if ($closingBalance >= 0) {
-                    $debitBalance = $closingBalance;
-                    $creditBalance = 0;
-                } else {
-                    $debitBalance = 0;
-                    $creditBalance = abs($closingBalance);
-                }
-            } else {
-                // Credit normal accounts (liability, equity, revenue)
-                if ($closingBalance >= 0) {
-                    $debitBalance = 0;
-                    $creditBalance = $closingBalance;
-                } else {
-                    $debitBalance = abs($closingBalance);
-                    $creditBalance = 0;
-                }
-            }
-            
-            // Only include accounts with non-zero balances
-            if ($debitBalance > 0 || $creditBalance > 0) {
-                $totalDebit += $debitBalance;
-                $totalCredit += $creditBalance;
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param('ss', $dateFrom, $dateTo);
+                $stmt->execute();
+                $result = $stmt->get_result();
                 
-                $accounts[] = [
-                    'id' => $row['id'],
-                    'code' => $row['code'],
-                    'name' => $row['name'],
-                    'account_type' => $accountType,
-                    'debit_balance' => $debitBalance,
-                    'credit_balance' => $creditBalance,
-                    'net_balance' => $closingBalance
-                ];
+                while ($row = $result->fetch_assoc()) {
+                    $debitBalance = (float)$row['total_debit'];
+                    $creditBalance = (float)$row['total_credit'];
+                    $netBalance = $debitBalance - $creditBalance;
+                    
+                    // Only include accounts with non-zero balances
+                    if ($debitBalance > 0 || $creditBalance > 0) {
+                        $totalDebit += $debitBalance;
+                        $totalCredit += $creditBalance;
+                        
+                        $accounts[] = [
+                            'id' => 'BANK-' . $row['code'],
+                            'code' => $row['code'],
+                            'name' => trim($row['name']),
+                            'account_type' => $row['account_type'],
+                            'debit_balance' => $debitBalance,
+                            'credit_balance' => $creditBalance,
+                            'net_balance' => $netBalance
+                        ];
+                    }
+                }
+                $stmt->close();
             }
         }
+        
+        // 2. LOAN SUBSYSTEM: Get loan applications with real borrower data (LIABILITIES)
+        if ($conn->query("SHOW TABLES LIKE 'loan_applications'")->num_rows > 0) {
+            $sql = "
+                SELECT 
+                    CONCAT('LOAN-', la.id) as code,
+                    la.full_name as name,
+                    'liability' as account_type,
+                    0 as total_debit,
+                    COALESCE(SUM(CASE 
+                        WHEN la.status IN ('Approved', 'Active', 'Disbursed') THEN la.loan_amount
+                        ELSE 0
+                    END), 0) as total_credit
+                FROM loan_applications la
+                WHERE DATE(la.created_at) BETWEEN ? AND ?
+                GROUP BY la.id, la.full_name
+            ";
+            
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param('ss', $dateFrom, $dateTo);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                while ($row = $result->fetch_assoc()) {
+                    $debitBalance = (float)$row['total_debit'];
+                    $creditBalance = (float)$row['total_credit'];
+                    $netBalance = $creditBalance; // Liabilities are credits
+                    
+                    // Only include loans with non-zero balances
+                    if ($creditBalance > 0) {
+                        $totalDebit += $debitBalance;
+                        $totalCredit += $creditBalance;
+                        
+                        $accounts[] = [
+                            'id' => 'LOAN-' . str_replace('LOAN-', '', $row['code']),
+                            'code' => $row['code'],
+                            'name' => trim($row['name']),
+                            'account_type' => $row['account_type'],
+                            'debit_balance' => $debitBalance,
+                            'credit_balance' => $creditBalance,
+                            'net_balance' => -$netBalance // Negative for liabilities
+                        ];
+                    }
+                }
+                $stmt->close();
+            }
+        }
+        
+        // 3. PAYROLL: Get payroll runs with real employee data (EXPENSES)
+        if ($conn->query("SHOW TABLES LIKE 'payroll_runs'")->num_rows > 0 &&
+            $conn->query("SHOW TABLES LIKE 'payslips'")->num_rows > 0) {
+            
+            $sql = "
+                SELECT 
+                    CONCAT('PAY-', ps.employee_external_no) as code,
+                    CONCAT('Employee Payroll - ', ps.employee_external_no) as name,
+                    'expense' as account_type,
+                    COALESCE(SUM(ps.net_pay), 0) as total_debit,
+                    COALESCE(SUM(ps.net_pay), 0) as total_credit
+                FROM payroll_runs pr
+                INNER JOIN payslips ps ON pr.id = ps.payroll_run_id
+                WHERE pr.status IN ('completed', 'finalized')
+                    AND DATE(pr.run_at) BETWEEN ? AND ?
+                GROUP BY ps.employee_external_no
+            ";
+            
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param('ss', $dateFrom, $dateTo);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                while ($row = $result->fetch_assoc()) {
+                    $debitBalance = (float)$row['total_debit'];
+                    $creditBalance = (float)$row['total_credit'];
+                    $netBalance = $debitBalance; // Expenses are debits
+                    
+                    // Only include accounts with non-zero balances
+                    if ($debitBalance > 0) {
+                        $totalDebit += $debitBalance;
+                        $totalCredit += 0; // Expenses don't have credit balance
+                        
+                        $accounts[] = [
+                            'id' => 'PAY-' . str_replace('PAY-', '', $row['code']),
+                            'code' => $row['code'],
+                            'name' => trim($row['name']),
+                            'account_type' => $row['account_type'],
+                            'debit_balance' => $debitBalance,
+                            'credit_balance' => 0,
+                            'net_balance' => $netBalance
+                        ];
+                    }
+                }
+                $stmt->close();
+            }
+        }
+        
+        // Sort accounts by code
+        usort($accounts, function($a, $b) {
+            return strcmp($a['code'], $b['code']);
+        });
         
         // Apply pagination
         $totalCount = count($accounts);
