@@ -217,6 +217,7 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../assets/evergreen.svg">
     <title>HRIS - Employees</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../css/styles.css">
