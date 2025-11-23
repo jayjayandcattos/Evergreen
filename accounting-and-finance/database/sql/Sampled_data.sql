@@ -397,8 +397,48 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), base_monthly_salary = VALUES(base_m
 -- Note: Additional user_account records can be created as needed
 -- The employee_id links to the employee table, enabling HRIS-Payroll integration
 INSERT INTO user_account (user_id, employee_id, username, password_hash, role, last_login) VALUES
-(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', NOW() - INTERVAL 5 DAY)
-ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id);
+(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY)
+ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), password_hash = VALUES(password_hash);
+
+-- ========================================
+-- HR MANAGER ROLE SETUP (Data Migration)
+-- ========================================
+-- Update existing user_account records with NULL role to 'Admin' for backward compatibility
+-- This ensures all existing admin accounts are properly marked
+UPDATE user_account 
+SET role = 'Admin' 
+WHERE role IS NULL 
+AND username IS NOT NULL;
+
+-- Ensure any existing admin accounts explicitly have 'Admin' role
+-- (in case they were created with different role values)
+UPDATE user_account 
+SET role = 'Admin' 
+WHERE username = 'admin' 
+AND (role IS NULL OR role != 'Admin');
+
+-- ========================================
+-- CREATE HR MANAGER ACCOUNT
+-- ========================================
+-- This creates an HR Manager account
+-- Username: hrmanager
+-- Password: password
+-- Role: HR Manager
+-- ========================================
+
+-- Create HR Manager account
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    NULL, -- employee_id (can be set to a valid employee_id if needed)
+    'hrmanager', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'HR Manager', -- role (must be exactly 'HR Manager')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
+
 
 -- ========================================
 -- HRIS-PAYROLL CONNECTION DOCUMENTATION

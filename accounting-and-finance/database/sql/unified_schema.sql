@@ -1062,11 +1062,37 @@ WHERE username = 'admin'
 AND (role IS NULL OR role != 'Admin');
 
 -- ========================================
--- HR MANAGER ACCOUNT CREATION
+-- USER ACCOUNT MANAGEMENT
 -- ========================================
 
+-- ========================================
+-- ADMIN ACCOUNT CREATION
+-- ========================================
+-- Create the main admin account for system access
+-- Username: admin
+-- Password: password
+-- Role: Admin
+-- IMPORTANT: Change the password in production!
+
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    1, -- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+    'admin', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'Admin', -- role (must be exactly 'Admin')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
+
+-- ========================================
+-- HR MANAGER ACCOUNT CREATION
+-- ========================================
 -- Create HR Manager account
--- Password: 'password' (hash: $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi)
+-- Username: hrmanager
+-- Password: password
+-- Role: HR Manager
 -- IMPORTANT: Change the password hash before using in production!
 
 INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
@@ -1080,6 +1106,7 @@ VALUES (
 ON DUPLICATE KEY UPDATE 
     password_hash = VALUES(password_hash),
     role = VALUES(role);
+
 
 -- ========================================
 -- LEAVE REQUEST DATA FIXES
