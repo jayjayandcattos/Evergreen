@@ -280,6 +280,15 @@ CREATE TABLE missions (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE `points_history` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `points` decimal(10,2) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE bank_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -329,6 +338,7 @@ CREATE TABLE bank_customers (
     last_name VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50) DEFAULT NULL,
+    email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
