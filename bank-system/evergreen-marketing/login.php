@@ -14,48 +14,61 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($bank_id) || empty($email) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        // Query bank_users table directly (has email, bank_id, and password columns)
-        $sql = "SELECT 
-                    id,
-                    first_name,
-                    last_name,
-                    middle_name,
-                    password,
-                    bank_id,
-                    email,
-                    is_verified
-                FROM bank_users
+        // First, try to find user in bank_users
+        $sql = "SELECT id, first_name, last_name, middle_name, password, bank_id, email, is_verified 
+                FROM bank_users 
                 WHERE email = ? AND bank_id = ? AND is_verified = 1";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ss", $email, $bank_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        
+        if ($stmt === false) {
+            $error = "Database error: " . $conn->error;
+        } else {
+            $stmt->bind_param("ss", $email, $bank_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-        if ($result && $result->num_rows === 1) {
-            $row = $result->fetch_assoc();
-            
-            // Use password column (stored as hashed password)
-            if (password_verify($password, $row['password'])) {
-                // Set session variables
-                $_SESSION['user_id'] = $row['id'];
-                $_SESSION['email'] = $row['email'];
-                $_SESSION['first_name'] = $row['first_name'];
-                $_SESSION['last_name'] = $row['last_name'];
-                $_SESSION['bank_id'] = $row['bank_id'];
-                $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+            if ($result && $result->num_rows === 1) {
+                $row = $result->fetch_assoc();
+                
+                // Verify password
+                if (password_verify($password, $row['password'])) {
+                    // Set session variables for marketing system
+                    $_SESSION['user_id'] = $row['id'];
+                    $_SESSION['email'] = $row['email'];
+                    $_SESSION['first_name'] = $row['first_name'];
+                    $_SESSION['last_name'] = $row['last_name'];
+                    $_SESSION['bank_id'] = $row['bank_id'];
+                    $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+                    
+                    // Now get the customer_id from bank_customers
+                    $sql2 = "SELECT customer_id FROM bank_customers WHERE email = ?";
+                    $stmt2 = $conn->prepare($sql2);
+                    if ($stmt2) {
+                        $stmt2->bind_param("s", $email);
+                        $stmt2->execute();
+                        $result2 = $stmt2->get_result();
+                        if ($result2 && $result2->num_rows === 1) {
+                            $row2 = $result2->fetch_assoc();
+                            $_SESSION['customer_id'] = $row2['customer_id'];
+                            $_SESSION['customer_first_name'] = $row['first_name'];
+                            $_SESSION['customer_last_name'] = $row['last_name'];
+                        }
+                        $stmt2->close();
+                    }
 
-                // Redirect to viewing page after successful login
-                header("Location: viewingpage.php");
-                exit();
+                    // Redirect to viewing page after successful login
+                    header("Location: viewingpage.php");
+                    exit();
+                } else {
+                    $login_failed = true;
+                    $error = "Invalid password.";
+                }
             } else {
                 $login_failed = true;
-                $error = "Invalid email, Bank ID, or password.";
+                $error = "Account not found or not verified.";
             }
-        } else {
-            $login_failed = true;
-            $error = "Invalid email, Bank ID, or password.";
+            $stmt->close();
         }
-        $stmt->close();
     }
 }
 ?>
