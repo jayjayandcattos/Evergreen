@@ -38,7 +38,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (empty($email) || empty($bank_id)) {
             $error = "Please fill in all fields.";
         } else {
-            $sql = "SELECT id, first_name FROM bank_users WHERE email = ? AND bank_id = ?";
+            $sql = "SELECT customer_id, first_name FROM bank_customers WHERE email = ? AND bank_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("ss", $email, $bank_id);
             $stmt->execute();
@@ -50,7 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // Generate 6-digit OTP
                 $otp = sprintf("%06d", mt_rand(0, 999999));
                 $_SESSION['reset_otp'] = $otp;
-                $_SESSION['reset_user_id'] = $row['id'];
+                $_SESSION['reset_user_id'] = $row['customer_id'];
                 $_SESSION['reset_email'] = $email;
                 $_SESSION['otp_time'] = time();
                 
@@ -60,10 +60,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 try {
                     // Server settings
                     $mail->isSMTP();
-                    $mail->Host       = 'smtp.gmail.com'; // Change to your SMTP host
+                    $mail->Host       = 'smtp.gmail.com';
                     $mail->SMTPAuth   = true;
-                    $mail->Username   = 'evrgrn.64@gmail.com'; // Your email
-                    $mail->Password   = 'dourhhbymvjejuct'; // Your app password
+                    $mail->Username   = 'evrgrn.64@gmail.com';
+                    $mail->Password   = 'dourhhbymvjejuct'; 
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                     $mail->Port       = 587;
                     
@@ -151,7 +151,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $user_id = $_SESSION['reset_user_id'];
                 
-                $sql = "UPDATE bank_users SET password = ? WHERE id = ?";
+                $sql = "UPDATE bank_customers SET password = ? WHERE customer_id = ?";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("si", $hashed_password, $user_id);
                 
@@ -176,7 +176,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['reset_otp'] = $otp;
             $_SESSION['otp_time'] = time();
             
-            $sql = "SELECT first_name FROM bank_users WHERE id = ?";
+            $sql = "SELECT first_name FROM bank_customers WHERE customer_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("i", $_SESSION['reset_user_id']);
             $stmt->execute();
@@ -257,6 +257,7 @@ if (isset($_GET['clear_session'])) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Evergreen - Forgot Password</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       margin: 0;
@@ -505,22 +506,26 @@ if (isset($_GET['clear_session'])) {
 
     .eye-icon {
       position: absolute;
-      right: 18px;
-      top: 50%;
+      right: 20px;
+      top: 49%;
       transform: translateY(-50%);
       cursor: pointer;
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       background: none;
       border: none;
       padding: 0;
       font-size: 18px;
-      color: #666;
-      transition: color 0.2s;
+      color: #999;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .eye-icon:hover {
       color: #003631;
+      transform: translateY(-50%) scale(1.1);
     }
 
     .password-strength {
@@ -783,17 +788,26 @@ if (isset($_GET['clear_session'])) {
   </div>
 
   <script>
-    function togglePassword(id) {
-      const input = document.getElementById(id);
-      const btn = input.nextElementSibling;
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '';
-      } else {
-        input.type = 'password';
-        btn.textContent = '';
-      }
+    function togglePassword(inputId) {
+    const passwordInput = document.getElementById(inputId);
+    const toggleBtn = passwordInput.parentElement.querySelector('.eye-icon');
+    
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      toggleBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+    } else {
+      passwordInput.type = 'password';
+      toggleBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
     }
+  }
+
+  // Initialize eye icons on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const eyeIcons = document.querySelectorAll('.eye-icon');
+    eyeIcons.forEach(icon => {
+      icon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+    });
+  });
 
     // OTP Input handling
     const otpInputs = document.querySelectorAll('.otp-input');

@@ -176,7 +176,7 @@ nav a:hover::after {
         </div>
       </li>
       <li><a href="index.php">Loans</a></li>
-      <li><a href="/bank-system/evergreen-marketing/about.php">About Us</a></li>
+      <li><a href="/Evergreen/bank-system/evergreen-marketing/about.php">About Us</a></li>
     </ul>
   </nav>
 

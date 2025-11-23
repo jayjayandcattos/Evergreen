@@ -391,26 +391,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      // Show success modal when Confirm button is clicked
-      document
-        .getElementById("confirmBtn")
-        .addEventListener("click", function () {
-          // Here you would normally do form validation and submit data to backend
-          // For now, we'll just show the success modal
-
-          var successModal = new bootstrap.Modal(
-            document.getElementById("successModal")
-          );
-          successModal.show();
-        });
-
-      // Optional: Redirect to home page when "Back to Home" is clicked
-      document
-        .querySelector(".btn-back-home")
-        .addEventListener("click", function () {
-          // Redirect to home page (update the URL as needed)
-          // window.location.href = 'employee-dashboard.html';
-        });
+      // Handle "Back to Home" button click (after modal is shown)
+      document.addEventListener("DOMContentLoaded", function () {
+        // Wait for modal to be shown, then attach listener to back button
+        const successModalEl = document.getElementById("successModal");
+        if (successModalEl) {
+          successModalEl.addEventListener("shown.bs.modal", function () {
+            const backHomeBtn = document.querySelector(".btn-back-home");
+            if (backHomeBtn) {
+              backHomeBtn.addEventListener("click", function () {
+                // Redirect to login page
+                window.location.href = "/Evergreen/bank-system/evergreen-marketing/login.php";
+              });
+            }
+          });
+        }
+      });
     </script>
     <script src="../assets/js/customer-onboarding-review.js"></script>
   </body>

@@ -67,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             case 'edit':
                 requireAdmin();
                 try {
+                    // Update employee basic information
                     $sql = "UPDATE employee SET 
                             first_name = ?, last_name = ?, middle_name = ?, gender = ?, 
                             birth_date = ?, contact_number = ?, email = ?, address = ?,
@@ -90,12 +91,59 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $stmt = $conn->prepare($sql);
                     $success = $stmt->execute($params);
 
+                    // Update salary information in employee_refs table (for payroll integration)
+                    if ($success && isset($_POST['monthly_salary']) && !empty($_POST['monthly_salary'])) {
+                        $monthly_salary = floatval($_POST['monthly_salary']);
+                        $external_employee_no = 'EMP' . str_pad($_POST['employee_id'], 3, '0', STR_PAD_LEFT);
+                        
+                        // Check if employee_refs record exists
+                        $check_sql = "SELECT id FROM employee_refs WHERE external_employee_no = ?";
+                        $check_stmt = $conn->prepare($check_sql);
+                        $check_stmt->execute([$external_employee_no]);
+                        $exists = $check_stmt->fetch();
+                        
+                        if ($exists) {
+                            // Update existing record
+                            $salary_sql = "UPDATE employee_refs SET 
+                                          base_monthly_salary = ?
+                                          WHERE external_employee_no = ?";
+                            $salary_stmt = $conn->prepare($salary_sql);
+                            $salary_stmt->execute([$monthly_salary, $external_employee_no]);
+                        } else {
+                            // Create new employee_refs record
+                            $dept_name = '';
+                            $pos_name = '';
+                            $emp_name = $_POST['first_name'] . ' ' . ($_POST['middle_name'] ? $_POST['middle_name'] . ' ' : '') . $_POST['last_name'];
+                            
+                            // Get department and position names
+                            if ($_POST['department_id']) {
+                                $dept_query = $conn->prepare("SELECT department_name FROM department WHERE department_id = ?");
+                                $dept_query->execute([$_POST['department_id']]);
+                                $dept_result = $dept_query->fetch();
+                                $dept_name = $dept_result['department_name'] ?? '';
+                            }
+                            
+                            if ($_POST['position_id']) {
+                                $pos_query = $conn->prepare("SELECT position_title FROM position WHERE position_id = ?");
+                                $pos_query->execute([$_POST['position_id']]);
+                                $pos_result = $pos_query->fetch();
+                                $pos_name = $pos_result['position_title'] ?? '';
+                            }
+                            
+                            $insert_sql = "INSERT INTO employee_refs 
+                                          (external_employee_no, name, department, position, employment_type, base_monthly_salary, external_source, created_at) 
+                                          VALUES (?, ?, ?, ?, 'regular', ?, 'HRIS', NOW())";
+                            $insert_stmt = $conn->prepare($insert_sql);
+                            $insert_stmt->execute([$external_employee_no, $emp_name, $dept_name, $pos_name, $monthly_salary]);
+                        }
+                    }
+
                     if ($success) {
                         if (isset($logger)) {
                             $logger->info(
                                 'EMPLOYEE',
                                 'Employee updated',
-                                "ID: {$_POST['employee_id']}, Name: {$_POST['first_name']} {$_POST['last_name']}"
+                                "ID: {$_POST['employee_id']}, Name: {$_POST['first_name']} {$_POST['last_name']}, Salary: " . ($_POST['monthly_salary'] ?? 'N/A')
                             );
                         }
                         $message = "Employee updated successfully!";
@@ -178,10 +226,13 @@ $department_filter = $_GET['department'] ?? '';
 
 $sql = "SELECT e.*, 
         d.department_name, 
-        p.position_title 
+        p.position_title,
+        er.base_monthly_salary,
+        CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as external_employee_no
         FROM employee e
         LEFT JOIN department d ON e.department_id = d.department_id
         LEFT JOIN position p ON e.position_id = p.position_id
+        LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
         WHERE e.employment_status = ?";
 
 $params = [$view === 'archived' ? 'Inactive' : 'Active'];
@@ -217,6 +268,7 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../assets/evergreen.svg">
     <title>HRIS - Employees</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../css/styles.css">
@@ -650,6 +702,39 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
                         </div>
                     </div>
 
+                    <!-- Salary Information Section (Only visible in Edit mode) -->
+                    <div id="salarySection" class="mt-6 border-t pt-6" style="display: none;">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-money-bill-wave mr-2 text-teal-600"></i>Salary Information
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Monthly Salary (₱)</label>
+                                <input type="number" name="monthly_salary" id="monthlySalary" step="0.01" min="0"
+                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                    oninput="calculateRates()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Daily Rate (₱)</label>
+                                <input type="text" id="dailyRate" readonly
+                                    class="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600">
+                                <small class="text-gray-500">Monthly ÷ 22 days</small>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Hourly Rate (₱)</label>
+                                <input type="text" id="hourlyRate" readonly
+                                    class="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600">
+                                <small class="text-gray-500">Daily ÷ 8 hours</small>
+                            </div>
+                        </div>
+                        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <strong>Note:</strong> Salary changes will be reflected in the Payroll Management system immediately.
+                            </p>
+                        </div>
+                    </div>
+
                     <div class="flex gap-3 mt-6">
                         <button type="submit" class="flex-1 bg-teal-700 hover:bg-teal-800 text-white px-4 py-3 rounded-lg font-medium">
                             Save
@@ -777,10 +862,23 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
             return false;
         }
 
+        function calculateRates() {
+            const monthlySalary = parseFloat(document.getElementById('monthlySalary').value) || 0;
+            const workingDaysPerMonth = 22; // Standard Philippine working days
+            const hoursPerDay = 8;
+            
+            const dailyRate = monthlySalary / workingDaysPerMonth;
+            const hourlyRate = dailyRate / hoursPerDay;
+            
+            document.getElementById('dailyRate').value = dailyRate.toFixed(2);
+            document.getElementById('hourlyRate').value = hourlyRate.toFixed(2);
+        }
+
         function openAddModal() {
             document.getElementById('modalTitle').textContent = 'Add Employee';
             document.getElementById('formAction').value = 'add';
             document.getElementById('employeeForm').reset();
+            document.getElementById('salarySection').style.display = 'none'; // Hide salary section for new employees
             document.getElementById('employeeModal').classList.remove('hidden');
         }
 
@@ -799,6 +897,12 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
             document.getElementById('hireDate').value = emp.hire_date || '';
             document.getElementById('departmentId').value = emp.department_id || '';
             document.getElementById('positionId').value = emp.position_id || '';
+            
+            // Show and populate salary section for editing
+            document.getElementById('salarySection').style.display = 'block';
+            document.getElementById('monthlySalary').value = emp.base_monthly_salary || '';
+            calculateRates(); // Calculate daily and hourly rates
+            
             document.getElementById('employeeModal').classList.remove('hidden');
         }
 

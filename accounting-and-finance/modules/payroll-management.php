@@ -44,38 +44,87 @@ if ($payroll_period === 'first') {
     $period_label = date('F Y', strtotime($payroll_month . '-01'));
 }
 
-// Build dynamic query for employees with filters
-$employees_query = "SELECT * FROM employee_refs WHERE 1=1";
+// Build dynamic query for employees with filters - JOIN with HRIS employee table
+// FIXED: Now shows ALL HRIS employees, automatically creating employee_refs if needed
+$employees_query = "SELECT 
+                        COALESCE(er.id, NULL) as ref_id,
+                        COALESCE(er.external_employee_no, CONCAT('EMP', LPAD(e.employee_id, 3, '0'))) as external_employee_no,
+                        COALESCE(er.employment_type, 'regular') as employment_type,
+                        COALESCE(er.base_monthly_salary, 0) as base_monthly_salary,
+                        COALESCE(er.created_at, e.hire_date) as created_at,
+                        COALESCE(er.department, d.department_name) as department,
+                        COALESCE(er.position, p.position_title) as position,
+                        e.employee_id as hris_employee_id,
+                        e.first_name as hris_first_name,
+                        e.middle_name as hris_middle_name,
+                        e.last_name as hris_last_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as hris_full_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
+                        e.gender,
+                        e.birth_date,
+                        e.contact_number,
+                        e.email,
+                        e.address,
+                        e.hire_date,
+                        e.employment_status as hris_employment_status,
+                        d.department_name as hris_department_name,
+                        p.position_title as hris_position_title,
+                        c.contract_id,
+                        c.contract_type,
+                        c.salary as contract_salary,
+                        c.start_date as contract_start_date,
+                        c.end_date as contract_end_date,
+                        c.benefits as contract_benefits
+                    FROM employee e
+                    LEFT JOIN employee_refs er ON (
+                        er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        OR e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
+                    )
+                    LEFT JOIN department d ON e.department_id = d.department_id
+                    LEFT JOIN `position` p ON e.position_id = p.position_id
+                    LEFT JOIN contract c ON e.contract_id = c.contract_id
+                    WHERE e.employee_id IS NOT NULL";
 $params = [];
 $types = "";
 
 if (!empty($search_term)) {
-    $employees_query .= " AND (name LIKE ? OR external_employee_no LIKE ?)";
+    $employees_query .= " AND (
+        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) LIKE ?
+        OR e.first_name LIKE ?
+        OR e.last_name LIKE ?
+        OR CONCAT('EMP', LPAD(e.employee_id, 3, '0')) LIKE ?
+        OR e.employee_id LIKE ?
+    )";
     $search_param = "%$search_term%";
     $params[] = $search_param;
     $params[] = $search_param;
-    $types .= "ss";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $types .= "sssss";
 }
 
 if (!empty($filter_position)) {
-    $employees_query .= " AND position = ?";
+    $employees_query .= " AND (p.position_title = ? OR COALESCE(er.position, p.position_title) = ?)";
     $params[] = $filter_position;
-    $types .= "s";
+    $params[] = $filter_position;
+    $types .= "ss";
 }
 
 if (!empty($filter_department)) {
-    $employees_query .= " AND department = ?";
+    $employees_query .= " AND (d.department_name = ? OR COALESCE(er.department, d.department_name) = ?)";
     $params[] = $filter_department;
-    $types .= "s";
+    $params[] = $filter_department;
+    $types .= "ss";
 }
 
 if (!empty($filter_type)) {
-    $employees_query .= " AND employment_type = ?";
+    $employees_query .= " AND COALESCE(er.employment_type, 'regular') = ?";
     $params[] = $filter_type;
     $types .= "s";
 }
 
-$employees_query .= " ORDER BY name";
+$employees_query .= " ORDER BY e.first_name, e.last_name";
 
 // Execute query with parameters
 if (!empty($params)) {
@@ -87,34 +136,139 @@ if (!empty($params)) {
     $employees_result = $conn->query($employees_query);
 }
 
-// Get unique values for filter dropdowns
-$positions_query = "SELECT DISTINCT position FROM employee_refs WHERE position IS NOT NULL AND position != '' ORDER BY position";
+// Get unique values for filter dropdowns - FIXED: Now pulls from HRIS tables
+$positions_query = "SELECT DISTINCT p.position_title as position 
+                    FROM `position` p 
+                    INNER JOIN employee e ON e.position_id = p.position_id 
+                    WHERE p.position_title IS NOT NULL AND p.position_title != '' 
+                    ORDER BY p.position_title";
 $positions_result = $conn->query($positions_query);
 
-$departments_query = "SELECT DISTINCT department FROM employee_refs WHERE department IS NOT NULL AND department != '' ORDER BY department";
+$departments_query = "SELECT DISTINCT d.department_name as department 
+                      FROM department d 
+                      INNER JOIN employee e ON e.department_id = d.department_id 
+                      WHERE d.department_name IS NOT NULL AND d.department_name != '' 
+                      ORDER BY d.department_name";
 $departments_result = $conn->query($departments_query);
 
-$types_query = "SELECT DISTINCT employment_type FROM employee_refs ORDER BY employment_type";
+$types_query = "SELECT DISTINCT COALESCE(er.employment_type, 'regular') as employment_type 
+                FROM employee e 
+                LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                ORDER BY employment_type";
 $types_result = $conn->query($types_query);
 
 // Get employee data for selected employee or first employee
+// FIXED: Now pulls from HRIS employee table first, with employee_refs as optional supplement
 if ($selected_employee) {
-    $employee_query = "SELECT * FROM employee_refs WHERE external_employee_no = ?";
+    // Extract employee_id from external_employee_no (EMP001 -> 1)
+    $employee_id_from_external = null;
+    if (preg_match('/EMP(\d+)/i', $selected_employee, $matches)) {
+        $employee_id_from_external = intval($matches[1]);
+    }
+    
+    $employee_query = "SELECT 
+                        COALESCE(er.id, NULL) as ref_id,
+                        CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as external_employee_no,
+                        COALESCE(er.employment_type, 'regular') as employment_type,
+                        COALESCE(er.base_monthly_salary, c.salary, 0) as base_monthly_salary,
+                        COALESCE(er.created_at, e.hire_date) as created_at,
+                        e.employee_id as hris_employee_id,
+                        e.first_name as hris_first_name,
+                        e.middle_name as hris_middle_name,
+                        e.last_name as hris_last_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as hris_full_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
+                        e.first_name,
+                        e.middle_name,
+                        e.last_name,
+                        e.gender,
+                        e.birth_date,
+                        e.contact_number,
+                        e.email,
+                        e.address,
+                        e.hire_date,
+                        e.employment_status as hris_employment_status,
+                        e.employment_status,
+                        d.department_name as hris_department_name,
+                        d.department_name as department,
+                        p.position_title as hris_position_title,
+                        p.position_title as position,
+                        c.contract_id,
+                        c.contract_type,
+                        c.salary as contract_salary,
+                        c.start_date as contract_start_date,
+                        c.end_date as contract_end_date,
+                        c.benefits as contract_benefits
+                    FROM employee e
+                    LEFT JOIN employee_refs er ON (
+                        er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        OR e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
+                    )
+                    LEFT JOIN department d ON e.department_id = d.department_id
+                    LEFT JOIN `position` p ON e.position_id = p.position_id
+                    LEFT JOIN contract c ON e.contract_id = c.contract_id
+                    WHERE e.employee_id = ?";
     $stmt = $conn->prepare($employee_query);
-    $stmt->bind_param("s", $selected_employee);
+    $stmt->bind_param("i", $employee_id_from_external);
     $stmt->execute();
     $employee_result = $stmt->get_result();
     $current_employee = $employee_result->fetch_assoc();
 } else {
-    $employee_result = $conn->query("SELECT * FROM employee_refs ORDER BY name LIMIT 1");
+    $employee_result = $conn->query("SELECT 
+                        COALESCE(er.id, NULL) as ref_id,
+                        CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as external_employee_no,
+                        COALESCE(er.employment_type, 'regular') as employment_type,
+                        COALESCE(er.base_monthly_salary, c.salary, 0) as base_monthly_salary,
+                        COALESCE(er.created_at, e.hire_date) as created_at,
+                        e.employee_id as hris_employee_id,
+                        e.first_name as hris_first_name,
+                        e.middle_name as hris_middle_name,
+                        e.last_name as hris_last_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as hris_full_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
+                        e.first_name,
+                        e.middle_name,
+                        e.last_name,
+                        e.gender,
+                        e.birth_date,
+                        e.contact_number,
+                        e.email,
+                        e.address,
+                        e.hire_date,
+                        e.employment_status as hris_employment_status,
+                        e.employment_status,
+                        d.department_name as hris_department_name,
+                        d.department_name as department,
+                        p.position_title as hris_position_title,
+                        p.position_title as position,
+                        c.contract_id,
+                        c.contract_type,
+                        c.salary as contract_salary,
+                        c.start_date as contract_start_date,
+                        c.end_date as contract_end_date,
+                        c.benefits as contract_benefits
+                    FROM employee e
+                    LEFT JOIN employee_refs er ON (
+                        er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        OR e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
+                    )
+                    LEFT JOIN department d ON e.department_id = d.department_id
+                    LEFT JOIN `position` p ON e.position_id = p.position_id
+                    LEFT JOIN contract c ON e.contract_id = c.contract_id
+                    ORDER BY e.first_name, e.last_name LIMIT 1");
     $current_employee = $employee_result->fetch_assoc();
     $selected_employee = $current_employee ? $current_employee['external_employee_no'] : '';
 }
 
-// Get employee base salary directly from employee_refs table
+// Get employee base salary - prioritize HRIS contract salary, then employee_refs
 $position_salary = 0;
-if ($selected_employee && $current_employee && isset($current_employee['base_monthly_salary'])) {
-    $position_salary = floatval($current_employee['base_monthly_salary']);
+if ($selected_employee && $current_employee) {
+    // First try HRIS contract salary, then employee_refs base_monthly_salary
+    if (!empty($current_employee['contract_salary']) && floatval($current_employee['contract_salary']) > 0) {
+        $position_salary = floatval($current_employee['contract_salary']);
+    } elseif (isset($current_employee['base_monthly_salary'])) {
+        $position_salary = floatval($current_employee['base_monthly_salary']);
+    }
 }
 
 // Fetch salary components for earnings
@@ -364,9 +518,15 @@ if ($selected_employee) {
         } else {
             if ($payroll_period === 'first' || $payroll_period === 'second') {
                 // Bind parameters: employee_id (for HRIS), period dates, employee_external_no (for accounting), period dates
-                $attendance_stmt->bind_param("issss", 
-                    $employee_id_from_external, $period_start, $period_end,  // For HRIS attendance table
-                    $selected_employee, $period_start, $period_end           // For employee_attendance table
+                // Query has 6 placeholders total:
+                // 1. a.employee_id = ? (integer)
+                // 2. DATE(a.date) BETWEEN ? AND ? (2 strings: period_start, period_end)
+                // 3. ea.employee_external_no = ? (string)
+                // 4. ea.attendance_date BETWEEN ? AND ? (2 strings: period_start, period_end)
+                // Total: 1 integer + 5 strings = "isssss"
+                $attendance_stmt->bind_param("isssss", 
+                    $employee_id_from_external, $period_start, $period_end,  // For HRIS attendance table (i, s, s)
+                    $selected_employee, $period_start, $period_end           // For employee_attendance table (s, s, s)
                 );
                 error_log("Fetching attendance for employee_id=$employee_id_from_external / external_no=$selected_employee, period=$period_start to $period_end");
             } else {
@@ -400,8 +560,117 @@ if ($selected_employee) {
                 error_log("Found $record_count attendance records from both sources (HRIS + Accounting)");
             }
         }
-    } else {
+            } else {
         error_log("Could not extract employee_id from: $selected_employee");
+    }
+    
+    // Fetch leave requests from HRIS and merge with attendance data
+    // FIXED: Now properly fetches approved leaves from HRIS
+    if ($employee_id_from_external) {
+        // Get approved leave requests for the selected period
+        $leave_query = "SELECT 
+                            lr.leave_request_id,
+                            lr.start_date,
+                            lr.end_date,
+                            lr.total_days,
+                            lr.reason,
+                            lt.leave_name,
+                            lt.paid_unpaid,
+                            lr.status
+                        FROM leave_request lr
+                        LEFT JOIN leave_type lt ON lr.leave_type_id = lt.leave_type_id
+                        WHERE lr.employee_id = ?
+                        AND (UPPER(TRIM(lr.status)) = 'APPROVED' OR LOWER(TRIM(lr.status)) = 'approved')";
+        
+        $leave_params = [];
+        $leave_types = "";
+        
+        if ($payroll_period === 'first' || $payroll_period === 'second') {
+            // For period-based: check if leave overlaps with period
+            // Query has 7 placeholders: 1 integer (employee_id) + 6 strings (dates)
+            $leave_query .= " AND (
+                                (lr.start_date <= ? AND lr.end_date >= ?)
+                                OR (lr.start_date BETWEEN ? AND ?)
+                                OR (lr.end_date BETWEEN ? AND ?)
+                            )";
+            $leave_params = [$employee_id_from_external, $period_end, $period_start, $period_start, $period_end, $period_start, $period_end];
+            $leave_types = "issssss"; // 1 integer + 6 strings = 7 parameters
+        } else {
+            // For full month: check if leave overlaps with month
+            $leave_query .= " AND (
+                                DATE_FORMAT(lr.start_date, '%Y-%m') = ?
+                                OR DATE_FORMAT(lr.end_date, '%Y-%m') = ?
+                                OR (lr.start_date <= LAST_DAY(STR_TO_DATE(?, '%Y-%m')) AND lr.end_date >= STR_TO_DATE(CONCAT(?, '-01'), '%Y-%m-%d'))
+                            )";
+            $leave_params = [$employee_id_from_external, $display_month, $display_month, $display_month, $display_month];
+            $leave_types = "issss";
+        }
+        
+        $leave_stmt = $conn->prepare($leave_query);
+        if ($leave_stmt) {
+            $leave_stmt->bind_param($leave_types, ...$leave_params);
+            $leave_stmt->execute();
+            $leave_result = $leave_stmt->get_result();
+            
+            // Create a map of attendance dates to avoid duplicates
+            $attendance_dates = [];
+            foreach ($attendance_data as $att_record) {
+                $attendance_dates[date('Y-m-d', strtotime($att_record['date']))] = true;
+            }
+            
+            // Add leave days to attendance data
+            while ($leave = $leave_result->fetch_assoc()) {
+                $start_date = new DateTime($leave['start_date']);
+                $end_date = new DateTime($leave['end_date']);
+                $leave_name = $leave['leave_name'] ?? 'Approved Leave';
+                $leave_reason = $leave['reason'] ?? '';
+                
+                // Generate all dates in the leave range
+                $current_date = clone $start_date;
+                while ($current_date <= $end_date) {
+                    $date_str = $current_date->format('Y-m-d');
+                    
+                    // Check if this date is within the selected period
+                    $include_date = false;
+                    if ($payroll_period === 'first' || $payroll_period === 'second') {
+                        $date_check = $current_date->format('Y-m-d');
+                        if ($date_check >= $period_start && $date_check <= $period_end) {
+                            $include_date = true;
+                        }
+                    } else {
+                        $date_check = $current_date->format('Y-m');
+                        if ($date_check === $display_month) {
+                            $include_date = true;
+                        }
+                    }
+                    
+                    // Only add if date is in period and not already in attendance data
+                    if ($include_date && !isset($attendance_dates[$date_str])) {
+                        $attendance_data[] = [
+                            'date' => $date_str,
+                            'time_in' => null,
+                            'time_out' => null,
+                            'status' => 'leave',
+                            'hours_worked' => 0.00,
+                            'overtime_hours' => 0.00,
+                            'late_minutes' => 0,
+                            'remarks' => "Leave: $leave_name - $leave_reason",
+                            'source' => 'hris_leave'
+                        ];
+                        $attendance_dates[$date_str] = true;
+                    }
+                    
+                    $current_date->modify('+1 day');
+                }
+            }
+            
+            // Sort attendance data by date DESC (newest first)
+            usort($attendance_data, function($a, $b) {
+                return strtotime($b['date']) - strtotime($a['date']);
+            });
+            
+            $leave_stmt->close();
+        }
     }
     
     // Calculate summary from attendance data for display (will be overridden by API if available)
@@ -654,10 +923,13 @@ if ($selected_employee) {
                                     <?php 
                                     $employees_result->data_seek(0);
                                     while($emp = $employees_result->fetch_assoc()): 
+                                        // Use HRIS full name if available, otherwise use employee_refs name
+                                        $display_name = !empty($emp['hris_full_name']) ? trim($emp['hris_full_name']) : ($emp['name'] ?? 'Unknown');
+                                        $employee_number = $emp['external_employee_no'];
                                     ?>
-                                        <option value="<?php echo $emp['external_employee_no']; ?>" 
-                                                <?php echo ($emp['external_employee_no'] == $selected_employee) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($emp['name'] . ' (' . $emp['external_employee_no'] . ')'); ?>
+                                        <option value="<?php echo $employee_number; ?>" 
+                                                <?php echo ($employee_number == $selected_employee) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($display_name . ' (' . $employee_number . ')'); ?>
                                         </option>
                                     <?php endwhile; ?>
                                 </select>
@@ -888,6 +1160,24 @@ if ($selected_employee) {
                                                 <td>Full Name</td>
                                                 <td><?php echo htmlspecialchars($current_employee['name'] ?? 'N/A'); ?></td>
                                             </tr>
+                                            <?php if (!empty($current_employee['first_name'])): ?>
+                                            <tr>
+                                                <td>First Name</td>
+                                                <td><?php echo htmlspecialchars($current_employee['first_name']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['middle_name'])): ?>
+                                            <tr>
+                                                <td>Middle Name</td>
+                                                <td><?php echo htmlspecialchars($current_employee['middle_name']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['last_name'])): ?>
+                                            <tr>
+                                                <td>Last Name</td>
+                                                <td><?php echo htmlspecialchars($current_employee['last_name']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
                                             <tr>
                                                 <td>Position</td>
                                                 <td><?php echo htmlspecialchars($current_employee['position'] ?? 'N/A'); ?></td>
@@ -900,10 +1190,76 @@ if ($selected_employee) {
                                                 <td>Employment Type</td>
                                                 <td><?php echo ucfirst($current_employee['employment_type'] ?? 'N/A'); ?></td>
                                             </tr>
+                                            <?php if (!empty($current_employee['employment_status'])): ?>
+                                            <tr>
+                                                <td>Employment Status</td>
+                                                <td><?php echo ucfirst($current_employee['employment_status']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['gender'])): ?>
+                                            <tr>
+                                                <td>Gender</td>
+                                                <td><?php echo ucfirst($current_employee['gender']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['birth_date'])): ?>
+                                            <tr>
+                                                <td>Birth Date</td>
+                                                <td><?php echo date('F d, Y', strtotime($current_employee['birth_date'])); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['email'])): ?>
+                                            <tr>
+                                                <td>Email</td>
+                                                <td><?php echo htmlspecialchars($current_employee['email']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['contact_number'])): ?>
+                                            <tr>
+                                                <td>Contact Number</td>
+                                                <td><?php echo htmlspecialchars($current_employee['contact_number']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['address'])): ?>
+                                            <tr>
+                                                <td>Address</td>
+                                                <td><?php echo htmlspecialchars($current_employee['address']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['hire_date'])): ?>
+                                            <tr>
+                                                <td>Hire Date (HRIS)</td>
+                                                <td><?php echo date('F d, Y', strtotime($current_employee['hire_date'])); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
                                             <tr>
                                                 <td>Date of Joining</td>
                                                 <td><?php echo date('F d, Y', strtotime($current_employee['created_at'])); ?></td>
                                             </tr>
+                                            <?php if (!empty($current_employee['contract_type'])): ?>
+                                            <tr>
+                                                <td>Contract Type</td>
+                                                <td><?php echo htmlspecialchars($current_employee['contract_type']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['contract_start_date'])): ?>
+                                            <tr>
+                                                <td>Contract Start</td>
+                                                <td><?php echo date('F d, Y', strtotime($current_employee['contract_start_date'])); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['contract_end_date'])): ?>
+                                            <tr>
+                                                <td>Contract End</td>
+                                                <td><?php echo date('F d, Y', strtotime($current_employee['contract_end_date'])); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
+                                            <?php if (!empty($current_employee['contract_benefits'])): ?>
+                                            <tr>
+                                                <td>Contract Benefits</td>
+                                                <td><?php echo htmlspecialchars($current_employee['contract_benefits']); ?></td>
+                                            </tr>
+                                            <?php endif; ?>
                                             <tr>
                                                 <td>Bank Name</td>
                                                 <td><?php echo htmlspecialchars($company_bank['bank_name'] ?? 'N/A'); ?></td>

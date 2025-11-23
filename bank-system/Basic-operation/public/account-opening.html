@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evergreen - Account Opening</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="../assets/css/customer-onboarding-details.css"
+    />
+    <link
+      rel="stylesheet"
+      href="../assets/css/account-opening.css"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+      .error-message {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+      }
+      .error-message.show {
+        display: block;
+      }
+      .form-control.error {
+        border-color: #dc3545;
+      }
+      .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+      }
+      .success-message.show {
+        display: block;
+      }
+      .account-type-card {
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+        background-color: white;
+      }
+      .account-type-card:hover {
+        border-color: var(--accent-gold);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .account-type-card.selected {
+        border-color: var(--accent-gold);
+        background-color: rgba(241, 178, 74, 0.1);
+      }
+      .account-type-card h6 {
+        color: var(--primary-dark);
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+      .account-type-card p {
+        color: var(--text-dark);
+        font-size: 13px;
+        margin-bottom: 0;
+      }
+      .info-box {
+        background-color: rgba(241, 178, 74, 0.1);
+        border-left: 4px solid var(--accent-gold);
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+      }
+      .info-box p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--text-dark);
+      }
+      #account_verification_status {
+        display: block;
+        padding: 6px 0;
+      }
+      #account_verification_status i {
+        margin-right: 6px;
+      }
+      #submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <div class="main-card">
+        <!-- Header -->
+        <div class="header-section">
+          <div class="logo-container">
+            <img
+              src="../assets/img/evergreen_icon.png"
+              alt="Logo"
+              class="logo"
+            />
+            <div class="logo-placeholder">
+              <div class="logo-text">
+                <span class="brand-name">EVERGREEN</span>
+                <span class="brand-tagline">Secure. Invest. Achieve</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+          <h5><i class="bi bi-wallet2 me-2"></i>Account Opening - New Savings or Checking Account</h5>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-wrapper">
+          <!-- Sidebar Navigation -->
+          <div class="sidebar">
+            <div class="nav-item active">
+              <span class="nav-number">1.</span> Select Account Type
+            </div>
+            <div class="nav-item">
+              <span class="nav-number">2.</span> Review & Confirm
+            </div>
+          </div>
+
+          <!-- Main Form Content -->
+          <div class="form-section">
+            <div class="success-message" id="success-message"></div>
+            <form id="accountOpeningForm">
+              <!-- Info Box -->
+              <div class="info-box">
+                <p>
+                  <strong>Welcome!</strong> You can open a new Savings or Checking account. 
+                  Please select the account type you wish to open. You can open multiple accounts of the same type.
+                </p>
+              </div>
+
+              <!-- Account Verification -->
+              <div class="section-title">Account Verification</div>
+              
+              <div class="form-row">
+                <div class="form-group form-group-large">
+                  <label>Existing Account Number <span style="color: red">*</span></label>
+                  <input
+                    type="text"
+                    name="existing_account_number"
+                    id="existing_account_number"
+                    class="form-control"
+                    placeholder="Enter your existing account number (e.g., SA-1234-2024)"
+                    required
+                    autocomplete="off"
+                  />
+                  <small style="color: #666; font-size: 12px;">
+                    Please enter one of your existing account numbers to verify your identity.
+                  </small>
+                  <div id="account_verification_status" style="margin-top: 8px; font-size: 13px;"></div>
+                  <div class="error-message" id="error-existing_account_number"></div>
+                </div>
+              </div>
+
+              <!-- Account Type Selection -->
+              <div class="section-title">Select Account Type</div>
+
+              <div class="form-row" style="gap: 20px; margin-bottom: 20px;">
+                <div class="account-type-card" data-type="Savings">
+                  <h6>Savings Account</h6>
+                  <p>Earn interest on your deposits. Ideal for long-term savings goals.</p>
+                  <ul style="font-size: 12px; margin-top: 10px; padding-left: 20px;">
+                    <li>Interest-bearing account</li>
+                    <li>Minimum balance requirements</li>
+                    <li>Perfect for savings goals</li>
+                  </ul>
+                </div>
+                <div class="account-type-card" data-type="Checking">
+                  <h6>Checking Account</h6>
+                  <p>Daily transaction account. Easy access to your funds.</p>
+                  <ul style="font-size: 12px; margin-top: 10px; padding-left: 20px;">
+                    <li>Unlimited transactions</li>
+                    <li>Check writing capabilities</li>
+                    <li>No interest earned</li>
+                  </ul>
+                </div>
+              </div>
+
+              <input
+                type="hidden"
+                name="account_type"
+                id="selected_account_type"
+                required
+              />
+              <div class="error-message" id="error-account_type"></div>
+
+              <!-- Additional Information -->
+              <div class="section-title">Additional Information</div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Initial Deposit Amount (Optional)</label>
+                  <input
+                    type="number"
+                    name="initial_deposit"
+                    id="initial_deposit"
+                    class="form-control"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                  <small style="color: #666; font-size: 12px;">
+                    If you provide an initial deposit, you can transfer it from an existing account or deposit cash later.
+                  </small>
+                  <div class="error-message" id="error-initial_deposit"></div>
+                </div>
+                <div class="form-group">
+                  <label>Deposit Source (Required if amount provided)</label>
+                  <select name="deposit_source" id="deposit_source" class="form-control">
+                    <option value="">Select Deposit Source</option>
+                    <option value="cash">Cash Deposit</option>
+                    <option value="transfer">Transfer from Existing Account</option>
+                  </select>
+                  <div class="error-message" id="error-deposit_source"></div>
+                </div>
+              </div>
+
+              <!-- Source Account Selection (shown when transfer is selected) -->
+              <div class="form-row" id="source_account_row" style="display: none;">
+                <div class="form-group form-group-large">
+                  <label>Transfer From Account <span style="color: red">*</span></label>
+                  <select name="source_account_number" id="source_account_number" class="form-control">
+                    <option value="">Loading your accounts...</option>
+                  </select>
+                  <small style="color: #666; font-size: 12px;" id="source_account_balance">
+                    Select an account to see available balance
+                  </small>
+                  <div class="error-message" id="error-source_account_number"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Account Purpose (Optional)</label>
+                  <select name="account_purpose" class="form-control">
+                    <option value="">Select Purpose (Optional)</option>
+                    <option value="Personal Savings">Personal Savings</option>
+                    <option value="Business">Business</option>
+                    <option value="Emergency Fund">Emergency Fund</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Daily Transactions">Daily Transactions</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="button-group">
+                <button type="submit" class="btn btn-continue" id="submit-btn">
+                  Open Account
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-cancel"
+                  onclick="window.history.back()"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/account-opening.js"></script>
+  </body>
+</html>
+

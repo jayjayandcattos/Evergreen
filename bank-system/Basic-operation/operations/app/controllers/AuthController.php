@@ -108,7 +108,7 @@ class AuthController extends Controller{
     // Redirect to login page - dynamically construct URL to work with any host
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'];
-    $basePath = '/bank-system/evergreen-marketing/login.php';
+    $basePath = '/Evergreen/bank-system/evergreen-marketing/login.php';
     header('Location: ' . $protocol . '://' . $host . $basePath);
     exit();
   }

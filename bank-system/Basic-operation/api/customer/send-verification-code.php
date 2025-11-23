@@ -60,8 +60,22 @@ try {
     // Generate verification code
     $code = generateVerificationCode();
     
-    // Store code in session
+    // Generate bank ID (4-digit number, like in signup.php)
+    $bank_id = sprintf("%04d", mt_rand(0, 9999));
+    
+    // Store code and bank_id in session
     storeVerificationCode($phoneNumber, $code);
+    
+    // Store bank_id in session for later use
+    if (!isset($_SESSION['customer_onboarding'])) {
+        $_SESSION['customer_onboarding'] = [];
+    }
+    if (!isset($_SESSION['customer_onboarding']['data'])) {
+        $_SESSION['customer_onboarding']['data'] = [];
+    }
+    $_SESSION['customer_onboarding']['data']['bank_id'] = $bank_id;
+    
+    error_log("Generated Bank ID: " . $bank_id);
     
     // Send SMS
     $smsResult = sendVerificationSMS($phoneNumber, $code);
@@ -72,7 +86,9 @@ try {
         $response = [
             'success' => true,
             'message' => 'Verification code sent successfully',
-            'expires_in' => 300 // 5 minutes in seconds
+            'expires_in' => 300, // 5 minutes in seconds
+            'session_id' => session_id(),
+            'bank_id' => $bank_id // Always include bank_id so user can see it for login
         ];
         
         // Include code in response for mock/testing mode

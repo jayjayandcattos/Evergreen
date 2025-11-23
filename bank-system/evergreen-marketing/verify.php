@@ -40,257 +40,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         // Check if entered code matches the stored verification code
         if ($entered_code === $registration_data['verification_code']) {
-            
-            // --- Start Database Transaction ---
-            $conn->begin_transaction();
-            try {
+            error_log("About to insert user with referral code: " . ($registration_data['referral_code'] ?? 'NOT SET'));
+    
+           if (!isset($registration_data['referral_code']) || empty($registration_data['referral_code'])) {
+              error_log("WARNING: Referral code is missing from registration data!");
+              $error = "System error: Referral code not generated. Please try again.";
+          } else 
+            // NOW insert the user into the database
+                $sql = "INSERT INTO bank_customers (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, referral_code, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
 
-                // 1. Insert into bank_customers (Core Identity)
-                $sql_customer = "
-                    INSERT INTO bank_customers (first_name, middle_name, last_name, password_hash)
-                    VALUES (?, ?, ?, ?)
-                ";
-                $stmt1 = $conn->prepare($sql_customer);
-                $stmt1->bind_param(
-                    "ssss",
-                    $registration_data['first_name'],
-                    $registration_data['middle_name'],
-                    $registration_data['last_name'],
-                    $registration_data['password_hash']
-                );
-                $stmt1->execute();
-                $customer_id = $stmt1->insert_id;
-                $stmt1->close();
+                $stmt = $conn->prepare($sql);
+        if ($stmt) {
+              $stmt->bind_param("ssssssssssss",  // Changed from 11 's' to 12 's'
+        $registration_data['first_name'],
+       $registration_data['middle_name'],
+              $registration_data['last_name'],
+              $registration_data['address'],
+              $registration_data['city_province'],
+              $registration_data['email'],
+              $registration_data['contact_number'],
+              $registration_data['birthday'],
+              $registration_data['password'],
+              $registration_data['verification_code'],
+              $registration_data['bank_id'],
+              $registration_data['referral_code']  // ⭐ ADD THIS LINE
+              );
                 
-                if ($customer_id <= 0) {
-                    throw new Exception("Failed to create customer record.");
+                if ($stmt->execute()) {
+                    error_log("Account created successfully for: " . $registration_data['email']);
+                    
+                    // Set success flag BEFORE clearing temp data
+                    $_SESSION['account_created'] = true;
+                    $_SESSION['show_success_modal'] = true;
+                    $_SESSION['created_account_email'] = $registration_data['email'];
+                    
+                    // Clear temp session data
+                    unset($_SESSION['temp_registration']);
+                    
+                    // Set flag to show modal on page reload
+                    $show_success = true;
+                } else {
+                    $error = "Failed to create account: " . $stmt->error;
+                    error_log("Database error: " . $stmt->error);
                 }
-
-                // 2. Insert into customer_profiles (Personal Details)
-                $sql_profile = "
-                    INSERT INTO customer_profiles (customer_id, gender_id, date_of_birth, marital_status, occupation, company, income_range)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ";
-                $stmt_profile = $conn->prepare($sql_profile);
-                $stmt_profile->bind_param(
-                    "issssss",
-                    $customer_id,
-                    $registration_data['gender_id'],
-                    $registration_data['date_of_birth'],
-                    $registration_data['marital_status'],
-                    $registration_data['occupation'],
-                    $registration_data['company'],
-                    $registration_data['monthly_salary']
-                );
-                $stmt_profile->execute();
-                $stmt_profile->close();
-
-                // 3. Insert into emails
-                $sql_email = "INSERT INTO emails (customer_id, email, is_primary) VALUES (?, ?, 1)";
-                $stmt2 = $conn->prepare($sql_email);
-                $stmt2->bind_param("is", $customer_id, $registration_data['email']);
-                $stmt2->execute();
-                $stmt2->close();
-
-                // 4. Insert into phones (Corrected table name)
-                $sql_phone = "INSERT INTO phones (customer_id, phone_number, is_primary) VALUES (?, ?, 1)";
-                $stmt3 = $conn->prepare($sql_phone);
-                $stmt3->bind_param("is", $customer_id, $registration_data['phone_number']);
-                $stmt3->execute();
-                $stmt3->close();
-
-                // 5. Insert into addresses (Corrected column names)
-                // Note: Assumes province_id 1 (Metro Manila) as default. 
-                // You might want to ask for this in the form.
-                $sql_address = "INSERT INTO addresses (customer_id, address_line, city, is_primary, province_id) VALUES (?, ?, ?, 1, 1)";
-                $stmt4 = $conn->prepare($sql_address);
-                $stmt4->bind_param("iss", $customer_id, $registration_data['address_line'], $registration_data['city']);
-                $stmt4->execute();
-                $stmt4->close();
-
-                // --- Commit Transaction ---
-                $conn->commit();
-                
-                // Generate referral code for new customer
-                function generateReferralCode($conn, $customer_id) {
-                    // Check if referral_code column exists
-                    $check_column = $conn->query("SHOW COLUMNS FROM bank_customers LIKE 'referral_code'");
-                    if ($check_column->num_rows == 0) {
-                        // Column doesn't exist - migration not run yet
-                        error_log("Warning: referral_code column does not exist. Please run the migration.");
-                        return null;
-                    }
-                    
-                    // Format: EVG + customer_id (padded) + random 3 digits
-                    $base_code = 'EVG' . str_pad($customer_id, 6, '0', STR_PAD_LEFT);
-                    $random_suffix = rand(100, 999);
-                    $referral_code = $base_code . $random_suffix;
-                    
-                    // Ensure uniqueness
-                    $check_stmt = $conn->prepare("SELECT customer_id FROM bank_customers WHERE referral_code = ?");
-                    if (!$check_stmt) {
-                        error_log("Error preparing statement: " . $conn->error);
-                        return null;
-                    }
-                    
-                    $check_stmt->bind_param("s", $referral_code);
-                    $check_stmt->execute();
-                    $result = $check_stmt->get_result();
-                    
-                    if ($result->num_rows > 0) {
-                        // If exists, regenerate with different random suffix
-                        $random_suffix = rand(1000, 9999);
-                        $referral_code = $base_code . $random_suffix;
-                    }
-                    $check_stmt->close();
-                    
-                    // Update customer with referral code
-                    $update_stmt = $conn->prepare("UPDATE bank_customers SET referral_code = ? WHERE customer_id = ?");
-                    if (!$update_stmt) {
-                        error_log("Error preparing update statement: " . $conn->error);
-                        return null;
-                    }
-                    
-                    $update_stmt->bind_param("si", $referral_code, $customer_id);
-                    $update_stmt->execute();
-                    $update_stmt->close();
-                    
-                    return $referral_code;
-                }
-                
-                // Process referral if code was provided
-                function processReferral($conn, $new_customer_id, $referral_code) {
-                    if (empty($referral_code)) {
-                        return false; // No referral code provided
-                    }
-                    
-                    // Check if referral_code column exists
-                    $check_column = $conn->query("SHOW COLUMNS FROM bank_customers LIKE 'referral_code'");
-                    if ($check_column->num_rows == 0) {
-                        // Column doesn't exist - migration not run yet
-                        error_log("Warning: referral_code column does not exist. Please run the migration.");
-                        return false;
-                    }
-                    
-                    $referral_code = strtoupper(trim($referral_code));
-                    
-                    // Find the referrer
-                    $find_stmt = $conn->prepare("SELECT customer_id FROM bank_customers WHERE referral_code = ?");
-                    if (!$find_stmt) {
-                        error_log("Error preparing find statement: " . $conn->error);
-                        return false;
-                    }
-                    
-                    $find_stmt->bind_param("s", $referral_code);
-                    $find_stmt->execute();
-                    $result = $find_stmt->get_result();
-                    
-                    if ($result->num_rows === 0) {
-                        $find_stmt->close();
-                        return false; // Invalid referral code, but don't fail registration
-                    }
-                    
-                    $referrer = $result->fetch_assoc();
-                    $referrer_id = $referrer['customer_id'];
-                    $find_stmt->close();
-                    
-                    // Check if user is trying to use their own code
-                    if ($referrer_id == $new_customer_id) {
-                        return false; // Can't use own code
-                    }
-                    
-                    // Check if this customer was already referred
-                    $check_stmt = $conn->prepare("SELECT referred_by_customer_id FROM bank_customers WHERE customer_id = ? AND referred_by_customer_id IS NOT NULL");
-                    if (!$check_stmt) {
-                        error_log("Error preparing check statement: " . $conn->error);
-                        return false;
-                    }
-                    
-                    $check_stmt->bind_param("i", $new_customer_id);
-                    $check_stmt->execute();
-                    $check_result = $check_stmt->get_result();
-                    
-                    if ($check_result->num_rows > 0) {
-                        $check_stmt->close();
-                        return false; // Already referred
-                    }
-                    $check_stmt->close();
-                    
-                    // Points to award
-                    $referrer_points = 50.00;  // Points for referrer
-                    $referred_points = 25.00; // Points for new user
-                    
-                    // Start transaction for referral processing
-                    $conn->begin_transaction();
-                    
-                    try {
-                        // Update new customer with referrer info
-                        $update_stmt = $conn->prepare("UPDATE bank_customers SET referred_by_customer_id = ? WHERE customer_id = ?");
-                        if (!$update_stmt) {
-                            throw new Exception("Error preparing update statement: " . $conn->error);
-                        }
-                        $update_stmt->bind_param("ii", $referrer_id, $new_customer_id);
-                        $update_stmt->execute();
-                        $update_stmt->close();
-                        
-                        // Award points to referrer
-                        $points_stmt = $conn->prepare("UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?");
-                        if (!$points_stmt) {
-                            throw new Exception("Error preparing points statement: " . $conn->error);
-                        }
-                        $points_stmt->bind_param("di", $referrer_points, $referrer_id);
-                        $points_stmt->execute();
-                        $points_stmt->close();
-                        
-                        // Award points to new customer
-                        $points_stmt = $conn->prepare("UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?");
-                        if (!$points_stmt) {
-                            throw new Exception("Error preparing points statement: " . $conn->error);
-                        }
-                        $points_stmt->bind_param("di", $referred_points, $new_customer_id);
-                        $points_stmt->execute();
-                        $points_stmt->close();
-                        
-                        $conn->commit();
-                        return true;
-                    } catch (Exception $e) {
-                        $conn->rollback();
-                        error_log("Referral processing error: " . $e->getMessage());
-                        return false;
-                    }
-                }
-                
-                // Generate referral code for new customer (only if column exists)
-                $new_referral_code = generateReferralCode($conn, $customer_id);
-                
-                // Process referral if code was provided (only if columns exist)
-                $referral_processed = false;
-                if (!empty($registration_data['referral_code']) && $new_referral_code !== null) {
-                    $referral_processed = processReferral($conn, $customer_id, $registration_data['referral_code']);
-                }
-                
-                // Success
-                $_SESSION['account_created'] = true;
-                $_SESSION['show_success_modal'] = true;
-                $_SESSION['created_account_email'] = $registration_data['email'];
-                if ($new_referral_code !== null) {
-                    $_SESSION['referral_code'] = $new_referral_code; // Store for display
-                }
-                $_SESSION['referral_processed'] = $referral_processed; // Track if referral was processed
-
-                // Remove temp data
-                unset($_SESSION['temp_registration']);
-
-                header("Location: verify.php");
-                exit;
-
-            } catch (Exception $e) {
-                // --- Rollback Transaction ---
-                $conn->rollback();
-                $error = "An error occurred during registration. Please try again. " . $e->getMessage();
-                error_log("Registration Error: " . $e->getMessage());
+                $stmt->close();
+            } else {
+                $error = "Database preparation error: " . $conn->error;
+                error_log("Prepare error: " . $conn->error);
             }
-
         } else {
             $error = "Invalid verification code. Please try again.";
         }
@@ -339,7 +136,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <p>You requested a new verification code.</p>
                     
                     <div style='background: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0;'>
-                        <h3 style='color: #0d3d38;'>Your New Verification Code:</h3>
+                        <h3 style='color: #0d3d38; margin-bottom: 10px;'>Bank ID: <span style='color: #1a6b62;'>{$registration_data['bank_id']}</span></h3>
+                        <h3 style='color: #0d3d38;'>Verification Code:</h3>
                         <h1 style='color: #0d3d38; letter-spacing: 5px; font-size: 36px;'>{$new_code}</h1>
                     </div>
                     
@@ -349,43 +147,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </html>
             ";
             
-            error_log("Attempting to resend email to: " . $registration_data['email']);
+            error_log("Attempting to send email to: " . $registration_data['email']);
             $mail->send();
             $success = "A new verification code has been sent to your email.";
-            error_log("Email resent successfully to: " . $registration_data['email']);
+            error_log("Email sent successfully to: " . $registration_data['email']);
         } catch (Exception $e) {
             $error = "Could not send email. Mailer Error: {$mail->ErrorInfo}";
-            error_log("Failed to resend email: " . $mail->ErrorInfo);
+            error_log("Failed to send email: " . $mail->ErrorInfo);
         }
     }
 }
 
-// Get email for display, even if temp data is gone (for success modal)
-$email_to_display = $_SESSION['temp_registration']['email'] ?? $_SESSION['created_account_email'] ?? 'your email';
-
-// Get referral code and status for display
-$referral_code_display = $_SESSION['referral_code'] ?? null;
-$referral_processed_display = $_SESSION['referral_processed'] ?? false;
+$email = $_SESSION['temp_registration']['email'] ?? '';
 
 // Check if we should show success modal
 $show_success = false;
 if (isset($_SESSION['show_success_modal'])) {
     $show_success = true;
-    $email_to_display = $_SESSION['created_account_email'] ?? 'your email';
-    // Keep referral code in session for modal display
-    // Clear session data after modal is shown (will be cleared on next page load)
-    if (isset($_SESSION['show_success_modal'])) {
-        // Clear these after displaying
-        $temp_referral_code = $_SESSION['referral_code'] ?? null;
-        $temp_referral_processed = $_SESSION['referral_processed'] ?? false;
-        unset($_SESSION['show_success_modal']);
-        unset($_SESSION['created_account_email']);
-        // Keep referral code in session for display in modal
-        if ($temp_referral_code) {
-            $_SESSION['referral_code'] = $temp_referral_code;
-            $_SESSION['referral_processed'] = $temp_referral_processed;
-        }
-    }
+    $email = $_SESSION['created_account_email'] ?? '';
+    unset($_SESSION['show_success_modal']);
+    unset($_SESSION['created_account_email']);
 }
 ?>
 
@@ -404,7 +185,7 @@ if (isset($_SESSION['show_success_modal'])) {
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      background-image: url(images/bg-image.png); /* Make sure this path is correct */
+      background-image: url(images/bg-image.png);
         background-repeat: no-repeat;
         background-size: cover;
         background-attachment: fixed;
@@ -620,7 +401,7 @@ if (isset($_SESSION['show_success_modal'])) {
 </head>
 <body>
   <div class="logo-container">
-    <img src="images/loginlogo.png" alt="Logo"> <!-- Make sure this path is correct -->
+    <img src="images/loginlogo.png" alt="Logo">
     <div class="logo-text">
       <span class="name">EVERGREEN</span>
       <span class="tagline">Secure. Invest. Achieve</span>
@@ -652,7 +433,7 @@ if (isset($_SESSION['show_success_modal'])) {
       </div>
 
       <p class="info-text">
-        We've sent a 6-digit verification code to <span class="email"><?= htmlspecialchars($email_to_display) ?></span>.<br>
+        We've sent a 6-digit verification code to <span class="email"><?= htmlspecialchars($email) ?></span>.<br>
         Please enter the code above to continue.
       </p>
 
@@ -668,8 +449,7 @@ if (isset($_SESSION['show_success_modal'])) {
       <div class="timer" id="timer"></div>
     </div>
     <?php else: ?>
-    <!-- This part is hidden by the modal, but good to have as a fallback -->
-    <p style="font-size: 14px; color: #666;">Account created successfully!</p>
+    <p style="font-size: 14px; color: #666;">Processing your account...</p>
     <?php endif; ?>
   </div>
 
@@ -735,11 +515,6 @@ if (isset($_SESSION['show_success_modal'])) {
               box-shadow: 0 0 0 20px rgba(13, 61, 56, 0);
             }
           }
-           @keyframes draw {
-             to {
-               stroke-dashoffset: 0;
-             }
-           }
         </style>
         <div style="
           background: white;
@@ -770,6 +545,14 @@ if (isset($_SESSION['show_success_modal'])) {
             </svg>
           </div>
           
+          <style>
+            @keyframes draw {
+              to {
+                stroke-dashoffset: 0;
+              }
+            }
+          </style>
+          
           <h3 style="
             color: #0d3d38;
             margin-bottom: 1rem;
@@ -780,57 +563,29 @@ if (isset($_SESSION['show_success_modal'])) {
           
           <p style="
             color: #666;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             font-size: 1.05rem;
             line-height: 1.6;
           ">Welcome to <strong style="color: #0d3d38;">EVERGREEN Banking</strong>!<br>Your account has been verified and is ready to use.</p>
           
-          <?php if (isset($_SESSION['referral_code'])): ?>
           <div style="
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 1.2rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            border: 2px solid #0d3d38;
+            background: #f0f9f8;
+            border-left: 4px solid #1a6b62;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: left;
           ">
             <p style="
               color: #0d3d38;
               font-size: 0.9rem;
-              font-weight: 600;
-              margin-bottom: 0.5rem;
-            ">Your Referral Code:</p>
-            <p style="
-              color: #0d3d38;
-              font-size: 1.5rem;
-              font-weight: 700;
-              letter-spacing: 2px;
-              font-family: 'Courier New', monospace;
               margin: 0;
-            "><?php echo htmlspecialchars($_SESSION['referral_code']); ?></p>
-            <p style="
-              color: #666;
-              font-size: 0.75rem;
-              margin-top: 0.5rem;
-              margin-bottom: 0;
-            ">Share this code with friends to earn bonus points!</p>
+              line-height: 1.5;
+            ">
+              <strong>📧 Check your email</strong><br>
+              <span style="color: #666;">Your Bank ID and login credentials have been sent to your email address.</span>
+            </p>
           </div>
-          <?php endif; ?>
-          
-          <?php if (isset($_SESSION['referral_processed']) && $_SESSION['referral_processed']): ?>
-          <div style="
-            background: #d4edda;
-            padding: 0.8rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            border: 1px solid #c3e6cb;
-          ">
-            <p style="
-              color: #155724;
-              font-size: 0.85rem;
-              margin: 0;
-            ">✓ Referral code applied! You and your friend earned bonus points!</p>
-          </div>
-          <?php endif; ?>
           
           <p style="
             color: #999;
@@ -915,17 +670,13 @@ if (isset($_SESSION['show_success_modal'])) {
           });
           if (digits.length < 6) {
             inputs[digits.length].focus();
-          } else {
-              inputs[5].focus(); // Focus last input
           }
         }
       });
     });
 
     // Auto-focus first input
-    if(inputs.length > 0) {
-        inputs[0].focus();
-    }
+    inputs[0].focus();
 
     // Resend timer
     let timeLeft = 30;
