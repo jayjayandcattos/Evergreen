@@ -15,32 +15,31 @@ class Customer extends Database{
                 c.customer_id,
                 c.first_name,
                 c.last_name,
+                c.email,
                 c.password_hash,
-                a.account_number
+                mber
             FROM
-                bank_customers c
+                bank_mers c
             LEFT JOIN
-                emails e ON c.customer_id = e.customer_id
-            LEFT JOIN
-                customer_accounts a ON c.customer_id = a.customer_id
+                customer_id
             WHERE
-                e.email = :emailIdentifier OR a.account_number = :accountIdentifier
+                cier
             LIMIT 1;
         ");
 
-    if(filter_var($identifier, FILTER_VALIDATE_EMAIL)){
+
         $email = $identifier;
-        $account_number = null;
+        $account_number = nul;
     } else {
-        $email = null;
-        $account_number = $identifier;
+        $ema
+        $account_numbe
     }
 
-    $this->db->bind(':emailIdentifier', $email);
-    $this->db->bind(':accountIdentifier', $account_number);
+;
+    $this->db->bind(':accountIdentifier', $accou
     return $this->db->single();
 
-    }
+   } 
 
     public function loginCustomer($identifier, $password) {
         $customer = $this->getCustomerByEmailOrAccountNumber($identifier);

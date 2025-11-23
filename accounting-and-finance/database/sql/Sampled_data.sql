@@ -1146,13 +1146,13 @@ INSERT INTO bank_employees (employee_id, employee_name, created_at) VALUES
 ON DUPLICATE KEY UPDATE employee_name = VALUES(employee_name);
 
 -- Bank Customers
-INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, password_hash, created_at, created_by_employee_id) VALUES
-(1, 'Reyes', 'Juan', 'Dela', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 90 DAY, 1),
-(2, 'Santos', 'Maria', 'Garcia', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 75 DAY, 1),
-(3, 'Cruz', 'Jose', 'Ramos', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 60 DAY, 2),
-(4, 'Lopez', 'Anna', NULL, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 45 DAY, 2),
-(5, 'Garcia', 'Roberto', 'Fernandez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 3)
-ON DUPLICATE KEY UPDATE last_name = VALUES(last_name);
+INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, email, password_hash, created_at, created_by_employee_id) VALUES
+(1, 'Reyes', 'Juan', 'Dela', 'juan.reyes@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 90 DAY, 1),
+(2, 'Santos', 'Maria', 'Garcia', 'maria.santos@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 75 DAY, 1),
+(3, 'Cruz', 'Jose', 'Ramos', 'jose.cruz@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 60 DAY, 2),
+(4, 'Lopez', 'Anna', NULL, 'anna.lopez@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 45 DAY, 2),
+(5, 'Garcia', 'Roberto', 'Fernandez', 'roberto.garcia@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 3)
+ON DUPLICATE KEY UPDATE last_name = VALUES(last_name), email = VALUES(email);
 
 -- Customer Profiles
 INSERT INTO customer_profiles (profile_id, customer_id, gender_id, date_of_birth, marital_status, national_id, occupation, company, income_range, preferred_language, nationality, loyalty_member, profile_created_at) VALUES
