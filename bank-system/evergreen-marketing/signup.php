@@ -78,22 +78,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match!";
     } else {
-        // Check if email already exists
         $check_sql = "SELECT customer_id FROM bank_customers WHERE email = ?";
         $check_stmt = $conn->prepare($check_sql);
-        
-        if ($check_stmt === false) {
-            // If prepare fails, log error and show generic message
-            error_log("Database prepare error: " . $conn->error);
-            $error = "Database error. Please try again later.";
-        } else {
-            $check_stmt->bind_param("s", $email);
-            $check_stmt->execute();
-            $check_result = $check_stmt->get_result();
+        $check_stmt->bind_param("s", $email);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
 
-            if ($check_result->num_rows > 0) {
-                $error = "Email already registered.";
-            } else {
+        if ($check_result->num_rows > 0) {
+    $error = "Email already registered.";
+} else 
+    $check_sql = "SELECT customer_id FROM bank_customers WHERE email = ?";
+    $check_stmt = $conn->prepare($check_sql);
+    $check_stmt->bind_param("s", $email);
+    $check_stmt->execute();
+    $check_result = $check_stmt->get_result();
+
+    if ($check_result->num_rows > 0) {
+        $error = "Email already registered.";
+    } else {
         // Generate verification code and bank ID
         $verification_code = sprintf("%06d", rand(0, 999999));
         $bank_id = sprintf("%04d", mt_rand(0, 9999));
@@ -195,9 +197,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: verify.php");
                 exit;
             }
-            }
-            $check_stmt->close();
         }
+        $check_stmt->close();
     }
 }
 
@@ -1543,7 +1544,33 @@ $stmt->execute();
         }
       }
 
-      // Signup Form Validation - THIS IS THE KEY FIX
+      // Function to validate age
+      function isAtLeast18(birthdayString) {
+        const birthday = new Date(birthdayString);
+        const today = new Date();
+        
+        let age = today.getFullYear() - birthday.getFullYear();
+        const monthDiff = today.getMonth() - birthday.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
+          age--;
+        }
+        
+        return age >= 18;
+      }
+
+      // Function to check if password is strong
+      function isPasswordStrong(passwordValue) {
+        const hasLength = passwordValue.length >= 8;
+        const hasUpperCase = /[A-Z]/.test(passwordValue);
+        const hasLowerCase = /[a-z]/.test(passwordValue);
+        const hasNumber = /[0-9]/.test(passwordValue);
+        const hasSpecialChar = /[^a-zA-Z0-9]/.test(passwordValue);
+        
+        return hasLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+      }
+
+      // Signup Form Validation - UPDATED VERSION
       document.getElementById('signupForm').addEventListener('submit', function(e) {
         // ALWAYS prevent form submission first
         e.preventDefault();
@@ -1595,6 +1622,24 @@ $stmt->execute();
           }
         }
         
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+        const birthday = document.getElementById('birthday');
+        
+        // Validate password strength - NEW VALIDATION
+        if (password && password.value) {
+          const passwordError = document.getElementById('password_error');
+          if (!isPasswordStrong(password.value)) {
+            password.classList.add('error');
+            passwordError.textContent = '⚠ Password must be strong (8+ chars, uppercase, lowercase, number, special character)';
+            passwordError.classList.add('show');
+            isValid = false;
+          } else {
+            password.classList.remove('error');
+            passwordError.classList.remove('show');
+          }
+        }
+        
         // Validate password match
         if (password && confirmPassword && password.value && confirmPassword.value) {
           if (password.value !== confirmPassword.value) {
@@ -1603,10 +1648,28 @@ $stmt->execute();
             confirmError.textContent = 'Passwords do not match';
             confirmError.classList.add('show');
             isValid = false;
+          } else {
+            confirmPassword.classList.remove('error');
+            const confirmError = document.getElementById('confirm_password_error');
+            confirmError.classList.remove('show');
           }
         }
         
-        // Validate terms checkbox - THIS RUNS REGARDLESS
+        // Validate age (must be 18+) - NEW VALIDATION
+        if (birthday && birthday.value) {
+          const birthdayError = document.getElementById('birthday_error');
+          if (!isAtLeast18(birthday.value)) {
+            birthday.classList.add('error');
+            birthdayError.textContent = '⚠ You must be at least 18 years old to create an account';
+            birthdayError.classList.add('show');
+            isValid = false;
+          } else {
+            birthday.classList.remove('error');
+            birthdayError.classList.remove('show');
+          }
+        }
+        
+        // Validate terms checkbox
         const terms = document.getElementById('terms');
         const termsError = document.getElementById('terms_error');
         if (terms && termsError) {

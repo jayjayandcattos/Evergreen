@@ -456,7 +456,7 @@
         /* Rewards Section */
         .rewards-section {
             position: relative;
-            background: url('images/bg-rewards.svg') no-repeat center center/cover;
+            background: url('images/bg-rewards.png') no-repeat center center/cover;
             color: #fff;
             overflow: hidden;
             margin: 0 auto;
@@ -868,7 +868,7 @@
         .decorative-curve img {
             margin-right: -150%;
             position: absolute;
-            margin-top: -90%;
+            margin-top: -100%;
             width: 100%;
             height: 100%;
             z-index: 9999;
@@ -1244,7 +1244,7 @@
 
 @media (max-width: 480px) {
     nav span {
-        font-size: 20px;
+        font-size: 24px;
     }
 
     .logo {
@@ -1404,7 +1404,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
-                    <img src="images/Logo.svg">
+                    <img src="images/Logo.png.png">
                 </a>
             </div>
             <span>
@@ -1425,7 +1425,7 @@
                 </div>
         </div>
 
-                     <a href="/Evergreen/LoanSubsystem/">Loans</a>
+                     <a href="#loans">Loans</a>
                      <a href="about.php">About Us</a>
         </div>
 
@@ -1440,8 +1440,7 @@
                 </div>
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
-                    <a href="../Basic-operation/operations/public/customer/account" role="menuitem">Profile</a>
-                    <a href="../Basic-operation/operations/public/customer/referral" role="menuitem">Refer to a friend</a>
+                    <a href="#" role="menuitem">Profile</a>
                     <a href="cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -1512,7 +1511,7 @@
     </div>
 
     <div class="rewards-image">
-      <img src="images/card.svg" alt="Reward Card">
+      <img src="images/card.png" alt="Reward Card">
     </div>
   </div>
 </section
@@ -1611,7 +1610,7 @@
             <div class="image-container">
                 <div class="image-wrapper">
                     <div class="curved-image">
-                        <img src="images/recruit.svg" alt="Professional woman in business suit shaking hands">
+                        <img src="images/recruit.png" alt="Professional woman in business suit shaking hands">
                         <div class="decorative-dots">
                             <span></span><span></span><span></span><span></span><span></span>
                             <span></span><span></span><span></span><span></span><span></span>
@@ -1619,7 +1618,7 @@
                         </div>
                     </div>
                     <div class="decorative-curve">
-                        <img src="images/recruitstyle.svg" alt="Images Design">
+                        <img src="images/recruitstyle.png" alt="Images Design">
                     </div>
                 </div>
             </div>
@@ -1712,7 +1711,7 @@
             const currentScroll = window.pageYOffset;
             
             if (currentScroll > 100) {
-                nav.style.padding = '0.7rem 5%';
+                nav.style.padding = '1rem 5%';
             } else {
                 nav.style.padding = '1rem 5%';
             }

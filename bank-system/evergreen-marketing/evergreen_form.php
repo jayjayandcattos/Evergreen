@@ -1262,7 +1262,7 @@
   </head>
   <body>
     <nav>
-      <img src="images/svgviewer-output.svg" alt="logo" class="logo">
+      <img src="images/loginlogo.png" alt="logo" class="logo">
       <div class="wrap-nav">
         <h1 id="title-page">EVERGREEN</h1>
         <P class="motto">Secure, Invest, Achieve</P>

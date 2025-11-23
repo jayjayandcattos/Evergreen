@@ -2,7 +2,7 @@
 $host = "localhost";
 $user = "root"; 
 $pass = ""; 
-$db = "BankingDB";
+$db = "evergreen_bank";
 
 $conn = new mysqli($host, $user, $pass, $db);
 
