@@ -497,9 +497,35 @@ function collectMission($conn, $customer_id) {
         return;
     }
     
+    // Start transaction BEFORE any checks to prevent race conditions
     $conn->begin_transaction();
     
     try {
+        // CRITICAL: Check if already collected INSIDE transaction with FOR UPDATE lock
+        // This prevents race conditions where multiple requests try to collect the same mission
+        $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? FOR UPDATE";
+        $stmt = $conn->prepare($sql);
+        
+        if (!$stmt) {
+            throw new Exception('Database error checking collected missions: ' . $conn->error);
+        }
+        
+        $stmt->bind_param("ii", $user_id, $mission_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $stmt->close();
+            $conn->rollback();
+            ob_clean();
+            echo json_encode([
+                'success' => false,
+                'message' => 'Mission already collected'
+            ]);
+            return;
+        }
+        $stmt->close();
+        
         // Get customer's referral count - try both table names
         $referral_count = 0;
         $sql = "SELECT COUNT(*) as referral_count FROM bank_customers WHERE referred_by_customer_id = ?";
@@ -538,24 +564,6 @@ function collectMission($conn, $customer_id) {
             throw new Exception('This mission requires manual verification. Please contact support.');
         }
         
-        // Check if already collected using user_id (not customer_id)
-        $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ?";
-        $stmt = $conn->prepare($sql);
-        
-        if (!$stmt) {
-            throw new Exception('Database error checking collected missions: ' . $conn->error);
-        }
-        
-        $stmt->bind_param("ii", $user_id, $mission_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            $stmt->close();
-            throw new Exception('Mission already collected');
-        }
-        $stmt->close();
-        
         // Add mission record using user_id (not customer_id)
         // The UNIQUE constraint on (user_id, mission_id) will prevent duplicates
         $sql = "INSERT INTO user_missions (user_id, customer_id, mission_id, points_earned, completed_at) 
@@ -567,7 +575,18 @@ function collectMission($conn, $customer_id) {
         }
         
         $stmt->bind_param("iiid", $user_id, $customer_id, $mission_id, $points);
-        $stmt->execute();
+        
+        // Execute with duplicate key error handling
+        if (!$stmt->execute()) {
+            // Check if it's a duplicate key error (errno 1062)
+            if ($conn->errno == 1062) {
+                $stmt->close();
+                throw new Exception('Mission already collected');
+            } else {
+                $stmt->close();
+                throw new Exception('Database error: ' . $conn->error);
+            }
+        }
         $stmt->close();
         
         // Update customer's total points

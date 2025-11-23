@@ -312,11 +312,13 @@ CREATE TABLE bank_users (
 CREATE TABLE user_missions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
+    customer_id INT DEFAULT NULL,
     mission_id INT NOT NULL,
     points_earned DECIMAL(10,2) NOT NULL,
     completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_user_mission (user_id, mission_id),
     INDEX idx_mission_id (mission_id),
+    INDEX idx_customer_id (customer_id),
     FOREIGN KEY (user_id) REFERENCES bank_users(id) ON DELETE CASCADE,
     FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 );
@@ -979,6 +981,222 @@ FROM bank_transactions t
 INNER JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id
 WHERE t.amount < 0
 GROUP BY tt.type_name;
+
+-- ========================================
+-- USER ACCOUNT ROLE MANAGEMENT
+-- ========================================
+
+-- Ensure user_account table has role column with correct type
+-- This is safe to run even if column already exists
+
+SET @db_exists = (SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'BankingDB');
+
+SET @table_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.TABLES 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account'
+);
+
+SET @column_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account' 
+    AND COLUMN_NAME = 'role'
+);
+
+-- Add role column if it doesn't exist
+SET @sql = IF(@column_exists = 0 AND @table_exists > 0,
+    'ALTER TABLE user_account ADD COLUMN role VARCHAR(20) DEFAULT NULL AFTER password_hash',
+    'SELECT "Role column already exists or table not found" AS message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Ensure role column is VARCHAR(20) if it exists with different type
+SET @column_type = (
+    SELECT DATA_TYPE 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account' 
+    AND COLUMN_NAME = 'role'
+);
+
+SET @column_length = (
+    SELECT CHARACTER_MAXIMUM_LENGTH 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'user_account' 
+    AND COLUMN_NAME = 'role'
+);
+
+-- Modify column if type or length is incorrect
+SET @sql = IF(@column_exists > 0 AND (@column_type != 'varchar' OR @column_length != 20),
+    'ALTER TABLE user_account MODIFY COLUMN role VARCHAR(20) DEFAULT NULL',
+    'SELECT "Role column type is correct" AS message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ========================================
+-- DATA MIGRATION - USER ROLES
+-- ========================================
+
+-- Update existing user_account records with NULL role to 'Admin' for backward compatibility
+-- This ensures all existing admin accounts are properly marked
+UPDATE user_account 
+SET role = 'Admin' 
+WHERE role IS NULL 
+AND username IS NOT NULL;
+
+-- Ensure any existing admin accounts explicitly have 'Admin' role
+-- (in case they were created with different role values)
+UPDATE user_account 
+SET role = 'Admin' 
+WHERE username = 'admin' 
+AND (role IS NULL OR role != 'Admin');
+
+-- ========================================
+-- HR MANAGER ACCOUNT CREATION
+-- ========================================
+
+-- Create HR Manager account
+-- Password: 'password' (hash: $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi)
+-- IMPORTANT: Change the password hash before using in production!
+
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    NULL, -- employee_id (can be set to a valid employee_id if needed)
+    'hrmanager', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'HR Manager', -- role (must be exactly 'HR Manager')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
+
+-- ========================================
+-- LEAVE REQUEST DATA FIXES
+-- ========================================
+
+-- Step 1: Normalize ALL leave_request status values to 'Approved' (consistent case)
+-- This fixes both 'approved' (lowercase) and 'Approved' (capitalized) to be consistent
+UPDATE leave_request 
+SET status = 'Approved' 
+WHERE UPPER(TRIM(status)) = 'APPROVED';
+
+-- Step 2: Ensure employees 22 and 3 are Active
+UPDATE employee 
+SET employment_status = 'Active' 
+WHERE employee_id IN (22, 3) 
+AND (employment_status IS NULL OR employment_status != 'Active');
+
+-- Step 3: Ensure ALL active employees have proper employment_status
+UPDATE employee 
+SET employment_status = 'Active' 
+WHERE employment_status IS NULL 
+AND employee_id IN (SELECT DISTINCT employee_id FROM leave_request WHERE UPPER(TRIM(status)) = 'APPROVED');
+
+-- Step 4: Ensure date fields are proper DATE type (remove any time components)
+UPDATE leave_request 
+SET start_date = DATE(start_date),
+    end_date = DATE(end_date)
+WHERE start_date IS NOT NULL AND end_date IS NOT NULL;
+
+-- Step 5: Fix specific leave requests mentioned by user
+-- Employee 22 (Mariana) - Leave Request ID 10: Nov 17-19, 2025
+UPDATE leave_request 
+SET status = 'Approved',
+    start_date = '2025-11-17',
+    end_date = '2025-11-19',
+    total_days = 3
+WHERE leave_request_id = 10 
+AND employee_id = 22;
+
+-- Employee 3 (Jose) - Leave Request ID 2: Nov 15-16, 2025  
+UPDATE leave_request 
+SET status = 'Approved',
+    start_date = '2025-11-15',
+    end_date = '2025-11-16',
+    total_days = 2
+WHERE leave_request_id = 2 
+AND employee_id = 3;
+
+-- Step 6: Add/update index for better query performance on leave_request
+-- Check if index exists before dropping (safer approach)
+SET @index_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'BankingDB' 
+    AND TABLE_NAME = 'leave_request' 
+    AND INDEX_NAME = 'idx_leave_status_date'
+);
+
+SET @sql = IF(@index_exists > 0,
+    'DROP INDEX idx_leave_status_date ON leave_request',
+    'SELECT "Index does not exist, will create new one" as message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Create the index
+CREATE INDEX idx_leave_status_date ON leave_request(employee_id, status, start_date, end_date);
+
+-- Step 7: Verify the data
+SELECT 
+    'VERIFICATION' as check_type,
+    lr.leave_request_id,
+    lr.employee_id,
+    CONCAT(e.first_name, ' ', e.last_name) as employee_name,
+    e.employment_status,
+    lr.status as leave_status,
+    UPPER(TRIM(lr.status)) as normalized_status,
+    lr.start_date,
+    lr.end_date,
+    lt.leave_name,
+    CASE 
+        WHEN e.employment_status = 'Active' AND UPPER(TRIM(lr.status)) = 'APPROVED' THEN 'OK'
+        ELSE 'NEEDS FIX'
+    END as status_check
+FROM leave_request lr
+INNER JOIN employee e ON lr.employee_id = e.employee_id
+LEFT JOIN leave_type lt ON lr.leave_type_id = lt.leave_type_id
+WHERE lr.employee_id IN (22, 3)
+ORDER BY lr.leave_request_id;
+
+-- Step 8: Test query for Nov 17, 2025
+SELECT 
+    'TEST QUERY FOR 2025-11-17' as test_name,
+    lr.leave_request_id,
+    lr.employee_id,
+    CONCAT(e.first_name, ' ', e.last_name) as employee_name,
+    lr.start_date,
+    lr.end_date,
+    lr.status,
+    lt.leave_name,
+    CASE 
+        WHEN CAST('2025-11-17' AS DATE) >= CAST(lr.start_date AS DATE) 
+         AND CAST('2025-11-17' AS DATE) <= CAST(lr.end_date AS DATE) 
+        THEN 'MATCHES'
+        ELSE 'NO MATCH'
+    END as date_match
+FROM leave_request lr
+INNER JOIN employee e ON lr.employee_id = e.employee_id
+LEFT JOIN leave_type lt ON lr.leave_type_id = lt.leave_type_id
+WHERE lr.employee_id IN (22, 3)
+AND e.employment_status = 'Active'
+AND UPPER(TRIM(lr.status)) = 'APPROVED'
+ORDER BY lr.leave_request_id;
+
+SELECT '=== FIX COMPLETE ===' as status;
 
 -- ========================================
 -- END OF UNIFIED SCHEMA
