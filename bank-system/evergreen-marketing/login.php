@@ -14,18 +14,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($bank_id) || empty($email) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        // Join bank_customers with emails table to get email and verify bank_id
+        // Query bank_users table directly (has email, bank_id, and password columns)
         $sql = "SELECT 
-                    c.customer_id,
-                    c.first_name,
-                    c.last_name,
-                    c.middle_name,
-                    c.password_hash,
-                    c.bank_id,
-                    e.email
-                FROM bank_customers c
-                INNER JOIN emails e ON c.customer_id = e.customer_id AND e.is_primary = 1
-                WHERE e.email = ? AND c.bank_id = ?";
+                    id,
+                    first_name,
+                    last_name,
+                    middle_name,
+                    password,
+                    bank_id,
+                    email,
+                    is_verified
+                FROM bank_users
+                WHERE email = ? AND bank_id = ? AND is_verified = 1";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $email, $bank_id);
         $stmt->execute();
@@ -34,10 +34,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($result && $result->num_rows === 1) {
             $row = $result->fetch_assoc();
             
-            // Use password_hash column (not password)
-            if (password_verify($password, $row['password_hash'])) {
+            // Use password column (stored as hashed password)
+            if (password_verify($password, $row['password'])) {
                 // Set session variables
-                $_SESSION['user_id'] = $row['customer_id'];
+                $_SESSION['user_id'] = $row['id'];
                 $_SESSION['email'] = $row['email'];
                 $_SESSION['first_name'] = $row['first_name'];
                 $_SESSION['last_name'] = $row['last_name'];

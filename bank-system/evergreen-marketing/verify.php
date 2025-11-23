@@ -40,18 +40,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         // Check if entered code matches the stored verification code
         if ($entered_code === $registration_data['verification_code']) {
-            error_log("About to insert user with referral code: " . ($registration_data['referral_code'] ?? 'NOT SET'));
+            error_log("About to insert user");
     
-           if (!isset($registration_data['referral_code']) || empty($registration_data['referral_code'])) {
-              error_log("WARNING: Referral code is missing from registration data!");
-              $error = "System error: Referral code not generated. Please try again.";
-          } else 
-            // NOW insert the user into the database
-                $sql = "INSERT INTO bank_customers (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, referral_code, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
+            // NOW insert the user into the database (using bank_users table which has address column)
+                $sql = "INSERT INTO bank_users (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
 
                 $stmt = $conn->prepare($sql);
         if ($stmt) {
-              $stmt->bind_param("ssssssssssss",  // Changed from 11 's' to 12 's'
+              $stmt->bind_param("sssssssssss",  // 11 's' for 11 parameters
         $registration_data['first_name'],
        $registration_data['middle_name'],
               $registration_data['last_name'],
@@ -62,8 +58,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               $registration_data['birthday'],
               $registration_data['password'],
               $registration_data['verification_code'],
-              $registration_data['bank_id'],
-              $registration_data['referral_code']  // ⭐ ADD THIS LINE
+              $registration_data['bank_id']
               );
                 
                 if ($stmt->execute()) {
