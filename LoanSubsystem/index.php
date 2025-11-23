@@ -3,10 +3,19 @@
 <?php
 session_start();
 
-// Redirect to login if not authenticated
-if (!isset($_SESSION['user_email'])) {
-    header('Location: login.php');
+// Check if user is logged in via marketing system OR loan system
+$isLoggedIn = isset($_SESSION['user_id']) || isset($_SESSION['customer_id']) || isset($_SESSION['user_email']);
+
+// If not logged in at all, redirect to marketing login
+if (!$isLoggedIn) {
+    header('Location: /Evergreen/bank-system/evergreen-marketing/login.php');
     exit();
+}
+
+// If logged in via marketing but not loan system, sync the session
+if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($_SESSION['user_email'])) {
+    // Set user_email from marketing session for loan system compatibility
+    $_SESSION['user_email'] = $_SESSION['email'] ?? '';
 }
 ?>
 
