@@ -940,3 +940,46 @@ JOIN users u ON je.created_by = u.id;
 
 
 
+
+-- ========================================
+-- DATA FIXES AND MIGRATIONS
+-- ========================================
+
+-- Fix Transaction Amounts: Convert negative amounts to positive
+-- The balance calculation logic applies the sign based on transaction type
+-- All amounts should be stored as positive values in the database
+
+-- Fix Transfer Out transactions (type_id = 8)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 8 AND amount < 0;
+
+-- Fix Service Charge transactions (type_id = 5)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 5 AND amount < 0;
+
+-- Fix Withdrawal transactions (type_id = 3)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 3 AND amount < 0;
+
+-- Fix Loan Payment transactions (type_id = 7)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 7 AND amount < 0;
+
+-- Verification: Check for any remaining negative amounts
+-- This query should return 0 rows after the fix
+SELECT 
+    tt.type_name,
+    COUNT(*) as negative_count,
+    MIN(t.amount) as min_amount
+FROM bank_transactions t
+INNER JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id
+WHERE t.amount < 0
+GROUP BY tt.type_name;
+
+-- ========================================
+-- END OF UNIFIED SCHEMA
+-- ========================================

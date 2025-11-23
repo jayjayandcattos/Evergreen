@@ -656,7 +656,8 @@ class Customer extends Database{
     }
 
     public function recordTransaction($transaction_ref, $sender, $receiver, $amount, $fee, $message){
-        // for sender
+        // for sender - Transfer Out (debit)
+        // Store positive amount, the CASE statement in balance calculation will make it negative
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -677,13 +678,14 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 8);
-        $this->db->bind(':amount', $amount);
+        $this->db->bind(':transaction_type', 8); // Transfer Out - sender sends money
+        $this->db->bind(':amount', $amount); // Store positive, balance calc applies negative
         $this->db->bind(':receiver', $receiver);
         $this->db->bind(':message', $message);
         $this->db->execute();
 
-        // For the fee
+        // For the fee - Service Charge (debit)
+        // Store positive amount, the CASE statement in balance calculation will make it negative
         $this->db->query("
         INSERT INTO bank_transactions (
             account_id,
@@ -699,12 +701,13 @@ class Customer extends Database{
         );
         ");
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 5);
-        $this->db->bind(':amount', $fee);
+        $this->db->bind(':transaction_type', 5); // Service Charge type
+        $this->db->bind(':amount', $fee); // Store positive, balance calc applies negative
         $this->db->bind(':message', 'Transaction Service Charge - ' . $transaction_ref);
         $this->db->execute();
 
-        // for the receiver
+        // for the receiver - Transfer In (credit)
+        // Store positive amount, the CASE statement in balance calculation will keep it positive
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -725,8 +728,8 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $receiver);
-        $this->db->bind(':transaction_type', 3);
-        $this->db->bind(':amount', $amount);
+        $this->db->bind(':transaction_type', 9); // Transfer In - receiver gets money
+        $this->db->bind(':amount', $amount); // Store positive, balance calc keeps positive
         $this->db->bind(':receiver', $sender);
         $this->db->bind(':message', $message);
         $this->db->execute();
@@ -1389,4 +1392,5 @@ class Customer extends Database{
         
         return $result ? (float)$result->current_balance : 0.00;
     }
-}
+
+}

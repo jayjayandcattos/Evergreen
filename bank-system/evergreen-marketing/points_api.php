@@ -248,6 +248,61 @@ function getMissions($conn, $customer_id) {
         return;
     }
     
+    // Get bank_users.id from customer_id - try multiple methods
+    $user_id = null;
+    
+    // Method 1: Try via email match
+    $sql = "SELECT bu.id as user_id FROM bank_users bu 
+            INNER JOIN bank_customers bc ON bu.email = bc.email 
+            WHERE bc.customer_id = ?";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $customer_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user_data = $result->fetch_assoc();
+        if ($user_data) {
+            $user_id = $user_data['user_id'];
+        }
+        $stmt->close();
+    }
+    
+    // Method 2: If not found, check if customer_id IS the user_id
+    if (!$user_id) {
+        $sql = "SELECT id FROM bank_users WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("i", $customer_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result->num_rows > 0) {
+                $user_id = $customer_id;
+            }
+            $stmt->close();
+        }
+    }
+    
+    // Method 3: Try to find by session email
+    if (!$user_id && isset($_SESSION['email'])) {
+        $sql = "SELECT id FROM bank_users WHERE email = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("s", $_SESSION['email']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user_data = $result->fetch_assoc();
+            if ($user_data) {
+                $user_id = $user_data['id'];
+            }
+            $stmt->close();
+        }
+    }
+    
+    // Final fallback
+    if (!$user_id) {
+        $user_id = $customer_id;
+    }
+    
     try {
         // Initialize referral count to 0 in case of errors
         $referral_count = 0;
@@ -273,18 +328,12 @@ function getMissions($conn, $customer_id) {
             $stmt->close();
         }
         
-        // Get collected missions from user_missions table
-        $collected_sql = "SELECT mission_id FROM user_missions WHERE user_id = ? AND status = 'collected'";
+        // Get collected missions from user_missions table using user_id
+        $collected_sql = "SELECT mission_id FROM user_missions WHERE user_id = ?";
         $stmt = $conn->prepare($collected_sql);
         
-        if (!$stmt) {
-            // If status column doesn't exist, just get all missions for this user
-            $collected_sql = "SELECT mission_id FROM user_missions WHERE user_id = ?";
-            $stmt = $conn->prepare($collected_sql);
-        }
-        
         if ($stmt) {
-            $stmt->bind_param("i", $customer_id);
+            $stmt->bind_param("i", $user_id);
             if ($stmt->execute()) {
                 $result = $stmt->get_result();
                 while ($row = $result->fetch_assoc()) {
@@ -384,6 +433,70 @@ function collectMission($conn, $customer_id) {
         return;
     }
     
+    // Get bank_users.id from customer_id - try multiple methods
+    $user_id = null;
+    
+    // Method 1: Try via email match
+    $sql = "SELECT bu.id as user_id FROM bank_users bu 
+            INNER JOIN bank_customers bc ON bu.email = bc.email 
+            WHERE bc.customer_id = ?";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $customer_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user_data = $result->fetch_assoc();
+        if ($user_data) {
+            $user_id = $user_data['user_id'];
+        }
+        $stmt->close();
+    }
+    
+    // Method 2: If not found, check if customer_id IS the user_id
+    if (!$user_id) {
+        $sql = "SELECT id FROM bank_users WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("i", $customer_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result->num_rows > 0) {
+                $user_id = $customer_id;
+            }
+            $stmt->close();
+        }
+    }
+    
+    // Method 3: Try to find by session email
+    if (!$user_id && isset($_SESSION['email'])) {
+        $sql = "SELECT id FROM bank_users WHERE email = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("s", $_SESSION['email']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user_data = $result->fetch_assoc();
+            if ($user_data) {
+                $user_id = $user_data['id'];
+            }
+            $stmt->close();
+        }
+    }
+    
+    if (!$user_id) {
+        ob_clean();
+        echo json_encode([
+            'success' => false, 
+            'message' => 'User not found',
+            'debug' => [
+                'customer_id' => $customer_id,
+                'session_email' => $_SESSION['email'] ?? 'not set',
+                'session_user_id' => $_SESSION['user_id'] ?? 'not set'
+            ]
+        ]);
+        return;
+    }
+    
     $conn->begin_transaction();
     
     try {
@@ -425,21 +538,15 @@ function collectMission($conn, $customer_id) {
             throw new Exception('This mission requires manual verification. Please contact support.');
         }
         
-        // Check if already collected - try with status, fallback without
-        $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? AND status = 'collected'";
+        // Check if already collected using user_id (not customer_id)
+        $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ?";
         $stmt = $conn->prepare($sql);
-        
-        if (!$stmt) {
-            // Try without status column
-            $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ?";
-            $stmt = $conn->prepare($sql);
-        }
         
         if (!$stmt) {
             throw new Exception('Database error checking collected missions: ' . $conn->error);
         }
         
-        $stmt->bind_param("ii", $customer_id, $mission_id);
+        $stmt->bind_param("ii", $user_id, $mission_id);
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -449,25 +556,17 @@ function collectMission($conn, $customer_id) {
         }
         $stmt->close();
         
-        // Add or update mission record - try with status, fallback without
-        $sql = "INSERT INTO user_missions (user_id, mission_id, points_earned, status) 
-                VALUES (?, ?, ?, 'collected')
-                ON DUPLICATE KEY UPDATE status = 'collected', completed_at = NOW()";
+        // Add mission record using user_id (not customer_id)
+        // The UNIQUE constraint on (user_id, mission_id) will prevent duplicates
+        $sql = "INSERT INTO user_missions (user_id, customer_id, mission_id, points_earned, completed_at) 
+                VALUES (?, ?, ?, ?, NOW())";
         $stmt = $conn->prepare($sql);
-        
-        if (!$stmt) {
-            // Try without status column
-            $sql = "INSERT INTO user_missions (user_id, mission_id, points_earned, completed_at) 
-                    VALUES (?, ?, ?, NOW())
-                    ON DUPLICATE KEY UPDATE completed_at = NOW()";
-            $stmt = $conn->prepare($sql);
-        }
         
         if (!$stmt) {
             throw new Exception('Database error inserting mission: ' . $conn->error);
         }
         
-        $stmt->bind_param("iid", $customer_id, $mission_id, $points);
+        $stmt->bind_param("iiid", $user_id, $customer_id, $mission_id, $points);
         $stmt->execute();
         $stmt->close();
         
@@ -483,16 +582,16 @@ function collectMission($conn, $customer_id) {
         $stmt->execute();
         $stmt->close();
 
-        // Log the mission collection in points_history
-        $sql = "INSERT INTO points_history (user_id, points, description, transaction_type) 
-                VALUES (?, ?, ?, 'mission')";
+        // Log the mission collection in points_history using user_id
+        $sql = "INSERT INTO points_history (user_id, customer_id, points, description, transaction_type) 
+                VALUES (?, ?, ?, ?, 'mission')";
         $stmt = $conn->prepare($sql);
         
         if (!$stmt) {
             // If points_history table doesn't exist, continue without logging
             error_log('Warning: points_history table not found, skipping history log');
         } else {
-            $stmt->bind_param("ids", $customer_id, $points, $mission_text);
+            $stmt->bind_param("iids", $user_id, $customer_id, $points, $mission_text);
             $stmt->execute();
             $stmt->close();
         }
