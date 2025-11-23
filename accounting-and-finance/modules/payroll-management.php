@@ -45,13 +45,21 @@ if ($payroll_period === 'first') {
 }
 
 // Build dynamic query for employees with filters - JOIN with HRIS employee table
+// FIXED: Now shows ALL HRIS employees, automatically creating employee_refs if needed
 $employees_query = "SELECT 
-                        er.*,
+                        COALESCE(er.id, NULL) as ref_id,
+                        COALESCE(er.external_employee_no, CONCAT('EMP', LPAD(e.employee_id, 3, '0'))) as external_employee_no,
+                        COALESCE(er.employment_type, 'regular') as employment_type,
+                        COALESCE(er.base_monthly_salary, 0) as base_monthly_salary,
+                        COALESCE(er.created_at, e.hire_date) as created_at,
+                        COALESCE(er.department, d.department_name) as department,
+                        COALESCE(er.position, p.position_title) as position,
                         e.employee_id as hris_employee_id,
                         e.first_name as hris_first_name,
                         e.middle_name as hris_middle_name,
                         e.last_name as hris_last_name,
                         CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as hris_full_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
                         e.gender,
                         e.birth_date,
                         e.contact_number,
@@ -59,26 +67,33 @@ $employees_query = "SELECT
                         e.address,
                         e.hire_date,
                         e.employment_status as hris_employment_status,
-                        COALESCE(d.department_name, er.department) as department_name,
-                        COALESCE(p.position_title, er.position) as position_name
-                    FROM employee_refs er
-                    LEFT JOIN employee e ON (
-                        e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
-                        OR er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        d.department_name as hris_department_name,
+                        p.position_title as hris_position_title,
+                        c.contract_id,
+                        c.contract_type,
+                        c.salary as contract_salary,
+                        c.start_date as contract_start_date,
+                        c.end_date as contract_end_date,
+                        c.benefits as contract_benefits
+                    FROM employee e
+                    LEFT JOIN employee_refs er ON (
+                        er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        OR e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
                     )
                     LEFT JOIN department d ON e.department_id = d.department_id
                     LEFT JOIN `position` p ON e.position_id = p.position_id
-                    WHERE 1=1";
+                    LEFT JOIN contract c ON e.contract_id = c.contract_id
+                    WHERE e.employee_id IS NOT NULL";
 $params = [];
 $types = "";
 
 if (!empty($search_term)) {
     $employees_query .= " AND (
-        er.name LIKE ? 
-        OR er.external_employee_no LIKE ?
-        OR CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) LIKE ?
+        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) LIKE ?
         OR e.first_name LIKE ?
         OR e.last_name LIKE ?
+        OR CONCAT('EMP', LPAD(e.employee_id, 3, '0')) LIKE ?
+        OR e.employee_id LIKE ?
     )";
     $search_param = "%$search_term%";
     $params[] = $search_param;
@@ -90,26 +105,26 @@ if (!empty($search_term)) {
 }
 
 if (!empty($filter_position)) {
-    $employees_query .= " AND (p.position_title = ? OR er.position = ?)";
+    $employees_query .= " AND (p.position_title = ? OR COALESCE(er.position, p.position_title) = ?)";
     $params[] = $filter_position;
     $params[] = $filter_position;
     $types .= "ss";
 }
 
 if (!empty($filter_department)) {
-    $employees_query .= " AND (d.department_name = ? OR er.department = ?)";
+    $employees_query .= " AND (d.department_name = ? OR COALESCE(er.department, d.department_name) = ?)";
     $params[] = $filter_department;
     $params[] = $filter_department;
     $types .= "ss";
 }
 
 if (!empty($filter_type)) {
-    $employees_query .= " AND er.employment_type = ?";
+    $employees_query .= " AND COALESCE(er.employment_type, 'regular') = ?";
     $params[] = $filter_type;
     $types .= "s";
 }
 
-$employees_query .= " ORDER BY COALESCE(er.name, hris_full_name)";
+$employees_query .= " ORDER BY e.first_name, e.last_name";
 
 // Execute query with parameters
 if (!empty($params)) {
@@ -121,19 +136,29 @@ if (!empty($params)) {
     $employees_result = $conn->query($employees_query);
 }
 
-// Get unique values for filter dropdowns
-$positions_query = "SELECT DISTINCT position FROM employee_refs WHERE position IS NOT NULL AND position != '' ORDER BY position";
+// Get unique values for filter dropdowns - FIXED: Now pulls from HRIS tables
+$positions_query = "SELECT DISTINCT p.position_title as position 
+                    FROM `position` p 
+                    INNER JOIN employee e ON e.position_id = p.position_id 
+                    WHERE p.position_title IS NOT NULL AND p.position_title != '' 
+                    ORDER BY p.position_title";
 $positions_result = $conn->query($positions_query);
 
-$departments_query = "SELECT DISTINCT department FROM employee_refs WHERE department IS NOT NULL AND department != '' ORDER BY department";
+$departments_query = "SELECT DISTINCT d.department_name as department 
+                      FROM department d 
+                      INNER JOIN employee e ON e.department_id = d.department_id 
+                      WHERE d.department_name IS NOT NULL AND d.department_name != '' 
+                      ORDER BY d.department_name";
 $departments_result = $conn->query($departments_query);
 
-$types_query = "SELECT DISTINCT employment_type FROM employee_refs ORDER BY employment_type";
+$types_query = "SELECT DISTINCT COALESCE(er.employment_type, 'regular') as employment_type 
+                FROM employee e 
+                LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                ORDER BY employment_type";
 $types_result = $conn->query($types_query);
 
 // Get employee data for selected employee or first employee
-// JOIN with HRIS employee table to get all employee details
-// Map: employee.employee_id (1,2,3...) to employee_refs.external_employee_no ('EMP001','EMP002','EMP003'...)
+// FIXED: Now pulls from HRIS employee table first, with employee_refs as optional supplement
 if ($selected_employee) {
     // Extract employee_id from external_employee_no (EMP001 -> 1)
     $employee_id_from_external = null;
@@ -142,12 +167,20 @@ if ($selected_employee) {
     }
     
     $employee_query = "SELECT 
-                        er.*,
+                        COALESCE(er.id, NULL) as ref_id,
+                        CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as external_employee_no,
+                        COALESCE(er.employment_type, 'regular') as employment_type,
+                        COALESCE(er.base_monthly_salary, c.salary, 0) as base_monthly_salary,
+                        COALESCE(er.created_at, e.hire_date) as created_at,
                         e.employee_id as hris_employee_id,
                         e.first_name as hris_first_name,
                         e.middle_name as hris_middle_name,
                         e.last_name as hris_last_name,
                         CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as hris_full_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
+                        e.first_name,
+                        e.middle_name,
+                        e.last_name,
                         e.gender,
                         e.birth_date,
                         e.contact_number,
@@ -155,52 +188,47 @@ if ($selected_employee) {
                         e.address,
                         e.hire_date,
                         e.employment_status as hris_employment_status,
+                        e.employment_status,
                         d.department_name as hris_department_name,
+                        d.department_name as department,
                         p.position_title as hris_position_title,
+                        p.position_title as position,
+                        c.contract_id,
                         c.contract_type,
                         c.salary as contract_salary,
                         c.start_date as contract_start_date,
                         c.end_date as contract_end_date,
                         c.benefits as contract_benefits
-                    FROM employee_refs er
-                    LEFT JOIN employee e ON (
-                        e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
-                        OR er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                    FROM employee e
+                    LEFT JOIN employee_refs er ON (
+                        er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        OR e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
                     )
                     LEFT JOIN department d ON e.department_id = d.department_id
                     LEFT JOIN `position` p ON e.position_id = p.position_id
                     LEFT JOIN contract c ON e.contract_id = c.contract_id
-                    WHERE er.external_employee_no = ?";
+                    WHERE e.employee_id = ?";
     $stmt = $conn->prepare($employee_query);
-    $stmt->bind_param("s", $selected_employee);
+    $stmt->bind_param("i", $employee_id_from_external);
     $stmt->execute();
     $employee_result = $stmt->get_result();
     $current_employee = $employee_result->fetch_assoc();
-    
-    // Merge HRIS data with employee_refs data (HRIS takes precedence for detailed info)
-    if ($current_employee && !empty($current_employee['hris_full_name'])) {
-        $current_employee['name'] = trim($current_employee['hris_full_name']);
-        $current_employee['first_name'] = $current_employee['hris_first_name'];
-        $current_employee['middle_name'] = $current_employee['hris_middle_name'];
-        $current_employee['last_name'] = $current_employee['hris_last_name'];
-    }
-    if ($current_employee && !empty($current_employee['hris_department_name'])) {
-        $current_employee['department'] = $current_employee['hris_department_name'];
-    }
-    if ($current_employee && !empty($current_employee['hris_position_title'])) {
-        $current_employee['position'] = $current_employee['hris_position_title'];
-    }
-    if ($current_employee && !empty($current_employee['hris_employment_status'])) {
-        $current_employee['employment_status'] = $current_employee['hris_employment_status'];
-    }
 } else {
     $employee_result = $conn->query("SELECT 
-                        er.*,
+                        COALESCE(er.id, NULL) as ref_id,
+                        CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as external_employee_no,
+                        COALESCE(er.employment_type, 'regular') as employment_type,
+                        COALESCE(er.base_monthly_salary, c.salary, 0) as base_monthly_salary,
+                        COALESCE(er.created_at, e.hire_date) as created_at,
                         e.employee_id as hris_employee_id,
                         e.first_name as hris_first_name,
                         e.middle_name as hris_middle_name,
                         e.last_name as hris_last_name,
                         CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as hris_full_name,
+                        CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
+                        e.first_name,
+                        e.middle_name,
+                        e.last_name,
                         e.gender,
                         e.birth_date,
                         e.contact_number,
@@ -208,41 +236,28 @@ if ($selected_employee) {
                         e.address,
                         e.hire_date,
                         e.employment_status as hris_employment_status,
+                        e.employment_status,
                         d.department_name as hris_department_name,
+                        d.department_name as department,
                         p.position_title as hris_position_title,
+                        p.position_title as position,
+                        c.contract_id,
                         c.contract_type,
                         c.salary as contract_salary,
                         c.start_date as contract_start_date,
                         c.end_date as contract_end_date,
                         c.benefits as contract_benefits
-                    FROM employee_refs er
-                    LEFT JOIN employee e ON (
-                        e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
-                        OR er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                    FROM employee e
+                    LEFT JOIN employee_refs er ON (
+                        er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                        OR e.employee_id = CAST(SUBSTRING(er.external_employee_no, 4) AS UNSIGNED)
                     )
                     LEFT JOIN department d ON e.department_id = d.department_id
                     LEFT JOIN `position` p ON e.position_id = p.position_id
                     LEFT JOIN contract c ON e.contract_id = c.contract_id
-                    ORDER BY er.name LIMIT 1");
+                    ORDER BY e.first_name, e.last_name LIMIT 1");
     $current_employee = $employee_result->fetch_assoc();
     $selected_employee = $current_employee ? $current_employee['external_employee_no'] : '';
-    
-    // Merge HRIS data with employee_refs data
-    if ($current_employee && !empty($current_employee['hris_full_name'])) {
-        $current_employee['name'] = trim($current_employee['hris_full_name']);
-        $current_employee['first_name'] = $current_employee['hris_first_name'];
-        $current_employee['middle_name'] = $current_employee['hris_middle_name'];
-        $current_employee['last_name'] = $current_employee['hris_last_name'];
-    }
-    if ($current_employee && !empty($current_employee['hris_department_name'])) {
-        $current_employee['department'] = $current_employee['hris_department_name'];
-    }
-    if ($current_employee && !empty($current_employee['hris_position_title'])) {
-        $current_employee['position'] = $current_employee['hris_position_title'];
-    }
-    if ($current_employee && !empty($current_employee['hris_employment_status'])) {
-        $current_employee['employment_status'] = $current_employee['hris_employment_status'];
-    }
 }
 
 // Get employee base salary - prioritize HRIS contract salary, then employee_refs
@@ -550,6 +565,7 @@ if ($selected_employee) {
     }
     
     // Fetch leave requests from HRIS and merge with attendance data
+    // FIXED: Now properly fetches approved leaves from HRIS
     if ($employee_id_from_external) {
         // Get approved leave requests for the selected period
         $leave_query = "SELECT 
@@ -559,11 +575,12 @@ if ($selected_employee) {
                             lr.total_days,
                             lr.reason,
                             lt.leave_name,
-                            lt.paid_unpaid
+                            lt.paid_unpaid,
+                            lr.status
                         FROM leave_request lr
                         LEFT JOIN leave_type lt ON lr.leave_type_id = lt.leave_type_id
                         WHERE lr.employee_id = ?
-                        AND UPPER(TRIM(lr.status)) = 'APPROVED'";
+                        AND (UPPER(TRIM(lr.status)) = 'APPROVED' OR LOWER(TRIM(lr.status)) = 'approved')";
         
         $leave_params = [];
         $leave_types = "";

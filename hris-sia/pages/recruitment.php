@@ -173,12 +173,76 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $employeeSuccess = $employeeStmt->execute($employeeParams);
 
                                 if ($employeeSuccess) {
-                                    $message = "Status updated successfully! Employee record created automatically.";
-                                    if (isset($logger)) {
+                                    $new_employee_id = $conn->lastInsertId();
+                                    
+                                    // Create employee_refs record for payroll integration
+                                    // Format: EMP001, EMP002, etc. (3 digits with leading zeros)
+                                    $external_employee_no = 'EMP' . str_pad($new_employee_id, 3, '0', STR_PAD_LEFT);
+                                    
+                                    // Get department and position names
+                                    $dept_name = null;
+                                    $pos_name = null;
+                                    if (!empty($applicant['department_id'])) {
+                                        $dept_result = fetchOne($conn, "SELECT department_name FROM department WHERE department_id = ?", [$applicant['department_id']]);
+                                        $dept_name = $dept_result['department_name'] ?? null;
+                                    }
+                                    if (!empty($position_id)) {
+                                        $pos_result = fetchOne($conn, "SELECT position_title FROM position WHERE position_id = ?", [$position_id]);
+                                        $pos_name = $pos_result['position_title'] ?? null;
+                                    }
+                                    
+                                    // Create employee_refs record
+                                    $employee_refs_sql = "INSERT INTO employee_refs (
+                                        external_employee_no,
+                                        name,
+                                        department,
+                                        position,
+        base_monthly_salary,
+                                        employment_type,
+                                        external_source
+                                    ) VALUES (?, ?, ?, ?, 0.00, 'regular', 'HRIS')
+                                    ON DUPLICATE KEY UPDATE
+                                        name = VALUES(name),
+                                        department = VALUES(department),
+                                        position = VALUES(position)";
+                                    
+                                    $full_name = trim(($firstName ?? '') . ' ' . ($middleName ?? '') . ' ' . ($lastName ?? ''));
+                                    $employee_refs_params = [
+                                        $external_employee_no,
+                                        $full_name,
+                                        $dept_name,
+                                        $pos_name
+                                    ];
+                                    
+                                    $employee_refs_stmt = $conn->prepare($employee_refs_sql);
+                                    $employee_refs_success = $employee_refs_stmt->execute($employee_refs_params);
+                                    
+                                    if ($employee_refs_success) {
+                                        $message = "Status updated successfully! Employee record and payroll reference created automatically.";
+                                        if (isset($logger)) {
+                                            $logger->info(
+                                                'RECRUITMENT',
+                                                'Applicant hired, employee and employee_refs created',
+                                                "Applicant ID: {$_POST['applicant_id']}, Employee ID: $new_employee_id, Employee No: $external_employee_no"
+                                            );
+                                        }
+                                    } else {
+                                        $message = "Status updated successfully! Employee record created, but payroll reference creation failed.";
+                                        $messageType = "warning";
+                                        if (isset($logger)) {
+                                            $logger->warning(
+                                                'RECRUITMENT',
+                                                'Employee created but employee_refs failed',
+                                                "Applicant ID: {$_POST['applicant_id']}, Employee ID: $new_employee_id"
+                                            );
+                                        }
+                                    }
+                                    
+                                    if (isset($logger) && !isset($messageType)) {
                                         $logger->info(
                                             'RECRUITMENT',
                                             'Applicant hired and employee created',
-                                            "Applicant ID: {$_POST['applicant_id']}, Employee ID: " . $conn->lastInsertId()
+                                            "Applicant ID: {$_POST['applicant_id']}, Employee ID: $new_employee_id"
                                         );
                                     }
                                 } else {
