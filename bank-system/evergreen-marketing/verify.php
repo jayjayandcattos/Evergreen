@@ -46,10 +46,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $conn->begin_transaction();
             
             try {
-                // 1. Insert into bank_users table (Marketing system)
-                $sql1 = "INSERT INTO bank_users (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
+                // 1. Insert into bank_users table (Marketing system) with referral_code
+                $sql1 = "INSERT INTO bank_users (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, referral_code, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
                 $stmt1 = $conn->prepare($sql1);
-                $stmt1->bind_param("sssssssssss",
+                $stmt1->bind_param("ssssssssssss",
                     $registration_data['first_name'],
                     $registration_data['middle_name'],
                     $registration_data['last_name'],
@@ -60,21 +60,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $registration_data['birthday'],
                     $registration_data['password'],
                     $registration_data['verification_code'],
-                    $registration_data['bank_id']
+                    $registration_data['bank_id'],
+                    $registration_data['referral_code']
                 );
                 $stmt1->execute();
                 $bank_user_id = $conn->insert_id;
                 $stmt1->close();
                 
-                // 2. Insert into bank_customers table (Basic-operation system)
-                $sql2 = "INSERT INTO bank_customers (first_name, middle_name, last_name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
+                error_log("User created with referral code: " . $registration_data['referral_code']);
+                
+                // 2. Insert into bank_customers table (Basic-operation system) with referral_code
+                $sql2 = "INSERT INTO bank_customers (first_name, middle_name, last_name, email, password_hash, referral_code, total_points, created_at) VALUES (?, ?, ?, ?, ?, ?, 0.00, NOW())";
                 $stmt2 = $conn->prepare($sql2);
-                $stmt2->bind_param("sssss",
+                $stmt2->bind_param("ssssss",
                     $registration_data['first_name'],
                     $registration_data['middle_name'],
                     $registration_data['last_name'],
                     $registration_data['email'],
-                    $registration_data['password']
+                    $registration_data['password'],
+                    $registration_data['referral_code']
                 );
                 $stmt2->execute();
                 $customer_id = $conn->insert_id;
@@ -162,6 +166,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt11->bind_param("siid", $transaction_ref, $account_id, $transaction_type_id, $initial_deposit);
                 $stmt11->execute();
                 $stmt11->close();
+                
+                // 10. Process referral code if provided during signup
+                if (isset($registration_data['used_referral_code']) && !empty($registration_data['used_referral_code'])) {
+                    $used_code = $registration_data['used_referral_code'];
+                    
+                    // Find the referrer by their referral code
+                    $sql_ref = "SELECT id FROM bank_users WHERE referral_code = ?";
+                    $stmt_ref = $conn->prepare($sql_ref);
+                    $stmt_ref->bind_param("s", $used_code);
+                    $stmt_ref->execute();
+                    $result_ref = $stmt_ref->get_result();
+                    
+                    if ($result_ref->num_rows > 0) {
+                        $referrer = $result_ref->fetch_assoc();
+                        $referrer_id = $referrer['id'];
+                        
+                        // Award points: 20 to referrer, 10 to new user
+                        $referrer_points = 20.00;
+                        $referred_points = 10.00;
+                        
+                        // Insert referral record
+                        $sql_ins_ref = "INSERT INTO referrals (referrer_id, referred_id, points_earned) VALUES (?, ?, ?)";
+                        $stmt_ins_ref = $conn->prepare($sql_ins_ref);
+                        $stmt_ins_ref->bind_param("iid", $referrer_id, $bank_user_id, $referrer_points);
+                        $stmt_ins_ref->execute();
+                        $stmt_ins_ref->close();
+                        
+                        // Update referrer's points in bank_users
+                        $sql_upd_ref = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+                        $stmt_upd_ref = $conn->prepare($sql_upd_ref);
+                        $stmt_upd_ref->bind_param("di", $referrer_points, $referrer_id);
+                        $stmt_upd_ref->execute();
+                        $stmt_upd_ref->close();
+                        
+                        // Update new user's points in bank_users
+                        $sql_upd_new = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+                        $stmt_upd_new = $conn->prepare($sql_upd_new);
+                        $stmt_upd_new->bind_param("di", $referred_points, $bank_user_id);
+                        $stmt_upd_new->execute();
+                        $stmt_upd_new->close();
+                        
+                        // Also update bank_customers table
+                        $sql_upd_cust_ref = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = (SELECT customer_id FROM bank_customers WHERE email = (SELECT email FROM bank_users WHERE id = ?))";
+                        $stmt_upd_cust_ref = $conn->prepare($sql_upd_cust_ref);
+                        $stmt_upd_cust_ref->bind_param("di", $referrer_points, $referrer_id);
+                        $stmt_upd_cust_ref->execute();
+                        $stmt_upd_cust_ref->close();
+                        
+                        $sql_upd_cust_new = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?";
+                        $stmt_upd_cust_new = $conn->prepare($sql_upd_cust_new);
+                        $stmt_upd_cust_new->bind_param("di", $referred_points, $customer_id);
+                        $stmt_upd_cust_new->execute();
+                        $stmt_upd_cust_new->close();
+                        
+                        // Add to points history
+                        $sql_hist_ref = "INSERT INTO points_history (user_id, points, description, transaction_type) VALUES (?, ?, 'Referral bonus - Friend signed up', 'referral')";
+                        $stmt_hist_ref = $conn->prepare($sql_hist_ref);
+                        $stmt_hist_ref->bind_param("id", $referrer_id, $referrer_points);
+                        $stmt_hist_ref->execute();
+                        $stmt_hist_ref->close();
+                        
+                        $sql_hist_new = "INSERT INTO points_history (user_id, points, description, transaction_type) VALUES (?, ?, 'Referral bonus - Used referral code', 'referral')";
+                        $stmt_hist_new = $conn->prepare($sql_hist_new);
+                        $stmt_hist_new->bind_param("id", $bank_user_id, $referred_points);
+                        $stmt_hist_new->execute();
+                        $stmt_hist_new->close();
+                        
+                        error_log("Referral processed: Referrer ID $referrer_id got $referrer_points pts, New user ID $bank_user_id got $referred_points pts");
+                    }
+                    $stmt_ref->close();
+                }
                 
                 // Commit transaction
                 $conn->commit();

@@ -66,6 +66,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $birthday = $_POST['birthday'];
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
+    $used_referral_code = trim($_POST['referral_code'] ?? ''); // Optional referral code
     $terms_accepted = isset($_POST['terms']) ? true : false;
 
     if (empty($first_name) || empty($middle_name) || empty($last_name) || 
@@ -111,6 +112,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
+        // Validate referral code if provided
+        if (!empty($used_referral_code)) {
+            $check_ref_sql = "SELECT id FROM bank_users WHERE referral_code = ?";
+            $check_ref_stmt = $conn->prepare($check_ref_sql);
+            $check_ref_stmt->bind_param("s", $used_referral_code);
+            $check_ref_stmt->execute();
+            $check_ref_result = $check_ref_stmt->get_result();
+            
+            if ($check_ref_result->num_rows === 0) {
+                $error = "Invalid referral code. Please check and try again.";
+                $check_ref_stmt->close();
+                // Don't proceed with registration
+                $check_stmt->close();
+                // Skip to form display
+                goto skip_registration;
+            }
+            $check_ref_stmt->close();
+        }
+        
         // Store user data in session
         $_SESSION['temp_registration'] = [
             'first_name' => $first_name,
@@ -124,11 +144,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             'password' => $hashed_password,
             'verification_code' => $verification_code,
             'bank_id' => $bank_id,
-            'referral_code' => $referral_code
+            'referral_code' => $referral_code,
+            'used_referral_code' => $used_referral_code // Store the referral code they used
         ];
         
         // Verify the code was stored
         error_log("Stored in session - Referral code: " . $_SESSION['temp_registration']['referral_code']);
+        if (!empty($used_referral_code)) {
+            error_log("User used referral code: " . $used_referral_code);
+        }
         
         // Send verification email
         $mail = new PHPMailer(true);
@@ -201,17 +225,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
-
-// Example usage in your registration process:
-/*
-$referral_code = generateUniqueReferralCode($conn);
-
-$sql = "INSERT INTO users (first_name, last_name, email, password, referral_code, total_points) 
-        VALUES (?, ?, ?, ?, ?, 0.00)";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("sssss", $first_name, $last_name, $email, $hashed_password, $referral_code);
-$stmt->execute();
-*/
+// Label for skipping registration when referral code is invalid
+skip_registration:
 
 ?>
 
@@ -1074,6 +1089,17 @@ $stmt->execute();
             <span id="match-text"></span>
           </div>
         </div>
+      </div>
+
+      <div class="input-wrapper full">
+        <label class="input-label">Referral Code (Optional)</label>
+        <input type="text" name="referral_code" id="referral_code" placeholder="Enter referral code (e.g., ABC123)" 
+               value="<?php echo isset($_POST['referral_code']) ? htmlspecialchars($_POST['referral_code']) : ''; ?>"
+               style="text-transform: uppercase;" maxlength="20">
+        <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">Have a referral code? Enter it to earn 10 bonus points!</small>
+      </div>
+
+      <div class="form-row" style="display: none;">
       </div>
 
       <div class="checkbox-wrapper">

@@ -1389,4 +1389,4 @@ class Customer extends Database{
         
         return $result ? (float)$result->current_balance : 0.00;
     }
-}
+}
