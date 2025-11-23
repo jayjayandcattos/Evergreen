@@ -22,17 +22,14 @@ try {
     exit;
 }
 
-// Check if user is logged in - support both session variables
-if (!isset($_SESSION['customer_id']) && !isset($_SESSION['user_id'])) {
+// Check if user is logged in
+if (!isset($_SESSION['customer_id'])) {
     ob_end_clean();
     echo json_encode(['success' => false, 'message' => 'Not logged in']);
     exit;
 }
 
-// Use customer_id if available, fallback to user_id
-$customer_id = $_SESSION['customer_id'] ?? $_SESSION['user_id'];
-
-// Missions array - all missions defined here (matching old-data working version)
+// Missions array - all missions defined here
 $MISSIONS = [
     1 => [
         'id' => 1,
@@ -108,12 +105,13 @@ $MISSIONS = [
     ]
 ];
 
+$customer_id = $_SESSION['customer_id'];
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 try {
     // Clean any output before processing
     ob_clean();
-
+    
     switch ($action) {
         case 'get_user_points':
             getUserPoints($conn, $customer_id);
@@ -134,8 +132,15 @@ try {
         case 'get_completed_missions':
             getCompletedMissions($conn, $customer_id);
             break;
-    
+        
+        // Add this case in your switch statement
         case 'redeem_reward':
+            if (!isset($_SESSION['customer_id'])) {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Not logged in']);
+                exit;
+            }
+            
             $reward_name = $_POST['reward_name'] ?? '';
             $points_cost = floatval($_POST['points_cost'] ?? 0);
             
@@ -146,6 +151,7 @@ try {
             }
             
             // Get customer's current points from bank_customers table
+            $customer_id = $_SESSION['customer_id'];
             $stmt = $conn->prepare("SELECT total_points FROM bank_customers WHERE customer_id = ?");
             $stmt->bind_param("i", $customer_id);
             $stmt->execute();
@@ -207,8 +213,15 @@ try {
 function getUserPoints($conn, $customer_id) {
     ob_clean();
     
+    // Try bank_customers first, then bank_users
     $sql = "SELECT total_points FROM bank_customers WHERE customer_id = ?";
     $stmt = $conn->prepare($sql);
+    
+    if (!$stmt) {
+        // Try alternative table name
+        $sql = "SELECT total_points FROM bank_users WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+    }
     
     if (!$stmt) {
         echo json_encode([
@@ -259,7 +272,7 @@ function getMissions($conn, $customer_id) {
         
         if (!$stmt) {
             // Try alternative table name
-            $referral_sql = "SELECT COUNT(*) as referral_count FROM referrals WHERE referrer_id = ?";
+            $referral_sql = "SELECT COUNT(*) as referral_count FROM bank_users WHERE referred_by = ?";
             $stmt = $conn->prepare($referral_sql);
         }
         
@@ -274,6 +287,7 @@ function getMissions($conn, $customer_id) {
         }
         
         // Get collected missions from user_missions table
+        // Try with status column first, fallback to just checking if record exists
         $collected_sql = "SELECT mission_id FROM user_missions WHERE user_id = ? AND status = 'collected'";
         $stmt = $conn->prepare($collected_sql);
         
@@ -331,6 +345,7 @@ function getMissions($conn, $customer_id) {
         }
         
         // Ensure at least mission 7 and 12 are always shown (if not collected)
+        // This is a safety check to ensure missions are displayed
         if (count($missions) == 0 && isset($MISSIONS[7]) && !in_array(7, $collected_mission_ids)) {
             $missions[] = [
                 'id' => $MISSIONS[7]['id'],
@@ -394,7 +409,7 @@ function collectMission($conn, $customer_id) {
         
         if (!$stmt) {
             // Try alternative table name
-            $sql = "SELECT COUNT(*) as referral_count FROM referrals WHERE referrer_id = ?";
+            $sql = "SELECT COUNT(*) as referral_count FROM bank_users WHERE referred_by = ?";
             $stmt = $conn->prepare($sql);
         }
         
@@ -471,9 +486,15 @@ function collectMission($conn, $customer_id) {
         $stmt->execute();
         $stmt->close();
         
-        // Update customer's total points
+        // Update customer's total points - try both table names
         $sql = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
+        
+        if (!$stmt) {
+            // Try alternative table name
+            $sql = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+        }
         
         if (!$stmt) {
             throw new Exception('Database error updating points: ' . $conn->error);
@@ -483,13 +504,14 @@ function collectMission($conn, $customer_id) {
         $stmt->execute();
         $stmt->close();
 
-        // Log the mission collection in points_history
+        // ✅ ADD THIS: Log the mission collection in points_history
         $sql = "INSERT INTO points_history (user_id, points, description, transaction_type) 
                 VALUES (?, ?, ?, 'mission')";
         $stmt = $conn->prepare($sql);
         
         if (!$stmt) {
             // If points_history table doesn't exist, continue without logging
+            // This is not critical, so we'll just log a warning
             error_log('Warning: points_history table not found, skipping history log');
         } else {
             $stmt->bind_param("ids", $customer_id, $points, $mission_text);
@@ -497,9 +519,15 @@ function collectMission($conn, $customer_id) {
             $stmt->close();
         }
         
-        // Get updated total
+        // Get updated total - try both table names
         $sql = "SELECT total_points FROM bank_customers WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
+        
+        if (!$stmt) {
+            // Try alternative table name
+            $sql = "SELECT total_points FROM bank_users WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+        }
         
         if (!$stmt) {
             throw new Exception('Database error getting total points: ' . $conn->error);

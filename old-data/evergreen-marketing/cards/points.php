@@ -1,17 +1,20 @@
 <?php
     session_start([
        'cookie_httponly' => true,
-       'cookie_secure' => isset($_SERVER['HTTPS']),
+       'cookie_secure' => isset($_SERVER['HTTPS']), // Set to true if using HTTPS
        'use_strict_mode' => true
     ]);
-    // Check if user is logged in
-    if (!isset($_SESSION['user_id']) || !isset($_SESSION['email'])) {
-        header("Location: ../login.php");
+
+    // Check if user is logged in using the correct session variable from login.php
+    if (!isset($_SESSION['customer_id']) || !isset($_SESSION['email'])) {
+        // If not logged in, redirect to login page
+        header("Location: login.php");
         exit;
     }
 
     // Get user info from session
-    $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION['last_name']);
+    $fullName = $_SESSION['full_name'] ?? ($_SESSION['customer_first_name'] . ' ' . $_SESSION['customer_last_name']);
+    $firstName = $_SESSION['first_name'] ?? 'Customer';
 ?>
 
 <!DOCTYPE html>
@@ -1446,7 +1449,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
-                    <img src="../images/Logo.svg">
+                    <img src="../images/Logo.png.png">
                 </a>
             </div>
             <span>
@@ -1467,7 +1470,7 @@
                 </div>
             </div>
 
-            <a href="/Evergreen/LoanSubsystem/">Loans</a>
+            <a href="../../../LoanSubsystem/index.php">Loans</a>
             <a href="../about.php">About Us</a>
         </div>
 
@@ -1482,8 +1485,8 @@
                 </div>
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
-                    <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
-                    <a href="../refer.php" role="menuitem">Refer to a friend</a>
+                    <a href="../../Basic-operation/operations/public/customer/account" role="menuitem">Profile</a>
+                    <a href="../../Basic-operation/operations/public/customer/referral" role="menuitem">Refer to a friend</a>
                     <a href="../cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -1599,7 +1602,7 @@
             <div class="footer-section">
                 <h4>Contact Us</h4>
                 <div class="contact-item">📞 1-800-EVERGREEN</div>
-                <div class="contact-item">✉️ evrgrn.64@gmail.com</div>
+                <div class="contact-item">✉️ hello@evergreenbank.com</div>
                 <div class="contact-item">📍 123 Financial District, Suite 500<br>&nbsp;&nbsp;&nbsp;&nbsp;New York, NY 10004</div>
             </div>
         </div>
@@ -1617,20 +1620,43 @@
 
     <script src="../js/points_system.js"></script>
     <script>
-        // Set correct API path
-        pointsSystem.apiUrl = '../points_api.php';
+        // Override the default API URL immediately
+        if (typeof pointsSystem !== 'undefined') {
+            pointsSystem.apiUrl = '../points_api.php';
+        }
         
-        // Initialize on page load
+        // Initialize on page load - this will override the one in points_system.js
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log('Points page loaded, initializing...');
+            console.log('Initializing points system...');
             
-            // Load user points
-            await pointsSystem.loadUserPoints();
-            
-            // Load missions in the mission tab
-            await pointsSystem.renderMissions('mission');
-            
-            console.log('Points page initialization complete');
+            // Ensure API URL is set correctly
+            if (typeof pointsSystem !== 'undefined') {
+                pointsSystem.apiUrl = '../points_api.php';
+                console.log('API URL set to:', pointsSystem.apiUrl);
+                
+                try {
+                    // Load user points
+                    console.log('Loading user points...');
+                    await pointsSystem.loadUserPoints();
+                    console.log('User points loaded:', pointsSystem.totalPoints);
+                    
+                    // Always load missions for the mission tab (it's active by default)
+                    const missionContainer = document.getElementById('mission');
+                    console.log('Mission container found:', missionContainer);
+                    
+                    if (missionContainer) {
+                        console.log('Rendering missions...');
+                        await pointsSystem.renderMissions('mission');
+                        console.log('Missions rendered');
+                    } else {
+                        console.error('Mission container not found!');
+                    }
+                } catch (error) {
+                    console.error('Error initializing points system:', error);
+                }
+            } else {
+                console.error('pointsSystem is not defined!');
+            }
         });
         
         // Dropdown functionality
