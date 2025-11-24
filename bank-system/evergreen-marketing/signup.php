@@ -60,6 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $middle_name = trim($_POST['middle_name']);
     $last_name = trim($_POST['last_name']);
     $address = trim($_POST['address']);
+    $province = trim($_POST['province']);
     $city_province = trim($_POST['city_province']);
     $email = trim($_POST['email']);
     $contact_number = trim($_POST['contact_number']);
@@ -69,7 +70,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $terms_accepted = isset($_POST['terms']) ? true : false;
 
     if (empty($first_name) || empty($middle_name) || empty($last_name) || 
-        empty($address) || empty($city_province) || empty($email) || 
+        empty($address) || empty($province) || empty($city_province) || empty($email) || 
         empty($contact_number) || empty($birthday) || empty($password) || 
         empty($confirm_password)) {
         $error = "Please fill in all required fields.";
@@ -113,13 +114,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
+        // Combine province and city for storage
+        $full_location = $city_province . ', ' . $province;
+        
         // Store user data in session
         $_SESSION['temp_registration'] = [
             'first_name' => $first_name,
             'middle_name' => $middle_name,
             'last_name' => $last_name,
             'address' => $address,
-            'city_province' => $city_province,
+            'city_province' => $full_location,
             'email' => $email,
             'contact_number' => $contact_number,
             'birthday' => $birthday,
@@ -388,7 +392,7 @@ $stmt->execute();
       to { opacity: 1; }
     }
 
-    input.error {
+    input.error, select.error {
       border-color: #dc3545 !important;
       background: #fff5f5 !important;
     }
@@ -606,6 +610,48 @@ $stmt->execute();
 
     input:hover:not(:focus) {
       border-color: #d0d5dd;
+    }
+
+    select {
+      width: 100%;
+      padding: 14px 18px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      font-size: 14px;
+      background: #f8f9fa;
+      color: #333;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 18px center;
+      padding-right: 45px;
+    }
+
+    select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background-color: #e9ecef;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #0d3d38;
+      background-color: white;
+      box-shadow: 0 0 0 4px rgba(13, 61, 56, 0.1);
+      transform: translateY(-2px);
+    }
+
+    select:hover:not(:focus):not(:disabled) {
+      border-color: #d0d5dd;
+    }
+
+    select option {
+      padding: 10px;
+      background: white;
+      color: #333;
     }
 
     .checkbox-wrapper {
@@ -1003,12 +1049,23 @@ $stmt->execute();
 
       <div class="form-row">
         <div class="input-wrapper">
-          <label class="input-label">City/Province</label>
-          <input type="text" name="city_province" id="city_province" placeholder="Metro Manila" 
-                 value="<?php echo isset($_POST['city_province']) ? htmlspecialchars($_POST['city_province']) : ''; ?>">
-          <span class="error-message" id="city_province_error">This field is required</span>
+          <label class="input-label">Province</label>
+          <select name="province" id="province" required>
+            <option value="">Select Province</option>
+          </select>
+          <span class="error-message" id="province_error">This field is required</span>
         </div>
         <div class="input-wrapper">
+          <label class="input-label">City/Municipality</label>
+          <select name="city_province" id="city_province" required disabled>
+            <option value="">Select City/Municipality</option>
+          </select>
+          <span class="error-message" id="city_province_error">This field is required</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="input-wrapper" style="grid-column: span 2;">
           <label class="input-label">Email</label>
           <input type="email" name="email" id="email" placeholder="example@gmail.com" 
                  value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
@@ -1067,7 +1124,7 @@ $stmt->execute();
         <div class="input-wrapper">
           <label class="input-label">Confirm Password</label>
           <div class="password-container">
-            <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password">
+            <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" oncopy="return false" onpaste="return false" oncut="return false">
             <button type="button" class="eye-icon" onclick="togglePassword('confirm_password')"></button>
           </div>
           <span class="error-message" id="confirm_password_error">This field is required</span>
@@ -1423,6 +1480,59 @@ $stmt->execute();
         eyeIcons.forEach(icon => {
           icon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>'; // Start with regular eye
         });
+
+        // Load provinces on page load
+        loadProvinces();
+      });
+
+      // Load provinces from API
+      function loadProvinces() {
+        fetch('get_locations.php?action=get_provinces')
+          .then(response => response.json())
+          .then(provinces => {
+            const provinceSelect = document.getElementById('province');
+            provinces.forEach(province => {
+              const option = document.createElement('option');
+              option.value = province;
+              option.textContent = province;
+              provinceSelect.appendChild(option);
+            });
+          })
+          .catch(error => {
+            console.error('Error loading provinces:', error);
+          });
+      }
+
+      // Load cities when province is selected
+      document.getElementById('province').addEventListener('change', function() {
+        const province = this.value;
+        const citySelect = document.getElementById('city_province');
+        
+        // Clear previous cities
+        citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+        
+        if (province) {
+          // Enable city dropdown
+          citySelect.disabled = false;
+          
+          // Fetch cities for selected province
+          fetch(`get_locations.php?action=get_cities&province=${encodeURIComponent(province)}`)
+            .then(response => response.json())
+            .then(cities => {
+              cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                citySelect.appendChild(option);
+              });
+            })
+            .catch(error => {
+              console.error('Error loading cities:', error);
+            });
+        } else {
+          // Disable city dropdown if no province selected
+          citySelect.disabled = true;
+        }
       });
 
       // Password strength checker with requirements
@@ -1522,6 +1632,17 @@ $stmt->execute();
       // Password match checker
       if (confirmPassword) {
         confirmPassword.addEventListener('input', checkPasswordMatch);
+        
+        // Prevent drag and drop into confirm password field
+        confirmPassword.addEventListener('drop', function(e) {
+          e.preventDefault();
+          return false;
+        });
+        
+        confirmPassword.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          return false;
+        });
       }
 
       function checkPasswordMatch() {
@@ -1582,7 +1703,8 @@ $stmt->execute();
           'first_name',
           'middle_name',
           'last_name', 
-          'address', 
+          'address',
+          'province',
           'city_province', 
           'email', 
           'contact_number', 
@@ -1710,6 +1832,19 @@ $stmt->execute();
       document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="password"], input[type="date"]').forEach(input => {
         input.addEventListener('input', function() {
           if (this.value.trim()) {
+            this.classList.remove('error');
+            const errorMsg = document.getElementById(this.id + '_error');
+            if (errorMsg) {
+              errorMsg.classList.remove('show');
+            }
+          }
+        });
+      });
+
+      // Remove error styling on select change
+      document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', function() {
+          if (this.value) {
             this.classList.remove('error');
             const errorMsg = document.getElementById(this.id + '_error');
             if (errorMsg) {

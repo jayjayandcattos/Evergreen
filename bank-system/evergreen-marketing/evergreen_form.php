@@ -317,8 +317,62 @@
         transition: 0.2s;
       }
 
-      .selected h4 {
+      .selected h4, .selected p {
         color: white;
+      }
+
+      /* Card selection options */
+      .card-option {
+        border: 2px solid #E6E6E6;
+        border-radius: 8px;
+        padding: 14px;
+        background: #FFFFFF;
+        cursor: pointer;
+        text-align: left;
+        transition: 0.2s;
+        position: relative;
+      }
+
+      .card-option h4 {
+        margin: 0 0 6px 0;
+        font-size: 14px;
+        color: #003631;
+      }
+
+      .card-option p {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        color: #8C8C8C;
+      }
+
+      .card-option:hover {
+        border-color: #003631;
+        box-shadow: 0 2px 8px rgba(0, 54, 49, 0.1);
+      }
+
+      .card-option .card-checkbox {
+        margin: 0;
+        cursor: pointer;
+      }
+
+      .card-option.card-selected {
+        background-color: #f0f8f7;
+        border-color: #003631;
+      }
+
+      select.inp-credentials {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 35px;
+        cursor: pointer;
+      }
+
+      select.inp-credentials:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: #f5f5f5;
       }
 
       .services-grid {
@@ -1330,29 +1384,40 @@
           <div class="date-input-wrap">
               <div class="input-wrap">
                 <label for="date-of-birth">Date of Birth<span style="color: red;">*</span></label>
-                <input type="date" class="inp-credentials" id="date-of-birth">
-              </div>
-            </div>
-
-            <div class="street-input-wrap">
-              <div class="input-wrap">
-                <label for="street-address">Street Address<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="street-address">
+                <input type="date" class="inp-credentials" id="date-of-birth" max="">
+                <span class="helper-text" style="font-size: 11px; color: #666; margin-top: 4px;">You must be at least 18 years old</span>
               </div>
             </div>
 
             <div class="city-input-wrap">
               <div class="input-wrap">
-                <label for="city">City<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="city">
+                <label for="state">Province<span style="color: red;">*</span></label>
+                <select class="inp-credentials" id="state">
+                  <option value="">Select Province</option>
+                </select>
               </div>
               <div class="input-wrap">
-                <label for="state">State<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="state">
+                <label for="city">City/Municipality<span style="color: red;">*</span></label>
+                <select class="inp-credentials" id="city" disabled>
+                  <option value="">Select City/Municipality</option>
+                </select>
+              </div>
+              <div class="input-wrap">
+                <label for="barangay">Barangay<span style="color: red;">*</span></label>
+                <select class="inp-credentials" id="barangay" disabled>
+                  <option value="">Select Barangay</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="street-input-wrap">
+              <div class="input-wrap">
+                <label for="street-address">Street Address / House No.<span style="color: red;">*</span></label>
+                <input type="text" class="inp-credentials" id="street-address" placeholder="e.g., 123 Main Street, Block 5 Lot 10">
               </div>
               <div class="input-wrap">
                 <label for="zip-code">Zip Code<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="zip-code">
+                <input type="text" class="inp-credentials" id="zip-code" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
             </div>
           </div>
@@ -1436,12 +1501,34 @@
               </div>
 
               <div>
+                <h3 class="section-title">Card Selection</h3>
+                <p style="margin:8px 0 12px 0; font-size:13px; color:#666;">Choose the cards you want to apply for</p>
+                <div class="account-type-cards">
+                  <div class="card-option" data-card="debit">
+                    <h4>Debit Card</h4>
+                    <p>Access your funds instantly</p>
+                    <input type="checkbox" value="debit" class="card-checkbox" style="accent-color: #003631">
+                  </div>
+                  <div class="card-option" data-card="credit">
+                    <h4>Credit Card</h4>
+                    <p>Build credit & earn rewards</p>
+                    <input type="checkbox" value="credit" class="card-checkbox" style="accent-color: #003631">
+                  </div>
+                  <div class="card-option" data-card="prepaid">
+                    <h4>Prepaid Card</h4>
+                    <p>Control your spending</p>
+                    <input type="checkbox" value="prepaid" class="card-checkbox" style="accent-color: #003631">
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <p style="margin:8px 0 6px 0; font-size:13px; color:#003631;">Additional Services (Optional)</p>
                 <div class="services-grid">
-                  <label><input type="checkbox" value="debit" style="accent-color: #003631"> Debit Card</label>
                   <label><input type="checkbox" value="online" style="accent-color: #003631"> Online Banking</label>
                   <label><input type="checkbox" value="mobile" style="accent-color: #003631">Mobile Banking</label>
                   <label><input type="checkbox" value="overdraft" style="accent-color: #003631"> Overdraft Protection</label>
+                  <label><input type="checkbox" value="alerts" style="accent-color: #003631"> SMS Alerts</label>
                 </div>
               </div>
 
@@ -1615,10 +1702,25 @@
     function isNumeric(val) { return /^\d+(?:\.\d+)?$/.test(String(val).trim()); }
     function isSSN(val) { return /^(\d{3}-?\d{2}-?\d{4})$/.test(String(val).trim()); }
 
+    // Age validation helper
+    function isAtLeast18(dateString) {
+      const birthDate = new Date(dateString);
+      const today = new Date();
+      
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      return age >= 18;
+    }
+
     // Per-step validation
     function validatePersonal() {
       let valid = true;
-      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','city','state','zip-code'];
+      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','barangay','city','state','zip-code'];
       required.forEach(id => {
         const el = document.getElementById(id);
         if (!isNotEmpty(el.value)) {
@@ -1633,6 +1735,17 @@
       if (isNotEmpty(emailEl.value) && !isEmail(emailEl.value)) {
         showFieldError(emailEl, 'Enter a valid email address');
         valid = false;
+      }
+
+      // Validate age (must be 18+)
+      const dobEl = document.getElementById('date-of-birth');
+      if (isNotEmpty(dobEl.value)) {
+        if (!isAtLeast18(dobEl.value)) {
+          showFieldError(dobEl, 'You must be at least 18 years old to apply');
+          valid = false;
+        } else {
+          clearFieldError(dobEl);
+        }
       }
 
       return valid;
@@ -1742,6 +1855,7 @@
             phoneNumber: document.getElementById('phone-number').value,
             dateOfBirth: document.getElementById('date-of-birth').value,
             streetAddress: document.getElementById('street-address').value,
+            barangay: document.getElementById('barangay').value,
             city: document.getElementById('city').value,
             state: document.getElementById('state').value,
             zipCode: document.getElementById('zip-code').value,
@@ -1783,19 +1897,59 @@
     });
 
     okBtn.addEventListener('click', function() {
-      // Close review modal with animation
-      modalContainer.classList.add('closing');
+      // Disable button to prevent double submission
+      okBtn.disabled = true;
+      okBtn.textContent = 'Processing...';
       
-      setTimeout(() => {
-        modalContainer.style.display = 'none';
-        modalContainer.classList.remove('closing');
-        
-        // Show success modal
-        successModal.style.display = 'flex';
-        
-        // Trigger confetti
-        createConfetti();
-      }, 300);
+      // Prepare data for submission
+      const applicationData = {
+        ...infoData[0],
+        selectedCards: getSelectedCards(),
+        additionalServices: getSelectedServices(),
+        termsAccepted: document.getElementById('term-tnc').checked,
+        privacyAcknowledged: document.getElementById('term-privacy').checked,
+        marketingConsent: document.querySelectorAll('.terms-box input[type="checkbox"]')[2].checked
+      };
+      
+      // Submit to backend
+      fetch('submit_account_application.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(applicationData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Update reference ID with actual application number
+          document.getElementById('ref-id').textContent = 'Reference ID: ' + data.application_number;
+          
+          // Close review modal with animation
+          modalContainer.classList.add('closing');
+          
+          setTimeout(() => {
+            modalContainer.style.display = 'none';
+            modalContainer.classList.remove('closing');
+            
+            // Show success modal
+            successModal.style.display = 'flex';
+            
+            // Trigger confetti
+            createConfetti();
+          }, 300);
+        } else {
+          alert('Error: ' + data.message);
+          okBtn.disabled = false;
+          okBtn.textContent = 'Ok';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while submitting your application. Please try again.');
+        okBtn.disabled = false;
+        okBtn.textContent = 'Ok';
+      });
     });
 
     cancelBtn.addEventListener('click', function() {
@@ -1814,12 +1968,19 @@
       }, 300);
     });
 
-    // Display ref id and date submitted
-    let refId = Math.floor(1000 + Math.random() * 9000);
-    document.getElementById('ref-id').textContent = 'Reference ID: ' + refId;
+    // Display date submitted
     let currentDate = new Date();
     let formattedDate = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear();
     document.getElementById('date-submitted').textContent = 'Date Submitted: ' + formattedDate;
+    
+    // Helper function to get selected services
+    function getSelectedServices() {
+      const services = [];
+      document.querySelectorAll('.services-grid input[type="checkbox"]:checked').forEach(cb => {
+        services.push(cb.value);
+      });
+      return services;
+    }
 
     // Display credentials in review modal
     function displayCred(name, value) {
@@ -1864,5 +2025,181 @@
 
     // Initialize UI
     updateStepUI();
+
+    // ========================================
+    // PROVINCE AND CITY DROPDOWN
+    // ========================================
+    
+    // Load provinces on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadProvinces();
+      setMaxBirthDate();
+    });
+
+    // Set max date for birth date (18 years ago from today)
+    function setMaxBirthDate() {
+      const today = new Date();
+      const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+      const maxDateString = maxDate.toISOString().split('T')[0];
+      document.getElementById('date-of-birth').setAttribute('max', maxDateString);
+    }
+
+    function loadProvinces() {
+      fetch('get_locations.php?action=get_provinces')
+        .then(response => response.json())
+        .then(provinces => {
+          const provinceSelect = document.getElementById('state');
+          provinces.forEach(province => {
+            const option = document.createElement('option');
+            option.value = province;
+            option.textContent = province;
+            provinceSelect.appendChild(option);
+          });
+        })
+        .catch(error => {
+          console.error('Error loading provinces:', error);
+        });
+    }
+
+    // Load cities when province is selected
+    document.getElementById('state').addEventListener('change', function() {
+      const province = this.value;
+      const citySelect = document.getElementById('city');
+      const barangaySelect = document.getElementById('barangay');
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      // Clear previous cities, barangays, and zip code
+      citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+      zipCodeInput.value = '';
+      
+      if (province) {
+        // Enable city dropdown
+        citySelect.disabled = false;
+        barangaySelect.disabled = true;
+        
+        // Fetch cities for selected province
+        fetch(`get_locations.php?action=get_cities&province=${encodeURIComponent(province)}`)
+          .then(response => response.json())
+          .then(cities => {
+            cities.forEach(city => {
+              const option = document.createElement('option');
+              option.value = city;
+              option.textContent = city;
+              citySelect.appendChild(option);
+            });
+          })
+          .catch(error => {
+            console.error('Error loading cities:', error);
+          });
+      } else {
+        // Disable city and barangay dropdowns if no province selected
+        citySelect.disabled = true;
+        barangaySelect.disabled = true;
+      }
+    });
+
+    // Load barangays when city is selected
+    document.getElementById('city').addEventListener('change', function() {
+      const city = this.value;
+      const barangaySelect = document.getElementById('barangay');
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      // Clear previous barangays and zip code
+      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+      zipCodeInput.value = '';
+      
+      if (city) {
+        // Enable barangay dropdown
+        barangaySelect.disabled = false;
+        
+        // Fetch barangays for selected city
+        fetch(`get_locations.php?action=get_barangays&city=${encodeURIComponent(city)}`)
+          .then(response => response.json())
+          .then(barangays => {
+            if (barangays.length > 0) {
+              barangays.forEach(barangay => {
+                const option = document.createElement('option');
+                option.value = barangay;
+                option.textContent = barangay;
+                barangaySelect.appendChild(option);
+              });
+            } else {
+              // If no barangays found, show message
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'No barangays available';
+              barangaySelect.appendChild(option);
+              barangaySelect.disabled = true;
+            }
+          })
+          .catch(error => {
+            console.error('Error loading barangays:', error);
+          });
+      } else {
+        barangaySelect.disabled = true;
+      }
+    });
+
+    // Auto-populate zip code when barangay is selected
+    document.getElementById('barangay').addEventListener('change', function() {
+      const barangay = this.value;
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      if (barangay) {
+        // Fetch zip code for selected barangay
+        fetch(`get_locations.php?action=get_zipcode&barangay=${encodeURIComponent(barangay)}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.zipcode) {
+              zipCodeInput.value = data.zipcode;
+            } else {
+              // If no zip code found, keep it empty
+              zipCodeInput.value = '';
+            }
+          })
+          .catch(error => {
+            console.error('Error loading zip code:', error);
+            zipCodeInput.value = '';
+          });
+      } else {
+        zipCodeInput.value = '';
+      }
+    });
+
+    // ========================================
+    // CARD SELECTION
+    // ========================================
+    
+    // Handle card selection checkboxes
+    document.querySelectorAll('.card-option').forEach(option => {
+      const checkbox = option.querySelector('.card-checkbox');
+      
+      // Click on card option to toggle checkbox
+      option.addEventListener('click', function(e) {
+        if (e.target !== checkbox) {
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event('change'));
+        }
+      });
+      
+      // Update visual state when checkbox changes
+      checkbox.addEventListener('change', function() {
+        if (this.checked) {
+          option.classList.add('card-selected');
+        } else {
+          option.classList.remove('card-selected');
+        }
+      });
+    });
+
+    // Helper function to get selected cards
+    function getSelectedCards() {
+      const cards = [];
+      document.querySelectorAll('.card-checkbox:checked').forEach(cb => {
+        cards.push(cb.value);
+      });
+      return cards;
+    }
 </script>
 </html>

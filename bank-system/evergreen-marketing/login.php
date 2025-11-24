@@ -7,16 +7,15 @@ $success = false;
 $login_failed = false;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $bank_id = trim($_POST['bank_id']);
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
-    if (empty($bank_id) || empty($email) || empty($password)) {
+    if (empty($email) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        $sql = "SELECT * FROM bank_customers WHERE email = ? AND bank_id = ?";
+        $sql = "SELECT * FROM bank_customers WHERE email = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ss", $email, $bank_id);
+        $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
 
@@ -597,11 +596,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <h2>Log In</h2>
 
     <form method="POST" id="loginForm" novalidate>
-      <div class="input-wrapper">
-        <label class="input-label">Bank ID</label>
-        <input type="text" name="bank_id" id="bank_id" placeholder="Bank ID" required>
-        <span class="error-message" id="bank_id_error">This field is required</span>
-      </div>
 
       <div class="input-wrapper">
         <label class="input-label">Email</label>
