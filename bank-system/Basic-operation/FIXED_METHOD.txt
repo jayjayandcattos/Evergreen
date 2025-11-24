@@ -1,0 +1,43 @@
+COPY THIS ENTIRE METHOD AND REPLACE THE CORRUPTED ONE IN Customer.php
+================================================================================
+
+  public function getCustomerByEmailOrAccountNumber($identifier) {
+    $this->db->query("
+            SELECT
+                c.customer_id,
+                c.first_name,
+                c.last_name,
+                c.email,
+                c.password_hash,
+                a.account_number
+            FROM
+                bank_customers c
+            LEFT JOIN
+                customer_accounts a ON c.customer_id = a.customer_id
+            WHERE
+                c.email = :emailIdentifier OR a.account_number = :accountIdentifier
+            LIMIT 1;
+        ");
+
+    if(filter_var($identifier, FILTER_VALIDATE_EMAIL)){
+        $email = $identifier;
+        $account_number = null;
+    } else {
+        $email = null;
+        $account_number = $identifier;
+    }
+
+    $this->db->bind(':emailIdentifier', $email);
+    $this->db->bind(':accountIdentifier', $account_number);
+    return $this->db->single();
+  }
+
+================================================================================
+INSTRUCTIONS:
+1. Open: bank-system/Basic-operation/operations/app/models/Customer.php
+2. Find the corrupted getCustomerByEmailOrAccountNumber method (around line 12)
+3. Delete the entire corrupted method (from "public function" to the closing "}")
+4. Paste this fixed version
+5. Save the file
+6. Refresh your browser and try logging in
+================================================================================

@@ -1,531 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <?php
 
 class Customer extends Database{
@@ -545,28 +17,29 @@ class Customer extends Database{
                 c.last_name,
                 c.email,
                 c.password_hash,
-                a.account_number
+                mber
             FROM
-                bank_customers c
+                bank_mers c
             LEFT JOIN
-                customer_accounts a ON c.customer_id = a.customer_id
+                customer_id
             WHERE
-                c.email = :emailIdentifier OR a.account_number = :accountIdentifier
+                cier
             LIMIT 1;
         ");
 
-    if(filter_var($identifier, FILTER_VALIDATE_EMAIL)){
+
         $email = $identifier;
-        $account_number = null;
+        $account_number = nul;
     } else {
-        $email = null;
-        $account_number = $identifier;
+        $ema
+        $account_numbe
     }
 
-    $this->db->bind(':emailIdentifier', $email);
-    $this->db->bind(':accountIdentifier', $account_number);
+;
+    $this->db->bind(':accountIdentifier', $accou
     return $this->db->single();
-  } 
+
+   } 
 
     public function loginCustomer($identifier, $password) {
         $customer = $this->getCustomerByEmailOrAccountNumber($identifier);
@@ -694,15 +167,12 @@ class Customer extends Database{
         }
 
         // Step 2: Verify account type matches user input
-        // Use LIKE to match partial names (e.g., "Savings" matches "Savings Account")
         $this->db->query("
             SELECT account_type_id, type_name 
             FROM bank_account_types 
-            WHERE type_name LIKE :account_type
+            WHERE type_name = :account_type
         ");
-        // Add wildcards for flexible matching
-        $searchTerm = '%' . $data['account_type'] . '%';
-        $this->db->bind(':account_type', $searchTerm);
+        $this->db->bind(':account_type', $data['account_type']);
         $type = $this->db->single();
 
         if (!$type) {
@@ -1187,8 +657,7 @@ class Customer extends Database{
     }
 
     public function recordTransaction($transaction_ref, $sender, $receiver, $amount, $fee, $message){
-        // for sender - Transfer Out (debit)
-        // Store positive amount, the CASE statement in balance calculation will make it negative
+        // for sender
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -1209,14 +678,13 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 8); // Transfer Out - sender sends money
-        $this->db->bind(':amount', $amount); // Store positive, balance calc applies negative
+        $this->db->bind(':transaction_type', 8);
+        $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $receiver);
         $this->db->bind(':message', $message);
         $this->db->execute();
 
-        // For the fee - Service Charge (debit)
-        // Store positive amount, the CASE statement in balance calculation will make it negative
+        // For the fee
         $this->db->query("
         INSERT INTO bank_transactions (
             account_id,
@@ -1232,13 +700,12 @@ class Customer extends Database{
         );
         ");
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 5); // Service Charge type
-        $this->db->bind(':amount', $fee); // Store positive, balance calc applies negative
+        $this->db->bind(':transaction_type', 5);
+        $this->db->bind(':amount', $fee);
         $this->db->bind(':message', 'Transaction Service Charge - ' . $transaction_ref);
         $this->db->execute();
 
-        // for the receiver - Transfer In (credit)
-        // Store positive amount, the CASE statement in balance calculation will keep it positive
+        // for the receiver
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -1259,8 +726,8 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $receiver);
-        $this->db->bind(':transaction_type', 9); // Transfer In - receiver gets money
-        $this->db->bind(':amount', $amount); // Store positive, balance calc keeps positive
+        $this->db->bind(':transaction_type', 3);
+        $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $sender);
         $this->db->bind(':message', $message);
         $this->db->execute();
@@ -1923,5 +1390,4 @@ class Customer extends Database{
         
         return $result ? (float)$result->current_balance : 0.00;
     }
-
 }

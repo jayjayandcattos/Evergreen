@@ -146,16 +146,31 @@ try {
     $db->beginTransaction();
 
     try {
+        // Get bank_id from session (generated in step 2 when sending verification code)
+        $bank_id = $data['bank_id'] ?? null;
+        if (!$bank_id && isset($_SESSION['customer_onboarding']['data']['bank_id'])) {
+            $bank_id = $_SESSION['customer_onboarding']['data']['bank_id'];
+        }
+        
+        // If bank_id still not found, generate a new one (fallback)
+        if (!$bank_id) {
+            $bank_id = sprintf("%04d", mt_rand(0, 9999));
+            error_log("Warning: Bank ID not found in session, generated new one: " . $bank_id);
+        }
+        
+        error_log("Using Bank ID for customer: " . $bank_id);
+        
         // Insert into bank_customers table (unified schema)
-        // Note: No username field - customers will use email for login
+        // Note: email column added to bank_customers for login compatibility
         $stmt = $db->prepare("
-            INSERT INTO bank_customers (first_name, middle_name, last_name, password_hash, created_at)
-            VALUES (:first_name, :middle_name, :last_name, :password_hash, NOW())
+            INSERT INTO bank_customers (first_name, middle_name, last_name, email, password_hash, created_at)
+            VALUES (:first_name, :middle_name, :last_name, :email, :password_hash, NOW())
         ");
         
         $stmt->bindParam(':first_name', $mappedData['first_name']);
         $stmt->bindParam(':middle_name', $mappedData['middle_name']);
         $stmt->bindParam(':last_name', $mappedData['last_name']);
+        $stmt->bindParam(':email', $mappedData['email']);
         $stmt->bindParam(':password_hash', $mappedData['password_hash']);
         $stmt->execute();
 
