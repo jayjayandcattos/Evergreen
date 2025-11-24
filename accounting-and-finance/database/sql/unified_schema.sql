@@ -293,6 +293,7 @@ CREATE TABLE bank_users (
     password VARCHAR(255) NOT NULL,
     verification_code VARCHAR(100) DEFAULT NULL,
     bank_id VARCHAR(50) DEFAULT NULL,
+    referral_code VARCHAR(50) DEFAULT NULL,
     total_points DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_verified BOOLEAN NOT NULL,
@@ -330,8 +331,13 @@ CREATE TABLE bank_customers (
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50) DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    referral_code VARCHAR(50) DEFAULT NULL,
+    total_points DECIMAL(10,2) DEFAULT 0.00,
+    referred_by_customer_id INT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
+    email VARCHAR(100) NOT NULL,
+    INDEX idx_email (email),
     INDEX idx_created_by_employee_id (created_by_employee_id)
 );
 
@@ -926,6 +932,3 @@ SELECT
 FROM journal_entries je
 JOIN journal_types jt ON je.journal_type_id = jt.id
 JOIN users u ON je.created_by = u.id;
-
-
-
