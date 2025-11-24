@@ -331,14 +331,17 @@ CREATE TABLE bank_customers (
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50) DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    referral_code VARCHAR(50) DEFAULT NULL,
+    referral_code VARCHAR(20) DEFAULT NULL,
     total_points DECIMAL(10,2) DEFAULT 0.00,
     referred_by_customer_id INT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
     email VARCHAR(100) NOT NULL,
+    UNIQUE KEY idx_referral_code (referral_code),
     INDEX idx_email (email),
-    INDEX idx_created_by_employee_id (created_by_employee_id)
+    INDEX idx_created_by_employee_id (created_by_employee_id),
+    INDEX idx_referred_by (referred_by_customer_id),
+    CONSTRAINT fk_referred_by FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL
 );
 
 CREATE TABLE bank_employees (
@@ -886,16 +889,7 @@ CREATE TABLE integration_logs (
     INDEX idx_created_at (created_at)
 );
 
-ALTER TABLE bank_customers 
-ADD COLUMN referral_code VARCHAR(20) UNIQUE NULL,
-ADD COLUMN total_points DECIMAL(10,2) DEFAULT 0.00,
-ADD COLUMN referred_by_customer_id INT NULL,
-ADD INDEX idx_referral_code (referral_code),
-ADD INDEX idx_referred_by (referred_by_customer_id);
 
-ALTER TABLE bank_customers 
-ADD CONSTRAINT fk_referred_by 
-FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL;
 
 -- ========================================
 -- VIEWS
