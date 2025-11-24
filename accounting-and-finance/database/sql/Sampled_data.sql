@@ -39,13 +39,34 @@ VALUES (
     username = VALUES(username),
     password_hash = VALUES(password_hash);
 
+-- Insert the finance admin user
+-- Email: finance.admin@evergreen.com
+-- Username: finance.admin
+-- Password: Finance2025
+INSERT INTO users (id, username, password_hash, email, full_name, is_active, created_at) 
+VALUES (
+    2,
+    'finance.admin',
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'finance.admin@evergreen.com',
+    'Finance Administrator',
+    TRUE,
+    NOW()
+) ON DUPLICATE KEY UPDATE 
+    username = VALUES(username),
+    password_hash = VALUES(password_hash);
+
 -- Insert default roles
 INSERT INTO roles (name, description) VALUES
-('Administrator', 'Full system access with all privileges')
+('Administrator', 'Full system access with all privileges'),
+('Accounting Admin', 'Full administrative access to accounting and finance modules')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- Assign admin role to the admin user
 INSERT INTO user_roles (user_id, role_id) VALUES (1, 1) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
+
+-- Assign Accounting Admin role to the finance admin user
+INSERT INTO user_roles (user_id, role_id) VALUES (2, 2) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
 
 -- ========================================
 -- 2. ACCOUNT TYPES & CHART OF ACCOUNTS
@@ -397,7 +418,8 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), base_monthly_salary = VALUES(base_m
 -- Note: Additional user_account records can be created as needed
 -- The employee_id links to the employee table, enabling HRIS-Payroll integration
 INSERT INTO user_account (user_id, employee_id, username, password_hash, role, last_login) VALUES
-(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY)
+(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY),
+(2, 2, 'finance.admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Accounting Admin', NULL)
 ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), password_hash = VALUES(password_hash);
 
 -- ========================================
@@ -433,28 +455,6 @@ VALUES (
     'hrmanager', -- username
     '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
     'HR Manager', -- role (must be exactly 'HR Manager')
-    NULL -- last_login will be set automatically on first login
-)
-ON DUPLICATE KEY UPDATE 
-    password_hash = VALUES(password_hash),
-    role = VALUES(role);
-
--- ========================================
--- CREATE ACCOUNTING ADMIN ACCOUNT
--- ========================================
--- This creates a professional Accounting Admin account
--- Username: finance.admin
--- Password: F!n@nc3Adm!n2024
--- Role: Accounting Admin
--- ========================================
-
--- Create Accounting Admin account
-INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
-VALUES (
-    2, -- employee_id (linked to Maria Elena Rodriguez - CFO)
-    'finance.admin', -- username
-    '$2y$10$vQxJ9K7LmN8pR5tU2wX3Y.eZ4bC6dF8gH0iJ2kL4mN6oP8qR0sT2u', -- password hash for 'F!n@nc3Adm!n2024'
-    'Accounting Admin', -- role (must be exactly 'Accounting Admin')
     NULL -- last_login will be set automatically on first login
 )
 ON DUPLICATE KEY UPDATE 
