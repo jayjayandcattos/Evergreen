@@ -48,6 +48,47 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 INSERT INTO user_roles (user_id, role_id) VALUES (1, 1) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
 
 -- ========================================
+-- 1A. BANK CUSTOMERS & GENDERS
+-- ========================================
+-- These must be inserted before customer_profiles due to foreign key constraints
+
+-- Insert genders (required for customer_profiles)
+INSERT INTO genders (gender_id, gender_name) VALUES
+(1, 'Male'),
+(2, 'Female'),
+(3, 'Other')
+ON DUPLICATE KEY UPDATE gender_name = VALUES(gender_name);
+
+-- Insert sample bank customers (required before customer_profiles)
+INSERT INTO bank_customers (
+    customer_id,
+    first_name,
+    middle_name,
+    last_name,
+    address,
+    city_province,
+    email,
+    contact_number,
+    birthday,
+    password,
+    password_hash,
+    verification_code,
+    bank_id,
+    referral_code,
+    total_points,
+    referred_by_customer_id,
+    is_verified,
+    created_at,
+    created_by_employee_id
+) VALUES
+(1, 'Juan', 'Carlos', 'Dela Cruz', '123 Main St', 'Manila', 'juan.delacruz@email.com', '09171234567', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK001', 'REF001', 0.00, NULL, 1, NOW() - INTERVAL 85 DAY, NULL),
+(2, 'Maria', 'Santos', 'Garcia', '456 Oak Ave', 'Quezon City', 'maria.garcia@email.com', '09171234568', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK002', 'REF002', 0.00, NULL, 1, NOW() - INTERVAL 70 DAY, NULL),
+(3, 'Pedro', 'Reyes', 'Mendoza', '789 Pine Rd', 'Makati', 'pedro.mendoza@email.com', '09171234569', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK003', 'REF003', 0.00, NULL, 1, NOW() - INTERVAL 55 DAY, NULL),
+(4, 'Ana', 'Lopez', 'Torres', '321 Elm St', 'Pasig', 'ana.torres@email.com', '09171234570', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK004', 'REF004', 0.00, NULL, 1, NOW() - INTERVAL 40 DAY, NULL),
+(5, 'Roberto', 'Cruz', 'Ramos', '654 Maple Dr', 'Taguig', 'roberto.ramos@email.com', '09171234571', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK005', 'REF005', 0.00, NULL, 1, NOW() - INTERVAL 25 DAY, NULL)
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name);
+
+-- ========================================
 -- 2. ACCOUNT TYPES & CHART OF ACCOUNTS
 -- ========================================
 
