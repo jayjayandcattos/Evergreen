@@ -2113,10 +2113,18 @@
         // Enable barangay dropdown immediately
         barangaySelect.disabled = false;
         
-        // Fetch barangays for selected city
+        // Add loading option
+        const loadingOption = document.createElement('option');
+        loadingOption.value = '';
+        loadingOption.textContent = 'Loading barangays...';
+        barangaySelect.appendChild(loadingOption);
+        
+        // Fetch barangays (will return specific or generic barangays)
         fetch(`get_locations.php?action=get_barangays&city=${encodeURIComponent(city)}`)
           .then(response => response.json())
           .then(barangays => {
+            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+            
             if (barangays.length > 0) {
               // Populate dropdown with barangays
               barangays.forEach(barangay => {
@@ -2126,15 +2134,16 @@
                 barangaySelect.appendChild(option);
               });
             } else {
-              // If no barangays found, show message but keep enabled
+              // Fallback if no barangays returned
               const option = document.createElement('option');
               option.value = '';
-              option.textContent = 'No barangays available for this city';
+              option.textContent = 'No barangays available';
               barangaySelect.appendChild(option);
             }
           })
           .catch(error => {
             console.error('Error loading barangays:', error);
+            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
             const option = document.createElement('option');
             option.value = '';
             option.textContent = 'Error loading barangays';
@@ -2148,11 +2157,12 @@
     // Auto-populate zip code when barangay is selected
     document.getElementById('barangay').addEventListener('change', function() {
       const barangay = this.value;
+      const city = document.getElementById('city').value;
       const zipCodeInput = document.getElementById('zip-code');
       
       if (barangay) {
-        // Fetch zip code for selected barangay
-        fetch(`get_locations.php?action=get_zipcode&barangay=${encodeURIComponent(barangay)}`)
+        // Fetch zip code for selected barangay and city
+        fetch(`get_locations.php?action=get_zipcode&barangay=${encodeURIComponent(barangay)}&city=${encodeURIComponent(city)}`)
           .then(response => response.json())
           .then(data => {
             if (data.zipcode) {

@@ -346,17 +346,57 @@ if ($action === 'get_provinces') {
     if (isset($barangays[$city])) {
         echo json_encode($barangays[$city]);
     } else {
-        // Return empty array if no barangays found for this city
-        echo json_encode([]);
+        // Return generic barangays for cities without specific data
+        // This ensures all cities have barangays available
+        $genericBarangays = [
+            "Poblacion",
+            "Barangay 1 (Poblacion)",
+            "Barangay 2",
+            "Barangay 3",
+            "San Antonio",
+            "San Jose",
+            "San Juan",
+            "San Miguel",
+            "San Pedro",
+            "San Roque",
+            "Santa Cruz",
+            "Santa Maria",
+            "Santo Niño",
+            "Santo Tomas"
+        ];
+        echo json_encode($genericBarangays);
     }
     
 } elseif ($action === 'get_zipcode') {
     $barangay = isset($_GET['barangay']) ? $_GET['barangay'] : '';
+    $city = isset($_GET['city']) ? $_GET['city'] : '';
+    
     if (isset($barangayZipCodes[$barangay])) {
         echo json_encode(['zipcode' => $barangayZipCodes[$barangay]]);
     } else {
-        // Return empty if not found
-        echo json_encode(['zipcode' => '']);
+        // Generate generic zip code based on city
+        // In production, use actual Philippine zip code database
+        $genericZipCodes = [
+            // Metro Manila
+            'Quezon City' => '1100',
+            'Manila' => '1000',
+            'Makati' => '1200',
+            'Pasig' => '1600',
+            'Taguig' => '1630',
+            'Parañaque' => '1700',
+            'Caloocan' => '1400',
+            'Las Piñas' => '1740',
+            'Muntinlupa' => '1770',
+            'Pasay' => '1300',
+            // Bohol
+            'Tagbilaran' => '6300',
+            'Corella' => '6300',
+            'Baclayon' => '6301',
+            // Add more as needed
+        ];
+        
+        $zipcode = isset($genericZipCodes[$city]) ? $genericZipCodes[$city] : '';
+        echo json_encode(['zipcode' => $zipcode]);
     }
     
 } else {
