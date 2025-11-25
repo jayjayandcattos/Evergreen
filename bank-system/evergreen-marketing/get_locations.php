@@ -136,6 +136,18 @@ $barangays = [
     "Davao City" => [
         "Agdao", "Buhangin", "Bunawan", "Calinan", "Catalunan Grande", "Catalunan Pequeño",
         "Matina", "Panacan", "Poblacion", "Talomo", "Toril", "Tugbok"
+    ],
+    // Bohol Cities
+    "Corella" => [
+        "Anislag", "Canapnapan", "Cancatac", "Canigaan", "Poblacion", "Sambog", "Tanday"
+    ],
+    "Tagbilaran" => [
+        "Bool", "Booy", "Cabawan", "Cogon", "Dampas", "Dao", "Mansasa", "Poblacion I", 
+        "Poblacion II", "Poblacion III", "San Isidro", "Taloto", "Tiptip", "Ubujan"
+    ],
+    "Baclayon" => [
+        "Cambanac", "Dasitam", "Landican", "Laya", "Libertad", "Montaña", "Pamilacan", 
+        "Payahan", "Poblacion", "San Isidro", "San Roque", "San Vicente", "Santa Cruz", "Taguihon"
     ]
 ];
 

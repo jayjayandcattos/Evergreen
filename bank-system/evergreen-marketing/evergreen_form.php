@@ -2110,7 +2110,7 @@
       zipCodeInput.value = '';
       
       if (city) {
-        // Enable barangay dropdown
+        // Enable barangay dropdown immediately
         barangaySelect.disabled = false;
         
         // Fetch barangays for selected city
@@ -2118,6 +2118,7 @@
           .then(response => response.json())
           .then(barangays => {
             if (barangays.length > 0) {
+              // Populate dropdown with barangays
               barangays.forEach(barangay => {
                 const option = document.createElement('option');
                 option.value = barangay;
@@ -2125,16 +2126,19 @@
                 barangaySelect.appendChild(option);
               });
             } else {
-              // If no barangays found, show message
+              // If no barangays found, show message but keep enabled
               const option = document.createElement('option');
               option.value = '';
-              option.textContent = 'No barangays available';
+              option.textContent = 'No barangays available for this city';
               barangaySelect.appendChild(option);
-              barangaySelect.disabled = true;
             }
           })
           .catch(error => {
             console.error('Error loading barangays:', error);
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Error loading barangays';
+            barangaySelect.appendChild(option);
           });
       } else {
         barangaySelect.disabled = true;
