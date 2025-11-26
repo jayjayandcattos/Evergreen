@@ -372,41 +372,41 @@ ON DUPLICATE KEY UPDATE position_title = VALUES(position_title);
 -- Insert employee records linking to departments and positions
 -- This connects HRIS module to the payroll system
 
-INSERT INTO employee (employee_id, first_name, last_name, middle_name, gender, birth_date, contact_number, email, address, hire_date, department_id, position_id, employment_status) VALUES
+INSERT INTO employee (employee_id, first_name, last_name, middle_name, gender, birth_date, contact_number, email, address, house_number, street, barangay, city, province, secondary_email, secondary_contact_number, hire_date, department_id, position_id, employment_status) VALUES
 -- Management (C-Suite & Directors)
-(1, 'Juan', 'Santos', 'Carlos', 'Male', '1980-05-15', '09171234567', 'juan.santos@company.com', 'Makati City, Metro Manila', '2020-01-15', 2, 5, 'Active'),
-(2, 'Maria Elena', 'Rodriguez', NULL, 'Female', '1978-03-20', '09171234568', 'maria.rodriguez@company.com', 'BGC, Taguig City', '2019-06-01', 3, 2, 'Active'),
-(3, 'Jose Miguel', 'Cruz', NULL, 'Male', '1982-08-10', '09171234569', 'jose.cruz@company.com', 'Ortigas, Pasig City', '2021-02-01', 1, 1, 'Active'),
-(4, 'Ana Patricia', 'Lopez', NULL, 'Female', '1985-11-25', '09171234570', 'ana.lopez@company.com', 'Mandaluyong City', '2020-03-15', 4, 4, 'Active'),
-(5, 'Roberto Antonio', 'Garcia', NULL, 'Male', '1981-07-30', '09171234571', 'roberto.garcia@company.com', 'Quezon City', '2019-09-01', 5, 3, 'Active'),
+(1, 'Juan', 'Santos', 'Carlos', 'Male', '1980-05-15', '09171234567', 'juan.santos@company.com', 'Makati City, Metro Manila', '123', 'Ayala Avenue', 'Bel-Air', 'Makati City', 'Metro Manila', NULL, NULL, '2020-01-15', 2, 5, 'Active'),
+(2, 'Maria Elena', 'Rodriguez', NULL, 'Female', '1978-03-20', '09171234568', 'maria.rodriguez@company.com', 'BGC, Taguig City', '456', 'Bonifacio High Street', 'Fort Bonifacio', 'Taguig City', 'Metro Manila', NULL, NULL, '2019-06-01', 3, 2, 'Active'),
+(3, 'Jose Miguel', 'Cruz', NULL, 'Male', '1982-08-10', '09171234569', 'jose.cruz@company.com', 'Ortigas, Pasig City', '789', 'Ortigas Avenue', 'Ortigas Center', 'Pasig City', 'Metro Manila', NULL, NULL, '2021-02-01', 1, 1, 'Active'),
+(4, 'Ana Patricia', 'Lopez', NULL, 'Female', '1985-11-25', '09171234570', 'ana.lopez@company.com', 'Mandaluyong City', '321', 'Shaw Boulevard', 'Wack-Wack', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2020-03-15', 4, 4, 'Active'),
+(5, 'Roberto Antonio', 'Garcia', NULL, 'Male', '1981-07-30', '09171234571', 'roberto.garcia@company.com', 'Quezon City', '654', 'EDSA', 'Cubao', 'Quezon City', 'Metro Manila', NULL, NULL, '2019-09-01', 5, 3, 'Active'),
 
 -- Senior Staff (Managers & Senior Specialists)
-(6, 'Carmen Sofia', 'Martinez', NULL, 'Female', '1987-04-12', '09171234572', 'carmen.martinez@company.com', 'San Juan City', '2021-05-01', 6, 6, 'Active'),
-(7, 'Fernando Luis', 'Torres', NULL, 'Male', '1986-09-18', '09171234573', 'fernando.torres@company.com', 'Pasay City', '2020-07-01', 7, 7, 'Active'),
-(8, 'Isabella Rose', 'Flores', NULL, 'Female', '1989-12-05', '09171234574', 'isabella.flores@company.com', 'Makati City', '2021-01-15', 3, 8, 'Active'),
-(9, 'Miguel Angel', 'Reyes', NULL, 'Male', '1988-06-22', '09171234575', 'miguel.reyes@company.com', 'Taguig City', '2020-08-01', 1, 9, 'Active'),
-(10, 'Sofia Grace', 'Villanueva', NULL, 'Female', '1990-02-14', '09171234576', 'sofia.villanueva@company.com', 'Mandaluyong City', '2021-03-01', 4, 10, 'Active'),
+(6, 'Carmen Sofia', 'Martinez', NULL, 'Female', '1987-04-12', '09171234572', 'carmen.martinez@company.com', 'San Juan City', '987', 'Wilson Street', 'Greenhills', 'San Juan City', 'Metro Manila', NULL, NULL, '2021-05-01', 6, 6, 'Active'),
+(7, 'Fernando Luis', 'Torres', NULL, 'Male', '1986-09-18', '09171234573', 'fernando.torres@company.com', 'Pasay City', '147', 'Roxas Boulevard', 'Malate', 'Pasay City', 'Metro Manila', NULL, NULL, '2020-07-01', 7, 7, 'Active'),
+(8, 'Isabella Rose', 'Flores', NULL, 'Female', '1989-12-05', '09171234574', 'isabella.flores@company.com', 'Makati City', '258', 'Paseo de Roxas', 'Legaspi Village', 'Makati City', 'Metro Manila', NULL, NULL, '2021-01-15', 3, 8, 'Active'),
+(9, 'Miguel Angel', 'Reyes', NULL, 'Male', '1988-06-22', '09171234575', 'miguel.reyes@company.com', 'Taguig City', '369', 'C5 Road', 'Bicutan', 'Taguig City', 'Metro Manila', NULL, NULL, '2020-08-01', 1, 9, 'Active'),
+(10, 'Sofia Grace', 'Villanueva', NULL, 'Female', '1990-02-14', '09171234576', 'sofia.villanueva@company.com', 'Mandaluyong City', '741', 'Meralco Avenue', 'San Antonio', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2021-03-01', 4, 10, 'Active'),
 
 -- Mid-level Staff
-(11, 'Carlos Eduardo', 'Mendoza', NULL, 'Male', '1992-10-08', '09171234577', 'carlos.mendoza@company.com', 'Pasig City', '2022-01-15', 1, 11, 'Active'),
-(12, 'Patricia Isabel', 'Gutierrez', NULL, 'Female', '1991-03-17', '09171234578', 'patricia.gutierrez@company.com', 'Quezon City', '2022-02-01', 3, 12, 'Active'),
-(13, 'Ricardo Manuel', 'Herrera', NULL, 'Male', '1990-07-23', '09171234579', 'ricardo.herrera@company.com', 'Manila City', '2021-06-01', 7, 13, 'Active'),
-(14, 'Gabriela Alejandra', 'Morales', NULL, 'Female', '1993-05-11', '09171234580', 'gabriela.morales@company.com', 'Makati City', '2022-03-01', 6, 14, 'Active'),
-(15, 'Diego Fernando', 'Ramos', NULL, 'Male', '1992-11-29', '09171234581', 'diego.ramos@company.com', 'Taguig City', '2021-09-01', 5, 15, 'Active'),
+(11, 'Carlos Eduardo', 'Mendoza', NULL, 'Male', '1992-10-08', '09171234577', 'carlos.mendoza@company.com', 'Pasig City', '852', 'Julia Vargas Avenue', 'Ortigas', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-01-15', 1, 11, 'Active'),
+(12, 'Patricia Isabel', 'Gutierrez', NULL, 'Female', '1991-03-17', '09171234578', 'patricia.gutierrez@company.com', 'Quezon City', '963', 'Quezon Avenue', 'Diliman', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-02-01', 3, 12, 'Active'),
+(13, 'Ricardo Manuel', 'Herrera', NULL, 'Male', '1990-07-23', '09171234579', 'ricardo.herrera@company.com', 'Manila City', '159', 'Taft Avenue', 'Ermita', 'Manila City', 'Metro Manila', NULL, NULL, '2021-06-01', 7, 13, 'Active'),
+(14, 'Gabriela Alejandra', 'Morales', NULL, 'Female', '1993-05-11', '09171234580', 'gabriela.morales@company.com', 'Makati City', '357', 'Buendia Avenue', 'Pio del Pilar', 'Makati City', 'Metro Manila', NULL, NULL, '2022-03-01', 6, 14, 'Active'),
+(15, 'Diego Fernando', 'Ramos', NULL, 'Male', '1992-11-29', '09171234581', 'diego.ramos@company.com', 'Taguig City', '468', 'McKinley Road', 'McKinley Hill', 'Taguig City', 'Metro Manila', NULL, NULL, '2021-09-01', 5, 15, 'Active'),
 
 -- Junior Staff & Support Roles
-(16, 'Valentina Sofia', 'Castillo', NULL, 'Female', '1994-08-06', '09171234582', 'valentina.castillo@company.com', 'Pasig City', '2022-05-01', 4, 16, 'Active'),
-(17, 'Sebastian Alejandro', 'Vega', NULL, 'Male', '1993-12-19', '09171234583', 'sebastian.vega@company.com', 'Quezon City', '2022-04-15', 1, 17, 'Active'),
-(18, 'Camila Esperanza', 'Ruiz', NULL, 'Female', '1992-01-31', '09171234584', 'camila.ruiz@company.com', 'Makati City', '2021-11-01', 3, 18, 'Active'),
-(19, 'Nicolas Gabriel', 'Silva', NULL, 'Male', '1994-09-14', '09171234585', 'nicolas.silva@company.com', 'Mandaluyong City', '2022-06-01', 7, 19, 'Active'),
-(20, 'Lucia Esperanza', 'Jimenez', NULL, 'Female', '1995-04-27', '09171234586', 'lucia.jimenez@company.com', 'Pasay City', '2022-07-01', 6, 14, 'Active'),
+(16, 'Valentina Sofia', 'Castillo', NULL, 'Female', '1994-08-06', '09171234582', 'valentina.castillo@company.com', 'Pasig City', '570', 'C. Raymundo Avenue', 'Maybunga', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-05-01', 4, 16, 'Active'),
+(17, 'Sebastian Alejandro', 'Vega', NULL, 'Male', '1993-12-19', '09171234583', 'sebastian.vega@company.com', 'Quezon City', '681', 'Commonwealth Avenue', 'Batasan Hills', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-04-15', 1, 17, 'Active'),
+(18, 'Camila Esperanza', 'Ruiz', NULL, 'Female', '1992-01-31', '09171234584', 'camila.ruiz@company.com', 'Makati City', '792', 'Chino Roces Avenue', 'San Antonio', 'Makati City', 'Metro Manila', NULL, NULL, '2021-11-01', 3, 18, 'Active'),
+(19, 'Nicolas Gabriel', 'Silva', NULL, 'Male', '1994-09-14', '09171234585', 'nicolas.silva@company.com', 'Mandaluyong City', '803', 'Boni Avenue', 'Barangka', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2022-06-01', 7, 19, 'Active'),
+(20, 'Lucia Esperanza', 'Jimenez', NULL, 'Female', '1995-04-27', '09171234586', 'lucia.jimenez@company.com', 'Pasay City', '914', 'Macapagal Boulevard', 'Mall of Asia', 'Pasay City', 'Metro Manila', NULL, NULL, '2022-07-01', 6, 14, 'Active'),
 
 -- Additional Staff
-(21, 'Andres Felipe', 'Castro', NULL, 'Male', '1991-10-03', '09171234587', 'andres.castro@company.com', 'Taguig City', '2021-10-01', 5, 20, 'Active'),
-(22, 'Mariana Beatriz', 'Ortega', NULL, 'Female', '1993-06-16', '09171234588', 'mariana.ortega@company.com', 'Quezon City', '2022-01-01', 3, 21, 'Active'),
-(23, 'Santiago Ignacio', 'Pena', NULL, 'Male', '1990-02-28', '09171234589', 'santiago.pena@company.com', 'Makati City', '2021-07-15', 1, 22, 'Active'),
-(24, 'Daniela Fernanda', 'Vargas', NULL, 'Female', '1994-11-09', '09171234590', 'daniela.vargas@company.com', 'Pasig City', '2022-08-01', 4, 23, 'Active'),
-(25, 'Alejandro Jose', 'Medina', NULL, 'Male', '1992-05-22', '09171234591', 'alejandro.medina@company.com', 'Mandaluyong City', '2021-12-01', 7, 24, 'Active')
+(21, 'Andres Felipe', 'Castro', NULL, 'Male', '1991-10-03', '09171234587', 'andres.castro@company.com', 'Taguig City', '025', 'Upper Bicutan Road', 'Upper Bicutan', 'Taguig City', 'Metro Manila', NULL, NULL, '2021-10-01', 5, 20, 'Active'),
+(22, 'Mariana Beatriz', 'Ortega', NULL, 'Female', '1993-06-16', '09171234588', 'mariana.ortega@company.com', 'Quezon City', '136', 'Katipunan Avenue', 'Loyola Heights', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-01-01', 3, 21, 'Active'),
+(23, 'Santiago Ignacio', 'Pena', NULL, 'Male', '1990-02-28', '09171234589', 'santiago.pena@company.com', 'Makati City', '247', 'Senator Gil Puyat Avenue', 'Bel-Air', 'Makati City', 'Metro Manila', NULL, NULL, '2021-07-15', 1, 22, 'Active'),
+(24, 'Daniela Fernanda', 'Vargas', NULL, 'Female', '1994-11-09', '09171234590', 'daniela.vargas@company.com', 'Pasig City', '358', 'Shaw Boulevard', 'Kapitolyo', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-08-01', 4, 23, 'Active'),
+(25, 'Alejandro Jose', 'Medina', NULL, 'Male', '1992-05-22', '09171234591', 'alejandro.medina@company.com', 'Mandaluyong City', '469', 'Maysilo Circle', 'Plainview', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2021-12-01', 7, 24, 'Active')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
 
 -- ========================================
@@ -1162,12 +1162,12 @@ INSERT INTO recruitment (recruitment_id, job_title, department_id, date_posted, 
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 -- Applicants
-INSERT INTO applicant (applicant_id, recruitment_id, full_name, email, contact_number, resume_file, application_status, archived_at) VALUES
-(1, 1, 'John Michael Dela Cruz', 'john.delacruz@email.com', '09171234999', 'resume_john_delacruz.pdf', 'interview', NULL),
-(2, 1, 'Mary Grace Santos', 'mary.santos@email.com', '09171234998', 'resume_mary_santos.pdf', 'shortlisted', NULL),
-(3, 2, 'Peter James Garcia', 'peter.garcia@email.com', '09171234997', 'resume_peter_garcia.pdf', 'rejected', '2025-11-20'),
-(4, 3, 'Lisa Ann Reyes', 'lisa.reyes@email.com', '09171234996', 'resume_lisa_reyes.pdf', 'hired', NULL),
-(5, 4, 'Robert John Cruz', 'robert.cruz@email.com', '09171234995', 'resume_robert_cruz.pdf', 'pending', NULL)
+INSERT INTO applicant (applicant_id, recruitment_id, full_name, email, contact_number, resume_file, application_status, archived_at, offer_status, offer_token, offer_sent_at, offer_acceptance_timestamp, offer_declined_at) VALUES
+(1, 1, 'John Michael Dela Cruz', 'john.delacruz@email.com', '09171234999', 'resume_john_delacruz.pdf', 'interview', NULL, 'Pending', NULL, NULL, NULL, NULL),
+(2, 1, 'Mary Grace Santos', 'mary.santos@email.com', '09171234998', 'resume_mary_santos.pdf', 'shortlisted', NULL, 'Pending', NULL, NULL, NULL, NULL),
+(3, 2, 'Peter James Garcia', 'peter.garcia@email.com', '09171234997', 'resume_peter_garcia.pdf', 'rejected', '2025-11-20', 'Declined', NULL, NULL, NULL, '2025-11-20'),
+(4, 3, 'Lisa Ann Reyes', 'lisa.reyes@email.com', '09171234996', 'resume_lisa_reyes.pdf', 'hired', NULL, 'Accepted', NULL, NULL, '2025-11-15', NULL),
+(5, 4, 'Robert John Cruz', 'robert.cruz@email.com', '09171234995', 'resume_robert_cruz.pdf', 'pending', NULL, 'Pending', NULL, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE application_status = VALUES(application_status);
 
 -- Interviews

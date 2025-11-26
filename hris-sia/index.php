@@ -19,16 +19,38 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['logged_in']) && $_SESSION['l
     exit;
 }
 
+if (isset($_SESSION['employee_logged_in']) && isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header('Location: pages/employee_dashboard.php');
+    exit;
+}
+
 require_once 'config/database.php';
 require_once 'includes/auth.php';
 
 $error_message = '';
 $success_message = '';
 $show_admin_form = false;
+$show_employee_login_form = false;
 $auto_redirect = false;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['admin_login'])) {
+    if (isset($_POST['employee_login'])) {
+        $show_employee_login_form = true;
+        $employee_id = sanitize($conn, $_POST['employee_id'] ?? '');
+        $employee_name = sanitize($conn, $_POST['employee_name'] ?? '');
+
+        if (!empty($employee_id) && !empty($employee_name)) {
+            $result = loginEmployee($conn, $employee_id, $employee_name);
+            if ($result['success']) {
+                header('Location: pages/employee_dashboard.php');
+                exit;
+            } else {
+                $error_message = $result['message'];
+            }
+        } else {
+            $error_message = "Please enter both Employee ID and Employee Name";
+        }
+    } elseif (isset($_POST['admin_login'])) {
         $show_admin_form = true;
         $username = sanitize($conn, $_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -128,7 +150,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
 
     <div class="flex items-center justify-center min-h-screen pt-16 sm:pt-20 pb-4 px-3 sm:px-4">
-        <div id="employeeForm" class="bg-white rounded-lg shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-[95%] sm:max-w-md <?php echo $show_admin_form ? 'hidden' : ''; ?>">
+        <!-- Employee Time-In/Out Form -->
+        <div id="attendanceForm" class="bg-white rounded-lg shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-[95%] sm:max-w-md <?php echo ($show_admin_form || $show_employee_login_form) ? 'hidden' : ''; ?>">
             <div class="flex justify-center mb-4 sm:mb-6">
                 <img src="assets/evergreen.svg" alt="HRIS Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-full" loading="lazy">
             </div>
@@ -136,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <h2 class="text-xl sm:text-2xl font-bold text-center text-gray-800 mb-1 sm:mb-2">Employee Attendance</h2>
             <p class="text-center text-gray-600 text-xs sm:text-sm mb-6 sm:mb-8 px-2">Enter your employee number to clock in or out</p>
 
-            <?php if ($success_message && !$show_admin_form): ?>
+            <?php if ($success_message && !$show_admin_form && !$show_employee_login_form): ?>
                 <div class="bg-green-100 border border-green-400 text-green-700 px-3 py-2 sm:px-4 sm:py-3 rounded mb-4 text-center text-sm sm:text-base">
                     <?php echo htmlspecialchars($success_message); ?>
                     <div class="mt-2 text-xs sm:text-sm">
@@ -145,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             <?php endif; ?>
 
-            <?php if ($error_message && !$show_admin_form): ?>
+            <?php if ($error_message && !$show_admin_form && !$show_employee_login_form): ?>
                 <div class="bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded mb-4 text-center text-sm sm:text-base">
                     <?php echo htmlspecialchars($error_message); ?>
                 </div>
@@ -178,11 +201,89 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 Current Time: <span id="currentTime" class="font-semibold"></span>
             </p>
 
-            <div id="secretTrigger" class="text-center mt-2 cursor-pointer select-none opacity-0 hover:opacity-10 transition-opacity">
-                <p class="text-xs text-gray-400">v1.0</p>
+            <div class="flex gap-2 mt-4 justify-center">
+                <button
+                    type="button"
+                    onclick="showEmployeeLogin()"
+                    class="text-xs sm:text-sm text-teal-600 hover:text-teal-700 underline">
+                    Employee Login
+                </button>
+                <span class="text-gray-400">|</span>
+                <button
+                    type="button"
+                    onclick="showAdminLogin()"
+                    class="text-xs sm:text-sm text-teal-600 hover:text-teal-700 underline">
+                    Management Login
+                </button>
             </div>
         </div>
 
+        <!-- Employee Login Form -->
+        <div id="employeeLoginForm" class="form-container w-full max-w-[95%] sm:max-w-md bg-white rounded-lg shadow-2xl p-4 sm:p-6 md:p-8 <?php echo $show_employee_login_form ? '' : 'hidden'; ?>">
+            <div class="flex justify-center mb-4 sm:mb-6">
+                <img src="assets/evergreen.svg" alt="HRIS Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-full" loading="lazy">
+            </div>
+
+            <h2 class="text-xl sm:text-2xl font-bold text-center text-gray-800 mb-6 sm:mb-8">Employee Login</h2>
+
+            <?php if ($error_message && $show_employee_login_form): ?>
+                <div class="bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded mb-4 text-center text-sm sm:text-base">
+                    <?php echo htmlspecialchars($error_message); ?>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="index.php">
+                <input type="hidden" name="employee_login" value="1">
+
+                <div class="mb-4 sm:mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+                    <input
+                        type="text"
+                        name="employee_id"
+                        placeholder="EMP-001 or 1"
+                        value="<?php echo isset($_POST['employee_id']) ? htmlspecialchars($_POST['employee_id']) : ''; ?>"
+                        class="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                        autofocus>
+                    <p class="text-xs text-gray-500 mt-1">Format: EMP-XXX or numeric ID</p>
+                </div>
+
+                <div class="mb-4 sm:mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Employee Name</label>
+                    <input
+                        type="text"
+                        name="employee_name"
+                        placeholder="Enter your full name"
+                        value="<?php echo isset($_POST['employee_name']) ? htmlspecialchars($_POST['employee_name']) : ''; ?>"
+                        class="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        required>
+                </div>
+
+                <button
+                    type="submit"
+                    class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 sm:py-3 text-sm sm:text-base rounded-lg transition duration-200">
+                    Login
+                </button>
+            </form>
+
+            <div class="flex gap-2 mt-4 justify-center">
+                <button
+                    type="button"
+                    onclick="showAttendance()"
+                    class="text-xs sm:text-sm text-gray-600 hover:text-gray-800 underline">
+                    ← Back to Time-In/Out
+                </button>
+                <span class="text-gray-400">|</span>
+                <button
+                    type="button"
+                    onclick="showAdminLogin()"
+                    class="text-xs sm:text-sm text-teal-600 hover:text-teal-700 underline">
+                    Management Login
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin/HR Login Form -->
         <div id="adminForm" class="form-container w-full max-w-[95%] sm:max-w-md bg-white rounded-lg shadow-2xl p-4 sm:p-6 md:p-8 <?php echo $show_admin_form ? '' : 'hidden'; ?>">
             <div class="flex justify-center mb-4 sm:mb-6">
                 <img src="assets/LOGO.png" alt="HRIS Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-full" loading="lazy">
@@ -226,16 +327,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </button>
             </form>
 
-            <button
-                onclick="toggleForms()"
-                class="mt-4 w-full text-gray-600 text-xs sm:text-sm hover:text-gray-800 transition-colors">
-                ← Back to Employee Time-In
-            </button>
+            <div class="flex gap-2 mt-4 justify-center">
+                <button
+                    type="button"
+                    onclick="showAttendance()"
+                    class="text-xs sm:text-sm text-gray-600 hover:text-gray-800 underline">
+                    ← Back to Time-In/Out
+                </button>
+                <span class="text-gray-400">|</span>
+                <button
+                    type="button"
+                    onclick="showEmployeeLogin()"
+                    class="text-xs sm:text-sm text-teal-600 hover:text-teal-700 underline">
+                    Employee Login
+                </button>
+            </div>
         </div>
     </div>
 
     <script src="js/login.js"></script>
     <script>
+        function showAttendance() {
+            document.getElementById('attendanceForm').classList.remove('hidden');
+            document.getElementById('employeeLoginForm').classList.add('hidden');
+            document.getElementById('adminForm').classList.add('hidden');
+        }
+
+        function showEmployeeLogin() {
+            document.getElementById('attendanceForm').classList.add('hidden');
+            document.getElementById('employeeLoginForm').classList.remove('hidden');
+            document.getElementById('adminForm').classList.add('hidden');
+        }
+
+        function showAdminLogin() {
+            document.getElementById('attendanceForm').classList.add('hidden');
+            document.getElementById('employeeLoginForm').classList.add('hidden');
+            document.getElementById('adminForm').classList.remove('hidden');
+        }
+
+        function toggleForms() {
+            showAdminLogin();
+        }
+
         function updateDateTime() {
             const now = new Date();
             const options = {
