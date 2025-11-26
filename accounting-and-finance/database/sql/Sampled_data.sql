@@ -4,10 +4,6 @@
 -- This file contains ALL sample data for the accounting system
 -- Run this after schema.sql to populate the database with comprehensive test data
 -- 
--- This file includes merged data from:
--- - Original Sampled_data.sql (comprehensive system data)
--- - sample_expense_data.sql (expense tracking module data)
--- - sample_loan_data.sql (loan accounting module data)
 -- 
 -- Instructions:
 -- 1. Open phpMyAdmin: http://localhost/phpmyadmin
@@ -462,52 +458,6 @@ ON DUPLICATE KEY UPDATE
     role = VALUES(role);
 
 
--- ========================================
--- HRIS-PAYROLL CONNECTION DOCUMENTATION
--- ========================================
--- 
--- IMPORTANT: Understanding the HRIS-Payroll Data Flow
--- 
--- 1. HRIS CORE TABLES (HRIS Module):
---    - department: Organizational departments
---    - position: Job positions (note: backticked because 'position' is a reserved word)
---    - employee: Core employee records with foreign keys to department and position
---    - employee_attendance: Daily attendance tracking
--- 
--- 2. PAYROLL SYSTEM TABLES (Payroll Module):
---    - employee_refs: External employee references used by payroll system
---      * Uses: external_employee_no (EMP001, EMP002, etc.)
---      * Contains: base_monthly_salary, employment_type
---    - payslips: Payroll payslips linked via employee_external_no
---    - payroll_runs: Payroll processing runs
---    - payroll_periods: Payroll periods
--- 
--- 3. DATA MAPPING:
---    - employee.employee_id (1-25) corresponds to employee_refs.external_employee_no (EMP001-EMP025)
---    - employee_refs.external_employee_no is used throughout payroll system:
---      * payslips.employee_external_no
---      * employee_attendance.employee_external_no
---      * expense_claims.employee_external_no
---      * loans.borrower_external_no
--- 
--- 4. INTEGRATION POINTS:
---    - Payroll calculations use employee_refs.base_monthly_salary
---    - Attendance tracking uses employee_attendance linked via employee_external_no
---    - Department and position info flows from employee -> department/position tables
---    - User accounts link via user_account.employee_id for system access
--- 
--- 5. EXAMPLE FLOW:
---    Employee Record (HRIS) -> employee_refs (Payroll Interface) -> Payroll Processing -> Payslip
---    employee_id: 1 -> external_employee_no: EMP001 -> payroll calculation -> payslip record
--- 
--- ========================================
-
--- ========================================
--- 4D. EMPLOYEE ATTENDANCE DATA FOR NOVEMBER 2025
--- ========================================
--- Note: November 2025 has 30 days. Workdays exclude weekends (Nov 1,2,8,9,15,16,22,23,29,30 are weekends)
--- Workdays: 3,4,5,6,7,10,11,12,13,14,17,18,19,20,21,24,25,26,27,28 (20 workdays)
--- Expanded attendance records with varied patterns for testing Daily Attendance Records
 
 INSERT INTO employee_attendance (employee_external_no, attendance_date, time_in, time_out, status, hours_worked, overtime_hours, late_minutes, remarks) VALUES
 -- EMP001: Random mixed pattern
