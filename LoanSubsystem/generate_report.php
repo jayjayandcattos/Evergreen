@@ -1,5 +1,7 @@
 <?php
+session_start();
 require_once('fpdf/fpdf.php');
+require_once('config/database.php');
 
 // Input validation
 if (!isset($_GET['type']) || !in_array($_GET['type'], ['all', 'approved', 'pending', 'rejected', 'closed'])) {
@@ -7,65 +9,197 @@ if (!isset($_GET['type']) || !in_array($_GET['type'], ['all', 'approved', 'pendi
     exit();
 }
 
-$report_type = $_GET['type'];
-
-// Mock admin data (as you provided)
-$mockAdmins = [
-    [
-        'full_name' => 'Jerome Malunes',
-        'email' => 'jeromemalunes@gmail.com',
-        'password' => password_hash('admin123', PASSWORD_DEFAULT),
-        'role' => 'admin',
-        'loan_officer_id' => 'LO-0123'
-    ]
-];
-$current_admin = $mockAdmins[0];
-
-// Database connection
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "bankingdb";
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    echo json_encode(['error' => 'DB error: ' . $conn->connect_error]);
+// Check if user is authenticated as admin
+if (!isset($_SESSION['user_email']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+    echo json_encode(['error' => 'Unauthorized access']);
     exit();
 }
 
-// Build WHERE clause
+$report_type = $_GET['type'];
+
+// Get admin data from session (real client data)
+$current_admin = [
+    'full_name' => $_SESSION['full_name'] ?? 'Loan Officer',
+    'email' => $_SESSION['user_email'] ?? '',
+    'loan_officer_id' => $_SESSION['loan_officer_id'] ?? 'LO-0000'
+];
+
+// Database connection using config
+$conn = getDBConnection();
+if (!$conn) {
+    echo json_encode(['error' => 'Database connection failed']);
+    exit();
+}
+
+// Build WHERE clause - Use case-insensitive matching
 $where_clause = '';
 switch ($report_type) {
-    case 'approved': $where_clause = "WHERE status = 'Approved'"; break;
-    case 'pending': $where_clause = "WHERE status = 'Pending'"; break;
-    case 'rejected': $where_clause = "WHERE status = 'Rejected'"; break;
-    case 'closed': $where_clause = "WHERE status = 'Closed'"; break;
-    // 'all' → no WHERE
+    case 'approved': $where_clause = "WHERE LOWER(TRIM(status)) = 'approved'"; break;
+    case 'pending': $where_clause = "WHERE LOWER(TRIM(status)) = 'pending'"; break;
+    case 'rejected': $where_clause = "WHERE LOWER(TRIM(status)) = 'rejected'"; break;
+    case 'closed': $where_clause = "WHERE LOWER(TRIM(status)) = 'closed'"; break;
+    // 'all' → no WHERE clause
 }
 
-// Fetch loans
+// Fetch loans with real client data from loan_applications
+// Use proper WHERE clause with status matching
 $sql = "SELECT 
-    id AS client_id,
-    full_name AS client_name,
-    loan_type,
-    loan_amount,
-    loan_terms,
-    monthly_payment,
-    status,
-    created_at,
-    next_payment_due,
-    due_date
-FROM loan_applications 
-$where_clause 
-ORDER BY created_at DESC";
+    la.id AS client_id,
+    la.full_name AS client_name,
+    la.loan_type,
+    la.loan_amount,
+    la.loan_terms,
+    la.monthly_payment,
+    la.status,
+    la.created_at,
+    la.next_payment_due,
+    la.due_date,
+    la.account_number,
+    la.email,
+    la.contact_number
+FROM loan_applications la";
 
+// Build WHERE clause properly
+if (!empty($where_clause)) {
+    $sql .= " " . $where_clause;
+}
+
+$sql .= " ORDER BY la.created_at DESC";
+
+// Execute query with error handling
 $result = $conn->query($sql);
 $loans = [];
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
+
+if (!$result) {
+    // Log error and return JSON error response
+    $error_msg = "Query failed: " . $conn->error;
+    error_log($error_msg);
+    error_log("SQL Query: " . $sql);
+    echo json_encode(['error' => 'Database query failed: ' . $conn->error]);
+    exit();
+}
+
+// Process results - fetch all loan applications matching the status
+while ($row = $result->fetch_assoc()) {
+        // For Pending and Rejected loans, no payments have been made yet
+        // Only calculate payments for Approved loans
+        $total_paid = 0.00;
+        $remaining_balance = floatval($row['loan_amount']);
+        
+        // Only calculate payments for approved loans
+        if ($row['status'] === 'Approved' && !empty($row['account_number'])) {
+            // Get account_id from account_number
+            $account_stmt = $conn->prepare("
+                SELECT account_id 
+                FROM customer_accounts 
+                WHERE account_number = ? 
+                LIMIT 1
+            ");
+            if ($account_stmt) {
+                $account_stmt->bind_param("s", $row['account_number']);
+                $account_stmt->execute();
+                $account_result = $account_stmt->get_result();
+                if ($account_data = $account_result->fetch_assoc()) {
+                    $account_id = $account_data['account_id'];
+                    
+                    // Get loan payment transaction type ID
+                    $type_stmt = $conn->prepare("
+                        SELECT transaction_type_id 
+                        FROM transaction_types 
+                        WHERE (type_name LIKE '%loan%payment%' 
+                           OR type_name LIKE '%loan%repayment%'
+                           OR type_name LIKE '%loan payment%'
+                           OR type_name LIKE '%loan repayment%')
+                        LIMIT 1
+                    ");
+                    $type_stmt->execute();
+                    $type_result = $type_stmt->get_result();
+                    $transaction_type_id = null;
+                    if ($type_row = $type_result->fetch_assoc()) {
+                        $transaction_type_id = $type_row['transaction_type_id'];
+                    }
+                    $type_stmt->close();
+                    
+                    // Calculate total paid from bank_transactions
+                    $loan_id = intval($row['client_id']);
+                    $loan_id_pattern = "%loan%{$loan_id}%";
+                    $loan_payment_pattern = "%loan%payment%";
+                    
+                    if ($transaction_type_id) {
+                        $payment_sql = "
+                            SELECT COALESCE(SUM(ABS(amount)), 0) as total_paid
+                            FROM bank_transactions bt
+                            WHERE bt.account_id = ?
+                            AND (
+                                bt.description LIKE ? 
+                                OR bt.description LIKE ?
+                                OR bt.description LIKE ?
+                                OR (bt.transaction_type_id = ? AND bt.description LIKE '%loan%')
+                            )
+                        ";
+                        $loan_id_direct = "%Loan ID: {$loan_id}%";
+                        $payment_stmt = $conn->prepare($payment_sql);
+                        if ($payment_stmt) {
+                            $payment_stmt->bind_param("issi", 
+                                $account_id, 
+                                $loan_id_pattern,
+                                $loan_payment_pattern,
+                                $loan_id_direct,
+                                $transaction_type_id
+                            );
+                            $payment_stmt->execute();
+                            $payment_result = $payment_stmt->get_result();
+                            if ($payment_row = $payment_result->fetch_assoc()) {
+                                $total_paid = floatval($payment_row['total_paid']);
+                            }
+                            $payment_stmt->close();
+                        }
+                    } else {
+                        // Fallback: search by description patterns
+                        $payment_sql = "
+                            SELECT COALESCE(SUM(ABS(amount)), 0) as total_paid
+                            FROM bank_transactions bt
+                            WHERE bt.account_id = ?
+                            AND (
+                                bt.description LIKE ? 
+                                OR bt.description LIKE ?
+                                OR bt.description LIKE ?
+                                OR bt.description LIKE '%loan%repayment%'
+                            )
+                        ";
+                        $loan_id_direct = "%Loan ID: {$loan_id}%";
+                        $payment_stmt = $conn->prepare($payment_sql);
+                        if ($payment_stmt) {
+                            $payment_stmt->bind_param("iss", 
+                                $account_id, 
+                                $loan_id_pattern,
+                                $loan_payment_pattern,
+                                $loan_id_direct
+                            );
+                            $payment_stmt->execute();
+                            $payment_result = $payment_stmt->get_result();
+                            if ($payment_row = $payment_result->fetch_assoc()) {
+                                $total_paid = floatval($payment_row['total_paid']);
+                            }
+                            $payment_stmt->close();
+                        }
+                    }
+                }
+                $account_stmt->close();
+            }
+        }
+        
+        // Calculate remaining balance (for pending/rejected, it equals loan amount)
+        if ($row['status'] === 'Approved') {
+            $remaining_balance = max(0, floatval($row['loan_amount']) - $total_paid);
+        }
+        
+        // Add calculated fields to loan data
+        $row['total_paid'] = $total_paid;
+        $row['remaining_balance'] = $remaining_balance;
+        
         $loans[] = $row;
     }
-}
-$conn->close();
 
 // ✅ COUNT loans by status for Notes section
 $counts = ['Approved' => 0, 'Pending' => 0, 'Rejected' => 0, 'Closed' => 0];
@@ -104,13 +238,14 @@ for ($i = 0; $i < count($header); $i++) {
 }
 $pdf->Ln();
 
-// Table rows
+// Table rows - Using real client data
 $pdf->SetFont('Arial', '', 9);
 foreach ($loans as $loan) {
     $loan_amount = number_format($loan['loan_amount'], 2);
-    $monthly_payment = number_format($loan['monthly_payment'], 2);
-    $total_paid = '0.00';
-    $remaining_balance = $loan_amount;
+    $monthly_payment = number_format($loan['monthly_payment'] ?? 0, 2);
+    // Use calculated real data instead of hardcoded values
+    $total_paid = number_format($loan['total_paid'] ?? 0, 2);
+    $remaining_balance = number_format($loan['remaining_balance'] ?? $loan['loan_amount'], 2);
     $status = ucfirst($loan['status']);
     
     $data = [
@@ -163,6 +298,11 @@ if (!is_dir($uploadDir)) {
 $filename = "loan_report_{$report_type}_" . date('YmdHis') . ".pdf";
 $fullPath = $uploadDir . $filename;
 $pdf->Output('F', $fullPath);
+
+// Close database connection
+if ($conn) {
+    $conn->close();
+}
 
 echo json_encode(['success' => true, 'filename' => $fullPath]);
 ?>

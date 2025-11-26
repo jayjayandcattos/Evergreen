@@ -1,11 +1,20 @@
 <?php
 require_once 'config/database.php';
 
-// Get user initials from session (only if logged in)
+// Get user initials from session (check both marketing and loan session variables)
 $userInitials = 'U';
 $displayName = 'Guest';
 
-if (isset($_SESSION['user_email'])) {
+// Check if logged in via marketing system (user_id) or loan system (user_email)
+if (isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) {
+    // User logged in via marketing system
+    $displayName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION['last_name']) ?? 'Guest';
+    $nameParts = explode(' ', $displayName);
+    $firstInitial = $nameParts[0][0] ?? '';
+    $lastInitial = end($nameParts)[0] ?? '';
+    $userInitials = strtoupper($firstInitial . $lastInitial);
+} elseif (isset($_SESSION['user_email'])) {
+    // User logged in via loan system
     $user = getUserByEmail($_SESSION['user_email']);
     
     if ($user) {
@@ -166,17 +175,18 @@ nav a:hover::after {
 
   <nav>
     <ul>
-      <li><a href="#home">Home</a></li>
+      <li><a href="/Evergreen/bank-system/evergreen-marketing/viewingpage.php">Home</a></li>
       <li class="dropdown">
         <a href="#cards">Cards ▼</a>
         <div class="dropdown-content">
-          <a href="#credit-cards">Credit Cards</a>
-          <a href="#debit-cards">Debit Cards</a>
-          <a href="#prepaid-cards">Prepaid Cards</a>
+          <a href="/Evergreen/bank-system/evergreen-marketing/cards/credit.php">Credit Cards</a>
+          <a href="/Evergreen/bank-system/evergreen-marketing/cards/debit.php">Debit Cards</a>
+          <a href="/Evergreen/bank-system/evergreen-marketing/cards/prepaid.php">Prepaid Cards</a>
+          <a href="/Evergreen/bank-system/evergreen-marketing/cards/rewards.php">Card Rewards</a>
         </div>
       </li>
-      <li><a href="index.php">Loans</a></li>
-      <li><a href="/bank-system/evergreen-marketing/about.php">About Us</a></li>
+      <li><a href="/Evergreen/LoanSubsystem/index.php">Loans</a></li>
+      <li><a href="/Evergreen/bank-system/evergreen-marketing/about.php">About Us</a></li>
     </ul>
   </nav>
 
@@ -188,6 +198,8 @@ nav a:hover::after {
     <?php if ($displayName !== 'Guest'): ?>
       <!-- Reuse .dropdown-content — identical to Cards dropdown -->
       <div class="dropdown-content" id="userDropdown" style="left: auto; right: 0;">
+        <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/account">Profile</a>
+        <a href="/Evergreen/bank-system/evergreen-marketing/cards/points.php">Missions</a>
         <a href="logout.php">Logout</a>
       </div>
     <?php endif; ?>

@@ -280,6 +280,15 @@ CREATE TABLE missions (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE `points_history` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `points` decimal(10,2) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE bank_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -304,11 +313,13 @@ CREATE TABLE bank_users (
 CREATE TABLE user_missions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
+    customer_id INT DEFAULT NULL,
     mission_id INT NOT NULL,
     points_earned DECIMAL(10,2) NOT NULL,
     completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_user_mission (user_id, mission_id),
     INDEX idx_mission_id (mission_id),
+    INDEX idx_customer_id (customer_id),
     FOREIGN KEY (user_id) REFERENCES bank_users(id) ON DELETE CASCADE,
     FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
 );
@@ -332,10 +343,9 @@ CREATE TABLE bank_customers (
     middle_name VARCHAR(50) DEFAULT NULL,
     address VARCHAR(255) DEFAULT NULL,
     city_province VARCHAR(100) DEFAULT NULL,
-    email VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
     contact_number VARCHAR(20) DEFAULT NULL,
     birthday DATE DEFAULT NULL,
-    password VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     verification_code VARCHAR(100) DEFAULT NULL,
     bank_id VARCHAR(50) DEFAULT NULL,
@@ -940,6 +950,7 @@ JOIN users u ON je.created_by = u.id;
 
 
 -- ========================================
+<<<<<<< HEAD
 -- CREATE ADMIN ACCOUNT
 -- ========================================
 -- This file creates/updates the Admin account
@@ -991,16 +1002,46 @@ ON DUPLICATE KEY UPDATE
 
 
 -- ========================================
--- HR MANAGER ROLE SETUP
+-- DATA FIXES AND MIGRATIONS
 -- ========================================
--- This file sets up the HR Manager role functionality
--- Compatible with unified_schema.sql structure
--- 
--- Database: BankingDB
--- Purpose: Add HR Manager role support to existing HRIS system
---
+
+-- Fix Transaction Amounts: Convert negative amounts to positive
+-- The balance calculation logic applies the sign based on transaction type
+-- All amounts should be stored as positive values in the database
+
+-- Fix Transfer Out transactions (type_id = 8)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 8 AND amount < 0;
+
+-- Fix Service Charge transactions (type_id = 5)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 5 AND amount < 0;
+
+-- Fix Withdrawal transactions (type_id = 3)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 3 AND amount < 0;
+
+-- Fix Loan Payment transactions (type_id = 7)
+UPDATE bank_transactions 
+SET amount = ABS(amount) 
+WHERE transaction_type_id = 7 AND amount < 0;
+
+-- Verification: Check for any remaining negative amounts
+-- This query should return 0 rows after the fix
+SELECT 
+    tt.type_name,
+    COUNT(*) as negative_count,
+    MIN(t.amount) as min_amount
+FROM bank_transactions t
+INNER JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id
+WHERE t.amount < 0
+GROUP BY tt.type_name;
+
 -- ========================================
--- SCHEMA VALIDATION
+-- USER ACCOUNT ROLE MANAGEMENT
 -- ========================================
 
 -- Ensure user_account table has role column with correct type
@@ -1060,7 +1101,7 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- ========================================
--- DATA MIGRATION
+-- DATA MIGRATION - USER ROLES
 -- ========================================
 
 -- Update existing user_account records with NULL role to 'Admin' for backward compatibility
@@ -1078,88 +1119,55 @@ WHERE username = 'admin'
 AND (role IS NULL OR role != 'Admin');
 
 -- ========================================
--- SAMPLE DATA (OPTIONAL)
+-- USER ACCOUNT MANAGEMENT
 -- ========================================
--- Uncomment and modify the following section to create a sample HR Manager account
--- Replace the employee_id with an actual employee ID from your employee table
--- Replace the password hash with one generated using PHP: password_hash('your_password', PASSWORD_DEFAULT)
 
-/*
--- Example: Create an HR Manager account
--- Password: 'password' (hash: $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi)
+-- ========================================
+-- ADMIN ACCOUNT CREATION
+-- ========================================
+-- Create the main admin account for system access
+-- Username: admin
+-- Password: password
+-- Role: Admin
+-- IMPORTANT: Change the password in production!
+
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    1, -- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+    'admin', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'Admin', -- role (must be exactly 'Admin')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
+
+-- ========================================
+-- HR MANAGER ACCOUNT CREATION
+-- ========================================
+-- Create HR Manager account
+-- Username: hrmanager
+-- Password: password
+-- Role: HR Manager
 -- IMPORTANT: Change the password hash before using in production!
 
 INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
 VALUES (
-    NULL, -- Replace with a valid employee_id from the employee table, or leave NULL
-    'hrmanager', -- Username for HR Manager account
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- Password hash for 'password'
-    'HR Manager', -- Role must be exactly 'HR Manager' (case-sensitive)
+    NULL, -- employee_id (can be set to a valid employee_id if needed)
+    'hrmanager', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'HR Manager', -- role (must be exactly 'HR Manager')
     NULL -- last_login will be set automatically on first login
-);
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
 
--- To create a new password hash, use PHP:
--- <?php
--- echo password_hash('your_secure_password', PASSWORD_DEFAULT);
--- ?>
--- Then replace the password_hash value above with the generated hash.
-*/
 
 -- ========================================
--- VERIFICATION QUERIES
+-- LEAVE REQUEST DATA FIXES
 -- ========================================
--- Run these queries to verify the setup:
-
--- Check user_account table structure
--- SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE, COLUMN_DEFAULT
--- FROM information_schema.COLUMNS 
--- WHERE TABLE_SCHEMA = 'BankingDB' 
--- AND TABLE_NAME = 'user_account' 
--- AND COLUMN_NAME = 'role';
-
--- List all user accounts with their roles
--- SELECT user_id, username, role, last_login 
--- FROM user_account 
--- ORDER BY role, username;
-
--- Count users by role
--- SELECT role, COUNT(*) as user_count 
--- FROM user_account 
--- GROUP BY role;
-
--- ========================================
--- ROLLBACK INSTRUCTIONS (if needed)
--- ========================================
--- If you need to rollback this migration:
-
--- Remove HR Manager accounts (if any were created)
--- DELETE FROM user_account WHERE role = 'HR Manager';
-
--- Reset all roles to NULL (use with caution)
--- UPDATE user_account SET role = NULL;
-
--- Remove role column entirely (not recommended if other parts of system depend on it)
--- ALTER TABLE user_account DROP COLUMN role;
-
--- ========================================
--- NOTES
--- ========================================
--- 1. The role column supports two values: 'Admin' and 'HR Manager'
--- 2. Role names are case-sensitive - use exactly 'Admin' or 'HR Manager'
--- 3. HR Managers have view-only access to all pages
--- 4. Only Admins can add, edit, delete, or archive records
--- 5. All existing accounts without a role are automatically set to 'Admin'
--- 6. Always use password_hash() function in PHP to generate secure password hashes
--- 7. Never store plain text passwords in the database
-
--- ========================================
--- FIX LEAVE ATTENDANCE DATA
--- ========================================
--- This script fixes leave_request status values and ensures
--- employees are properly set up for attendance/leave tracking
--- ========================================
-
-USE BankingDB;
 
 -- Step 1: Normalize ALL leave_request status values to 'Approved' (consistent case)
 -- This fixes both 'approved' (lowercase) and 'Approved' (capitalized) to be consistent
@@ -1226,7 +1234,7 @@ DEALLOCATE PREPARE stmt;
 -- Create the index
 CREATE INDEX idx_leave_status_date ON leave_request(employee_id, status, start_date, end_date);
 
--- Step 6: Verify the data
+-- Step 7: Verify the data
 SELECT 
     'VERIFICATION' as check_type,
     lr.leave_request_id,
@@ -1273,3 +1281,7 @@ AND UPPER(TRIM(lr.status)) = 'APPROVED'
 ORDER BY lr.leave_request_id;
 
 SELECT '=== FIX COMPLETE ===' as status;
+
+-- ========================================
+-- END OF UNIFIED SCHEMA
+-- ========================================

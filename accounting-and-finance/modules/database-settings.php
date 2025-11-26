@@ -10,34 +10,88 @@ $connection_status = 'disconnected';
 $connection_error = '';
 $db_info = [];
 
-if ($conn) {
+if ($conn && !$conn->connect_error) {
     $connection_status = 'connected';
     
     // Get database information
-    $result = $conn->query("SELECT VERSION() as version");
-    if ($result) {
-        $db_info['version'] = $result->fetch_assoc()['version'];
+    try {
+        $result = $conn->query("SELECT VERSION() as version");
+        if ($result && $result->num_rows > 0) {
+            $version_row = $result->fetch_assoc();
+            $db_info['version'] = isset($version_row['version']) ? $version_row['version'] : 'Unknown';
+            $result->free();
+        } else {
+            $db_info['version'] = 'Unknown';
+            if ($result) $result->free();
+        }
+    } catch (Exception $e) {
+        error_log("Error getting MySQL version: " . $e->getMessage());
+        $db_info['version'] = 'Unknown';
     }
     
-    $result = $conn->query("SELECT DATABASE() as name");
-    if ($result) {
-        $db_info['name'] = $result->fetch_assoc()['name'];
+    try {
+        $result = $conn->query("SELECT DATABASE() as name");
+        if ($result && $result->num_rows > 0) {
+            $name_row = $result->fetch_assoc();
+            $db_name_default = defined('DB_NAME') ? DB_NAME : 'BankingDB';
+            $db_info['name'] = isset($name_row['name']) && !empty($name_row['name']) ? $name_row['name'] : $db_name_default;
+            $result->free();
+        } else {
+            $db_name_default = defined('DB_NAME') ? DB_NAME : 'BankingDB';
+            $db_info['name'] = $db_name_default;
+            if ($result) $result->free();
+        }
+    } catch (Exception $e) {
+        error_log("Error getting database name: " . $e->getMessage());
+        $db_info['name'] = defined('DB_NAME') ? DB_NAME : 'BankingDB';
     }
     
     // Get table statistics
-    $tables = [];
-    $result = $conn->query("SHOW TABLES");
-    if ($result) {
-        while ($row = $result->fetch_array()) {
-            $table_name = $row[0];
-            $count_result = $conn->query("SELECT COUNT(*) as count FROM `$table_name`");
-            $count = $count_result ? $count_result->fetch_assoc()['count'] : 0;
-            
-            $tables[] = [
-                'name' => $table_name,
-                'count' => $count
-            ];
+    if (!isset($tables) || !is_array($tables)) {
+        $tables = [];
+    }
+    
+    try {
+        $result = $conn->query("SHOW TABLES");
+        if ($result) {
+            while ($row = $result->fetch_array()) {
+                if (!isset($row[0]) || empty($row[0])) {
+                    continue; // Skip invalid rows
+                }
+                
+                $table_name = $row[0];
+                
+                // Safely get table count with error handling
+                $count = 0;
+                try {
+                    $table_name_escaped = $conn->real_escape_string($table_name);
+                    $count_result = $conn->query("SELECT COUNT(*) as count FROM `{$table_name_escaped}`");
+                    if ($count_result && $count_result->num_rows > 0) {
+                        $count_row = $count_result->fetch_assoc();
+                        $count = isset($count_row['count']) ? (int)$count_row['count'] : 0;
+                        $count_result->free();
+                    } else {
+                        if ($count_result) $count_result->free();
+                    }
+                } catch (Exception $e) {
+                    // If count query fails, set count to 0 and log error
+                    error_log("Error counting rows in table {$table_name}: " . $e->getMessage());
+                    $count = 0;
+                }
+                
+                $tables[] = [
+                    'name' => $table_name,
+                    'count' => $count
+                ];
+            }
+            $result->free();
+        } else {
+            $connection_error = "Error executing SHOW TABLES: " . $conn->error;
+            error_log($connection_error);
         }
+    } catch (Exception $e) {
+        $connection_error = "Error getting table list: " . $e->getMessage();
+        error_log($connection_error);
     }
 } else {
     $connection_error = 'Failed to connect to database';
@@ -46,77 +100,135 @@ if ($conn) {
 // Get database size
 $db_size = 0;
 if ($conn) {
-    $result = $conn->query("
-        SELECT 
-            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'DB Size in MB'
-        FROM information_schema.tables 
-        WHERE table_schema = DATABASE()
-    ");
-    if ($result) {
-        $row = $result->fetch_assoc();
-        $db_size = $row['DB Size in MB'] ?? 0;
+    try {
+        // Get database name from connection or constant
+        $db_name_raw = defined('DB_NAME') ? DB_NAME : '';
+        if (empty($db_name_raw)) {
+            $db_check = $conn->query("SELECT DATABASE() as db_name");
+            if ($db_check) {
+                $db_row = $db_check->fetch_assoc();
+                $db_name_raw = isset($db_row['db_name']) ? $db_row['db_name'] : 'BankingDB';
+                $db_check->free();
+            } else {
+                $db_name_raw = 'BankingDB';
+            }
+        }
+        $db_name = $conn->real_escape_string($db_name_raw);
+        
+        $result = $conn->query("
+            SELECT 
+                ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'DB Size in MB'
+            FROM information_schema.tables 
+            WHERE table_schema = '{$db_name}'
+        ");
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $db_size = isset($row['DB Size in MB']) ? (float)$row['DB Size in MB'] : 0;
+            $result->free();
+        } else {
+            error_log("Error getting database size: " . $conn->error);
+        }
+    } catch (Exception $e) {
+        error_log("Error calculating database size: " . $e->getMessage());
+        $db_size = 0;
     }
 }
 
-// Table to Module Mapping
+// Table to Module Mapping - Accounting & Finance Subsystem
 function getTableModuleMapping() {
     return [
-        // User Management
+        // ========================================
+        // CORE AUTHENTICATION (Shared)
+        // ========================================
         'users' => ['Core Authentication', 'User Management'],
         'roles' => ['Core Authentication', 'User Management'],
         'user_roles' => ['Core Authentication', 'User Management'],
         'login_attempts' => ['Core Authentication'],
+        'user_account' => ['Core Authentication', 'HRIS Integration'],
         
-        // General Ledger
-        'accounts' => ['General Ledger', 'Financial Reporting', 'Transaction Reading'],
+        // ========================================
+        // CORE ACCOUNTING - General Ledger
+        // ========================================
+        'fiscal_periods' => ['General Ledger', 'Financial Reporting'],
         'account_types' => ['General Ledger', 'Financial Reporting'],
+        'accounts' => ['General Ledger', 'Financial Reporting', 'Transaction Reading'],
         'account_balances' => ['General Ledger', 'Financial Reporting'],
+        
+        // ========================================
+        // JOURNAL ENTRIES
+        // ========================================
+        'journal_types' => ['General Ledger', 'Transaction Reading'],
         'journal_entries' => ['General Ledger', 'Transaction Reading', 'Financial Reporting'],
         'journal_lines' => ['General Ledger', 'Transaction Reading', 'Financial Reporting'],
-        'journal_types' => ['General Ledger', 'Transaction Reading'],
-        'fiscal_periods' => ['General Ledger', 'Financial Reporting'],
         
-        // Payroll Management
+        // ========================================
+        // PAYROLL MANAGEMENT
+        // ========================================
         'employee_refs' => ['Payroll Management', 'HRIS Integration'],
-        'employee_benefits' => ['Payroll Management'],
-        'employee_deductions' => ['Payroll Management'],
+        'employee_attendance' => ['Payroll Management', 'HRIS Integration'],
+        'payroll_periods' => ['Payroll Management'],
         'payroll_runs' => ['Payroll Management'],
         'payslips' => ['Payroll Management'],
-        'payroll_items' => ['Payroll Management'],
-        'payroll_deductions' => ['Payroll Management'],
+        'payroll_payslips' => ['Payroll Management', 'HRIS Integration'],
+        'salary_components' => ['Payroll Management'],
         
-        // Expense Tracking
-        'expense_categories' => ['Expense Tracking'],
-        'expense_claims' => ['Expense Tracking'],
-        'expense_line_items' => ['Expense Tracking'],
+        // ========================================
+        // PAYMENTS
+        // ========================================
+        'payments' => ['Payments', 'Expense Tracking', 'Transaction Reading'],
+        'bank_accounts' => ['Payments', 'Bank Operations'],
         
-        // Loan Accounting
+        // ========================================
+        // LOAN ACCOUNTING
+        // ========================================
+        'loan_types' => ['Loan Accounting'],
         'loans' => ['Loan Accounting'],
         'loan_payments' => ['Loan Accounting'],
-        'loan_schedules' => ['Loan Accounting'],
+        'loan_applications' => ['Loan Accounting', 'Loan Subsystem Integration'],
         
-        // System Management
+        // ========================================
+        // EXPENSE MANAGEMENT
+        // ========================================
+        'expense_categories' => ['Expense Tracking'],
+        'expense_claims' => ['Expense Tracking'],
+        
+        // ========================================
+        // COMPLIANCE & REPORTING
+        // ========================================
+        'compliance_reports' => ['Financial Reporting', 'Compliance'],
+        
+        // ========================================
+        // AUDIT & LOGGING
+        // ========================================
         'audit_logs' => ['General Ledger', 'Activity Log', 'System Management'],
-        'system_settings' => ['System Management', 'Database Settings'],
-        'system_notifications' => ['Notifications', 'System Management'],
+        'system_logs' => ['Activity Log', 'System Management'],
         
-        // Bank Operations
-        'bank_users' => ['Bank Operations'],
-        'bank_customers' => ['Bank Operations'],
+        // ========================================
+        // BANKING MODULE (Shared with Banking Subsystem)
+        // ========================================
+        'bank_customers' => ['Bank Operations', 'Transaction Reading'],
         'bank_employees' => ['Bank Operations'],
-        'transactions' => ['Transaction Reading', 'Bank Operations'],
+        'bank_account_types' => ['Bank Operations'],
+        'customer_accounts' => ['Bank Operations', 'Transaction Reading'],
+        'bank_transactions' => ['Transaction Reading', 'Bank Operations'],
+        'transaction_types' => ['Transaction Reading', 'Bank Operations'],
+        
+        // ========================================
+        // HRIS INTEGRATION TABLES (Shared)
+        // ========================================
+        'employee' => ['HRIS Integration', 'Payroll Management'],
+        'department' => ['HRIS Integration'],
+        'position' => ['HRIS Integration'],
     ];
 }
 
-// Get table structure and usage info
+// Get table information (without structure/foreign keys for privacy)
 function getTableAnalysis($table_name) {
     global $conn;
     $analysis = [
         'table_name' => $table_name,
-        'modules' => [],
-        'structure' => [],
-        'indexes' => [],
-        'foreign_keys' => []
+        'modules' => []
+        // Note: structure, indexes, and foreign_keys removed for privacy/security
     ];
     
     $mapping = getTableModuleMapping();
@@ -128,59 +240,59 @@ function getTableAnalysis($table_name) {
         // Escape table name for security
         $table_name_escaped = $conn->real_escape_string($table_name);
         
-        // Get table structure
-        $result = $conn->query("DESCRIBE `$table_name_escaped`");
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $analysis['structure'][] = $row;
-            }
-        }
-        
-        // Get indexes
-        $result = $conn->query("SHOW INDEXES FROM `$table_name_escaped`");
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $analysis['indexes'][] = $row;
-            }
-        }
-        
-        // Get foreign keys
-        $result = $conn->query("
-            SELECT 
-                CONSTRAINT_NAME,
-                COLUMN_NAME,
-                REFERENCED_TABLE_NAME,
-                REFERENCED_COLUMN_NAME
-            FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = '$table_name_escaped'
-            AND REFERENCED_TABLE_NAME IS NOT NULL
-        ");
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $analysis['foreign_keys'][] = $row;
-            }
-        }
+        // Note: Table structure, indexes, and foreign keys are not fetched for privacy/security reasons
         
         // Get row count
-        $result = $conn->query("SELECT COUNT(*) as count FROM `$table_name_escaped`");
-        if ($result) {
-            $analysis['row_count'] = $result->fetch_assoc()['count'];
+        try {
+            $result = $conn->query("SELECT COUNT(*) as count FROM `$table_name_escaped`");
+            if ($result) {
+                $count_row = $result->fetch_assoc();
+                $analysis['row_count'] = isset($count_row['count']) ? (int)$count_row['count'] : 0;
+                $result->free();
+            }
+        } catch (Exception $e) {
+            error_log("Error getting row count for table {$table_name}: " . $e->getMessage());
+            $analysis['row_count'] = 0;
         }
         
         // Get table size
-        $result = $conn->query("
-            SELECT 
-                ROUND((data_length + index_length) / 1024 / 1024, 2) AS size_mb,
-                table_rows
-            FROM information_schema.tables
-            WHERE table_schema = DATABASE()
-            AND table_name = '$table_name_escaped'
-        ");
-        if ($result) {
-            $row = $result->fetch_assoc();
-            $analysis['size_mb'] = $row['size_mb'] ?? 0;
-            $analysis['estimated_rows'] = $row['table_rows'] ?? 0;
+        try {
+            // Get database name from connection or constant
+            $db_name_raw = defined('DB_NAME') ? DB_NAME : '';
+            if (empty($db_name_raw)) {
+                $db_check = $conn->query("SELECT DATABASE() as db_name");
+                if ($db_check) {
+                    $db_row = $db_check->fetch_assoc();
+                    $db_name_raw = isset($db_row['db_name']) ? $db_row['db_name'] : 'BankingDB';
+                    $db_check->free();
+                } else {
+                    $db_name_raw = 'BankingDB';
+                }
+            }
+            $db_name = $conn->real_escape_string($db_name_raw);
+            
+            $result = $conn->query("
+                SELECT 
+                    ROUND((data_length + index_length) / 1024 / 1024, 2) AS size_mb,
+                    table_rows
+                FROM information_schema.tables
+                WHERE table_schema = '{$db_name}'
+                AND table_name = '{$table_name_escaped}'
+            ");
+            if ($result) {
+                $row = $result->fetch_assoc();
+                $analysis['size_mb'] = isset($row['size_mb']) ? (float)$row['size_mb'] : 0;
+                $analysis['estimated_rows'] = isset($row['table_rows']) ? (int)$row['table_rows'] : 0;
+                $result->free();
+            } else {
+                error_log("Error getting table size for {$table_name}: " . $conn->error);
+                $analysis['size_mb'] = 0;
+                $analysis['estimated_rows'] = 0;
+            }
+        } catch (Exception $e) {
+            error_log("Error getting table size for {$table_name}: " . $e->getMessage());
+            $analysis['size_mb'] = 0;
+            $analysis['estimated_rows'] = 0;
         }
     }
     
@@ -190,7 +302,29 @@ function getTableAnalysis($table_name) {
 // Handle AJAX request for table analysis
 if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
     header('Content-Type: application/json');
-    echo json_encode(getTableAnalysis($_GET['table_name']));
+    
+    // Validate table name to prevent SQL injection
+    $table_name = trim($_GET['table_name']);
+    
+    // Check if table name contains only allowed characters (alphanumeric, underscore)
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $table_name)) {
+        echo json_encode([
+            'error' => 'Invalid table name',
+            'table_name' => $table_name
+        ]);
+        exit;
+    }
+    
+    try {
+        $analysis = getTableAnalysis($table_name);
+        echo json_encode($analysis);
+    } catch (Exception $e) {
+        error_log("Error analyzing table {$table_name}: " . $e->getMessage());
+        echo json_encode([
+            'error' => 'Error analyzing table: ' . $e->getMessage(),
+            'table_name' => $table_name
+        ]);
+    }
     exit;
 }
 ?>
@@ -393,11 +527,21 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
                             <div class="row">
                                 <div class="col-6">
                                     <strong>Total Tables:</strong><br>
-                                    <span class="text-muted"><?php echo count($tables); ?></span>
+                                    <span class="text-muted"><?php echo is_array($tables) ? count($tables) : 0; ?></span>
                                 </div>
                                 <div class="col-6">
                                     <strong>Total Records:</strong><br>
-                                    <span class="text-muted"><?php echo array_sum(array_column($tables, 'count')); ?></span>
+                                    <span class="text-muted"><?php 
+                                        $total_records = 0;
+                                        if (!empty($tables) && is_array($tables)) {
+                                            foreach ($tables as $table) {
+                                                if (isset($table['count']) && is_numeric($table['count'])) {
+                                                    $total_records += (int)$table['count'];
+                                                }
+                                            }
+                                        }
+                                        echo number_format($total_records);
+                                    ?></span>
                                 </div>
                             </div>
                         <?php else: ?>
@@ -445,34 +589,90 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
             <div class="card-body">
                 <?php if ($connection_status === 'connected' && !empty($tables)): ?>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover" id="tablesTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Table Name</th>
+                                    <th>
+                                        <i class="fas fa-sort me-1"></i>Table Name
+                                        <input type="text" class="form-control form-control-sm mt-2" id="tableSearch" placeholder="Search tables...">
+                                    </th>
                                     <th>Record Count</th>
+                                    <th>Modules</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($tables as $table): ?>
-                                    <tr>
+                                <?php 
+                                // Ensure $tables is initialized
+                                if (!isset($tables) || !is_array($tables)) {
+                                    $tables = [];
+                                }
+                                
+                                if (!empty($tables)) {
+                                    $mapping = getTableModuleMapping();
+                                    foreach ($tables as $table): 
+                                        // Skip invalid table entries
+                                        if (!isset($table['name']) || empty($table['name']) || !is_string($table['name'])) {
+                                            continue;
+                                        }
+                                        
+                                        $table_name = trim($table['name']);
+                                        $table_count = isset($table['count']) && is_numeric($table['count']) ? (int)$table['count'] : 0;
+                                        $modules = isset($mapping[$table_name]) && is_array($mapping[$table_name]) ? $mapping[$table_name] : [];
+                                        $isAccountingTable = !empty($modules);
+                                        $table_name_escaped = htmlspecialchars($table_name, ENT_QUOTES, 'UTF-8');
+                                        $table_name_lower = strtolower($table_name);
+                                ?>
+                                    <tr data-table-name="<?php echo $table_name_lower; ?>" class="<?php echo $isAccountingTable ? 'table-primary' : ''; ?>">
                                         <td>
-                                            <code><?php echo htmlspecialchars($table['name']); ?></code>
+                                            <code><?php echo $table_name_escaped; ?></code>
+                                            <?php if ($isAccountingTable): ?>
+                                                <span class="badge bg-success ms-2" title="Accounting & Finance Table">
+                                                    <i class="fas fa-check-circle"></i> A&F
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info"><?php echo number_format($table['count']); ?></span>
+                                            <span class="badge bg-info"><?php echo number_format($table_count); ?></span>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($modules) && is_array($modules)): ?>
+                                                <?php 
+                                                $module_slice = array_slice($modules, 0, 2);
+                                                foreach ($module_slice as $module): 
+                                                    if (empty($module) || !is_string($module)) continue;
+                                                ?>
+                                                    <span class="badge bg-secondary mb-1"><?php echo htmlspecialchars($module, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                <?php endforeach; ?>
+                                                <?php if (count($modules) > 2): ?>
+                                                    <span class="badge bg-light text-dark" title="<?php echo htmlspecialchars(implode(', ', $modules), ENT_QUOTES, 'UTF-8'); ?>">
+                                                        +<?php echo count($modules) - 2; ?> more
+                                                    </span>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="text-muted small">N/A</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <span class="badge bg-success">Active</span>
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary" onclick="analyzeTable('<?php echo $table['name']; ?>')">
-                                                <i class="fas fa-search"></i> Analyze
+                                            <button class="btn btn-sm btn-outline-primary" onclick="analyzeTable('<?php echo addslashes($table_name); ?>')" title="View table information">
+                                                <i class="fas fa-info-circle"></i> Details
                                             </button>
                                         </td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php 
+                                    endforeach; 
+                                } else {
+                                ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">
+                                            <i class="fas fa-info-circle me-2"></i>No tables found in database. Please check your database connection.
+                                        </td>
+                                    </tr>
+                                <?php } ?>
                             </tbody>
                         </table>
                     </div>
@@ -493,7 +693,7 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="tableAnalysisModalLabel">
-                        <i class="fas fa-database me-2"></i>Table Analysis: <span id="modalTableName"></span>
+                        <i class="fas fa-database me-2"></i>Table Information: <span id="modalTableName"></span>
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -502,7 +702,7 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-3">Analyzing table...</p>
+                        <p class="mt-3">Loading table information...</p>
                     </div>
                 </div>
             </div>
@@ -574,7 +774,7 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
         
         function displayTableAnalysis(data) {
             let html = `
-                <div class="row">
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="card border-primary">
                             <div class="card-header bg-primary text-white">
@@ -583,7 +783,7 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
                             <div class="card-body">
                                 <p><strong>Table Name:</strong> <code style="color: #e83e8c;">${data.table_name}</code></p>
                                 <p><strong>Row Count:</strong> <span class="badge bg-info">${data.row_count?.toLocaleString() || 'N/A'}</span></p>
-                                <p><strong>Table Size:</strong> <span class="badge bg-success">${data.size_mb || 0} MB</span></p>
+                                <p><strong>Table Size:</strong> <span class="badge bg-success">${(data.size_mb || 0).toFixed(2)} MB</span></p>
                                 <p><strong>Estimated Rows:</strong> ${data.estimated_rows?.toLocaleString() || 'N/A'}</p>
                             </div>
                         </div>
@@ -597,13 +797,13 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
             `;
             
             if (data.modules && data.modules.length > 0) {
-                html += '<ul class="list-unstyled mb-0">';
+                html += '<div class="d-flex flex-wrap gap-2">';
                 data.modules.forEach(module => {
-                    html += `<li><i class="fas fa-check-circle text-success me-2"></i>${module}</li>`;
+                    html += `<span class="badge bg-primary"><i class="fas fa-check-circle me-1"></i>${module}</span>`;
                 });
-                html += '</ul>';
+                html += '</div>';
             } else {
-                html += '<p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No specific module mapping found.</p>';
+                html += '<p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No specific module mapping found. This table may be used by other subsystems.</p>';
             }
             
             html += `
@@ -613,8 +813,30 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
                 </div>
             `;
             
+            // Note: Table structure and foreign key relationships are hidden for privacy/security reasons
+            
             document.getElementById('tableAnalysisContent').innerHTML = html;
         }
+        
+        // Table search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('tableSearch');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const rows = document.querySelectorAll('#tablesTable tbody tr');
+                    
+                    rows.forEach(row => {
+                        const tableName = row.getAttribute('data-table-name');
+                        if (tableName && tableName.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+        });
     </script>
 
     <style>
@@ -626,6 +848,30 @@ if (isset($_GET['analyze_table']) && isset($_GET['table_name'])) {
         .status-disconnected {
             color: #dc3545;
             font-weight: bold;
+        }
+        
+        #tableSearch {
+            max-width: 300px;
+        }
+        
+        .table-primary {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+        
+        .table-primary:hover {
+            background-color: rgba(13, 110, 253, 0.2);
+        }
+        
+        #tablesTable tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .card-header h6 {
+            margin: 0;
+        }
+        
+        .badge {
+            font-size: 0.75rem;
         }
     </style>
 </body>

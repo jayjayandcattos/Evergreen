@@ -4,10 +4,6 @@
 -- This file contains ALL sample data for the accounting system
 -- Run this after schema.sql to populate the database with comprehensive test data
 -- 
--- This file includes merged data from:
--- - Original Sampled_data.sql (comprehensive system data)
--- - sample_expense_data.sql (expense tracking module data)
--- - sample_loan_data.sql (loan accounting module data)
 -- 
 -- Instructions:
 -- 1. Open phpMyAdmin: http://localhost/phpmyadmin
@@ -39,13 +35,34 @@ VALUES (
     username = VALUES(username),
     password_hash = VALUES(password_hash);
 
+-- Insert the finance admin user
+-- Email: finance.admin@evergreen.com
+-- Username: finance.admin
+-- Password: Finance2025
+INSERT INTO users (id, username, password_hash, email, full_name, is_active, created_at) 
+VALUES (
+    2,
+    'finance.admin',
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'finance.admin@evergreen.com',
+    'Finance Administrator',
+    TRUE,
+    NOW()
+) ON DUPLICATE KEY UPDATE 
+    username = VALUES(username),
+    password_hash = VALUES(password_hash);
+
 -- Insert default roles
 INSERT INTO roles (name, description) VALUES
-('Administrator', 'Full system access with all privileges')
+('Administrator', 'Full system access with all privileges'),
+('Accounting Admin', 'Full administrative access to accounting and finance modules')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- Assign admin role to the admin user
 INSERT INTO user_roles (user_id, role_id) VALUES (1, 1) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
+
+-- Assign Accounting Admin role to the finance admin user
+INSERT INTO user_roles (user_id, role_id) VALUES (2, 2) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
 
 -- ========================================
 -- 1A. BANK CUSTOMERS & GENDERS
@@ -438,55 +455,50 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), base_monthly_salary = VALUES(base_m
 -- Note: Additional user_account records can be created as needed
 -- The employee_id links to the employee table, enabling HRIS-Payroll integration
 INSERT INTO user_account (user_id, employee_id, username, password_hash, role, last_login) VALUES
-(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', NOW() - INTERVAL 5 DAY)
-ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id);
+(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY),
+(2, 2, 'finance.admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Accounting Admin', NULL)
+ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), password_hash = VALUES(password_hash);
 
 -- ========================================
--- HRIS-PAYROLL CONNECTION DOCUMENTATION
+-- HR MANAGER ROLE SETUP (Data Migration)
 -- ========================================
--- 
--- IMPORTANT: Understanding the HRIS-Payroll Data Flow
--- 
--- 1. HRIS CORE TABLES (HRIS Module):
---    - department: Organizational departments
---    - position: Job positions (note: backticked because 'position' is a reserved word)
---    - employee: Core employee records with foreign keys to department and position
---    - employee_attendance: Daily attendance tracking
--- 
--- 2. PAYROLL SYSTEM TABLES (Payroll Module):
---    - employee_refs: External employee references used by payroll system
---      * Uses: external_employee_no (EMP001, EMP002, etc.)
---      * Contains: base_monthly_salary, employment_type
---    - payslips: Payroll payslips linked via employee_external_no
---    - payroll_runs: Payroll processing runs
---    - payroll_periods: Payroll periods
--- 
--- 3. DATA MAPPING:
---    - employee.employee_id (1-25) corresponds to employee_refs.external_employee_no (EMP001-EMP025)
---    - employee_refs.external_employee_no is used throughout payroll system:
---      * payslips.employee_external_no
---      * employee_attendance.employee_external_no
---      * expense_claims.employee_external_no
---      * loans.borrower_external_no
--- 
--- 4. INTEGRATION POINTS:
---    - Payroll calculations use employee_refs.base_monthly_salary
---    - Attendance tracking uses employee_attendance linked via employee_external_no
---    - Department and position info flows from employee -> department/position tables
---    - User accounts link via user_account.employee_id for system access
--- 
--- 5. EXAMPLE FLOW:
---    Employee Record (HRIS) -> employee_refs (Payroll Interface) -> Payroll Processing -> Payslip
---    employee_id: 1 -> external_employee_no: EMP001 -> payroll calculation -> payslip record
--- 
--- ========================================
+-- Update existing user_account records with NULL role to 'Admin' for backward compatibility
+-- This ensures all existing admin accounts are properly marked
+UPDATE user_account 
+SET role = 'Admin' 
+WHERE role IS NULL 
+AND username IS NOT NULL;
+
+-- Ensure any existing admin accounts explicitly have 'Admin' role
+-- (in case they were created with different role values)
+UPDATE user_account 
+SET role = 'Admin' 
+WHERE username = 'admin' 
+AND (role IS NULL OR role != 'Admin');
 
 -- ========================================
--- 4D. EMPLOYEE ATTENDANCE DATA FOR NOVEMBER 2025
+-- CREATE HR MANAGER ACCOUNT
 -- ========================================
--- Note: November 2025 has 30 days. Workdays exclude weekends (Nov 1,2,8,9,15,16,22,23,29,30 are weekends)
--- Workdays: 3,4,5,6,7,10,11,12,13,14,17,18,19,20,21,24,25,26,27,28 (20 workdays)
--- Expanded attendance records with varied patterns for testing Daily Attendance Records
+-- This creates an HR Manager account
+-- Username: hrmanager
+-- Password: password
+-- Role: HR Manager
+-- ========================================
+
+-- Create HR Manager account
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    NULL, -- employee_id (can be set to a valid employee_id if needed)
+    'hrmanager', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'HR Manager', -- role (must be exactly 'HR Manager')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role);
+
+
 
 INSERT INTO employee_attendance (employee_external_no, attendance_date, time_in, time_out, status, hours_worked, overtime_hours, late_minutes, remarks) VALUES
 -- EMP001: Random mixed pattern
@@ -1187,13 +1199,13 @@ INSERT INTO bank_employees (employee_id, employee_name, created_at) VALUES
 ON DUPLICATE KEY UPDATE employee_name = VALUES(employee_name);
 
 -- Bank Customers
-INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, password_hash, created_at, created_by_employee_id) VALUES
-(1, 'Reyes', 'Juan', 'Dela', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 90 DAY, 1),
-(2, 'Santos', 'Maria', 'Garcia', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 75 DAY, 1),
-(3, 'Cruz', 'Jose', 'Ramos', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 60 DAY, 2),
-(4, 'Lopez', 'Anna', NULL, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 45 DAY, 2),
-(5, 'Garcia', 'Roberto', 'Fernandez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 3)
-ON DUPLICATE KEY UPDATE last_name = VALUES(last_name);
+INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, email, password_hash, created_at, created_by_employee_id) VALUES
+(1, 'Reyes', 'Juan', 'Dela', 'juan.reyes@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 90 DAY, 1),
+(2, 'Santos', 'Maria', 'Garcia', 'maria.santos@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 75 DAY, 1),
+(3, 'Cruz', 'Jose', 'Ramos', 'jose.cruz@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 60 DAY, 2),
+(4, 'Lopez', 'Anna', NULL, 'anna.lopez@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 45 DAY, 2),
+(5, 'Garcia', 'Roberto', 'Fernandez', 'roberto.garcia@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 3)
+ON DUPLICATE KEY UPDATE last_name = VALUES(last_name), email = VALUES(email);
 
 -- Customer Profiles
 INSERT INTO customer_profiles (profile_id, customer_id, gender_id, date_of_birth, marital_status, national_id, occupation, company, income_range, preferred_language, nationality, loyalty_member, profile_created_at) VALUES
