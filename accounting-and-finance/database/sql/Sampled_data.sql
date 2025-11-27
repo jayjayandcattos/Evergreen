@@ -87,7 +87,6 @@ INSERT INTO bank_customers (
     email,
     contact_number,
     birthday,
-    password,
     password_hash,
     verification_code,
     bank_id,
@@ -98,11 +97,11 @@ INSERT INTO bank_customers (
     created_at,
     created_by_employee_id
 ) VALUES
-(1, 'Juan', 'Carlos', 'Dela Cruz', '123 Main St', 'Manila', 'juan.delacruz@email.com', '09171234567', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK001', 'REF001', 0.00, NULL, 1, NOW() - INTERVAL 85 DAY, NULL),
-(2, 'Maria', 'Santos', 'Garcia', '456 Oak Ave', 'Quezon City', 'maria.garcia@email.com', '09171234568', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK002', 'REF002', 0.00, NULL, 1, NOW() - INTERVAL 70 DAY, NULL),
-(3, 'Pedro', 'Reyes', 'Mendoza', '789 Pine Rd', 'Makati', 'pedro.mendoza@email.com', '09171234569', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK003', 'REF003', 0.00, NULL, 1, NOW() - INTERVAL 55 DAY, NULL),
-(4, 'Ana', 'Lopez', 'Torres', '321 Elm St', 'Pasig', 'ana.torres@email.com', '09171234570', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK004', 'REF004', 0.00, NULL, 1, NOW() - INTERVAL 40 DAY, NULL),
-(5, 'Roberto', 'Cruz', 'Ramos', '654 Maple Dr', 'Taguig', 'roberto.ramos@email.com', '09171234571', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK005', 'REF005', 0.00, NULL, 1, NOW() - INTERVAL 25 DAY, NULL)
+(1, 'Juan', 'Carlos', 'Dela Cruz', '123 Main St', 'Manila', 'juan.delacruz@email.com', '09171234567', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK001', 'REF001', 0.00, NULL, 1, NOW() - INTERVAL 85 DAY, NULL),
+(2, 'Maria', 'Santos', 'Garcia', '456 Oak Ave', 'Quezon City', 'maria.garcia@email.com', '09171234568', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK002', 'REF002', 0.00, NULL, 1, NOW() - INTERVAL 70 DAY, NULL),
+(3, 'Pedro', 'Reyes', 'Mendoza', '789 Pine Rd', 'Makati', 'pedro.mendoza@email.com', '09171234569', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK003', 'REF003', 0.00, NULL, 1, NOW() - INTERVAL 55 DAY, NULL),
+(4, 'Ana', 'Lopez', 'Torres', '321 Elm St', 'Pasig', 'ana.torres@email.com', '09171234570', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK004', 'REF004', 0.00, NULL, 1, NOW() - INTERVAL 40 DAY, NULL),
+(5, 'Roberto', 'Cruz', 'Ramos', '654 Maple Dr', 'Taguig', 'roberto.ramos@email.com', '09171234571', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK005', 'REF005', 0.00, NULL, 1, NOW() - INTERVAL 25 DAY, NULL)
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name);
 
 -- ========================================
@@ -1036,7 +1035,7 @@ INSERT INTO employee_attendance (employee_external_no, attendance_date, time_in,
 ('EMP025', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP025', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
 ('EMP025', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP025', '2025-11-11', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arriv'),
+('EMP025', '2025-11-11', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
 ('EMP025', '2025-11-12', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP025', '2025-11-13', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP025', '2025-11-14', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
