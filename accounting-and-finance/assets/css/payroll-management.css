@@ -1063,6 +1063,173 @@ body {
 }
 
 /* ========================================
+   TAX CALCULATOR LAYOUT
+   ======================================== */
+
+.tax-calculator-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.tax-input-section {
+    background: #f5f5f5;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border: 2px solid var(--border-color);
+}
+
+.tax-input-group {
+    margin-bottom: 20px;
+}
+
+.tax-input-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.tax-input-display {
+    background: white;
+    padding: 12px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-teal);
+    font-family: 'Courier New', monospace;
+}
+
+.tax-membership-group {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.tax-membership-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tax-membership-item label {
+    font-weight: 500;
+    color: var(--text-dark);
+    font-size: 13px;
+    margin: 0;
+}
+
+.tax-membership-badge {
+    background: var(--primary-teal);
+    color: white;
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tax-computation-result {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+}
+
+.tax-computation-title {
+    text-align: center;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 25px;
+    font-size: 20px;
+}
+
+.tax-computation-box {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    height: 100%;
+}
+
+.tax-box-title {
+    font-weight: 700;
+    color: var(--primary-teal);
+    margin-bottom: 15px;
+    font-size: 16px;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tax-computation-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.tax-computation-item:last-child {
+    border-bottom: none;
+}
+
+.tax-computation-item.tax-total {
+    border-top: 2px solid var(--primary-teal);
+    margin-top: 10px;
+    padding-top: 15px;
+    font-weight: 700;
+}
+
+.tax-item-label {
+    color: var(--text-dark);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.tax-item-value {
+    color: var(--primary-teal);
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+}
+
+.tax-summary-deductions {
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 3px solid var(--primary-teal);
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.tax-summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0;
+    font-size: 16px;
+}
+
+.tax-summary-item.tax-summary-final {
+    border-top: 2px solid var(--primary-teal);
+    margin-top: 10px;
+    padding-top: 20px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.tax-summary-label {
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.tax-summary-value {
+    color: var(--primary-teal);
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+/* ========================================
    HISTORY TABLES (Expense, Transaction, Loan)
    ======================================== */
 
@@ -1245,6 +1412,38 @@ body {
     font-weight: 700;
     font-size: 15px;
     margin-bottom: 20px;
+}
+
+/* Attendance Summary Items for Overall Tab */
+.attendance-summary-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.attendance-summary-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: var(--primary-teal);
+}
+
+.summary-label-small {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-value-small {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-dark);
+    font-family: 'Courier New', monospace;
 }
 
 .overall-summary-box {
@@ -1542,16 +1741,21 @@ body {
    ======================================== */
 
 @media print {
+    /* Hide navigation and UI elements */
     .main-header,
     .navbar,
     .navbar-custom,
     .page-header-payroll,
+    .beautiful-page-header,
+    .header-actions,
+    .search-filters-section,
     .payroll-tabs-container,
     .btn-export,
     .btn-print,
     .btn-view-history,
     .history-filters,
-    footer {
+    footer,
+    .main-footer {
         display: none !important;
     }
     
@@ -1561,11 +1765,33 @@ body {
         padding: 0 !important;
     }
     
+    /* Show only the active tab content */
+    .tab-content > .tab-pane {
+        display: block !important;
+    }
+    
+    .tab-content > .tab-pane:not(.show.active) {
+        display: none !important;
+    }
+    
     .payroll-content-card {
         box-shadow: none !important;
         page-break-inside: avoid;
         margin: 0 !important;
         padding: 20px !important;
+    }
+    
+    /* Hide attendance summary cards in print */
+    .attendance-summary-card,
+    .attendance-summary-section,
+    .attendance-records-section,
+    .attendance-statistics {
+        display: none !important;
+    }
+    
+    /* Hide employer contribution section */
+    .tax-section:has(.tax-section-header:contains("Employer")) {
+        display: none !important;
     }
     
     /* Remove page numbering and margins */
@@ -1617,10 +1843,192 @@ body {
     /* Ensure proper spacing for print */
     .overall-section {
         margin-bottom: 20px !important;
+        page-break-inside: avoid;
+    }
+    
+    .overall-section-title {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+        background: #f5f5f5 !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        padding: 10px 15px !important;
+        font-size: 14px !important;
+        margin-bottom: 10px !important;
     }
     
     .overall-summary-box {
-        margin-top: 30px !important;
+        margin-top: 20px !important;
+        page-break-inside: avoid;
+        border: 2px solid #000 !important;
+        background: #f9f9f9 !important;
+        padding: 20px !important;
+        display: block !important;
+        visibility: visible !important;
+        color: #000 !important;
+    }
+    
+    /* Summary Box */
+    .overall-summary-row {
+        padding: 10px 0 !important;
+        border-bottom: 1px solid #000 !important;
+        font-size: 13px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        color: #000 !important;
+    }
+    
+    .overall-summary-row:last-child {
+        border-bottom: none !important;
+        border-top: 2px solid #000 !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        padding-top: 15px !important;
+        margin-top: 10px !important;
+        color: #000 !important;
+    }
+    
+    .overall-summary-row .label {
+        font-weight: 600 !important;
+        color: #000 !important;
+    }
+    
+    .overall-summary-row .value {
+        font-weight: 700 !important;
+        font-family: 'Courier New', monospace !important;
+        color: #000 !important;
+    }
+    
+    /* Clean payslip layout */
+    .overall-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #000;
+        page-break-after: avoid;
+    }
+    
+    /* Employee Information Table */
+    .employee-info-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: avoid;
+        margin-bottom: 15px !important;
+    }
+    
+    .employee-info-table td {
+        padding: 8px 12px !important;
+        border: 1px solid #000 !important;
+        font-size: 12px !important;
+    }
+    
+    .employee-info-table td:first-child {
+        font-weight: 600 !important;
+        background: #f5f5f5 !important;
+        width: 40% !important;
+    }
+    
+    /* Payroll Items Table (Earnings and Deductions) */
+    .payroll-items-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: avoid;
+        border: 1px solid #000 !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .payroll-items-table thead {
+        display: table-header-group !important;
+    }
+    
+    .payroll-items-table thead th {
+        background: #f5f5f5 !important;
+        border: 1px solid #000 !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        text-align: left !important;
+    }
+    
+    .payroll-items-table tbody td {
+        border: 1px solid #000 !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
+    
+    .payroll-items-table tfoot {
+        display: table-footer-group !important;
+    }
+    
+    .payroll-items-table tfoot td {
+        background: #f5f5f5 !important;
+        border: 1px solid #000 !important;
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+    }
+    
+    .payroll-total-row {
+        border-top: 2px solid #000 !important;
+    }
+    
+    .amount-cell {
+        text-align: right !important;
+        font-family: 'Courier New', monospace !important;
+    }
+    
+    /* Two-column layout for print */
+    .payroll-two-column {
+        display: flex !important;
+        gap: 20px !important;
+        margin-bottom: 20px !important;
+        page-break-inside: avoid;
+    }
+    
+    .payroll-two-column > div {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+    
+    /* Payslip Title */
+    .payroll-section-title {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        margin-bottom: 15px !important;
+        text-align: center !important;
+        page-break-after: avoid;
+    }
+    
+    /* Hide tabs navigation in print */
+    .nav-tabs,
+    .nav-link {
+        display: none !important;
+    }
+    
+    /* Ensure proper font sizes for print */
+    body {
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+    }
+    
+    /* Bank name and company name */
+    .bank-name {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+    }
+    
+    .company-name {
+        font-size: 14px !important;
+        margin-top: 5px !important;
+    }
+    
+    .payroll-column-card {
+        flex: 1;
+    }
+    
+    /* Ensure summary box is always visible in print */
+    .overall-summary-box * {
+        color: #000 !important;
     }
 }
 

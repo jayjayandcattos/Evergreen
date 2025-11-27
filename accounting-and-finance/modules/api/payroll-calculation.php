@@ -273,16 +273,21 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
         // Prorate based on actual period days vs full month
         $days_in_month = (int)$end_date->format('t'); // Last day of the month
         $prorated_base_salary = ($base_salary / $days_in_month) * $period_days;
-    }
-    
-    if ($prorated_base_salary > 0) {
-        // Calculate daily rate based on prorated salary and period days
+        // For bi-monthly: calculate daily rate based on prorated salary and period days
         $daily_rate = $prorated_base_salary / $period_days;
         $hourly_rate = $daily_rate / $hours_per_day;
-    } else if ($base_salary > 0) {
-        // Fallback to monthly calculation
+    } else {
+        // Full month: use standard 22 working days (not calendar days)
+        // No proration needed for full month
+        $prorated_base_salary = $base_salary;
         $daily_rate = $base_salary / $working_days_per_month;
         $hourly_rate = $daily_rate / $hours_per_day;
+    }
+    
+    // Fallback if base_salary is 0
+    if ($base_salary == 0) {
+        $daily_rate = 0;
+        $hourly_rate = 0;
     }
     
     // Overtime rate is 125% of hourly rate (Philippine standard)
@@ -504,38 +509,35 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     
     $stmt->close();
     
-    // Calculate adjusted salary
+    // Round all adjustments
     $calculation['salary_adjustments']['basic_salary'] = round($calculation['salary_adjustments']['basic_salary'], 2);
     $calculation['salary_adjustments']['absent_deduction'] = round($calculation['salary_adjustments']['absent_deduction'], 2);
     $calculation['salary_adjustments']['half_day_deduction'] = round($calculation['salary_adjustments']['half_day_deduction'], 2);
     $calculation['salary_adjustments']['late_penalty'] = round($calculation['salary_adjustments']['late_penalty'], 2);
     $calculation['salary_adjustments']['overtime_pay'] = round($calculation['salary_adjustments']['overtime_pay'], 2);
     
-    // Adjusted salary = Base salary - absent deductions - half day deductions - late penalties + overtime
-    // Use prorated base salary for bi-monthly periods
-    $base_salary_for_calculation = isset($prorated_base_salary) ? $prorated_base_salary : $base_salary;
-    $expected_days = $calculation['attendance_summary']['total_days'];
+    // Calculate Gross Salary = basic_salary (earned from present days) + overtime_pay
+    $gross_salary = $calculation['salary_adjustments']['basic_salary'] + $calculation['salary_adjustments']['overtime_pay'];
+    $calculation['salary_adjustments']['gross_salary'] = round($gross_salary, 2);
     
-    if ($expected_days > 0) {
-        // Pro-rated based on attendance
-        $attendance_rate = $calculation['attendance_summary']['present_days'] / $expected_days;
-        $adjusted_base = $base_salary_for_calculation * $attendance_rate;
-        
-        // Apply adjustments
-        $calculation['salary_adjustments']['adjusted_salary'] = round(
-            $adjusted_base 
-            - $calculation['salary_adjustments']['absent_deduction']
-            - $calculation['salary_adjustments']['half_day_deduction'] 
-            - $calculation['salary_adjustments']['late_penalty']
-            + $calculation['salary_adjustments']['overtime_pay']
-        , 2);
-    } else {
-        // If no attendance days, use prorated base salary as starting point
-        $calculation['salary_adjustments']['adjusted_salary'] = round($base_salary_for_calculation, 2);
-    }
+    // Calculate Net Salary = Gross Salary - absent deductions - half day deductions - late penalties
+    // Note: Mandatory contributions and withholding tax are calculated separately in the payroll management page
+    $net_salary_before_tax = $gross_salary 
+        - $calculation['salary_adjustments']['absent_deduction']
+        - $calculation['salary_adjustments']['half_day_deduction']
+        - $calculation['salary_adjustments']['late_penalty'];
+    $calculation['salary_adjustments']['net_salary_before_tax'] = round($net_salary_before_tax, 2);
+    
+    // Keep adjusted_salary for backward compatibility (same as net_salary_before_tax)
+    $calculation['salary_adjustments']['adjusted_salary'] = round($net_salary_before_tax, 2);
     
     // Store the prorated base salary for reference
+    $base_salary_for_calculation = isset($prorated_base_salary) ? $prorated_base_salary : $base_salary;
     $calculation['salary_adjustments']['prorated_base_salary'] = round($base_salary_for_calculation, 2);
+    
+    // Store daily rate and hourly rate for reference
+    $calculation['salary_adjustments']['daily_rate'] = round($daily_rate, 2);
+    $calculation['salary_adjustments']['hourly_rate'] = round($hourly_rate, 2);
     
     return $calculation;
 }
@@ -622,25 +624,26 @@ function calculatePagIBIGContribution($monthly_salary) {
 function calculateBIRWithholdingTax($taxable_income) {
     $tax = 0;
     
-    // BIR 2025 Progressive Tax Brackets
+    // BIR 2025 Progressive Tax Brackets (Revised Withholding Tax Table effective January 1, 2023)
+    // Reference: https://taxcalculatorphilippines.com/
     if ($taxable_income <= 20833) {
         // ₱0 - ₱20,833: 0%
         $tax = 0;
     } elseif ($taxable_income <= 33332) {
-        // ₱20,834 - ₱33,332: 20% of excess over ₱20,833
-        $tax = ($taxable_income - 20833) * 0.20;
+        // ₱20,833 - ₱33,332: 0.00 + 15% over ₱20,833
+        $tax = ($taxable_income - 20833) * 0.15;
     } elseif ($taxable_income <= 66666) {
-        // ₱33,333 - ₱66,666: ₱2,500 + 25% of excess over ₱33,333
-        $tax = 2500 + (($taxable_income - 33333) * 0.25);
+        // ₱33,333 - ₱66,666: ₱2,500.00 + 20% over ₱33,333
+        $tax = 2500.00 + (($taxable_income - 33333) * 0.20);
     } elseif ($taxable_income <= 166666) {
-        // ₱66,667 - ₱166,666: ₱10,833.25 + 30% of excess over ₱66,667
-        $tax = 10833.25 + (($taxable_income - 66667) * 0.30);
+        // ₱66,667 - ₱166,666: ₱10,833.33 + 25% of excess over ₱66,667
+        $tax = 10833.33 + (($taxable_income - 66667) * 0.25);
     } elseif ($taxable_income <= 666666) {
-        // ₱166,667 - ₱666,666: ₱40,833.25 + 32% of excess over ₱166,667
-        $tax = 40833.25 + (($taxable_income - 166667) * 0.32);
+        // ₱166,667 - ₱666,666: ₱40,833.33 + 30% of excess over ₱166,667
+        $tax = 40833.33 + (($taxable_income - 166667) * 0.30);
     } else {
-        // Above ₱666,666: ₱200,000 + 35% of excess over ₱666,666
-        $tax = 200000 + (($taxable_income - 666667) * 0.35);
+        // Above ₱666,666: ₱200,833.33 + 35% of excess over ₱666,667
+        $tax = 200833.33 + (($taxable_income - 666667) * 0.35);
     }
     
     return round(max(0, $tax), 2);
