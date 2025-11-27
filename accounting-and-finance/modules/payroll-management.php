@@ -44,6 +44,49 @@ if ($payroll_period === 'first') {
     $period_label = date('F Y', strtotime($payroll_month . '-01'));
 }
 
+// Auto-sync: Create missing employee_refs records for HRIS employees
+// This ensures new employees added in HRIS automatically appear in the dropdown
+$sync_query = "INSERT INTO employee_refs (
+                    external_employee_no,
+                    name,
+                    department,
+                    position,
+                    base_monthly_salary,
+                    employment_type,
+                    external_source,
+                    created_at
+                )
+                SELECT 
+                    CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as external_employee_no,
+                    CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) as name,
+                    COALESCE(d.department_name, '') as department,
+                    COALESCE(p.position_title, '') as position,
+                    COALESCE(c.salary, 0.00) as base_monthly_salary,
+                    COALESCE(c.contract_type, 'regular') as employment_type,
+                    'HRIS' as external_source,
+                    COALESCE(e.hire_date, CURDATE()) as created_at
+                FROM employee e
+                LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                LEFT JOIN department d ON e.department_id = d.department_id
+                LEFT JOIN `position` p ON e.position_id = p.position_id
+                LEFT JOIN contract c ON e.contract_id = c.contract_id
+                WHERE e.employee_id IS NOT NULL
+                AND er.id IS NULL
+                ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    department = VALUES(department),
+                    position = VALUES(position),
+                    base_monthly_salary = VALUES(base_monthly_salary),
+                    employment_type = VALUES(employment_type)";
+
+// Execute sync query silently (errors are logged but don't break the page)
+try {
+    $conn->query($sync_query);
+    error_log("Auto-sync: Checked and created missing employee_refs records");
+} catch (Exception $e) {
+    error_log("Auto-sync error: " . $e->getMessage());
+}
+
 // Build dynamic query for employees with filters - JOIN with HRIS employee table
 // FIXED: Now shows ALL HRIS employees, automatically creating employee_refs if needed
 $employees_query = "SELECT 
@@ -124,7 +167,7 @@ if (!empty($filter_type)) {
     $types .= "s";
 }
 
-$employees_query .= " ORDER BY e.first_name, e.last_name";
+$employees_query .= " ORDER BY e.employee_id ASC";
 
 // Execute query with parameters
 if (!empty($params)) {
@@ -987,214 +1030,241 @@ if ($selected_employee) {
                     </div>
                 </div>
                 <div class="header-actions mt-3">
-                    <div class="row align-items-end g-3">
-                        <div class="col-md-6">
-                            <div class="employee-selector-header">
-                                <label for="employee-select" class="form-label mb-1">Select Employee:</label>
-                                <select class="form-select" id="employee-select" onchange="changeEmployee()">
-                                    <option value="">Choose an employee...</option>
-                                    <?php 
-                                    $employees_result->data_seek(0);
-                                    while($emp = $employees_result->fetch_assoc()): 
-                                        // Use HRIS full name if available, otherwise use employee_refs name
-                                        $display_name = !empty($emp['hris_full_name']) ? trim($emp['hris_full_name']) : ($emp['name'] ?? 'Unknown');
-                                        $employee_number = $emp['external_employee_no'];
-                                    ?>
-                                        <option value="<?php echo $employee_number; ?>" 
-                                                <?php echo ($employee_number == $selected_employee) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($display_name . ' (' . $employee_number . ')'); ?>
-                                        </option>
-                                    <?php endwhile; ?>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="payroll-period-selector">
-                                <label for="payroll-period-select" class="form-label mb-1">Payroll Period:</label>
-                                <div class="d-flex gap-2">
-                                    <select class="form-select" id="payroll-month-select" onchange="changePayrollPeriod()">
-                                        <?php
-                                        // Query database for months with attendance or leave data from HRIS
-                                        // This dynamically shows months that have actual data
-                                        $months_query = "SELECT DISTINCT DATE_FORMAT(a.date, '%Y-%m') as month
-                                                        FROM attendance a
-                                                        UNION
-                                                        SELECT DISTINCT DATE_FORMAT(lr.start_date, '%Y-%m') as month
-                                                        FROM leave_request lr
-                                                        WHERE UPPER(TRIM(lr.status)) = 'APPROVED'
-                                                        UNION
-                                                        SELECT DISTINCT DATE_FORMAT(lr.end_date, '%Y-%m') as month
-                                                        FROM leave_request lr
-                                                        WHERE UPPER(TRIM(lr.status)) = 'APPROVED'
-                                                        UNION
-                                                        SELECT DISTINCT DATE_FORMAT(ea.attendance_date, '%Y-%m') as month
-                                                        FROM employee_attendance ea
-                                                        ORDER BY month DESC";
-                                        
-                                        $months_result = $conn->query($months_query);
-                                        $available_months = [];
-                                        
-                                        if ($months_result && $months_result->num_rows > 0) {
-                                            while ($month_row = $months_result->fetch_assoc()) {
-                                                $available_months[] = $month_row['month'];
+                    <!-- Primary Selection Card -->
+                    <div class="selection-card mb-3">
+                        <div class="row g-3">
+                            <div class="col-lg-5">
+                                <div class="selection-group">
+                                    <label for="employee-select" class="selection-label">
+                                        <i class="fas fa-user me-2"></i>Select Employee
+                                    </label>
+                                    <select class="form-select form-select-lg" id="employee-select" onchange="changeEmployee()">
+                                        <option value="">Choose an employee...</option>
+                                        <?php 
+                                        $employees_result->data_seek(0);
+                                        while($emp = $employees_result->fetch_assoc()): 
+                                            // Use HRIS full name if available, otherwise use employee_refs name
+                                            $display_name = !empty($emp['hris_full_name']) ? trim($emp['hris_full_name']) : ($emp['name'] ?? 'Unknown');
+                                            
+                                            // Ensure external_employee_no is in correct format (EMP001, EMP002, etc.)
+                                            // Use employee_id to generate consistent format
+                                            $employee_id = intval($emp['hris_employee_id'] ?? 0);
+                                            if ($employee_id > 0) {
+                                                $employee_number = 'EMP' . str_pad($employee_id, 3, '0', STR_PAD_LEFT);
+                                            } else {
+                                                // Fallback to existing external_employee_no if employee_id not available
+                                                $employee_number = $emp['external_employee_no'] ?? '';
+                                                // Normalize format if needed
+                                                if (preg_match('/EMP(\d+)/i', $employee_number, $matches)) {
+                                                    $employee_number = 'EMP' . str_pad(intval($matches[1]), 3, '0', STR_PAD_LEFT);
+                                                }
                                             }
-                                        }
-                                        
-                                        // Always include current month even if no data yet
-                                        $current_month = date('Y-m');
-                                        if (!in_array($current_month, $available_months)) {
-                                            array_unshift($available_months, $current_month);
-                                        }
-                                        
-                                        // Remove duplicates and sort descending
-                                        $available_months = array_unique($available_months);
-                                        rsort($available_months);
-                                        
-                                        // If no months found, at least show current month
-                                        if (empty($available_months)) {
-                                            $available_months = [$current_month];
-                                        }
-                                        
-                                        // Build dropdown options
-                                        foreach ($available_months as $month_date) {
-                                            $month_label = date('F Y', strtotime($month_date . '-01'));
-                                            $selected = ($payroll_month == $month_date || (empty($payroll_month) && $month_date == $current_month)) ? 'selected' : '';
-                                            echo "<option value=\"$month_date\" $selected>$month_label</option>";
-                                        }
                                         ?>
-                                    </select>
-                                    <select class="form-select" id="payroll-period-select" onchange="changePayrollPeriod()">
-                                        <?php
-                                        // Use current month if no month is selected
-                                        $display_month = !empty($payroll_month) ? $payroll_month : date('Y-m');
-                                        $last_day = date('t', strtotime($display_month . '-01'));
-                                        ?>
-                                        <option value="">Full Month</option>
-                                        <option value="first" <?php echo ($payroll_period === 'first') ? 'selected' : ''; ?>>1-15</option>
-                                        <option value="second" <?php echo ($payroll_period === 'second') ? 'selected' : ''; ?>>16-<?php echo $last_day; ?></option>
+                                            <option value="<?php echo htmlspecialchars($employee_number); ?>" 
+                                                    <?php echo ($employee_number == $selected_employee) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($display_name . ' (' . $employee_number . ')'); ?>
+                                            </option>
+                                        <?php endwhile; ?>
                                     </select>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <?php if ($payroll_period && $period_label): ?>
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <div class="alert alert-info mb-0 py-2">
-                                <i class="fas fa-calendar-check me-2"></i>
-                                <strong>Selected Period:</strong> <?php echo htmlspecialchars($period_label); ?>
+                            <div class="col-lg-7">
+                                <div class="selection-group">
+                                    <label for="payroll-period-select" class="selection-label">
+                                        <i class="fas fa-calendar-alt me-2"></i>Payroll Period
+                                    </label>
+                                    <div class="period-selectors">
+                                        <select class="form-select form-select-lg" id="payroll-month-select" onchange="changePayrollPeriod()">
+                                            <?php
+                                            // Query database for months with attendance or leave data from HRIS
+                                            // This dynamically shows months that have actual data
+                                            $months_query = "SELECT DISTINCT DATE_FORMAT(a.date, '%Y-%m') as month
+                                                            FROM attendance a
+                                                            UNION
+                                                            SELECT DISTINCT DATE_FORMAT(lr.start_date, '%Y-%m') as month
+                                                            FROM leave_request lr
+                                                            WHERE UPPER(TRIM(lr.status)) = 'APPROVED'
+                                                            UNION
+                                                            SELECT DISTINCT DATE_FORMAT(lr.end_date, '%Y-%m') as month
+                                                            FROM leave_request lr
+                                                            WHERE UPPER(TRIM(lr.status)) = 'APPROVED'
+                                                            UNION
+                                                            SELECT DISTINCT DATE_FORMAT(ea.attendance_date, '%Y-%m') as month
+                                                            FROM employee_attendance ea
+                                                            ORDER BY month DESC";
+                                            
+                                            $months_result = $conn->query($months_query);
+                                            $available_months = [];
+                                            
+                                            if ($months_result && $months_result->num_rows > 0) {
+                                                while ($month_row = $months_result->fetch_assoc()) {
+                                                    $available_months[] = $month_row['month'];
+                                                }
+                                            }
+                                            
+                                            // Always include current month even if no data yet
+                                            $current_month = date('Y-m');
+                                            if (!in_array($current_month, $available_months)) {
+                                                array_unshift($available_months, $current_month);
+                                            }
+                                            
+                                            // Remove duplicates and sort descending
+                                            $available_months = array_unique($available_months);
+                                            rsort($available_months);
+                                            
+                                            // If no months found, at least show current month
+                                            if (empty($available_months)) {
+                                                $available_months = [$current_month];
+                                            }
+                                            
+                                            // Build dropdown options
+                                            foreach ($available_months as $month_date) {
+                                                $month_label = date('F Y', strtotime($month_date . '-01'));
+                                                $selected = ($payroll_month == $month_date || (empty($payroll_month) && $month_date == $current_month)) ? 'selected' : '';
+                                                echo "<option value=\"$month_date\" $selected>$month_label</option>";
+                                            }
+                                            ?>
+                                        </select>
+                                        <select class="form-select form-select-lg" id="payroll-period-select" onchange="changePayrollPeriod()">
+                                            <?php
+                                            // Use current month if no month is selected
+                                            $display_month = !empty($payroll_month) ? $payroll_month : date('Y-m');
+                                            $last_day = date('t', strtotime($display_month . '-01'));
+                                            ?>
+                                            <option value="">Full Month</option>
+                                            <option value="first" <?php echo ($payroll_period === 'first') ? 'selected' : ''; ?>>1-15</option>
+                                            <option value="second" <?php echo ($payroll_period === 'second') ? 'selected' : ''; ?>>16-<?php echo $last_day; ?></option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                        <?php if ($payroll_period && $period_label): ?>
+                        <div class="selected-period-badge mt-2">
+                            <i class="fas fa-calendar-check me-2"></i>
+                            <span><strong>Selected Period:</strong> <?php echo htmlspecialchars($period_label); ?></span>
+                        </div>
+                        <?php endif; ?>
                     </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
         
-        <!-- Advanced Search and Filters -->
+        <!-- Employee Search and Filters -->
         <div class="search-filters-section mb-3">
             <div class="search-filters-card">
                 <div class="filters-header">
                     <div class="filters-title-section">
-                        <i class="fas fa-search me-2"></i>
-                        <h5 class="mb-0">Search & Filter Employees</h5>
+                        <i class="fas fa-users me-2"></i>
+                        <h5 class="mb-0">Find Employee</h5>
                         <div class="results-counter">
                             <span class="badge-employee-count">
-                                <?php echo $employees_result->num_rows; ?> employee<?php echo $employees_result->num_rows != 1 ? 's' : ''; ?> found
+                                <i class="fas fa-user-check me-1"></i>
+                                <?php echo $employees_result->num_rows; ?> employee<?php echo $employees_result->num_rows != 1 ? 's' : ''; ?> available
                             </span>
                         </div>
                     </div>
-                    <button class="btn-toggle-filters" onclick="toggleFilters()" type="button">
-                        <i class="fas fa-filter me-1"></i>Filters
+                    <button class="btn-toggle-filters" onclick="toggleFilters()" type="button" aria-expanded="false">
+                        <i class="fas fa-filter me-1"></i>Advanced Filters
                         <i class="fas fa-chevron-down ms-1" id="filter-chevron"></i>
                     </button>
                 </div>
                         
-                        <div class="filters-content" id="filters-content">
-                            <form method="GET" class="filters-form">
-                                <input type="hidden" name="employee" value="<?php echo htmlspecialchars($selected_employee); ?>">
-                                <div class="row g-3">
-                                    <!-- Search Bar -->
-                                    <div class="col-md-4">
-                                        <label for="search" class="form-label">Search</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">
-                                                <i class="fas fa-search"></i>
-                                            </span>
-                                            <input type="text" class="form-control" id="search" name="search" 
-                                                   placeholder="Search by name or employee number..." 
-                                                   value="<?php echo htmlspecialchars($search_term); ?>">
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Position Filter -->
-                                    <div class="col-md-2">
-                                        <label for="position" class="form-label">Position</label>
-                                        <select class="form-select" id="position" name="position">
-                                            <option value="">All Positions</option>
-                                            <?php 
-                                            $positions_result->data_seek(0);
-                                            while($pos = $positions_result->fetch_assoc()): 
-                                            ?>
-                                                <option value="<?php echo htmlspecialchars($pos['position']); ?>" 
-                                                        <?php echo ($pos['position'] == $filter_position) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($pos['position']); ?>
-                                                </option>
-                                            <?php endwhile; ?>
-                                        </select>
-                                    </div>
-                                    
-                                    <!-- Department Filter -->
-                                    <div class="col-md-2">
-                                        <label for="department" class="form-label">Department</label>
-                                        <select class="form-select" id="department" name="department">
-                                            <option value="">All Departments</option>
-                                            <?php 
-                                            $departments_result->data_seek(0);
-                                            while($dept = $departments_result->fetch_assoc()): 
-                                            ?>
-                                                <option value="<?php echo htmlspecialchars($dept['department']); ?>" 
-                                                        <?php echo ($dept['department'] == $filter_department) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($dept['department']); ?>
-                                                </option>
-                                            <?php endwhile; ?>
-                                        </select>
-                                    </div>
-                                    
-                                    <!-- Employment Type Filter -->
-                                    <div class="col-md-2">
-                                        <label for="type" class="form-label">Type</label>
-                                        <select class="form-select" id="type" name="type">
-                                            <option value="">All Types</option>
-                                            <?php 
-                                            $types_result->data_seek(0);
-                                            while($type = $types_result->fetch_assoc()): 
-                                            ?>
-                                                <option value="<?php echo htmlspecialchars($type['employment_type']); ?>" 
-                                                        <?php echo ($type['employment_type'] == $filter_type) ? 'selected' : ''; ?>>
-                                                    <?php echo ucfirst($type['employment_type']); ?>
-                                                </option>
-                                            <?php endwhile; ?>
-                                        </select>
-                                    </div>
-                                    
-                                    <!-- Action Buttons -->
-                                    <div class="col-md-2">
-                                        <label class="form-label">&nbsp;</label>
-                                        <div class="d-flex gap-2">
-                                            <button type="submit" class="btn btn-primary btn-sm">
-                                                <i class="fas fa-search me-1"></i>Search
-                                            </button>
-                                            <a href="?" class="btn btn-outline-secondary btn-sm">
-                                                <i class="fas fa-times me-1"></i>Clear
-                                            </a>
-                                        </div>
-                                    </div>
+                <div class="filters-content" id="filters-content">
+                    <form method="GET" class="filters-form" id="employee-filter-form">
+                        <input type="hidden" name="employee" value="<?php echo htmlspecialchars($selected_employee); ?>">
+                        <input type="hidden" name="payroll_month" value="<?php echo htmlspecialchars($payroll_month); ?>">
+                        <input type="hidden" name="payroll_period" value="<?php echo htmlspecialchars($payroll_period); ?>">
+                        <div class="row g-3">
+                            <!-- Search Bar -->
+                            <div class="col-md-4">
+                                <label for="search" class="form-label">
+                                    <i class="fas fa-search me-1"></i>Search Employee
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="search" name="search" 
+                                           placeholder="Name, employee number, or ID..." 
+                                           value="<?php echo htmlspecialchars($search_term); ?>">
                                 </div>
-                            </form>
+                            </div>
+                            
+                            <!-- Position Filter -->
+                            <div class="col-md-2">
+                                <label for="position" class="form-label">
+                                    <i class="fas fa-briefcase me-1"></i>Position
+                                </label>
+                                <select class="form-select" id="position" name="position">
+                                    <option value="">All Positions</option>
+                                    <?php 
+                                    $positions_result->data_seek(0);
+                                    while($pos = $positions_result->fetch_assoc()): 
+                                    ?>
+                                        <option value="<?php echo htmlspecialchars($pos['position']); ?>" 
+                                                <?php echo ($pos['position'] == $filter_position) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($pos['position']); ?>
+                                        </option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            
+                            <!-- Department Filter -->
+                            <div class="col-md-2">
+                                <label for="department" class="form-label">
+                                    <i class="fas fa-building me-1"></i>Department
+                                </label>
+                                <select class="form-select" id="department" name="department">
+                                    <option value="">All Departments</option>
+                                    <?php 
+                                    $departments_result->data_seek(0);
+                                    while($dept = $departments_result->fetch_assoc()): 
+                                    ?>
+                                        <option value="<?php echo htmlspecialchars($dept['department']); ?>" 
+                                                <?php echo ($dept['department'] == $filter_department) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($dept['department']); ?>
+                                        </option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            
+                            <!-- Employment Type Filter -->
+                            <div class="col-md-2">
+                                <label for="type" class="form-label">
+                                    <i class="fas fa-user-tag me-1"></i>Employment Type
+                                </label>
+                                <select class="form-select" id="type" name="type">
+                                    <option value="">All Types</option>
+                                    <?php 
+                                    $types_result->data_seek(0);
+                                    while($type = $types_result->fetch_assoc()): 
+                                    ?>
+                                        <option value="<?php echo htmlspecialchars($type['employment_type']); ?>" 
+                                                <?php echo ($type['employment_type'] == $filter_type) ? 'selected' : ''; ?>>
+                                            <?php echo ucfirst($type['employment_type']); ?>
+                                        </option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-search me-1"></i>Apply
+                                    </button>
+                                    <a href="?employee=<?php echo htmlspecialchars($selected_employee); ?>&payroll_month=<?php echo htmlspecialchars($payroll_month); ?>&payroll_period=<?php echo htmlspecialchars($payroll_period); ?>" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </form>
                 </div>
+            </div>
+        </div>
         <!-- Tab Navigation -->
         <div class="payroll-tabs-container">
             <ul class="nav nav-pills payroll-nav-tabs" id="payrollTabs" role="tablist">

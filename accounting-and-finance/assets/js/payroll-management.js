@@ -93,6 +93,12 @@ function initializeFiltersToggle() {
             // Show filters if they're already applied
             filtersContent.classList.add('show');
             toggleBtn.classList.add('active');
+            toggleBtn.setAttribute('aria-expanded', 'true');
+        } else {
+            // Hide filters by default if no filters applied
+            filtersContent.classList.remove('show');
+            toggleBtn.classList.remove('active');
+            toggleBtn.setAttribute('aria-expanded', 'false');
         }
         
         console.log('Filters toggle initialized');
@@ -116,6 +122,7 @@ function initializeAttendanceFilters() {
 function toggleFilters() {
     const toggleBtn = document.querySelector('.btn-toggle-filters');
     const filtersContent = document.getElementById('filters-content');
+    const chevron = document.getElementById('filter-chevron');
     
     if (toggleBtn && filtersContent) {
         const isVisible = filtersContent.classList.contains('show');
@@ -123,9 +130,17 @@ function toggleFilters() {
         if (isVisible) {
             filtersContent.classList.remove('show');
             toggleBtn.classList.remove('active');
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            if (chevron) {
+                chevron.style.transform = 'rotate(0deg)';
+            }
         } else {
             filtersContent.classList.add('show');
             toggleBtn.classList.add('active');
+            toggleBtn.setAttribute('aria-expanded', 'true');
+            if (chevron) {
+                chevron.style.transform = 'rotate(180deg)';
+            }
         }
     }
 }

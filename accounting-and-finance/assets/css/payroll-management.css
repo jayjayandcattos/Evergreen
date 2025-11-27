@@ -85,7 +85,99 @@ body {
 }
 
 /* ========================================
-   EMPLOYEE SELECTOR HEADER
+   SELECTION CARD (Improved UX)
+   ======================================== */
+
+.selection-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.selection-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.selection-group {
+    width: 100%;
+}
+
+.selection-label {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--primary-teal);
+    font-size: 14px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.selection-label i {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.selection-card .form-select-lg {
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: var(--card-bg);
+    color: var(--text-dark);
+    cursor: pointer;
+    width: 100%;
+    font-weight: 500;
+}
+
+.selection-card .form-select-lg:hover {
+    border-color: var(--primary-teal);
+    background: #fafafa;
+}
+
+.selection-card .form-select-lg:focus {
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 0 0.25rem rgba(10, 61, 61, 0.15);
+    outline: none;
+    background: var(--card-bg);
+}
+
+.period-selectors {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.period-selectors .form-select-lg {
+    flex: 1;
+}
+
+.period-selectors .form-select-lg:first-child {
+    flex: 1.5;
+}
+
+.selected-period-badge {
+    background: linear-gradient(135deg, rgba(10, 61, 61, 0.1) 0%, rgba(10, 61, 61, 0.05) 100%);
+    border-left: 4px solid var(--primary-teal);
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: var(--primary-teal);
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.selected-period-badge i {
+    font-size: 16px;
+}
+
+/* ========================================
+   EMPLOYEE SELECTOR HEADER (Legacy - kept for compatibility)
    ======================================== */
 
 .employee-selector-header {
@@ -389,6 +481,18 @@ body {
     margin: 0;
     display: flex;
     align-items: center;
+}
+
+.filters-form .form-label {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.filters-form .form-label i {
+    font-size: 11px;
+    opacity: 0.7;
 }
 
 .badge-employee-count {
@@ -1331,6 +1435,28 @@ body {
     
     .employee-selector-header {
         margin-bottom: 1rem;
+    }
+    
+    .selection-card {
+        padding: 15px;
+    }
+    
+    .selection-label {
+        font-size: 12px;
+    }
+    
+    .selection-card .form-select-lg {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+    
+    .period-selectors {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .period-selectors .form-select-lg:first-child {
+        flex: 1;
     }
     
     .btn-back-dashboard {
