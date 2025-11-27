@@ -162,15 +162,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['employee_login'])) {
                         Login
                     </button>
                 </form>
-
-                <div class="login-footer">
-                    <p class="footer-text">
-                        <span class="text-gray-500">Management/HR Login?</span>
-                    </p>
-                    <a href="management_login.php" class="footer-link">
-                        Go to Management Login →
-                    </a>
-                </div>
             </div>
         </div>
     </div>

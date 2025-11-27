@@ -168,6 +168,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
                     }
                     
+                    // Log status update for non-Hired statuses
+                    if (isset($logger) && $_POST['status'] !== 'Hired' && !isset($messageType)) {
+                        $logger->info(
+                            'RECRUITMENT',
+                            'Applicant status updated',
+                            "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
+                        );
+                    }
+                    
                     // OLD CODE: If status is "Hired", automatically create employee record
                     // This is now handled by the finalize_hiring action
                     // This block is disabled (if false) but kept for reference
@@ -304,30 +313,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $message = "Status updated successfully, but applicant data not found for employee creation.";
                                 $messageType = "warning";
                             }
-                        } else {
-                            $message = "Status updated successfully!";
-                        }
-
-                        if (!isset($messageType) || $messageType !== "warning") {
-                            $messageType = "success";
-                        }
-
-                        if (isset($logger) && $_POST['status'] !== 'Hired') {
-                            $logger->info(
-                                'RECRUITMENT',
-                                'Applicant status updated',
-                                "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
-                            );
-                        }
-                    }
-                    
-                    // Log status update for non-Hired statuses
-                    if (isset($logger) && $_POST['status'] !== 'Hired' && !isset($messageType)) {
-                        $logger->info(
-                            'RECRUITMENT',
-                            'Applicant status updated',
-                            "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
-                        );
                     }
                 } catch (Exception $e) {
                     if (isset($logger)) {

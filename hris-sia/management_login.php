@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['admin_login'])) {
         <div class="login-section">
             <div class="login-card">
                 <div class="login-header">
-                    <div class="flex justify-center mb-6 sm:mb-8">
+                    <div class="flex justify-center mb-3 sm:mb-4">
                         <img src="assets/evergreen.svg" alt="HRIS Logo" class="login-logo" loading="lazy">
                     </div>
                     <h2 class="login-title">Management Login</h2>
@@ -135,15 +135,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['admin_login'])) {
                         Login
                     </button>
                 </form>
-
-                <div class="login-footer">
-                    <p class="footer-text">
-                        <span class="text-gray-500">Employee Login?</span>
-                    </p>
-                    <a href="index.php" class="footer-link">
-                        ← Go to Employee Login
-                    </a>
-                </div>
             </div>
         </div>
     </div>
