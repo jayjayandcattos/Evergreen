@@ -116,10 +116,10 @@ $employee = fetchOne($conn,
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="text-sm sm:text-base">Welcome, <strong><?php echo htmlspecialchars($employee_name); ?></strong></span>
-                    <a href="../logout.php" 
+                    <button onclick="openLogoutModal()" 
                        class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg font-semibold text-red-600 hover:text-red-700 hover:bg-white transition-all duration-200 text-xs sm:text-sm shadow-lg hover:shadow-xl transform hover:scale-105">
                         <i class="fas fa-sign-out-alt mr-2"></i>Time Out
-                    </a>
+                    </button>
                 </div>
             </div>
         </header>
@@ -259,40 +259,13 @@ $employee = fetchOne($conn,
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <?php if (empty($payslips)): ?>
-                    <p class="text-gray-500 text-center py-8">No payslips found</p>
-                <?php else: ?>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Pay Period</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Gross Salary</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Deductions</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Net Pay</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Release Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($payslips as $payslip): ?>
-                                    <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                        <td class="px-3 py-2 text-sm">
-                                            <?php 
-                                            echo $payslip['pay_period_start'] ? date('M d', strtotime($payslip['pay_period_start'])) : 'N/A';
-                                            echo ' - ';
-                                            echo $payslip['pay_period_end'] ? date('M d, Y', strtotime($payslip['pay_period_end'])) : 'N/A';
-                                            ?>
-                                        </td>
-                                        <td class="px-3 py-2 text-sm">₱<?php echo number_format($payslip['gross_salary'] ?? 0, 2); ?></td>
-                                        <td class="px-3 py-2 text-sm">₱<?php echo number_format($payslip['deduction'] ?? 0, 2); ?></td>
-                                        <td class="px-3 py-2 text-sm font-semibold">₱<?php echo number_format($payslip['net_pay'] ?? 0, 2); ?></td>
-                                        <td class="px-3 py-2 text-sm"><?php echo $payslip['release_date'] ? date('M d, Y', strtotime($payslip['release_date'])) : 'N/A'; ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
+                <div id="payslipsLoading" class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-blue-600 text-2xl mb-2"></i>
+                    <p class="text-gray-500">Loading payslip data...</p>
+                </div>
+                <div id="payslipsContent" style="display: none;">
+                    <div id="payslipsList"></div>
+                </div>
             </div>
         </main>
     </div>
@@ -389,6 +362,73 @@ $employee = fetchOne($conn,
         </div>
     </div>
 
+    <!-- Payslip Privacy Confirmation Modal -->
+    <div id="payslipModal" class="modal">
+        <div class="modal-content max-w-md w-full mx-4">
+            <div class="bg-blue-600 text-white p-4 rounded-t-lg">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">
+                        <i class="fas fa-shield-alt mr-2"></i>Privacy Warning
+                    </h2>
+                    <button onclick="closePayslipModal()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <div class="flex items-start gap-3 mb-4">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mt-1"></i>
+                        <div>
+                            <p class="text-gray-700 font-semibold mb-2">Sensitive Information</p>
+                            <p class="text-gray-600 text-sm">
+                                You are about to view your payslip details, which contain confidential financial information including:
+                            </p>
+                            <ul class="text-gray-600 text-sm mt-2 ml-4 list-disc">
+                                <li>Salary and earnings breakdown</li>
+                                <li>Deductions and contributions</li>
+                                <li>Tax information</li>
+                            </ul>
+                            <p class="text-gray-600 text-sm mt-3">
+                                Please ensure you are in a private location and that no unauthorized persons can view your screen.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closePayslipModal()"
+                        class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition">
+                        Cancel
+                    </button>
+                    <button onclick="confirmViewPayslip()"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-check mr-2"></i>I Understand, Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal">
+        <div class="modal-content max-w-md w-full mx-4">
+            <div class="bg-red-600 text-white p-4 rounded-t-lg">
+                <h2 class="text-xl font-bold">Confirm Logout</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-700 mb-6">Are you sure you want to logout?</p>
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeLogoutModal()"
+                        class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition">
+                        Cancel
+                    </button>
+                    <a href="../logout.php"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function openLeaveModal() {
             document.getElementById('leaveModal').classList.add('active');
@@ -398,9 +438,333 @@ $employee = fetchOne($conn,
             document.getElementById('leaveModal').classList.remove('active');
         }
 
+        function openLogoutModal() {
+            document.getElementById('logoutModal').classList.add('active');
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('active');
+        }
+
+        const employeeId = <?php echo json_encode($employee_id); ?>;
+        
+        // Detect base path dynamically
+        function getBasePath() {
+            const path = window.location.pathname;
+            
+            // Try multiple patterns to detect base path
+            // Pattern 1: /evergreen/hris-sia/... -> /evergreen
+            let match = path.match(/^\/([^\/]+)\//);
+            if (match) {
+                return '/' + match[1];
+            }
+            
+            // Pattern 2: /hris-sia/... -> empty (root)
+            if (path.startsWith('/hris-sia/')) {
+                return '';
+            }
+            
+            // Pattern 3: Full path with multiple segments
+            // Extract everything before /hris-sia
+            match = path.match(/^(.+?)\/hris-sia\//);
+            if (match) {
+                return match[1];
+            }
+            
+            // Default: try to extract first segment
+            match = path.match(/^(\/[^\/]+)/);
+            return match ? match[1] : '';
+        }
+        
+        const basePath = getBasePath();
+        console.log('Detected base path:', basePath);
+        console.log('Current pathname:', window.location.pathname);
+
         function showPayslips() {
-            document.getElementById('payslipsSection').style.display = 'block';
-            document.getElementById('payslipsSection').scrollIntoView({ behavior: 'smooth' });
+            // Show privacy confirmation modal first
+            openPayslipModal();
+        }
+
+        function openPayslipModal() {
+            document.getElementById('payslipModal').classList.add('active');
+        }
+
+        function closePayslipModal() {
+            document.getElementById('payslipModal').classList.remove('active');
+        }
+
+        function confirmViewPayslip() {
+            closePayslipModal();
+            fetchPayslipDetails(employeeId);
+        }
+
+        function fetchPayslipDetails(employeeId) {
+            // Validate employee ID
+            if (!employeeId || employeeId === 'undefined' || employeeId === 'null') {
+                console.error('Invalid employee ID:', employeeId);
+                document.getElementById('payslipsLoading').style.display = 'none';
+                document.getElementById('payslipsContent').style.display = 'block';
+                document.getElementById('payslipsList').innerHTML = 
+                    '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">' +
+                    '<p class="font-semibold">Invalid Employee ID</p>' +
+                    '<p class="text-sm">Unable to fetch payslips: Employee ID is missing or invalid. Please log out and log back in.</p>' +
+                    '</div>';
+                return;
+            }
+            
+            // Convert to number if it's a string
+            const numericEmployeeId = parseInt(employeeId, 10);
+            if (isNaN(numericEmployeeId) || numericEmployeeId <= 0) {
+                console.error('Invalid employee ID format:', employeeId);
+                document.getElementById('payslipsLoading').style.display = 'none';
+                document.getElementById('payslipsContent').style.display = 'block';
+                document.getElementById('payslipsList').innerHTML = 
+                    '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">' +
+                    '<p class="font-semibold">Invalid Employee ID Format</p>' +
+                    '<p class="text-sm">Employee ID must be a valid number. Please contact support.</p>' +
+                    '</div>';
+                return;
+            }
+            
+            // Show payslips section
+            const payslipsSection = document.getElementById('payslipsSection');
+            payslipsSection.style.display = 'block';
+            payslipsSection.scrollIntoView({ behavior: 'smooth' });
+
+            // Show loading state
+            document.getElementById('payslipsLoading').style.display = 'block';
+            document.getElementById('payslipsContent').style.display = 'none';
+
+            // Make API call to accounting system
+            // Use dynamic base path
+            const apiUrl = basePath + '/accounting-and-finance/modules/api/payslip-data.php?action=get_payslips&employee_id=' + numericEmployeeId;
+            
+            console.log('Fetching payslips from:', apiUrl);
+            console.log('Employee ID (numeric):', numericEmployeeId);
+            console.log('Employee ID (original):', employeeId);
+            
+            fetch(apiUrl, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(async response => {
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                // Get response text first to handle both JSON and text errors
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                if (!response.ok) {
+                    // Try to parse as JSON, otherwise use as text
+                    let errorMessage = responseText;
+                    try {
+                        const errorJson = JSON.parse(responseText);
+                        errorMessage = errorJson.error || errorJson.message || responseText;
+                    } catch (e) {
+                        // Not JSON, use as-is
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+                }
+                
+                // Parse JSON response
+                try {
+                    return JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error('Invalid JSON response from server');
+                }
+            })
+            .then(data => {
+                console.log('Payslip data received:', data);
+                document.getElementById('payslipsLoading').style.display = 'none';
+                document.getElementById('payslipsContent').style.display = 'block';
+                
+                // Check if request was successful
+                if (!data.success) {
+                    let errorMessage = data.error || 'Failed to fetch payslip data';
+                    document.getElementById('payslipsList').innerHTML = 
+                        '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">' +
+                        '<p class="font-semibold">Error loading payslips</p>' +
+                        '<p class="text-sm">' + errorMessage + '</p>' +
+                        '</div>';
+                    return;
+                }
+                
+                // Check if we have payslip data
+                if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                    displayPayslips(data.data);
+                } else {
+                    // Handle empty data case - provide more helpful message
+                    const employeeNo = data.employee_external_no || 'your account';
+                    const employeeId = data.employee_id || employeeId;
+                    
+                    document.getElementById('payslipsList').innerHTML = 
+                        '<div class="bg-blue-50 border border-blue-300 rounded-lg p-6">' +
+                        '<div class="flex items-start gap-3">' +
+                        '<i class="fas fa-info-circle text-blue-600 text-2xl mt-1"></i>' +
+                        '<div class="flex-1">' +
+                        '<h3 class="font-semibold text-blue-800 mb-2">No Payslips Available</h3>' +
+                        '<p class="text-blue-700 text-sm mb-3">' +
+                        'No payslip records were found for <strong>' + employeeNo + '</strong> (Employee ID: ' + employeeId + ').' +
+                        '</p>' +
+                        '<div class="bg-white rounded p-4 mb-3">' +
+                        '<p class="text-blue-600 text-xs font-semibold mb-2">Possible reasons:</p>' +
+                        '<ul class="list-disc list-inside text-blue-600 text-xs space-y-1">' +
+                        '<li>No payroll has been processed for your account yet</li>' +
+                        '<li>Your payslips are still being prepared by the payroll department</li>' +
+                        '<li>There may be a delay in the system synchronization</li>' +
+                        '<li>Your employee account may not be set up for payroll processing</li>' +
+                        '</ul>' +
+                        '</div>' +
+                        '<div class="bg-blue-100 rounded p-3">' +
+                        '<p class="text-blue-700 text-xs">' +
+                        '<i class="fas fa-phone-alt mr-1"></i>' +
+                        'If you believe this is an error or have questions about your payslips, please contact:' +
+                        '</p>' +
+                        '<ul class="text-blue-600 text-xs mt-2 ml-4 list-disc">' +
+                        '<li>HR Department</li>' +
+                        '<li>Payroll Department</li>' +
+                        '</ul>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching payslips:', error);
+                console.error('API URL was:', apiUrl);
+                console.error('Employee ID was:', employeeId);
+                
+                document.getElementById('payslipsLoading').style.display = 'none';
+                document.getElementById('payslipsContent').style.display = 'block';
+                
+                let errorMessage = error.message || 'Unknown error occurred';
+                let errorDetails = '';
+                
+                // Provide more specific error messages
+                if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+                    errorDetails = 'Unable to connect to the payroll system. Please check your internet connection and try again.';
+                } else if (errorMessage.includes('404')) {
+                    errorDetails = 'The payslip service endpoint was not found. Please contact the system administrator.';
+                } else if (errorMessage.includes('500')) {
+                    errorDetails = 'The payroll system encountered an internal error. Please try again later or contact support.';
+                } else {
+                    errorDetails = errorMessage;
+                }
+                
+                document.getElementById('payslipsList').innerHTML = 
+                    '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">' +
+                    '<div class="flex items-start gap-3">' +
+                    '<i class="fas fa-exclamation-triangle text-red-600 text-2xl mt-1"></i>' +
+                    '<div class="flex-1">' +
+                    '<p class="font-semibold mb-2">Error Loading Payslips</p>' +
+                    '<p class="text-sm mb-3">' + errorDetails + '</p>' +
+                    '<div class="bg-white rounded p-3 mt-3">' +
+                    '<p class="text-red-600 text-xs font-semibold mb-1">Troubleshooting Steps:</p>' +
+                    '<ul class="list-disc list-inside text-red-600 text-xs space-y-1">' +
+                    '<li>Refresh the page and try again</li>' +
+                    '<li>Check your internet connection</li>' +
+                    '<li>Clear your browser cache and cookies</li>' +
+                    '<li>Contact HR or IT support if the problem persists</li>' +
+                    '</ul>' +
+                    '</div>' +
+                    '<p class="text-xs text-red-600 mt-3">' +
+                    '<i class="fas fa-info-circle mr-1"></i>' +
+                    'Error details have been logged. Reference: Employee ID ' + employeeId +
+                    '</p>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            });
+        }
+
+        function displayPayslips(payslips) {
+            let html = '';
+            
+            payslips.forEach((payslip, index) => {
+                const periodStart = payslip.period_start ? new Date(payslip.period_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A';
+                const periodEnd = payslip.period_end ? new Date(payslip.period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                const runAt = payslip.run_at ? new Date(payslip.run_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                
+                html += `
+                    <div class="mb-6 border border-gray-200 rounded-lg overflow-hidden ${index > 0 ? 'mt-6' : ''}">
+                        <!-- Payslip Header -->
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-bold">Payslip #${payslip.id}</h3>
+                                    <p class="text-sm text-blue-100">${periodStart} - ${periodEnd}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm text-blue-100">Payroll Date</p>
+                                    <p class="text-sm font-semibold">${runAt}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 lg:p-6">
+                            <!-- Earnings Section -->
+                            <div class="mb-6">
+                                <h4 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                                    <i class="fas fa-arrow-up text-green-600 mr-2"></i>Earnings
+                                </h4>
+                                <div class="bg-green-50 rounded-lg p-4">
+                                    ${payslip.breakdown && payslip.breakdown.earnings && payslip.breakdown.earnings.length > 0 ? 
+                                        payslip.breakdown.earnings.map(earning => `
+                                            <div class="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0">
+                                                <span class="text-gray-700">${earning.name}</span>
+                                                <span class="font-semibold text-gray-800">₱${parseFloat(earning.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                        `).join('') : 
+                                        '<p class="text-gray-500 text-sm">No earnings breakdown available</p>'
+                                    }
+                                    <div class="flex justify-between items-center py-2 mt-2 pt-3 border-t-2 border-green-300">
+                                        <span class="font-bold text-gray-800">Total Earnings</span>
+                                        <span class="font-bold text-green-700 text-lg">₱${parseFloat(payslip.gross_pay).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Deductions Section -->
+                            <div class="mb-6">
+                                <h4 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                                    <i class="fas fa-arrow-down text-red-600 mr-2"></i>Deductions
+                                </h4>
+                                <div class="bg-red-50 rounded-lg p-4">
+                                    ${payslip.breakdown && payslip.breakdown.deductions && payslip.breakdown.deductions.length > 0 ? 
+                                        payslip.breakdown.deductions.map(deduction => `
+                                            <div class="flex justify-between items-center py-2 border-b border-red-200 last:border-b-0">
+                                                <span class="text-gray-700">${deduction.name}</span>
+                                                <span class="font-semibold text-gray-800">₱${parseFloat(deduction.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                        `).join('') : 
+                                        '<p class="text-gray-500 text-sm">No deductions breakdown available</p>'
+                                    }
+                                    <div class="flex justify-between items-center py-2 mt-2 pt-3 border-t-2 border-red-300">
+                                        <span class="font-bold text-gray-800">Total Deductions</span>
+                                        <span class="font-bold text-red-700 text-lg">₱${parseFloat(payslip.total_deductions).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Net Pay Section -->
+                            <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-lg font-bold text-gray-800">Net Pay</span>
+                                    <span class="text-2xl font-bold text-blue-700">₱${parseFloat(payslip.net_pay).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('payslipsList').innerHTML = html;
         }
 
         function hidePayslips() {
@@ -434,8 +798,30 @@ $employee = fetchOne($conn,
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeLeaveModal();
+                closeLogoutModal();
+                closePayslipModal();
             }
         });
+
+        // Close logout modal when clicking outside
+        const logoutModal = document.getElementById('logoutModal');
+        if (logoutModal) {
+            logoutModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeLogoutModal();
+                }
+            });
+        }
+
+        // Close payslip modal when clicking outside
+        const payslipModal = document.getElementById('payslipModal');
+        if (payslipModal) {
+            payslipModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closePayslipModal();
+                }
+            });
+        }
     </script>
 </body>
 </html>

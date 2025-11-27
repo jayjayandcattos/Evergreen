@@ -104,7 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['admin_login'])) {
                             aria-label="Management Username"
                             aria-required="true"
                             aria-describedby="username_help"
-                            placeholder="admin"
                             value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>"
                             class="form-input"
                             required
@@ -124,7 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['admin_login'])) {
                             aria-label="Management Password"
                             aria-required="true"
                             aria-describedby="password_help"
-                            placeholder="••••••••"
                             class="form-input"
                             required
                             autocomplete="current-password">

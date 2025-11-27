@@ -151,7 +151,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['employee_login'])) {
                             aria-label="Employee Name - Enter your full name"
                             aria-required="true"
                             aria-describedby="employee_name_help"
-                            placeholder="Juan Santos"
                             value="<?php echo isset($_POST['employee_name']) ? htmlspecialchars($_POST['employee_name']) : ''; ?>"
                             class="form-input"
                             required>

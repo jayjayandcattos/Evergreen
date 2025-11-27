@@ -28,6 +28,39 @@ $leaveRequestsSql = "SELECT lr.*, lt.leave_name
 
 $leaveRequests = fetchAll($conn, $leaveRequestsSql, [$employee_id]);
 
+// Fetch recruitment events (job postings) from admin calendar
+$recruitmentEventsSql = "SELECT r.recruitment_id, 
+                        r.job_title, 
+                        r.date_posted,
+                        d.department_name
+                        FROM recruitment r
+                        LEFT JOIN department d ON r.department_id = d.department_id
+                        WHERE LOWER(r.status) = 'open'
+                        ORDER BY r.date_posted DESC";
+
+$recruitmentEvents = fetchAll($conn, $recruitmentEventsSql);
+
+// Function to calculate hours worked from time_in and time_out
+function calculateWorkHours($time_in, $time_out) {
+    if (!$time_in) {
+        return 0.00;
+    }
+    
+    if (!$time_out) {
+        // If no time out, calculate from time_in to now
+        $start = new DateTime($time_in);
+        $end = new DateTime();
+    } else {
+        $start = new DateTime($time_in);
+        $end = new DateTime($time_out);
+    }
+    
+    $interval = $start->diff($end);
+    $hours = $interval->h + ($interval->days * 24) + ($interval->i / 60) + ($interval->s / 3600);
+    
+    return round($hours, 2);
+}
+
 // Prepare calendar events
 $events = [];
 
@@ -84,6 +117,21 @@ foreach ($leaveRequests as $leave) {
     }
 }
 
+// Add recruitment events (job postings)
+foreach ($recruitmentEvents as $recruitment) {
+    $datePosted = $recruitment['date_posted'];
+    $jobTitle = $recruitment['job_title'];
+    $department = $recruitment['department_name'] ?? '';
+    
+    $events[] = [
+        'id' => 'recruitment_' . $recruitment['recruitment_id'],
+        'date' => $datePosted,
+        'title' => $jobTitle . ($department ? " ($department)" : ''),
+        'type' => 'recruitment',
+        'color' => '#0d9488' // Teal color matching admin calendar
+    ];
+}
+
 // Group events by date
 $eventsByDate = [];
 foreach ($events as $event) {
@@ -132,6 +180,51 @@ $dayOfWeek = ($dayOfWeek == 0) ? 6 : $dayOfWeek - 1;
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/employee_calendar.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeInModal 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        @keyframes fadeInModal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-30px) scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="min-h-screen">
@@ -145,10 +238,10 @@ $dayOfWeek = ($dayOfWeek == 0) ? 6 : $dayOfWeek - 1;
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="text-sm sm:text-base"><?php echo htmlspecialchars($employee_name); ?></span>
-                    <a href="../logout.php" 
+                    <button onclick="openLogoutModal()" 
                        class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg font-semibold text-red-600 hover:text-red-700 hover:bg-white transition-all duration-200 text-xs sm:text-sm shadow-lg hover:shadow-xl transform hover:scale-105">
                         <i class="fas fa-sign-out-alt mr-2"></i>Time Out
-                    </a>
+                    </button>
                 </div>
             </div>
         </header>
@@ -217,6 +310,10 @@ $dayOfWeek = ($dayOfWeek == 0) ? 6 : $dayOfWeek - 1;
                         <span class="text-sm text-gray-700">Attendance</span>
                     </div>
                     <div class="flex items-center gap-2">
+                        <span class="event-dot" style="background-color: #0d9488;"></span>
+                        <span class="text-sm text-gray-700">Events</span>
+                    </div>
+                    <div class="flex items-center gap-2">
                         <span class="event-dot" style="background-color: #f59e0b;"></span>
                         <span class="text-sm text-gray-700">Pending Leave</span>
                     </div>
@@ -252,11 +349,18 @@ $dayOfWeek = ($dayOfWeek == 0) ? 6 : $dayOfWeek - 1;
                                 </tr>
                             <?php else: ?>
                                 <?php foreach (array_slice($attendanceRecords, 0, 10) as $attendance): ?>
+                                    <?php
+                                    // Calculate hours if not set or is 0
+                                    $calculatedHours = $attendance['total_hours'] ?? 0;
+                                    if ($calculatedHours == 0 && $attendance['time_in']) {
+                                        $calculatedHours = calculateWorkHours($attendance['time_in'], $attendance['time_out']);
+                                    }
+                                    ?>
                                     <tr class="border-b hover:bg-gray-50">
                                         <td class="px-3 py-2"><?php echo $attendance['date'] ? date('M d, Y', strtotime($attendance['date'])) : 'N/A'; ?></td>
                                         <td class="px-3 py-2"><?php echo $attendance['time_in'] ? date('h:i A', strtotime($attendance['time_in'])) : 'N/A'; ?></td>
                                         <td class="px-3 py-2"><?php echo $attendance['time_out'] ? date('h:i A', strtotime($attendance['time_out'])) : 'N/A'; ?></td>
-                                        <td class="px-3 py-2"><?php echo number_format($attendance['total_hours'] ?? 0, 2); ?> hrs</td>
+                                        <td class="px-3 py-2"><?php echo number_format($calculatedHours, 2); ?> hrs</td>
                                         <td class="px-3 py-2">
                                             <span class="px-2 py-1 text-xs rounded-full bg-teal-100 text-teal-800">
                                                 <?php echo htmlspecialchars($attendance['status'] ?? 'Present'); ?>
@@ -328,6 +432,57 @@ $dayOfWeek = ($dayOfWeek == 0) ? 6 : $dayOfWeek - 1;
             </div>
         </main>
     </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal">
+        <div class="modal-content max-w-md w-full mx-4">
+            <div class="bg-red-600 text-white p-4 rounded-t-lg">
+                <h2 class="text-xl font-bold">Confirm Logout</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-700 mb-6">Are you sure you want to logout?</p>
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeLogoutModal()"
+                        class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition">
+                        Cancel
+                    </button>
+                    <a href="../logout.php"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/modal.js"></script>
+    <script>
+        function openLogoutModal() {
+            document.getElementById('logoutModal').classList.add('active');
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutModal = document.getElementById('logoutModal');
+            if (logoutModal) {
+                logoutModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeLogoutModal();
+                    }
+                });
+            }
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeLogoutModal();
+                }
+            });
+        });
+    </script>
 </body>
 </html>
 

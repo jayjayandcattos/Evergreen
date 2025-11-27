@@ -136,10 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 [$_POST['applicant_id']]
                             );
                             
-                            $offer_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                                        "://" . $_SERVER['HTTP_HOST'] . 
-                                        dirname($_SERVER['PHP_SELF']) . 
-                                        "/../offer.php?token=" . $offer_token;
+                            // Construct offer URL dynamically
+                            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                            $host = $_SERVER['HTTP_HOST'];
+                            $scriptPath = dirname(dirname($_SERVER['SCRIPT_NAME'])); // Go up from pages/ to hris-sia/
+                            $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?token=" . $offer_token;
                             
                             $message = "Job offer sent successfully! Share this link with the applicant: <br><strong><a href='$offer_url' target='_blank' class='text-blue-600 underline'>$offer_url</a></strong>";
                             $messageType = "success";
@@ -969,28 +970,28 @@ $noRecruitments = empty($recruitments);
                     <table class="desktop-table w-full">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">ID</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Position</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Department</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Contact</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Interview Date</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ID</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Position</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Department</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Contact</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Interview Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($applicants as $applicant): ?>
                                 <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="px-3 py-2 text-sm"><?php echo $applicant['applicant_id']; ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['full_name']); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['job_title'] ?? 'N/A'); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['department_name'] ?? 'N/A'); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['contact_number'] ?? 'N/A'); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo $applicant['interview_date'] ? date('M d, Y', strtotime($applicant['interview_date'])) : '-'; ?></td>
-                                    <td class="px-3 py-2">
-                                        <div class="space-y-1">
-                                            <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                    <td class="px-4 py-3 text-sm"><?php echo $applicant['applicant_id']; ?></td>
+                                    <td class="px-4 py-3 text-sm font-medium"><?php echo htmlspecialchars($applicant['full_name']); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($applicant['job_title'] ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($applicant['department_name'] ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($applicant['contact_number'] ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo $applicant['interview_date'] ? date('M d, Y', strtotime($applicant['interview_date'])) : '-'; ?></td>
+                                    <td class="px-4 py-3">
+                                        <div class="space-y-1.5">
+                                            <span class="px-2.5 py-1 text-xs font-medium rounded-full 
                                                 <?php
                                                 if ($applicant['application_status'] === 'Pending') echo 'bg-blue-100 text-blue-800';
                                                 elseif ($applicant['application_status'] === 'To Interview') echo 'bg-yellow-100 text-yellow-800';
@@ -1003,8 +1004,7 @@ $noRecruitments = empty($recruitments);
                                                 <?php echo $applicant['application_status']; ?>
                                             </span>
                                             <?php if ($applicant['offer_status']): ?>
-                                                <br>
-                                                <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                                <span class="px-2.5 py-1 text-xs font-medium rounded-full 
                                                     <?php
                                                     if ($applicant['offer_status'] === 'Pending') echo 'bg-yellow-100 text-yellow-800';
                                                     elseif ($applicant['offer_status'] === 'Accepted') echo 'bg-green-100 text-green-800';
@@ -1015,20 +1015,20 @@ $noRecruitments = empty($recruitments);
                                             <?php endif; ?>
                                         </div>
                                     </td>
-                                    <td class="px-3 py-2">
-                                        <div class="flex gap-2">
+                                    <td class="px-4 py-3">
+                                        <div class="flex flex-wrap gap-2">
                                             <button onclick='viewApplicant(<?php echo json_encode($applicant); ?>)'
-                                                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">
+                                                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                 View
                                             </button>
                                             <?php if (canManageRecruitment()): ?>
                                                 <?php if ($show_archived): ?>
                                                     <button onclick='unarchiveApplicant(<?php echo $applicant['applicant_id']; ?>)'
-                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Restore
                                                     </button>
                                                     <button onclick='deleteApplicant(<?php echo $applicant['applicant_id']; ?>)'
-                                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Delete
                                                     </button>
                                                 <?php else: ?>
@@ -1037,29 +1037,30 @@ $noRecruitments = empty($recruitments);
                                                             <input type="hidden" name="action" value="finalize_hiring">
                                                             <input type="hidden" name="applicant_id" value="<?php echo $applicant['applicant_id']; ?>">
                                                             <button type="submit"
-                                                                class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1 rounded text-xs">
+                                                                class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                                 Finalize Hiring
                                                             </button>
                                                         </form>
                                                     <?php endif; ?>
                                                     <?php if ($applicant['offer_token'] && $applicant['offer_status'] === 'Pending'): ?>
                                                         <?php
-                                                        $offer_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                                                                    "://" . $_SERVER['HTTP_HOST'] . 
-                                                                    dirname($_SERVER['PHP_SELF']) . 
-                                                                    "/../offer.php?token=" . $applicant['offer_token'];
+                                                        // Construct offer URL dynamically
+                                                        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                                                        $host = $_SERVER['HTTP_HOST'];
+                                                        $scriptPath = dirname(dirname($_SERVER['SCRIPT_NAME'])); // Go up from pages/ to hris-sia/
+                                                        $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?token=" . $applicant['offer_token'];
                                                         ?>
                                                         <a href="<?php echo $offer_url; ?>" target="_blank"
-                                                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-xs inline-block">
+                                                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-xs inline-block whitespace-nowrap">
                                                             View Offer Link
                                                         </a>
                                                     <?php endif; ?>
                                                     <button onclick='updateStatus(<?php echo json_encode($applicant); ?>)'
-                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Update
                                                     </button>
                                                     <button onclick='archiveApplicant(<?php echo $applicant['applicant_id']; ?>)'
-                                                        class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Archive
                                                     </button>
                                                 <?php endif; ?>
@@ -1462,8 +1463,6 @@ class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm
         });
     </script>
 
-    <script src="../js/modal.js"></script>
-
     <script>
         // Contact number validation (same as employees.php)
         document.addEventListener('DOMContentLoaded', function() {
@@ -1541,6 +1540,8 @@ class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm
             </div>
         </div>
     </div>
+
+    <script src="../js/modal.js"></script>
 
 </body>
 
