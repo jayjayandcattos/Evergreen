@@ -370,11 +370,56 @@ if ($selected_employee) {
     // Get employee_id from external_employee_no (format: EMP001 -> 1, EMP002 -> 2, etc.)
     // Extract numeric part from external_employee_no
     $employee_id_from_external = null;
+    
+    // First, try to extract from external_employee_no format (EMP001, EMP002, etc.)
     if (preg_match('/EMP(\d+)/i', $selected_employee, $matches)) {
         $employee_id_from_external = intval($matches[1]);
+        error_log("Extracted employee_id=$employee_id_from_external from external_employee_no=$selected_employee");
     } else {
         // Try direct match if it's already a number
-        $employee_id_from_external = is_numeric($selected_employee) ? intval($selected_employee) : null;
+        if (is_numeric($selected_employee)) {
+            $employee_id_from_external = intval($selected_employee);
+            error_log("Using direct numeric employee_id=$employee_id_from_external from selected_employee=$selected_employee");
+        } else {
+            // Fallback: Try to get employee_id from employee_refs or employee table
+            $fallback_query = "SELECT e.employee_id 
+                              FROM employee e 
+                              LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                              WHERE er.external_employee_no = ? OR CONCAT('EMP', LPAD(e.employee_id, 3, '0')) = ?
+                              LIMIT 1";
+            $fallback_stmt = $conn->prepare($fallback_query);
+            if ($fallback_stmt) {
+                $fallback_stmt->bind_param("ss", $selected_employee, $selected_employee);
+                $fallback_stmt->execute();
+                $fallback_result = $fallback_stmt->get_result();
+                if ($fallback_row = $fallback_result->fetch_assoc()) {
+                    $employee_id_from_external = intval($fallback_row['employee_id']);
+                    error_log("Fallback: Found employee_id=$employee_id_from_external for external_employee_no=$selected_employee");
+                }
+                $fallback_stmt->close();
+            }
+        }
+    }
+    
+    // Final validation: ensure we have a valid employee_id
+    if (!$employee_id_from_external || $employee_id_from_external <= 0) {
+        error_log("ERROR: Could not extract valid employee_id from selected_employee=$selected_employee");
+        // Try one more time with a direct database lookup
+        $direct_lookup = "SELECT e.employee_id 
+                        FROM employee e 
+                        WHERE CONCAT('EMP', LPAD(e.employee_id, 3, '0')) = ?
+                        LIMIT 1";
+        $lookup_stmt = $conn->prepare($direct_lookup);
+        if ($lookup_stmt) {
+            $lookup_stmt->bind_param("s", $selected_employee);
+            $lookup_stmt->execute();
+            $lookup_result = $lookup_stmt->get_result();
+            if ($lookup_row = $lookup_result->fetch_assoc()) {
+                $employee_id_from_external = intval($lookup_row['employee_id']);
+                error_log("Direct lookup successful: Found employee_id=$employee_id_from_external for $selected_employee");
+            }
+            $lookup_stmt->close();
+        }
     }
     
     // Build attendance query to read from BOTH HRIS attendance AND employee_attendance tables
@@ -566,7 +611,7 @@ if ($selected_employee) {
     
     // Fetch leave requests from HRIS and merge with attendance data
     // FIXED: Now properly fetches approved leaves from HRIS
-    if ($employee_id_from_external) {
+    if ($employee_id_from_external && $employee_id_from_external > 0) {
         // Get approved leave requests for the selected period
         $leave_query = "SELECT 
                             lr.leave_request_id,
@@ -582,35 +627,63 @@ if ($selected_employee) {
                         WHERE lr.employee_id = ?
                         AND (UPPER(TRIM(lr.status)) = 'APPROVED' OR LOWER(TRIM(lr.status)) = 'approved')";
         
+        error_log("Fetching leave requests for employee_id=$employee_id_from_external (external_no=$selected_employee)");
+        
         $leave_params = [];
         $leave_types = "";
         
         if ($payroll_period === 'first' || $payroll_period === 'second') {
             // For period-based: check if leave overlaps with period
-            // Query has 7 placeholders: 1 integer (employee_id) + 6 strings (dates)
+            // Improved overlap logic: leave overlaps if it starts before period ends AND ends after period starts
             $leave_query .= " AND (
                                 (lr.start_date <= ? AND lr.end_date >= ?)
-                                OR (lr.start_date BETWEEN ? AND ?)
-                                OR (lr.end_date BETWEEN ? AND ?)
                             )";
-            $leave_params = [$employee_id_from_external, $period_end, $period_start, $period_start, $period_end, $period_start, $period_end];
-            $leave_types = "issssss"; // 1 integer + 6 strings = 7 parameters
+            $leave_params = [$employee_id_from_external, $period_end, $period_start];
+            $leave_types = "iss"; // 1 integer + 2 strings = 3 parameters
         } else {
             // For full month: check if leave overlaps with month
+            // Improved logic: leave overlaps if it starts before month ends AND ends after month starts
+            $month_start = $display_month . '-01';
+            $month_end = date('Y-m-t', strtotime($display_month . '-01'));
             $leave_query .= " AND (
-                                DATE_FORMAT(lr.start_date, '%Y-%m') = ?
-                                OR DATE_FORMAT(lr.end_date, '%Y-%m') = ?
-                                OR (lr.start_date <= LAST_DAY(STR_TO_DATE(?, '%Y-%m')) AND lr.end_date >= STR_TO_DATE(CONCAT(?, '-01'), '%Y-%m-%d'))
+                                (lr.start_date <= ? AND lr.end_date >= ?)
                             )";
-            $leave_params = [$employee_id_from_external, $display_month, $display_month, $display_month, $display_month];
-            $leave_types = "issss";
+            $leave_params = [$employee_id_from_external, $month_end, $month_start];
+            $leave_types = "iss";
         }
         
         $leave_stmt = $conn->prepare($leave_query);
         if ($leave_stmt) {
+            // Log the query parameters for debugging
+            if ($payroll_period === 'first' || $payroll_period === 'second') {
+                error_log("Leave query - Period: $period_start to $period_end, Employee ID: $employee_id_from_external");
+            } else {
+                error_log("Leave query - Month: $display_month, Employee ID: $employee_id_from_external");
+            }
+            
             $leave_stmt->bind_param($leave_types, ...$leave_params);
-            $leave_stmt->execute();
+            if (!$leave_stmt->execute()) {
+                error_log("Leave query execution failed: " . $leave_stmt->error);
+                error_log("Leave query: " . substr($leave_query, 0, 500));
+                error_log("Leave params: " . print_r($leave_params, true));
+            }
             $leave_result = $leave_stmt->get_result();
+            
+            if (!$leave_result) {
+                error_log("Leave query get_result failed: " . $leave_stmt->error);
+            } else {
+                $leave_count = $leave_result->num_rows;
+                error_log("Found $leave_count leave request(s) for employee_id=$employee_id_from_external");
+                
+                // Log each leave found for debugging
+                if ($leave_count > 0) {
+                    $leave_result->data_seek(0);
+                    while ($leave_row = $leave_result->fetch_assoc()) {
+                        error_log("Leave found: ID={$leave_row['leave_request_id']}, Start={$leave_row['start_date']}, End={$leave_row['end_date']}, Status={$leave_row['status']}");
+                    }
+                    $leave_result->data_seek(0); // Reset pointer
+                }
+            }
             
             // Create a map of attendance dates to avoid duplicates
             $attendance_dates = [];
@@ -941,22 +1014,51 @@ if ($selected_employee) {
                                 <div class="d-flex gap-2">
                                     <select class="form-select" id="payroll-month-select" onchange="changePayrollPeriod()">
                                         <?php
-                                        // Always show current month first, then previous months
+                                        // Query database for months with attendance or leave data from HRIS
+                                        // This dynamically shows months that have actual data
+                                        $months_query = "SELECT DISTINCT DATE_FORMAT(a.date, '%Y-%m') as month
+                                                        FROM attendance a
+                                                        UNION
+                                                        SELECT DISTINCT DATE_FORMAT(lr.start_date, '%Y-%m') as month
+                                                        FROM leave_request lr
+                                                        WHERE UPPER(TRIM(lr.status)) = 'APPROVED'
+                                                        UNION
+                                                        SELECT DISTINCT DATE_FORMAT(lr.end_date, '%Y-%m') as month
+                                                        FROM leave_request lr
+                                                        WHERE UPPER(TRIM(lr.status)) = 'APPROVED'
+                                                        UNION
+                                                        SELECT DISTINCT DATE_FORMAT(ea.attendance_date, '%Y-%m') as month
+                                                        FROM employee_attendance ea
+                                                        ORDER BY month DESC";
+                                        
+                                        $months_result = $conn->query($months_query);
+                                        $available_months = [];
+                                        
+                                        if ($months_result && $months_result->num_rows > 0) {
+                                            while ($month_row = $months_result->fetch_assoc()) {
+                                                $available_months[] = $month_row['month'];
+                                            }
+                                        }
+                                        
+                                        // Always include current month even if no data yet
                                         $current_month = date('Y-m');
-                                        $current_month_label = date('F Y');
+                                        if (!in_array($current_month, $available_months)) {
+                                            array_unshift($available_months, $current_month);
+                                        }
                                         
-                                        // Check if current month is selected (or no month selected, default to current)
-                                        $is_current_selected = (empty($payroll_month) || $payroll_month == $current_month) ? 'selected' : '';
+                                        // Remove duplicates and sort descending
+                                        $available_months = array_unique($available_months);
+                                        rsort($available_months);
                                         
-                                        // Show current month first
-                                        echo "<option value=\"$current_month\" $is_current_selected>$current_month_label</option>";
+                                        // If no months found, at least show current month
+                                        if (empty($available_months)) {
+                                            $available_months = [$current_month];
+                                        }
                                         
-                                        // Then show previous 5 months
-                                        for ($i = 1; $i <= 5; $i++) {
-                                            $month_date = date('Y-m', strtotime("-$i months"));
-                                            $month_label = date('F Y', strtotime("-$i months"));
-                                            // Only select if it's not the current month and matches the selected month
-                                            $selected = ($payroll_month == $month_date && $payroll_month != $current_month) ? 'selected' : '';
+                                        // Build dropdown options
+                                        foreach ($available_months as $month_date) {
+                                            $month_label = date('F Y', strtotime($month_date . '-01'));
+                                            $selected = ($payroll_month == $month_date || (empty($payroll_month) && $month_date == $current_month)) ? 'selected' : '';
                                             echo "<option value=\"$month_date\" $selected>$month_label</option>";
                                         }
                                         ?>
@@ -1757,19 +1859,78 @@ if ($selected_employee) {
                                         endif;
                                     endif;
                                     
-                                    // Regular deductions
+                                    // Calculate mandatory government contributions using 2025 rates
+                                    $gross_salary = $current_earnings_total;
+                                    $basic_salary = $position_salary > 0 ? $position_salary : 0;
+                                    
+                                    // Get basic salary from earnings if not available
+                                    if ($basic_salary == 0 && $earnings_result) {
+                                        $earnings_result->data_seek(0);
+                                        while($earning = $earnings_result->fetch_assoc()) {
+                                            if ($earning['code'] === 'BASIC') {
+                                                $basic_salary = floatval($earning['value']);
+                                                break;
+                                            }
+                                        }
+                                        $earnings_result->data_seek(0); // Reset pointer
+                                    }
+                                    
+                                    // Calculate mandatory contributions using 2025 rates
+                                    $sss_contrib = calculateSSSContribution($basic_salary);
+                                    $philhealth_contrib = calculatePhilHealthContribution($basic_salary);
+                                    $pagibig_contrib = calculatePagIBIGContribution($basic_salary);
+                                    
+                                    // Calculate taxable income (gross minus mandatory contributions)
+                                    $taxable_income = $gross_salary - $sss_contrib['employee'] - $philhealth_contrib['employee'] - $pagibig_contrib['employee'];
+                                    $withholding_tax = calculateBIRWithholdingTax($taxable_income);
+                                    
+                                    // Add mandatory government deductions
+                                    $current_deductions_total += $sss_contrib['employee'];
+                                    $current_deductions_total += $philhealth_contrib['employee'];
+                                    $current_deductions_total += $pagibig_contrib['employee'];
+                                    $current_deductions_total += $withholding_tax;
+                                    ?>
+                                    
+                                    <!-- Mandatory Government Deductions -->
+                                    <tr>
+                                        <td>SSS Employee Contribution</td>
+                                        <td class="amount-cell">₱<?php echo number_format($sss_contrib['employee'], 2); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td>PhilHealth Employee Contribution</td>
+                                        <td class="amount-cell">₱<?php echo number_format($philhealth_contrib['employee'], 2); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Pag-IBIG Employee Contribution</td>
+                                        <td class="amount-cell">₱<?php echo number_format($pagibig_contrib['employee'], 2); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Withholding Tax (BIR)</td>
+                                        <td class="amount-cell">₱<?php echo number_format($withholding_tax, 2); ?></td>
+                                    </tr>
+                                    
+                                    <?php
+                                    // Optional deductions (only show if they have values and are not unnecessary)
+                                    $unnecessary_deductions = ['MEDICAL', 'LATE', 'ABSENT']; // These are handled by attendance system
+                                    
                                     if ($deductions_result && $deductions_result->num_rows > 0): 
                                         $deductions_result->data_seek(0);
                                         while($deduction = $deductions_result->fetch_assoc()): 
-                                            // Use payslip JSON data if available for accurate Philippine calculations
+                                            // Skip unnecessary deductions
+                                            if (in_array($deduction['code'], $unnecessary_deductions)) {
+                                                continue;
+                                            }
+                                            
+                                            // Skip mandatory deductions already shown above
+                                            if (in_array($deduction['code'], ['SSS_EMP', 'PAGIBIG_EMP', 'PHILHEALTH_EMP', 'WHT'])) {
+                                                continue;
+                                            }
+                                            
+                                            // Use payslip JSON data if available
                                             $amount = 0;
                                             if ($payslip_data && $payslip_data['payslip_json']) {
                                                 $payslip_json = json_decode($payslip_data['payslip_json'], true);
                                                 switch($deduction['code']) {
-                                                    case 'SSS_EMP': $amount = $payslip_json['sss_emp'] ?? $deduction['value']; break;
-                                                    case 'PAGIBIG_EMP': $amount = $payslip_json['pagibig_emp'] ?? $deduction['value']; break;
-                                                    case 'PHILHEALTH_EMP': $amount = $payslip_json['philhealth_emp'] ?? $deduction['value']; break;
-                                                    case 'WHT': $amount = $payslip_json['withholding_tax'] ?? $deduction['value']; break;
                                                     case 'LOAN': $amount = $payslip_json['loan_deduction'] ?? $deduction['value']; break;
                                                     case 'UNIFORM': $amount = $payslip_json['uniform_deduction'] ?? $deduction['value']; break;
                                                     default: $amount = $deduction['value']; break;
@@ -1777,6 +1938,9 @@ if ($selected_employee) {
                                             } else {
                                                 $amount = $deduction['value'];
                                             }
+                                            
+                                            // Only show if amount is greater than 0
+                                            if ($amount > 0) {
                                             $current_deductions_total += $amount;
                                     ?>
                                         <tr>
@@ -1784,13 +1948,10 @@ if ($selected_employee) {
                                             <td class="amount-cell">₱<?php echo number_format($amount, 2); ?></td>
                                         </tr>
                                     <?php 
+                                            }
                                         endwhile;
-                                    else:
+                                    endif;
                                     ?>
-                                        <tr>
-                                            <td colspan="2" class="text-center text-muted">No deductions data available</td>
-                                        </tr>
-                                    <?php endif; ?>
                                 </tbody>
                                 <tfoot>
                                     <tr class="payroll-total-row">
@@ -1917,38 +2078,51 @@ if ($selected_employee) {
                             <div class="tax-section-header">Employee Tax Contributions</div>
                             <table class="tax-items-table">
                                 <?php 
-                                $employee_tax_total = 0;
-                                if ($tax_result && $tax_result->num_rows > 0): 
-                                    $tax_result->data_seek(0);
-                                    while($tax = $tax_result->fetch_assoc()): 
-                                        // Use payslip JSON data if available for accurate Philippine calculations
-                                        $tax_amount = 0;
-                                        if ($payslip_data && $payslip_data['payslip_json']) {
-                                            $payslip_json = json_decode($payslip_data['payslip_json'], true);
-                                            switch($tax['code']) {
-                                                case 'SSS_TAX': $tax_amount = $payslip_json['sss_emp'] ?? $tax['value']; break;
-                                                case 'PAGIBIG_TAX': $tax_amount = $payslip_json['pagibig_emp'] ?? $tax['value']; break;
-                                                case 'PHILHEALTH_TAX': $tax_amount = $payslip_json['philhealth_emp'] ?? $tax['value']; break;
-                                                case 'WHT_TAX': $tax_amount = $payslip_json['withholding_tax'] ?? $tax['value']; break;
-                                                default: $tax_amount = $tax['value']; break;
-                                            }
-                                        } else {
-                                            $tax_amount = $tax['value'];
+                                // Calculate taxes using 2025 rates
+                                $tax_basic_salary = $position_salary > 0 ? $position_salary : 0;
+                                
+                                // Get basic salary from earnings if not available
+                                if ($tax_basic_salary == 0 && $earnings_result) {
+                                    $earnings_result->data_seek(0);
+                                    while($earning = $earnings_result->fetch_assoc()) {
+                                        if ($earning['code'] === 'BASIC') {
+                                            $tax_basic_salary = floatval($earning['value']);
+                                            break;
                                         }
-                                        $employee_tax_total += $tax_amount;
+                                    }
+                                    $earnings_result->data_seek(0); // Reset pointer
+                                }
+                                
+                                // Calculate mandatory contributions using 2025 rates
+                                $tax_sss_contrib = calculateSSSContribution($tax_basic_salary);
+                                $tax_philhealth_contrib = calculatePhilHealthContribution($tax_basic_salary);
+                                $tax_pagibig_contrib = calculatePagIBIGContribution($tax_basic_salary);
+                                
+                                // Calculate taxable income and withholding tax
+                                $tax_gross_salary = $current_earnings_total;
+                                $tax_taxable_income = $tax_gross_salary - $tax_sss_contrib['employee'] - $tax_philhealth_contrib['employee'] - $tax_pagibig_contrib['employee'];
+                                $tax_withholding_tax = calculateBIRWithholdingTax($tax_taxable_income);
+                                
+                                $employee_tax_total = $tax_sss_contrib['employee'] + $tax_philhealth_contrib['employee'] + $tax_pagibig_contrib['employee'] + $tax_withholding_tax;
                                 ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($tax['name']); ?></td>
-                                        <td>₱<?php echo number_format($tax_amount, 2); ?></td>
+                                
+                                <tr>
+                                    <td>SSS Employee Contribution</td>
+                                    <td>₱<?php echo number_format($tax_sss_contrib['employee'], 2); ?></td>
                                     </tr>
-                                <?php 
-                                    endwhile;
-                                else:
-                                ?>
                                     <tr>
-                                        <td colspan="2" class="text-center text-muted">No tax data available</td>
+                                    <td>PhilHealth Employee Contribution</td>
+                                    <td>₱<?php echo number_format($tax_philhealth_contrib['employee'], 2); ?></td>
                                     </tr>
-                                <?php endif; ?>
+                                <tr>
+                                    <td>Pag-IBIG Employee Contribution</td>
+                                    <td>₱<?php echo number_format($tax_pagibig_contrib['employee'], 2); ?></td>
+                                </tr>
+                                <tr>
+                                    <td>Withholding Tax (BIR)</td>
+                                    <td>₱<?php echo number_format($tax_withholding_tax, 2); ?></td>
+                                </tr>
+                                
                                 <tr class="tax-total-row">
                                     <td><strong>Total Employee Tax</strong></td>
                                     <td><strong>₱<?php echo number_format($employee_tax_total, 2); ?></strong></td>
@@ -1961,40 +2135,56 @@ if ($selected_employee) {
                             <div class="tax-section-header">Employer Contribution</div>
                             <table class="tax-items-table">
                                 <?php 
-                                $employer_total = 0;
-                                if ($employer_contrib_result && $employer_contrib_result->num_rows > 0): 
-                                    $employer_contrib_result->data_seek(0);
-                                    while($contrib = $employer_contrib_result->fetch_assoc()): 
-                                        // Calculate actual employer contribution based on Philippine rates
-                                        $contrib_amount = 0;
-                                        if ($payslip_data && $payslip_data['payslip_json']) {
-                                            $payslip_json = json_decode($payslip_data['payslip_json'], true);
-                                            $basic_salary = $payslip_json['basic_salary'] ?? 0;
-                                            switch($contrib['code']) {
-                                                case 'SSS_ER': $contrib_amount = $basic_salary * 0.085; break; // 8.5% of basic
-                                                case 'PAGIBIG_ER': $contrib_amount = 100; break; // Fixed ₱100
-                                                case 'PHILHEALTH_ER': $contrib_amount = $basic_salary * 0.03; break; // 3% of basic
-                                                case 'SSS_EC': $contrib_amount = 10; break; // Fixed ₱10
-                                                case '13TH_MONTH_ER': $contrib_amount = $basic_salary * 0.0833; break; // 8.33% of basic
-                                                default: $contrib_amount = $contrib['value']; break;
-                                            }
-                                        } else {
-                                            $contrib_amount = $contrib['value'];
+                                // Calculate employer contributions using 2025 rates
+                                $er_basic_salary = $position_salary > 0 ? $position_salary : 0;
+                                
+                                // Get basic salary from earnings if not available
+                                if ($er_basic_salary == 0 && $earnings_result) {
+                                    $earnings_result->data_seek(0);
+                                    while($earning = $earnings_result->fetch_assoc()) {
+                                        if ($earning['code'] === 'BASIC') {
+                                            $er_basic_salary = floatval($earning['value']);
+                                            break;
                                         }
-                                        $employer_total += $contrib_amount;
+                                    }
+                                    $earnings_result->data_seek(0); // Reset pointer
+                                }
+                                
+                                // Calculate employer contributions using 2025 rates
+                                $er_sss_contrib = calculateSSSContribution($er_basic_salary);
+                                $er_philhealth_contrib = calculatePhilHealthContribution($er_basic_salary);
+                                $er_pagibig_contrib = calculatePagIBIGContribution($er_basic_salary);
+                                
+                                // SSS EC (Employer Compensation) - Fixed ₱10
+                                $sss_ec = 10.00;
+                                
+                                // 13th Month Pay - 8.33% of basic salary
+                                $thirteenth_month = $er_basic_salary * 0.0833;
+                                
+                                $employer_total = $er_sss_contrib['employer'] + $er_philhealth_contrib['employer'] + $er_pagibig_contrib['employer'] + $sss_ec + $thirteenth_month;
                                 ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($contrib['name']); ?></td>
-                                        <td>₱<?php echo number_format($contrib_amount, 2); ?></td>
+                                
+                                <tr>
+                                    <td>SSS Employer Contribution</td>
+                                    <td>₱<?php echo number_format($er_sss_contrib['employer'], 2); ?></td>
                                     </tr>
-                                <?php 
-                                    endwhile;
-                                else:
-                                ?>
                                     <tr>
-                                        <td colspan="2" class="text-center text-muted">No employer contribution data available</td>
+                                    <td>PhilHealth Employer Contribution</td>
+                                    <td>₱<?php echo number_format($er_philhealth_contrib['employer'], 2); ?></td>
                                     </tr>
-                                <?php endif; ?>
+                                <tr>
+                                    <td>Pag-IBIG Employer Contribution</td>
+                                    <td>₱<?php echo number_format($er_pagibig_contrib['employer'], 2); ?></td>
+                                </tr>
+                                <tr>
+                                    <td>SSS EC (Employer Compensation)</td>
+                                    <td>₱<?php echo number_format($sss_ec, 2); ?></td>
+                                </tr>
+                                <tr>
+                                    <td>13th Month Pay</td>
+                                    <td>₱<?php echo number_format($thirteenth_month, 2); ?></td>
+                                </tr>
+                                
                                 <tr class="tax-total-row">
                                     <td><strong>Total Employer Contribution</strong></td>
                                     <td><strong>₱<?php echo number_format($employer_total, 2); ?></strong></td>
@@ -2243,18 +2433,78 @@ if ($selected_employee) {
                                             endif;
                                         endif;
                                         
-                                        // Regular deductions
+                                        // Calculate mandatory government contributions using 2025 rates
+                                        $overall_gross_salary = $total_earnings_overall;
+                                        $overall_basic_salary = $position_salary > 0 ? $position_salary : 0;
+                                        
+                                        // Get basic salary from earnings if not available
+                                        if ($overall_basic_salary == 0 && $earnings_result) {
+                                            $earnings_result->data_seek(0);
+                                            while($earning = $earnings_result->fetch_assoc()) {
+                                                if ($earning['code'] === 'BASIC') {
+                                                    $overall_basic_salary = floatval($earning['value']);
+                                                    break;
+                                                }
+                                            }
+                                            $earnings_result->data_seek(0); // Reset pointer
+                                        }
+                                        
+                                        // Calculate mandatory contributions using 2025 rates
+                                        $overall_sss_contrib = calculateSSSContribution($overall_basic_salary);
+                                        $overall_philhealth_contrib = calculatePhilHealthContribution($overall_basic_salary);
+                                        $overall_pagibig_contrib = calculatePagIBIGContribution($overall_basic_salary);
+                                        
+                                        // Calculate taxable income and withholding tax
+                                        $overall_taxable_income = $overall_gross_salary - $overall_sss_contrib['employee'] - $overall_philhealth_contrib['employee'] - $overall_pagibig_contrib['employee'];
+                                        $overall_withholding_tax = calculateBIRWithholdingTax($overall_taxable_income);
+                                        
+                                        // Add mandatory government deductions
+                                        $total_deductions_overall += $overall_sss_contrib['employee'];
+                                        $total_deductions_overall += $overall_philhealth_contrib['employee'];
+                                        $total_deductions_overall += $overall_pagibig_contrib['employee'];
+                                        $total_deductions_overall += $overall_withholding_tax;
+                                        ?>
+                                        
+                                        <!-- Mandatory Government Deductions -->
+                                        <tr>
+                                            <td>SSS Employee Contribution</td>
+                                            <td class="amount-cell">₱<?php echo number_format($overall_sss_contrib['employee'], 2); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td>PhilHealth Employee Contribution</td>
+                                            <td class="amount-cell">₱<?php echo number_format($overall_philhealth_contrib['employee'], 2); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Pag-IBIG Employee Contribution</td>
+                                            <td class="amount-cell">₱<?php echo number_format($overall_pagibig_contrib['employee'], 2); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Withholding Tax (BIR)</td>
+                                            <td class="amount-cell">₱<?php echo number_format($overall_withholding_tax, 2); ?></td>
+                                        </tr>
+                                        
+                                        <?php
+                                        // Optional deductions (only show if they have values and are not unnecessary)
+                                        $overall_unnecessary_deductions = ['MEDICAL', 'LATE', 'ABSENT']; // These are handled by attendance system
+                                        
                                         if ($deductions_result && $deductions_result->num_rows > 0): 
+                                            $deductions_result->data_seek(0);
                                             while($deduction = $deductions_result->fetch_assoc()): 
-                                                // Use same logic as Payroll Information tab
+                                                // Skip unnecessary deductions
+                                                if (in_array($deduction['code'], $overall_unnecessary_deductions)) {
+                                                    continue;
+                                                }
+                                                
+                                                // Skip mandatory deductions already shown above
+                                                if (in_array($deduction['code'], ['SSS_EMP', 'PAGIBIG_EMP', 'PHILHEALTH_EMP', 'WHT'])) {
+                                                    continue;
+                                                }
+                                                
+                                                // Use payslip JSON data if available
                                                 $amount = 0;
                                                 if ($payslip_data && $payslip_data['payslip_json']) {
                                                     $payslip_json = json_decode($payslip_data['payslip_json'], true);
                                                     switch($deduction['code']) {
-                                                        case 'SSS_EMP': $amount = $payslip_json['sss_emp'] ?? $deduction['value']; break;
-                                                        case 'PAGIBIG_EMP': $amount = $payslip_json['pagibig_emp'] ?? $deduction['value']; break;
-                                                        case 'PHILHEALTH_EMP': $amount = $payslip_json['philhealth_emp'] ?? $deduction['value']; break;
-                                                        case 'WHT': $amount = $payslip_json['withholding_tax'] ?? $deduction['value']; break;
                                                         case 'LOAN': $amount = $payslip_json['loan_deduction'] ?? $deduction['value']; break;
                                                         case 'UNIFORM': $amount = $payslip_json['uniform_deduction'] ?? $deduction['value']; break;
                                                         default: $amount = $deduction['value']; break;
@@ -2262,13 +2512,20 @@ if ($selected_employee) {
                                                 } else {
                                                     $amount = $deduction['value'];
                                                 }
+                                                
+                                                // Only show if amount is greater than 0
+                                                if ($amount > 0) {
                                                 $total_deductions_overall += $amount;
                                         ?>
                                             <tr>
                                                 <td><?php echo htmlspecialchars($deduction['name']); ?></td>
                                                 <td class="amount-cell">₱<?php echo number_format($amount, 2); ?></td>
                                             </tr>
-                                        <?php endwhile; endif; ?>
+                                        <?php 
+                                                }
+                                            endwhile; 
+                                        endif; 
+                                        ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -2280,15 +2537,53 @@ if ($selected_employee) {
                         <div class="overall-section-title">Employer Contribution</div>
                         <table class="tax-items-table">
                             <?php 
-                            $employer_contrib_result->data_seek(0); // Reset pointer
-                            if ($employer_contrib_result && $employer_contrib_result->num_rows > 0): 
-                                while($contrib = $employer_contrib_result->fetch_assoc()): 
+                            // Calculate employer contributions using 2025 rates
+                            $overall_er_basic_salary = $position_salary > 0 ? $position_salary : 0;
+                            
+                            // Get basic salary from earnings if not available
+                            if ($overall_er_basic_salary == 0 && $earnings_result) {
+                                $earnings_result->data_seek(0);
+                                while($earning = $earnings_result->fetch_assoc()) {
+                                    if ($earning['code'] === 'BASIC') {
+                                        $overall_er_basic_salary = floatval($earning['value']);
+                                        break;
+                                    }
+                                }
+                                $earnings_result->data_seek(0); // Reset pointer
+                            }
+                            
+                            // Calculate employer contributions using 2025 rates
+                            $overall_er_sss_contrib = calculateSSSContribution($overall_er_basic_salary);
+                            $overall_er_philhealth_contrib = calculatePhilHealthContribution($overall_er_basic_salary);
+                            $overall_er_pagibig_contrib = calculatePagIBIGContribution($overall_er_basic_salary);
+                            
+                            // SSS EC (Employer Compensation) - Fixed ₱10
+                            $overall_sss_ec = 10.00;
+                            
+                            // 13th Month Pay - 8.33% of basic salary
+                            $overall_thirteenth_month = $overall_er_basic_salary * 0.0833;
                             ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($contrib['name']); ?></td>
-                                    <td>₱<?php echo number_format($contrib['value'], 2); ?></td>
+                            
+                            <tr>
+                                <td>SSS Employer Contribution</td>
+                                <td>₱<?php echo number_format($overall_er_sss_contrib['employer'], 2); ?></td>
                                 </tr>
-                            <?php endwhile; endif; ?>
+                            <tr>
+                                <td>PhilHealth Employer Contribution</td>
+                                <td>₱<?php echo number_format($overall_er_philhealth_contrib['employer'], 2); ?></td>
+                            </tr>
+                            <tr>
+                                <td>Pag-IBIG Employer Contribution</td>
+                                <td>₱<?php echo number_format($overall_er_pagibig_contrib['employer'], 2); ?></td>
+                            </tr>
+                            <tr>
+                                <td>SSS EC (Employer Compensation)</td>
+                                <td>₱<?php echo number_format($overall_sss_ec, 2); ?></td>
+                            </tr>
+                            <tr>
+                                <td>13th Month Pay</td>
+                                <td>₱<?php echo number_format($overall_thirteenth_month, 2); ?></td>
+                            </tr>
                         </table>
                     </div>
 

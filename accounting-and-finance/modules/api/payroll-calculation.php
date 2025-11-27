@@ -24,10 +24,32 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     
     // Get employee_id from external_employee_no (format: EMP001 -> 1, EMP002 -> 2, etc.)
     $employee_id_from_external = null;
+    
+    // First, try to extract from external_employee_no format (EMP001, EMP002, etc.)
     if (preg_match('/EMP(\d+)/i', $employee_external_no, $matches)) {
         $employee_id_from_external = intval($matches[1]);
     } else {
-        $employee_id_from_external = is_numeric($employee_external_no) ? intval($employee_external_no) : null;
+        // Try direct match if it's already a number
+        if (is_numeric($employee_external_no)) {
+            $employee_id_from_external = intval($employee_external_no);
+        } else {
+            // Fallback: Try to get employee_id from employee_refs or employee table
+            $fallback_query = "SELECT e.employee_id 
+                              FROM employee e 
+                              LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                              WHERE er.external_employee_no = ? OR CONCAT('EMP', LPAD(e.employee_id, 3, '0')) = ?
+                              LIMIT 1";
+            $fallback_stmt = $conn->prepare($fallback_query);
+            if ($fallback_stmt) {
+                $fallback_stmt->bind_param("ss", $employee_external_no, $employee_external_no);
+                $fallback_stmt->execute();
+                $fallback_result = $fallback_stmt->get_result();
+                if ($fallback_row = $fallback_result->fetch_assoc()) {
+                    $employee_id_from_external = intval($fallback_row['employee_id']);
+                }
+                $fallback_stmt->close();
+            }
+        }
     }
     
     // Get attendance data for the period from BOTH HRIS attendance AND employee_attendance tables
@@ -290,13 +312,12 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
         $leave_types = "";
         
         // For period-based: check if leave overlaps with period
+        // Improved overlap logic: leave overlaps if it starts before period ends AND ends after period starts
         $leave_query .= " AND (
                             (lr.start_date <= ? AND lr.end_date >= ?)
-                            OR (lr.start_date BETWEEN ? AND ?)
-                            OR (lr.end_date BETWEEN ? AND ?)
                         )";
-        $leave_params = [$employee_id_from_external, $period_end, $period_start, $period_start, $period_end, $period_start, $period_end];
-        $leave_types = "issssss"; // 1 integer + 6 strings = 7 parameters
+        $leave_params = [$employee_id_from_external, $period_end, $period_start];
+        $leave_types = "iss"; // 1 integer + 2 strings = 3 parameters
         
         $leave_stmt = $conn->prepare($leave_query);
         if ($leave_stmt) {
@@ -517,6 +538,112 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     $calculation['salary_adjustments']['prorated_base_salary'] = round($base_salary_for_calculation, 2);
     
     return $calculation;
+}
+
+/**
+ * Calculate SSS Contribution (2025 Rates)
+ * Employee: 5.5%, Employer: 9.5%
+ * Monthly Salary Credit (MSC) range: ₱5,000 - ₱35,000
+ * 
+ * @param float $monthly_salary Monthly basic salary
+ * @return array ['employee' => float, 'employer' => float]
+ */
+function calculateSSSContribution($monthly_salary) {
+    // Apply MSC limits
+    $msc_min = 5000;
+    $msc_max = 35000;
+    
+    // Clamp salary to MSC range
+    $msc = max($msc_min, min($msc_max, $monthly_salary));
+    
+    // 2025 rates: Employee 5.5%, Employer 9.5%
+    $employee_contribution = $msc * 0.055;
+    $employer_contribution = $msc * 0.095;
+    
+    return [
+        'employee' => round($employee_contribution, 2),
+        'employer' => round($employer_contribution, 2),
+        'msc' => $msc
+    ];
+}
+
+/**
+ * Calculate PhilHealth Contribution (2025 Rates)
+ * Total: 5% (2.5% employee, 2.5% employer)
+ * Income ceiling: ₱100,000
+ * 
+ * @param float $monthly_salary Monthly basic salary
+ * @return array ['employee' => float, 'employer' => float]
+ */
+function calculatePhilHealthContribution($monthly_salary) {
+    // Apply income ceiling
+    $income_ceiling = 100000;
+    $base_salary = min($monthly_salary, $income_ceiling);
+    
+    // 2025 rates: 2.5% each (5% total)
+    $employee_contribution = $base_salary * 0.025;
+    $employer_contribution = $base_salary * 0.025;
+    
+    return [
+        'employee' => round($employee_contribution, 2),
+        'employer' => round($employer_contribution, 2)
+    ];
+}
+
+/**
+ * Calculate Pag-IBIG (HDMF) Contribution (2025 Rates)
+ * Employee: 2%, Employer: 2%
+ * Maximum contribution base: ₱5,000 (resulting in ₱100 max contribution each)
+ * 
+ * @param float $monthly_salary Monthly basic salary
+ * @return array ['employee' => float, 'employer' => float]
+ */
+function calculatePagIBIGContribution($monthly_salary) {
+    // Maximum contribution base is ₱5,000
+    $contribution_base = min($monthly_salary, 5000);
+    
+    // 2% each
+    $employee_contribution = $contribution_base * 0.02;
+    $employer_contribution = $contribution_base * 0.02;
+    
+    return [
+        'employee' => round($employee_contribution, 2),
+        'employer' => round($employer_contribution, 2)
+    ];
+}
+
+/**
+ * Calculate BIR Withholding Tax (2025 Progressive Rates)
+ * Based on taxable income (gross salary minus SSS, PhilHealth, Pag-IBIG)
+ * 
+ * @param float $taxable_income Taxable income after mandatory deductions
+ * @return float Withholding tax amount
+ */
+function calculateBIRWithholdingTax($taxable_income) {
+    $tax = 0;
+    
+    // BIR 2025 Progressive Tax Brackets
+    if ($taxable_income <= 20833) {
+        // ₱0 - ₱20,833: 0%
+        $tax = 0;
+    } elseif ($taxable_income <= 33332) {
+        // ₱20,834 - ₱33,332: 20% of excess over ₱20,833
+        $tax = ($taxable_income - 20833) * 0.20;
+    } elseif ($taxable_income <= 66666) {
+        // ₱33,333 - ₱66,666: ₱2,500 + 25% of excess over ₱33,333
+        $tax = 2500 + (($taxable_income - 33333) * 0.25);
+    } elseif ($taxable_income <= 166666) {
+        // ₱66,667 - ₱166,666: ₱10,833.25 + 30% of excess over ₱66,667
+        $tax = 10833.25 + (($taxable_income - 66667) * 0.30);
+    } elseif ($taxable_income <= 666666) {
+        // ₱166,667 - ₱666,666: ₱40,833.25 + 32% of excess over ₱166,667
+        $tax = 40833.25 + (($taxable_income - 166667) * 0.32);
+    } else {
+        // Above ₱666,666: ₱200,000 + 35% of excess over ₱666,666
+        $tax = 200000 + (($taxable_income - 666667) * 0.35);
+    }
+    
+    return round(max(0, $tax), 2);
 }
 
 /**
