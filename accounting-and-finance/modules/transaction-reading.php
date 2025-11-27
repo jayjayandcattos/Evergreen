@@ -32,6 +32,15 @@ try {
     $hasDeletedAtColumn = false;
 }
 
+// Check if deleted_at column exists in bank_transactions
+$hasBankDeletedAtColumn = false;
+try {
+    $checkBankResult = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
+    $hasBankDeletedAtColumn = $checkBankResult && $checkBankResult->num_rows > 0;
+} catch (Exception $e) {
+    $hasBankDeletedAtColumn = false;
+}
+
 // Build query to fetch transactions from BOTH journal entries AND bank transactions
 // Filter out deleted items: check both status and deleted_at column if it exists
 // IMPORTANT: Always exclude voided status and items with deleted_at set
@@ -89,6 +98,7 @@ $sql = "SELECT * FROM (
             INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
             LEFT JOIN bank_employees be ON bt.employee_id = be.employee_id
             INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
+            " . ($hasBankDeletedAtColumn ? "WHERE bt.deleted_at IS NULL" : "") . "
         ) combined_transactions
         WHERE 1=1";
 
@@ -502,7 +512,7 @@ try {
                                     $total_debit += $trans['total_debit'];
                                     $total_credit += $trans['total_credit'];
                                 ?>
-                                <tr>
+                                <tr data-transaction-id="<?php echo htmlspecialchars($trans['id'], ENT_QUOTES); ?>">
                                     <td><strong><?php echo htmlspecialchars($trans['journal_no']); ?></strong></td>
                                     <td><?php echo date('M d, Y', strtotime($trans['entry_date'])); ?></td>
                                     <td>

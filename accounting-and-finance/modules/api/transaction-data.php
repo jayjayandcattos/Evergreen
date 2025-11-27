@@ -90,6 +90,10 @@ try {
             permanentDeleteTransaction();
             break;
         
+        case 'permanent_delete_bank_transaction':
+            permanentDeleteBankTransaction();
+            break;
+        
         case 'restore_all_transactions':
             restoreAllTransactions();
             break;
@@ -538,13 +542,64 @@ function softDeleteTransaction() {
         throw new Exception('Invalid transaction ID');
     }
     
-    // Bank transactions cannot be deleted from the accounting system
-    // They are managed by the bank system
+    // Handle bank transactions - soft delete to bin station
     if ($source === 'bank') {
-        throw new Exception('Bank transactions cannot be deleted from the accounting system. They are managed by the bank system.');
+        $conn->begin_transaction();
+        try {
+            // Check if deleted_at column exists in bank_transactions, if not add it
+            $checkCol = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
+            if ($checkCol && $checkCol->num_rows === 0) {
+                $conn->query("ALTER TABLE bank_transactions ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+                $conn->query("ALTER TABLE bank_transactions ADD COLUMN deleted_by INT NULL DEFAULT NULL");
+            }
+            
+            // Log the deletion in audit trail (if audit_logs table exists)
+            if (tableExists('audit_logs')) {
+                $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
+                             VALUES (?, 'DELETE', 'bank_transaction', ?, 'Bank transaction moved to bin', ?, NOW())";
+                $auditStmt = $conn->prepare($auditSql);
+                $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                $auditStmt->bind_param('iis', $currentUser['id'], $numericId, $ipAddress);
+                $auditStmt->execute();
+            }
+            
+            // Soft delete - set deleted_at timestamp
+            $sql = "UPDATE bank_transactions SET deleted_at = NOW(), deleted_by = ? WHERE transaction_id = ? AND deleted_at IS NULL";
+            $stmt = $conn->prepare($sql);
+            if ($stmt === false) {
+                throw new Exception("Failed to prepare statement: " . $conn->error);
+            }
+            $stmt->bind_param('ii', $currentUser['id'], $numericId);
+            if (!$stmt->execute()) {
+                throw new Exception("Failed to execute statement: " . $stmt->error);
+            }
+            
+            if ($stmt->affected_rows === 0) {
+                throw new Exception('Bank transaction not found or already deleted');
+            }
+            
+            logActivity('delete', 'transaction_reading', "Deleted bank transaction #$numericId", $conn);
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Bank transaction moved to bin successfully',
+                'soft_delete_available' => true,
+                'transaction_id' => $originalTransactionId,
+                'numeric_id' => $numericId
+            ]);
+            
+            ob_end_flush();
+            exit();
+            
+        } catch (Exception $e) {
+            $conn->rollback();
+            throw $e;
+        }
     }
     
-    // Check if soft delete columns exist
+    // Check if soft delete columns exist for journal entries
     $columnsExist = checkSoftDeleteColumnsExist();
     $deletedStatusExists = checkDeletedStatusExists();
     
@@ -690,12 +745,18 @@ function restoreTransaction() {
         throw new Exception('Transaction ID is required');
     }
     
-    // Extract numeric ID from prefixed ID (e.g., "JE-123" -> 123)
+    // Extract numeric ID and determine source from prefix
     $numericId = $originalTransactionId;
+    $source = 'journal'; // default
+    
     if (is_string($originalTransactionId) && strpos($originalTransactionId, '-') !== false) {
         $parts = explode('-', $originalTransactionId);
         if (count($parts) > 1) {
+            $prefix = strtoupper($parts[0]);
             $numericId = (int)$parts[1];
+            if ($prefix === 'BT') {
+                $source = 'bank';
+            }
         }
     }
     $numericId = (int)$numericId;
@@ -704,7 +765,38 @@ function restoreTransaction() {
         throw new Exception('Invalid transaction ID');
     }
     
-    // Start transaction
+    // Handle bank transaction restore
+    if ($source === 'bank') {
+        $conn->begin_transaction();
+        try {
+            $sql = "UPDATE bank_transactions SET deleted_at = NULL, deleted_by = NULL WHERE transaction_id = ? AND deleted_at IS NOT NULL";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $numericId);
+            $stmt->execute();
+            
+            if ($stmt->affected_rows === 0) {
+                throw new Exception('Bank transaction not found in bin');
+            }
+            
+            logActivity('restore', 'transaction_reading', "Restored bank transaction #$numericId", $conn);
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Bank transaction restored successfully'
+            ]);
+            
+            ob_end_flush();
+            exit();
+            
+        } catch (Exception $e) {
+            $conn->rollback();
+            throw $e;
+        }
+    }
+    
+    // Start transaction for journal entries
     $conn->begin_transaction();
     
     try {
@@ -817,18 +909,17 @@ function restoreTransaction() {
 function getBinItems() {
     global $conn;
     
-    // Check if we have deleted_at column for proper soft delete tracking
+    $items = [];
+    
+    // 1. Get deleted journal entries
     $hasDeletedAt = checkSoftDeleteColumnsExist();
     $hasDeletedStatus = checkDeletedStatusExists();
     
     if ($hasDeletedAt) {
-        // Use deleted_at column to find deleted items
         $whereClause = "je.deleted_at IS NOT NULL";
     } else if ($hasDeletedStatus) {
-        // Use status = 'deleted'
         $whereClause = "je.status = 'deleted'";
     } else {
-        // Fallback: look for voided status (our current implementation)
         $whereClause = "je.status = 'voided'";
     }
     
@@ -852,11 +943,39 @@ function getBinItems() {
             ORDER BY " . ($hasDeletedAt ? "je.deleted_at" : "je.updated_at") . " DESC";
     
     $result = $conn->query($sql);
-    
-    $items = [];
     if ($result) {
         while ($row = $result->fetch_assoc()) {
             $items[] = $row;
+        }
+    }
+    
+    // 2. Get deleted bank transactions
+    $checkBankDeletedAt = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
+    if ($checkBankDeletedAt && $checkBankDeletedAt->num_rows > 0) {
+        $bankSql = "SELECT 
+                        bt.transaction_id as id,
+                        bt.transaction_ref as journal_no,
+                        DATE(bt.created_at) as entry_date,
+                        COALESCE(bt.description, 'Bank Transaction') as description,
+                        bt.transaction_ref as reference_no,
+                        CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END as total_debit,
+                        CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END as total_credit,
+                        bt.deleted_at,
+                        tt.type_name as type_code,
+                        tt.type_name as type_name,
+                        NULL as deleted_by_username,
+                        NULL as deleted_by_name,
+                        'bank_transaction' as item_type
+                    FROM bank_transactions bt
+                    INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                    WHERE bt.deleted_at IS NOT NULL
+                    ORDER BY bt.deleted_at DESC";
+        
+        $bankResult = $conn->query($bankSql);
+        if ($bankResult) {
+            while ($row = $bankResult->fetch_assoc()) {
+                $items[] = $row;
+            }
         }
     }
     
@@ -920,6 +1039,65 @@ function permanentDeleteTransaction() {
         echo json_encode([
             'success' => true,
             'message' => 'Transaction permanently deleted'
+        ]);
+        
+        ob_end_flush();
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        throw $e;
+    }
+}
+
+/**
+ * Permanently delete a bank transaction from bin
+ */
+function permanentDeleteBankTransaction() {
+    global $conn;
+    
+    $transactionId = $_POST['transaction_id'] ?? '';
+    $currentUser = getCurrentUser();
+    
+    if (empty($transactionId)) {
+        throw new Exception('Transaction ID is required');
+    }
+    
+    $numericId = (int)$transactionId;
+    if ($numericId <= 0) {
+        throw new Exception('Invalid transaction ID');
+    }
+    
+    $conn->begin_transaction();
+    
+    try {
+        // Log the permanent deletion in audit trail
+        if (tableExists('audit_logs')) {
+            $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
+                         VALUES (?, 'PERMANENT_DELETE', 'bank_transaction', ?, 'Bank transaction permanently deleted from bin', ?, NOW())";
+            $auditStmt = $conn->prepare($auditSql);
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $auditStmt->bind_param('iis', $currentUser['id'], $numericId, $ipAddress);
+            $auditStmt->execute();
+        }
+        
+        // Permanently delete the bank transaction
+        $deleteSql = "DELETE FROM bank_transactions WHERE transaction_id = ? AND deleted_at IS NOT NULL";
+        $deleteStmt = $conn->prepare($deleteSql);
+        $deleteStmt->bind_param('i', $numericId);
+        $deleteStmt->execute();
+        
+        if ($deleteStmt->affected_rows === 0) {
+            throw new Exception('Bank transaction not found or not in bin');
+        }
+        
+        logActivity('permanent_delete', 'transaction_reading', "Permanently deleted bank transaction #$numericId from bin", $conn);
+        
+        $conn->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Bank transaction permanently deleted'
         ]);
         
         ob_end_flush();
@@ -1030,15 +1208,31 @@ function restoreAllTransactions() {
             $auditStmt->execute();
             
             // Log activity
-            logActivity('restore_all', 'transaction_reading', "Restored $restoredCount transactions from bin", $conn);
+            logActivity('restore_all', 'transaction_reading', "Restored $restoredCount journal entries from bin", $conn);
         }
+        
+        // Also restore bank transactions
+        $bankRestoredCount = 0;
+        $checkBankDeletedAt = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
+        if ($checkBankDeletedAt && $checkBankDeletedAt->num_rows > 0) {
+            $bankSql = "UPDATE bank_transactions SET deleted_at = NULL, deleted_by = NULL WHERE deleted_at IS NOT NULL";
+            $bankResult = $conn->query($bankSql);
+            if ($bankResult) {
+                $bankRestoredCount = $conn->affected_rows;
+            }
+            if ($bankRestoredCount > 0) {
+                logActivity('restore_all', 'transaction_reading', "Restored $bankRestoredCount bank transactions from bin", $conn);
+            }
+        }
+        
+        $totalRestored = $restoredCount + $bankRestoredCount;
         
         $conn->commit();
         
         echo json_encode([
             'success' => true,
-            'message' => "Successfully restored $restoredCount transactions",
-            'restored_count' => $restoredCount
+            'message' => "Successfully restored $totalRestored transactions ($restoredCount journal entries, $bankRestoredCount bank transactions)",
+            'restored_count' => $totalRestored
         ]);
         
         ob_end_flush();
@@ -1072,13 +1266,13 @@ function emptyBinTransactions() {
         $auditStmt->bind_param('is', $currentUser['id'], $ipAddress);
         $auditStmt->execute();
         
-        // Get count of items to be deleted
+        // Get count of journal entries to be deleted
         $countSql = "SELECT COUNT(*) as count FROM journal_entries WHERE status IN ('deleted', 'voided')";
         $countResult = $conn->query($countSql);
         $countRow = $countResult->fetch_assoc();
-        $deletedCount = $countRow['count'];
+        $journalDeletedCount = $countRow['count'];
         
-        if ($deletedCount > 0) {
+        if ($journalDeletedCount > 0) {
             // Delete journal lines first (foreign key constraint)
             $deleteLinesSql = "DELETE jl FROM journal_lines jl 
                                INNER JOIN journal_entries je ON jl.journal_entry_id = je.id 
@@ -1089,16 +1283,33 @@ function emptyBinTransactions() {
             $deleteEntrySql = "DELETE FROM journal_entries WHERE status IN ('deleted', 'voided')";
             $conn->query($deleteEntrySql);
             
-            // Log activity
-            logActivity('empty_bin', 'transaction_reading', "Permanently deleted $deletedCount transactions from bin", $conn);
+            logActivity('empty_bin', 'transaction_reading', "Permanently deleted $journalDeletedCount journal entries from bin", $conn);
         }
+        
+        // Also delete bank transactions in bin
+        $bankDeletedCount = 0;
+        $checkBankDeletedAt = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
+        if ($checkBankDeletedAt && $checkBankDeletedAt->num_rows > 0) {
+            $bankCountSql = "SELECT COUNT(*) as count FROM bank_transactions WHERE deleted_at IS NOT NULL";
+            $bankCountResult = $conn->query($bankCountSql);
+            $bankCountRow = $bankCountResult->fetch_assoc();
+            $bankDeletedCount = $bankCountRow['count'];
+            
+            if ($bankDeletedCount > 0) {
+                $deleteBankSql = "DELETE FROM bank_transactions WHERE deleted_at IS NOT NULL";
+                $conn->query($deleteBankSql);
+                logActivity('empty_bin', 'transaction_reading', "Permanently deleted $bankDeletedCount bank transactions from bin", $conn);
+            }
+        }
+        
+        $totalDeleted = $journalDeletedCount + $bankDeletedCount;
         
         $conn->commit();
         
         echo json_encode([
             'success' => true,
-            'message' => "Successfully permanently deleted $deletedCount transactions",
-            'deleted_count' => $deletedCount
+            'message' => "Successfully permanently deleted $totalDeleted transactions ($journalDeletedCount journal entries, $bankDeletedCount bank transactions)",
+            'deleted_count' => $totalDeleted
         ]);
         
         ob_end_flush();

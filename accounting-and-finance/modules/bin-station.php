@@ -758,6 +758,7 @@ $current_user = getCurrentUser();
                 'compliance_report': 'Compliance Report',
                 'transaction': 'Transaction',
                 'journal_entry': 'Journal Entry',
+                'bank_transaction': 'Bank Transaction',
                 'expense': 'Expense',
                 'payroll': 'Payroll Record',
                 'loan': 'Loan',
@@ -771,6 +772,7 @@ $current_user = getCurrentUser();
                 'compliance_report': 'fa-chart-line',
                 'transaction': 'fa-exchange-alt',
                 'journal_entry': 'fa-book',
+                'bank_transaction': 'fa-university',
                 'expense': 'fa-receipt',
                 'payroll': 'fa-users',
                 'loan': 'fa-hand-holding-usd',
@@ -789,6 +791,8 @@ $current_user = getCurrentUser();
                 restoreReport(itemId);
             } else if (itemType === 'journal_entry' || itemType === 'transaction') {
                 restoreTransaction(itemId);
+            } else if (itemType === 'bank_transaction') {
+                restoreBankTransaction(itemId);
             } else if (itemType === 'loan') {
                 restoreLoan(itemId);
             } else if (itemType === 'loan_application') {
@@ -808,6 +812,8 @@ $current_user = getCurrentUser();
                 permanentDeleteReport(itemId);
             } else if (itemType === 'journal_entry' || itemType === 'transaction') {
                 permanentDeleteTransaction(itemId);
+            } else if (itemType === 'bank_transaction') {
+                permanentDeleteBankTransaction(itemId);
             } else if (itemType === 'loan') {
                 permanentDeleteLoan(itemId);
             } else if (itemType === 'loan_application') {
@@ -1000,6 +1006,71 @@ $current_user = getCurrentUser();
                     if (response.success) {
                         showNotification('Transaction permanently deleted!', 'success');
                         loadBinData(); // Refresh bin
+                    } else {
+                        showNotification('Permanent delete failed: ' + response.error, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showNotification('Permanent delete failed: ' + error, 'error');
+                }
+            });
+        }
+
+        /**
+         * Restore bank transaction from bin
+         */
+        function restoreBankTransaction(transactionId) {
+            if (!transactionId || transactionId === 0) {
+                showNotification('Error: Invalid transaction ID', 'error');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to restore this bank transaction?')) {
+                return;
+            }
+
+            $.ajax({
+                url: 'api/transaction-data.php',
+                method: 'POST',
+                data: { 
+                    action: 'restore_transaction',
+                    transaction_id: 'BT-' + transactionId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        showNotification('Bank transaction restored successfully!', 'success');
+                        loadBinData();
+                    } else {
+                        showNotification('Restore failed: ' + (response.error || 'Unknown error'), 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showNotification('Restore failed: ' + error, 'error');
+                }
+            });
+        }
+
+        /**
+         * Permanently delete bank transaction from bin
+         */
+        function permanentDeleteBankTransaction(transactionId) {
+            if (!confirm('WARNING: Are you sure you want to permanently delete this bank transaction? This action cannot be undone.')) {
+                return;
+            }
+
+            $.ajax({
+                url: 'api/transaction-data.php',
+                method: 'POST',
+                data: { 
+                    action: 'permanent_delete_bank_transaction',
+                    transaction_id: transactionId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        showNotification('Bank transaction permanently deleted!', 'success');
+                        loadBinData();
                     } else {
                         showNotification('Permanent delete failed: ' + response.error, 'error');
                     }
