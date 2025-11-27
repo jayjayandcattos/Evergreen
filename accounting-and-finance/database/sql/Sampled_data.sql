@@ -97,11 +97,16 @@ INSERT INTO bank_customers (
     created_at,
     created_by_employee_id
 ) VALUES
-(1, 'Juan', 'Carlos', 'Dela Cruz', '123 Main St', 'Manila', 'juan.delacruz@email.com', '09171234567', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK001', 'REF001', 0.00, NULL, 1, NOW() - INTERVAL 85 DAY, NULL),
-(2, 'Maria', 'Santos', 'Garcia', '456 Oak Ave', 'Quezon City', 'maria.garcia@email.com', '09171234568', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK002', 'REF002', 0.00, NULL, 1, NOW() - INTERVAL 70 DAY, NULL),
-(3, 'Pedro', 'Reyes', 'Mendoza', '789 Pine Rd', 'Makati', 'pedro.mendoza@email.com', '09171234569', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK003', 'REF003', 0.00, NULL, 1, NOW() - INTERVAL 55 DAY, NULL),
-(4, 'Ana', 'Lopez', 'Torres', '321 Elm St', 'Pasig', 'ana.torres@email.com', '09171234570', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK004', 'REF004', 0.00, NULL, 1, NOW() - INTERVAL 40 DAY, NULL),
-(5, 'Roberto', 'Cruz', 'Ramos', '654 Maple Dr', 'Taguig', 'roberto.ramos@email.com', '09171234571', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK005', 'REF005', 0.00, NULL, 1, NOW() - INTERVAL 25 DAY, NULL)
+(1, 'Ricardo', 'Santos', 'Villanueva', '123 P. Burgos Street, Barangay Poblacion', 'Makati City, Metro Manila', 'ricardo.villanueva@evergreen.com', '09171234567', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK001', 'REF001', 2500.00, NULL, 1, NOW() - INTERVAL 120 DAY, NULL),
+(2, 'Maria', 'Cruz', 'Fernandez', '456 Rizal Avenue Extension, Barangay Kamuning', 'Quezon City, Metro Manila', 'maria.fernandez@evergreen.com', '09171234568', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK002', 'REF002', 1800.00, 1, 1, NOW() - INTERVAL 95 DAY, NULL),
+(3, 'Jose', 'Reyes', 'Torres', '789 EDSA Corner Shaw Boulevard', 'Mandaluyong City, Metro Manila', 'jose.torres@evergreen.com', '09171234569', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK003', 'REF003', 3200.00, 1, 1, NOW() - INTERVAL 80 DAY, NULL),
+(4, 'Ana', 'Lopez', 'Dela Cruz', '321 Ortigas Avenue, Barangay San Antonio', 'Pasig City, Metro Manila', 'ana.delacruz@evergreen.com', '09171234570', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK004', 'REF004', 950.00, 2, 1, NOW() - INTERVAL 65 DAY, NULL),
+(5, 'Roberto', 'Garcia', 'Mendoza', '654 Ayala Avenue, Barangay Bel-Air', 'Makati City, Metro Manila', 'roberto.mendoza@evergreen.com', '09171234571', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK005', 'REF005', 1500.00, 3, 1, NOW() - INTERVAL 50 DAY, NULL),
+(6, 'Cristina', 'Ramos', 'Bautista', '987 Taft Avenue, Barangay Malate', 'Manila City, Metro Manila', 'cristina.bautista@evergreen.com', '09171234572', '1991-02-14', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK006', 'REF006', 2200.00, 2, 1, NOW() - INTERVAL 40 DAY, NULL),
+(7, 'Michael', 'Santos', 'Aquino', '147 BGC High Street, Barangay Fort Bonifacio', 'Taguig City, Metro Manila', 'michael.aquino@evergreen.com', '09171234573', '1989-09-18', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK007', 'REF007', 1800.00, 1, 1, NOW() - INTERVAL 35 DAY, NULL),
+(8, 'Patricia', 'Cruz', 'Reyes', '258 Commonwealth Avenue, Barangay Batasan Hills', 'Quezon City, Metro Manila', 'patricia.reyes@evergreen.com', '09171234574', '1993-06-22', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK008', 'REF008', 1100.00, 4, 1, NOW() - INTERVAL 30 DAY, NULL),
+(9, 'Daniel', 'Villanueva', 'Gonzales', '369 Alabang-Zapote Road, Barangay Alabang', 'Muntinlupa City, Metro Manila', 'daniel.gonzales@evergreen.com', '09171234575', '1986-12-05', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK009', 'REF009', 2800.00, 3, 1, NOW() - INTERVAL 25 DAY, NULL),
+(10, 'Jennifer', 'Fernandez', 'Lim', '741 Katipunan Avenue, Barangay Loyola Heights', 'Quezon City, Metro Manila', 'jennifer.lim@evergreen.com', '09171234576', '1994-04-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK010', 'REF010', 750.00, 5, 1, NOW() - INTERVAL 20 DAY, NULL)
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name);
 
 -- ========================================
@@ -455,7 +460,7 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), base_monthly_salary = VALUES(base_m
 -- The employee_id links to the employee table, enabling HRIS-Payroll integration
 INSERT INTO user_account (user_id, employee_id, username, password_hash, role, last_login) VALUES
 (1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY),
-(2, 2, 'finance.admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Accounting Admin', NULL)
+(2, 2, 'finance.admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Accounting Admin', NUL NOW() - INTERVAL 10 DAY)
 ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), password_hash = VALUES(password_hash);
 
 -- ========================================
@@ -1199,47 +1204,72 @@ ON DUPLICATE KEY UPDATE employee_name = VALUES(employee_name);
 
 -- Bank Customers
 INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, email, password_hash, created_at, created_by_employee_id) VALUES
-(1, 'Reyes', 'Juan', 'Dela', 'juan.reyes@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 90 DAY, 1),
-(2, 'Santos', 'Maria', 'Garcia', 'maria.santos@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 75 DAY, 1),
-(3, 'Cruz', 'Jose', 'Ramos', 'jose.cruz@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 60 DAY, 2),
-(4, 'Lopez', 'Anna', NULL, 'anna.lopez@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 45 DAY, 2),
-(5, 'Garcia', 'Roberto', 'Fernandez', 'roberto.garcia@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 3)
+(1, 'Villanueva', 'Ricardo', 'Santos', 'ricardo.villanueva@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 120 DAY, 1),
+(2, 'Fernandez', 'Maria', 'Cruz', 'maria.fernandez@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 95 DAY, 1),
+(3, 'Torres', 'Jose', 'Reyes', 'jose.torres@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 80 DAY, 2),
+(4, 'Dela Cruz', 'Ana', 'Lopez', 'ana.delacruz@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 65 DAY, 2),
+(5, 'Mendoza', 'Roberto', 'Garcia', 'roberto.mendoza@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 50 DAY, 3),
+(6, 'Bautista', 'Cristina', 'Ramos', 'cristina.bautista@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 40 DAY, 1),
+(7, 'Aquino', 'Michael', 'Santos', 'michael.aquino@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 35 DAY, 2),
+(8, 'Reyes', 'Patricia', 'Cruz', 'patricia.reyes@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 2),
+(9, 'Gonzales', 'Daniel', 'Villanueva', 'daniel.gonzales@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 25 DAY, 3),
+(10, 'Lim', 'Jennifer', 'Fernandez', 'jennifer.lim@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 20 DAY, 1)
 ON DUPLICATE KEY UPDATE last_name = VALUES(last_name), email = VALUES(email);
 
 -- Customer Profiles
 INSERT INTO customer_profiles (profile_id, customer_id, gender_id, date_of_birth, marital_status, national_id, occupation, company, income_range, preferred_language, nationality, loyalty_member, profile_created_at) VALUES
-(1, 1, 1, '1985-05-15', 'married', 'TIN-001-234-567-890', 'Software Engineer', 'Tech Solutions Inc.', '50000-100000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, 2, '1988-03-20', 'single', 'TIN-002-345-678-901', 'Marketing Manager', 'Digital Marketing Co.', '30000-50000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, 1, '1990-08-10', 'married', 'TIN-003-456-789-012', 'Business Owner', 'Small Business Corp', '100000-200000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, 2, '1992-11-25', 'single', 'TIN-004-567-890-123', 'Teacher', 'Public School', '20000-30000', 'Tagalog', 'Filipino', FALSE, NOW() - INTERVAL 40 DAY),
-(5, 5, 1, '1987-07-30', 'married', 'TIN-005-678-901-234', 'Accountant', 'Accounting Firm', '40000-60000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, 1, '1985-05-15', 'married', 'TIN-001-234-567-890', 'Senior Software Engineer', 'Evergreen Tech Solutions Inc.', '80000-120000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, 2, '1988-03-20', 'single', 'TIN-002-345-678-901', 'Marketing Manager', 'Evergreen Digital Marketing Co.', '60000-80000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, 1, '1990-08-10', 'married', 'TIN-003-456-789-012', 'Business Owner', 'Evergreen Business Corp', '150000-250000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, 2, '1992-11-25', 'single', 'TIN-004-567-890-123', 'Elementary Teacher', 'Manila Public School', '35000-45000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, 1, '1987-07-30', 'married', 'TIN-005-678-901-234', 'Certified Public Accountant', 'Evergreen Accounting Firm', '70000-90000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, 2, '1991-02-14', 'married', 'TIN-006-789-012-345', 'Nurse', 'Makati Medical Center', '40000-55000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, 1, '1989-09-18', 'single', 'TIN-007-890-123-456', 'Financial Analyst', 'Evergreen Investment Group', '75000-95000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, 2, '1993-06-22', 'single', 'TIN-008-901-234-567', 'Graphic Designer', 'Creative Design Studio', '45000-60000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, 1, '1986-12-05', 'married', 'TIN-009-012-345-678', 'Operations Manager', 'Evergreen Logistics Inc.', '90000-120000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, 2, '1994-04-30', 'single', 'TIN-010-123-456-789', 'Customer Service Representative', 'Evergreen Call Center', '30000-40000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE marital_status = VALUES(marital_status);
 
 -- Addresses
 INSERT INTO addresses (address_id, customer_id, address_line, city, province_id, postal_code, address_type, is_primary, created_at) VALUES
-(1, 1, '123 Main Street, Barangay San Antonio', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, '456 Rizal Avenue', 'Quezon City', 1, '1100', 'home', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, '789 EDSA Extension', 'Mandaluyong City', 1, '1550', 'home', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, '321 P. Burgos Street', 'Manila', 1, '1000', 'home', TRUE, NOW() - INTERVAL 40 DAY),
-(5, 5, '654 Ayala Avenue', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, '123 P. Burgos Street, Barangay Poblacion', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, '456 Rizal Avenue Extension, Barangay Kamuning', 'Quezon City', 1, '1100', 'home', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, '789 EDSA Corner Shaw Boulevard', 'Mandaluyong City', 1, '1550', 'home', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, '321 Ortigas Avenue, Barangay San Antonio', 'Pasig City', 1, '1600', 'home', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, '654 Ayala Avenue, Barangay Bel-Air', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, '987 Taft Avenue, Barangay Malate', 'Manila City', 1, '1004', 'home', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, '147 BGC High Street, Barangay Fort Bonifacio', 'Taguig City', 1, '1630', 'home', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, '258 Commonwealth Avenue, Barangay Batasan Hills', 'Quezon City', 1, '1126', 'home', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, '369 Alabang-Zapote Road, Barangay Alabang', 'Muntinlupa City', 1, '1780', 'home', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, '741 Katipunan Avenue, Barangay Loyola Heights', 'Quezon City', 1, '1108', 'home', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE address_line = VALUES(address_line);
 
 -- Emails
 INSERT INTO emails (email_id, customer_id, email, is_primary, created_at) VALUES
-(1, 1, 'juan.reyes@email.com', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, 'maria.santos@email.com', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, 'jose.cruz@email.com', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, 'anna.lopez@email.com', TRUE, NOW() - INTERVAL 40 DAY),
-(5, 5, 'roberto.garcia@email.com', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, 'ricardo.villanueva@evergreen.com', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, 'maria.fernandez@evergreen.com', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, 'jose.torres@evergreen.com', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, 'ana.delacruz@evergreen.com', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, 'roberto.mendoza@evergreen.com', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, 'cristina.bautista@evergreen.com', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, 'michael.aquino@evergreen.com', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, 'patricia.reyes@evergreen.com', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, 'daniel.gonzales@evergreen.com', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, 'jennifer.lim@evergreen.com', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 -- Phones
 INSERT INTO phones (phone_id, customer_id, phone_number, phone_type, is_primary, created_at) VALUES
-(1, 1, '09171234111', 'mobile', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, '09171234112', 'mobile', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, '09171234113', 'mobile', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, '09171234114', 'mobile', TRUE, NOW() - INTERVAL 40 DAY),
-(5, 5, '09171234115', 'mobile', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, '09171234567', 'mobile', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, '09171234568', 'mobile', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, '09171234569', 'mobile', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, '09171234570', 'mobile', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, '09171234571', 'mobile', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, '09171234572', 'mobile', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, '09171234573', 'mobile', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, '09171234574', 'mobile', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, '09171234575', 'mobile', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, '09171234576', 'mobile', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number);
 
 -- Customer Accounts
@@ -1273,14 +1303,21 @@ ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
 
 -- Bank Transactions
 INSERT INTO bank_transactions (transaction_id, transaction_ref, account_id, transaction_type_id, amount, related_account_id, description, employee_id, created_at) VALUES
-(1, 'TXN-2025-001', 1, 1, 50000.00, NULL, 'Initial deposit', 1, NOW() - INTERVAL 75 DAY),
-(2, 'TXN-2025-002', 2, 1, 100000.00, NULL, 'Salary deposit', 1, NOW() - INTERVAL 60 DAY),
-(3, 'TXN-2025-003', 1, 2, 5000.00, NULL, 'Cash withdrawal', 1, NOW() - INTERVAL 70 DAY),
-(4, 'TXN-2025-004', 3, 1, 500000.00, NULL, 'Time deposit opening', 2, NOW() - INTERVAL 45 DAY),
-(5, 'TXN-2025-005', 1, 4, 125.00, NULL, 'Monthly interest credit', 1, NOW() - INTERVAL 30 DAY),
-(6, 'TXN-2025-006', 2, 2, 25000.00, NULL, 'Withdrawal', 1, NOW() - INTERVAL 55 DAY),
-(7, 'TXN-2025-007', 1, 3, 10000.00, 2, 'Transfer to checking account', 1, NOW() - INTERVAL 65 DAY),
-(8, 'TXN-2025-008', 5, 5, 100.00, NULL, 'Monthly service charge', 3, NOW() - INTERVAL 15 DAY)
+(1, 'TXN-2024-001', 1, 1, 75000.00, NULL, 'Initial savings account deposit', 1, NOW() - INTERVAL 115 DAY),
+(2, 'TXN-2024-002', 2, 1, 125000.00, NULL, 'Monthly salary deposit', 1, NOW() - INTERVAL 90 DAY),
+(3, 'TXN-2024-003', 1, 2, 15000.00, NULL, 'ATM cash withdrawal', 1, NOW() - INTERVAL 105 DAY),
+(4, 'TXN-2024-004', 3, 1, 750000.00, NULL, 'Time deposit account opening', 2, NOW() - INTERVAL 75 DAY),
+(5, 'TXN-2024-005', 1, 4, 187.50, NULL, 'Monthly interest credit - Savings', 1, NOW() - INTERVAL 25 DAY),
+(6, 'TXN-2024-006', 2, 2, 35000.00, NULL, 'Fund transfer to personal account', 1, NOW() - INTERVAL 85 DAY),
+(7, 'TXN-2024-007', 1, 3, 25000.00, 2, 'Internal transfer to checking account', 1, NOW() - INTERVAL 95 DAY),
+(8, 'TXN-2024-008', 5, 5, 150.00, NULL, 'Monthly maintenance fee', 3, NOW() - INTERVAL 18 DAY),
+(9, 'TXN-2024-009', 4, 1, 50000.00, NULL, 'Additional savings deposit', 1, NOW() - INTERVAL 60 DAY),
+(10, 'TXN-2024-010', 2, 1, 125000.00, NULL, 'Salary deposit - November', 1, NOW() - INTERVAL 30 DAY),
+(11, 'TXN-2024-011', 3, 4, 2187.50, NULL, 'Quarterly interest credit - Time Deposit', 2, NOW() - INTERVAL 10 DAY),
+(12, 'TXN-2024-012', 1, 2, 8000.00, NULL, 'Online payment transfer', 1, NOW() - INTERVAL 5 DAY),
+(13, 'TXN-2024-013', 6, 1, 100000.00, NULL, 'Business account deposit', 1, NOW() - INTERVAL 45 DAY),
+(14, 'TXN-2024-014', 7, 1, 200000.00, NULL, 'Investment account deposit', 2, NOW() - INTERVAL 40 DAY),
+(15, 'TXN-2024-015', 4, 2, 12000.00, NULL, 'Bill payment withdrawal', 1, NOW() - INTERVAL 12 DAY)
 ON DUPLICATE KEY UPDATE transaction_ref = VALUES(transaction_ref);
 
 -- Payroll Payslips (Alternative payslip table using employee_id)
@@ -1313,24 +1350,89 @@ ON DUPLICATE KEY UPDATE mission_text = VALUES(mission_text);
 
 -- Bank Users (Banking system users - different from employee users)
 INSERT INTO bank_users (id, first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, total_points, created_at, is_verified) VALUES
-(1, 'Juan', 'Dela', 'Reyes', '123 Main Street, Barangay San Antonio', 'Makati City, Metro Manila', 'juan.reyes@bank.com', '09171234111', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER001', 'BANK-001', 1500.00, NOW() - INTERVAL 85 DAY, TRUE),
-(2, 'Maria', 'Garcia', 'Santos', '456 Rizal Avenue', 'Quezon City, Metro Manila', 'maria.santos@bank.com', '09171234112', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER002', 'BANK-002', 800.00, NOW() - INTERVAL 70 DAY, TRUE),
-(3, 'Jose', 'Ramos', 'Cruz', '789 EDSA Extension', 'Mandaluyong City, Metro Manila', 'jose.cruz@bank.com', '09171234113', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER003', 'BANK-003', 2000.00, NOW() - INTERVAL 55 DAY, TRUE)
+(1, 'Ricardo', 'Santos', 'Villanueva', '123 P. Burgos Street, Barangay Poblacion', 'Makati City, Metro Manila', 'ricardo.villanueva@evergreen.com', '09171234111', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER001', 'BANK-001', 2500.00, NOW() - INTERVAL 120 DAY, TRUE),
+(2, 'Maria', 'Cruz', 'Fernandez', '456 Rizal Avenue Extension, Barangay Kamuning', 'Quezon City, Metro Manila', 'maria.fernandez@evergreen.com', '09171234112', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER002', 'BANK-002', 1800.00, NOW() - INTERVAL 95 DAY, TRUE),
+(3, 'Jose', 'Reyes', 'Torres', '789 EDSA Corner Shaw Boulevard', 'Mandaluyong City, Metro Manila', 'jose.torres@evergreen.com', '09171234113', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER003', 'BANK-003', 3200.00, NOW() - INTERVAL 80 DAY, TRUE),
+(4, 'Ana', 'Lopez', 'Dela Cruz', '321 Ortigas Avenue, Barangay San Antonio', 'Pasig City, Metro Manila', 'ana.delacruz@evergreen.com', '09171234114', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER004', 'BANK-004', 950.00, NOW() - INTERVAL 65 DAY, TRUE),
+(5, 'Roberto', 'Garcia', 'Mendoza', '654 Ayala Avenue, Barangay Bel-Air', 'Makati City, Metro Manila', 'roberto.mendoza@evergreen.com', '09171234115', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER005', 'BANK-005', 1500.00, NOW() - INTERVAL 50 DAY, TRUE),
+(6, 'Cristina', 'Ramos', 'Bautista', '987 Taft Avenue, Barangay Malate', 'Manila City, Metro Manila', 'cristina.bautista@evergreen.com', '09171234116', '1991-02-14', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER006', 'BANK-006', 2200.00, NOW() - INTERVAL 40 DAY, TRUE),
+(7, 'Michael', 'Santos', 'Aquino', '147 BGC High Street, Barangay Fort Bonifacio', 'Taguig City, Metro Manila', 'michael.aquino@evergreen.com', '09171234117', '1989-09-18', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER007', 'BANK-007', 1800.00, NOW() - INTERVAL 35 DAY, TRUE),
+(8, 'Patricia', 'Cruz', 'Reyes', '258 Commonwealth Avenue, Barangay Batasan Hills', 'Quezon City, Metro Manila', 'patricia.reyes@evergreen.com', '09171234118', '1993-06-22', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER008', 'BANK-008', 1100.00, NOW() - INTERVAL 30 DAY, TRUE),
+(9, 'Daniel', 'Villanueva', 'Gonzales', '369 Alabang-Zapote Road, Barangay Alabang', 'Muntinlupa City, Metro Manila', 'daniel.gonzales@evergreen.com', '09171234119', '1986-12-05', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER009', 'BANK-009', 2800.00, NOW() - INTERVAL 25 DAY, TRUE),
+(10, 'Jennifer', 'Fernandez', 'Lim', '741 Katipunan Avenue, Barangay Loyola Heights', 'Quezon City, Metro Manila', 'jennifer.lim@evergreen.com', '09171234120', '1994-04-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER010', 'BANK-010', 750.00, NOW() - INTERVAL 20 DAY, TRUE)
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 -- User Missions (Banking mission completions)
 INSERT INTO user_missions (id, user_id, mission_id, points_earned, completed_at) VALUES
-(1, 1, 1, 100.00, NOW() - INTERVAL 80 DAY),
-(2, 1, 2, 500.00, NOW() - INTERVAL 60 DAY),
-(3, 1, 4, 300.00, NOW() - INTERVAL 30 DAY),
-(4, 2, 1, 100.00, NOW() - INTERVAL 65 DAY),
-(5, 2, 5, 200.00, NOW() - INTERVAL 15 DAY),
-(6, 3, 1, 100.00, NOW() - INTERVAL 50 DAY),
-(7, 3, 2, 500.00, NOW() - INTERVAL 45 DAY),
-(8, 3, 3, 1000.00, NOW() - INTERVAL 40 DAY),
-(9, 3, 4, 300.00, NOW() - INTERVAL 25 DAY),
-(10, 3, 5, 200.00, NOW() - INTERVAL 20 DAY)
+(1, 1, 1, 100.00, NOW() - INTERVAL 115 DAY),
+(2, 1, 2, 500.00, NOW() - INTERVAL 90 DAY),
+(3, 1, 3, 1000.00, NOW() - INTERVAL 75 DAY),
+(4, 1, 4, 300.00, NOW() - INTERVAL 50 DAY),
+(5, 1, 5, 200.00, NOW() - INTERVAL 30 DAY),
+(6, 2, 1, 100.00, NOW() - INTERVAL 90 DAY),
+(7, 2, 2, 500.00, NOW() - INTERVAL 70 DAY),
+(8, 2, 4, 300.00, NOW() - INTERVAL 40 DAY),
+(9, 2, 5, 200.00, NOW() - INTERVAL 20 DAY),
+(10, 3, 1, 100.00, NOW() - INTERVAL 75 DAY),
+(11, 3, 2, 500.00, NOW() - INTERVAL 65 DAY),
+(12, 3, 3, 1000.00, NOW() - INTERVAL 55 DAY),
+(13, 3, 4, 300.00, NOW() - INTERVAL 35 DAY),
+(14, 3, 5, 200.00, NOW() - INTERVAL 15 DAY),
+(15, 4, 1, 100.00, NOW() - INTERVAL 60 DAY),
+(16, 4, 4, 300.00, NOW() - INTERVAL 30 DAY),
+(17, 5, 1, 100.00, NOW() - INTERVAL 45 DAY),
+(18, 5, 2, 500.00, NOW() - INTERVAL 35 DAY),
+(19, 6, 1, 100.00, NOW() - INTERVAL 35 DAY),
+(20, 6, 3, 1000.00, NOW() - INTERVAL 25 DAY),
+(21, 7, 1, 100.00, NOW() - INTERVAL 30 DAY),
+(22, 7, 2, 500.00, NOW() - INTERVAL 20 DAY),
+(23, 8, 1, 100.00, NOW() - INTERVAL 25 DAY),
+(24, 9, 1, 100.00, NOW() - INTERVAL 20 DAY),
+(25, 9, 2, 500.00, NOW() - INTERVAL 10 DAY),
+(26, 10, 1, 100.00, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE points_earned = VALUES(points_earned);
+
+-- Points History (Rewards System - Mission Rewards and Redemptions)
+INSERT INTO points_history (id, user_id, customer_id, points, description, transaction_type, created_at) VALUES
+-- Mission Rewards (Positive Points)
+(1, 1, 1, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 115 DAY),
+(2, 1, 1, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 90 DAY),
+(3, 1, 1, 1000.00, 'Refer a friend to open an account', 'mission', NOW() - INTERVAL 75 DAY),
+(4, 1, 1, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 50 DAY),
+(5, 1, 1, 200.00, 'Set up automatic bill payment', 'mission', NOW() - INTERVAL 30 DAY),
+(6, 1, 1, 100.00, 'Referral bonus - Friend signed up', 'referral', NOW() - INTERVAL 70 DAY),
+(7, 2, 2, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 90 DAY),
+(8, 2, 2, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 70 DAY),
+(9, 2, 2, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 40 DAY),
+(10, 2, 2, 200.00, 'Set up automatic bill payment', 'mission', NOW() - INTERVAL 20 DAY),
+(11, 3, 3, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 75 DAY),
+(12, 3, 3, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 65 DAY),
+(13, 3, 3, 1000.00, 'Refer a friend to open an account', 'mission', NOW() - INTERVAL 55 DAY),
+(14, 3, 3, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 35 DAY),
+(15, 3, 3, 200.00, 'Set up automatic bill payment', 'mission', NOW() - INTERVAL 15 DAY),
+(16, 3, 3, 100.00, 'Referral bonus - Friend signed up', 'referral', NOW() - INTERVAL 50 DAY),
+(17, 4, 4, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 60 DAY),
+(18, 4, 4, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 30 DAY),
+(19, 5, 5, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 45 DAY),
+(20, 5, 5, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 35 DAY),
+(21, 6, 6, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 35 DAY),
+(22, 6, 6, 1000.00, 'Refer a friend to open an account', 'mission', NOW() - INTERVAL 25 DAY),
+(23, 7, 7, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 30 DAY),
+(24, 7, 7, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 20 DAY),
+(25, 8, 8, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 25 DAY),
+(26, 9, 9, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 20 DAY),
+(27, 9, 9, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 10 DAY),
+(28, 10, 10, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 15 DAY),
+-- Reward Redemptions (Negative Points)
+(29, 1, 1, -500.00, 'Redeemed: ₱500 Gift Card', 'redemption', NOW() - INTERVAL 45 DAY),
+(30, 1, 1, -300.00, 'Redeemed: Mobile Phone Load', 'redemption', NOW() - INTERVAL 20 DAY),
+(31, 2, 2, -200.00, 'Redeemed: ₱200 Gift Card', 'redemption', NOW() - INTERVAL 25 DAY),
+(32, 3, 3, -1000.00, 'Redeemed: ₱1000 Shopping Voucher', 'redemption', NOW() - INTERVAL 30 DAY),
+(33, 3, 3, -500.00, 'Redeemed: ₱500 Gift Card', 'redemption', NOW() - INTERVAL 10 DAY),
+(34, 6, 6, -800.00, 'Redeemed: ₱800 Shopping Voucher', 'redemption', NOW() - INTERVAL 12 DAY),
+(35, 7, 7, -300.00, 'Redeemed: Mobile Phone Load', 'redemption', NOW() - INTERVAL 8 DAY),
+(36, 9, 9, -200.00, 'Redeemed: ₱200 Gift Card', 'redemption', NOW() - INTERVAL 5 DAY)
+ON DUPLICATE KEY UPDATE points = VALUES(points);
 
 -- ========================================
 -- 5. BANK ACCOUNTS

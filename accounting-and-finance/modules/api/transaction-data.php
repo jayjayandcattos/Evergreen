@@ -98,14 +98,6 @@ try {
             emptyBinTransactions();
             break;
         
-        case 'test_api':
-            testAPI();
-            break;
-        
-        case 'test_delete_simple':
-            testDeleteSimple();
-            break;
-        
         case 'sync_bank_transactions':
             syncBankTransactionsToJournal();
             break;
@@ -937,48 +929,6 @@ function permanentDeleteTransaction() {
         $conn->rollback();
         throw $e;
     }
-}
-
-/**
- * Test API endpoint to debug issues
- */
-function testAPI() {
-    global $conn;
-    
-    $currentUser = getCurrentUser();
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'API is working',
-        'user' => $currentUser,
-        'database_connected' => $conn ? true : false,
-        'timestamp' => date('Y-m-d H:i:s'),
-        'php_version' => PHP_VERSION
-    ]);
-    
-    ob_end_flush();
-    exit();
-}
-
-/**
- * Simple delete test - minimal logic
- */
-function testDeleteSimple() {
-    global $conn;
-    
-    $transactionId = $_POST['transaction_id'] ?? '';
-    $currentUser = getCurrentUser();
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Simple delete test successful',
-        'transaction_id' => $transactionId,
-        'user_id' => $currentUser['id'] ?? 'no user',
-        'database_connected' => $conn ? true : false,
-    ]);
-    
-    ob_end_flush();
-    exit();
 }
 
 /**
