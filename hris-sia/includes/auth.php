@@ -79,18 +79,6 @@ function requireLogin() {
     }
 }
 
-function logoutUser() {
-    $_SESSION = array();
-    
-    if (isset($_COOKIE[session_name()])) {
-        setcookie(session_name(), '', time() - 3600, '/');
-    }
-    
-    session_destroy();
-    header('Location: index.php');
-    exit;
-}
-
 function recordTimeIn($conn, $employee_id) {
     try {
         // Check if employee already has a time-in today without time-out

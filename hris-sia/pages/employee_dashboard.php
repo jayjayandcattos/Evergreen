@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
 
         // Insert leave request
         $sql = "INSERT INTO leave_request (employee_id, leave_type_id, start_date, end_date, total_days, reason, status, date_requested) 
-                VALUES (?, ?, ?, ?, ?, ?, 'Pending', CURDATE())";
+                VALUES (?, ?, ?, ?, ?, ?, 'Pending', CURDATE()d j)";
 
         $stmt = $conn->prepare($sql);
         $success = $stmt->execute([
