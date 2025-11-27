@@ -460,7 +460,7 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), base_monthly_salary = VALUES(base_m
 -- The employee_id links to the employee table, enabling HRIS-Payroll integration
 INSERT INTO user_account (user_id, employee_id, username, password_hash, role, last_login) VALUES
 (1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY),
-(2, 2, 'finance.admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Accounting Admin', NUL NOW() - INTERVAL 10 DAY)
+(2, 2, 'finance.admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Accounting Admin', NULL)
 ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), password_hash = VALUES(password_hash);
 
 -- ========================================
