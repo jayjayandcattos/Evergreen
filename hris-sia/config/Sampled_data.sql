@@ -458,12 +458,30 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), base_monthly_salary = VALUES(base_m
 -- Links employees to user accounts for system access
 -- This connects HRIS employee records to authentication system
 
--- Link admin user (already exists in users table) to employee system
--- Note: Additional user_account records can be created as needed
--- The employee_id links to the employee table, enabling HRIS-Payroll integration
-INSERT INTO user_account (user_id, employee_id, username, password_hash, role, last_login) VALUES
-(1, 1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', NOW() - INTERVAL 5 DAY)
-ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role);
+-- ========================================
+-- CREATE ADMIN ACCOUNT
+-- ========================================
+-- This creates the main admin account for system access
+-- Username: admin
+-- Password: password
+-- Role: Admin
+-- IMPORTANT: Change the password in production!
+-- ========================================
+
+-- Create admin account in user_account table
+-- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    1, -- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+    'admin', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'Admin', -- role (must be exactly 'Admin')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role),
+    employee_id = VALUES(employee_id);
 
 -- ========================================
 -- HR MANAGER ROLE SETUP (Data Migration)

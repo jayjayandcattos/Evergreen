@@ -326,6 +326,30 @@ function loginEmployee($conn, $employee_id_input, $employee_name) {
         
         session_regenerate_id(true);
         
+        // Automatically record time-in if not already recorded today
+        try {
+            $checkSql = "SELECT attendance_id FROM attendance 
+                         WHERE employee_id = ? 
+                         AND DATE(time_in) = CURDATE() 
+                         AND time_out IS NULL";
+            
+            $checkStmt = $conn->prepare($checkSql);
+            $checkStmt->execute([$employee_id]);
+            $existing_attendance = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$existing_attendance) {
+                // Record time-in automatically
+                $timeInResult = recordTimeIn($conn, $employee_id);
+                if (!$timeInResult['success']) {
+                    // Log but don't block login if attendance recording fails
+                    error_log("Auto-attendance recording failed for employee $employee_id: " . ($timeInResult['message'] ?? 'Unknown error'));
+                }
+            }
+        } catch (Exception $e) {
+            // Log but don't block login if attendance check fails
+            error_log("Auto-attendance check failed for employee $employee_id: " . $e->getMessage());
+        }
+        
         logLoginAttempt($conn, 'EMP-' . str_pad($employee_id, 3, '0', STR_PAD_LEFT), true);
         
         return [

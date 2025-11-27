@@ -170,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     // OLD CODE: If status is "Hired", automatically create employee record
                     // This is now handled by the finalize_hiring action
+                    // This block is disabled (if false) but kept for reference
                     if (false && $_POST['status'] === 'Hired') {
                             // Fetch applicant data
                             $applicant = fetchOne($conn, 
@@ -318,6 +319,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
                             );
                         }
+                    }
+                    
+                    // Log status update for non-Hired statuses
+                    if (isset($logger) && $_POST['status'] !== 'Hired' && !isset($messageType)) {
+                        $logger->info(
+                            'RECRUITMENT',
+                            'Applicant status updated',
+                            "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
+                        );
                     }
                 } catch (Exception $e) {
                     if (isset($logger)) {

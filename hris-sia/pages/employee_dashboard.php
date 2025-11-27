@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
 
         // Insert leave request
         $sql = "INSERT INTO leave_request (employee_id, leave_type_id, start_date, end_date, total_days, reason, status, date_requested) 
-                VALUES (?, ?, ?, ?, ?, ?, 'Pending', CURDATE()d j)";
+                VALUES (?, ?, ?, ?, ?, ?, 'Pending', CURDATE())";
 
         $stmt = $conn->prepare($sql);
         $success = $stmt->execute([
@@ -103,90 +103,8 @@ $employee = fetchOne($conn,
     <title>HRIS - Employee Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/employee_dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            background: linear-gradient(135deg, #f0fdfa 0%, #e0f2f1 50%, #f8fafc 100%);
-            background-attachment: fixed;
-        }
-
-        .header-gradient {
-            background: linear-gradient(135deg, #003631 0%, #004d45 50%, #002b27 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card-enhanced {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .card-enhanced:hover {
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
-            transform: translateY(-2px);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(13, 148, 136, 0.3);
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            animation: fadeInModal 0.3s ease;
-        }
-
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background-color: white;
-            padding: 0;
-            border-radius: 16px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-            max-width: 90%;
-            width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        @keyframes fadeInModal {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-30px) scale(0.95);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0) scale(1);
-                opacity: 1;
-            }
-        }
-    </style>
 </head>
 <body>
     <div class="min-h-screen">
@@ -393,9 +311,13 @@ $employee = fetchOne($conn,
                     <input type="hidden" name="submit_leave" value="1">
                     
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Leave Type *</label>
-                        <select name="leave_type_id" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <label for="leave_type_id" class="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+                            Leave Type <span class="text-red-500" aria-label="required">*</span>
+                        </label>
+                        <select id="leave_type_id" name="leave_type_id" required
+                            aria-label="Select Leave Type"
+                            aria-required="true"
+                            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                             <option value="">Select Leave Type</option>
                             <?php foreach ($leave_types as $lt): ?>
                                 <option value="<?php echo $lt['leave_type_id']; ?>">
@@ -410,33 +332,46 @@ $employee = fetchOne($conn,
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
-                            <input type="date" name="start_date" required
+                            <label for="start_date" class="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+                                Start Date <span class="text-red-500" aria-label="required">*</span>
+                            </label>
+                            <input type="date" id="start_date" name="start_date" required
                                 min="<?php echo date('Y-m-d'); ?>"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                aria-label="Leave Start Date"
+                                aria-required="true"
+                                class="w-full px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 onchange="calculateDays()">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
-                            <input type="date" name="end_date" required
+                            <label for="end_date" class="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+                                End Date <span class="text-red-500" aria-label="required">*</span>
+                            </label>
+                            <input type="date" id="end_date" name="end_date" required
                                 min="<?php echo date('Y-m-d'); ?>"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                aria-label="Leave End Date"
+                                aria-required="true"
+                                class="w-full px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 onchange="calculateDays()">
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Total Days</label>
+                        <label for="totalDays" class="block text-sm sm:text-base font-medium text-gray-700 mb-2">Total Days</label>
                         <input type="text" id="totalDays" readonly
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                            aria-label="Total Days (auto-calculated)"
+                            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-600">
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Reason *</label>
-                        <textarea name="reason" rows="4" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                            placeholder="Please provide a reason for your leave request"></textarea>
+                        <label for="reason" class="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+                            Reason <span class="text-red-500" aria-label="required">*</span>
+                        </label>
+                        <textarea id="reason" name="reason" rows="4" required
+                            aria-label="Leave Request Reason"
+                            aria-required="true"
+                            placeholder="Please provide a reason for your leave request"
+                            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"></textarea>
                     </div>
 
                     <div class="flex justify-end gap-3">
@@ -473,8 +408,8 @@ $employee = fetchOne($conn,
         }
 
         function calculateDays() {
-            const startDate = document.querySelector('input[name="start_date"]').value;
-            const endDate = document.querySelector('input[name="end_date"]').value;
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
             const totalDaysInput = document.getElementById('totalDays');
 
             if (startDate && endDate) {

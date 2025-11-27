@@ -130,42 +130,8 @@ $dayOfWeek = ($dayOfWeek == 0) ? 6 : $dayOfWeek - 1;
     <title>HRIS - My Calendar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/employee_calendar.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            background: linear-gradient(135deg, #f0fdfa 0%, #e0f2f1 50%, #f8fafc 100%);
-            background-attachment: fixed;
-        }
-
-        .header-gradient {
-            background: linear-gradient(135deg, #003631 0%, #004d45 50%, #002b27 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .calendar-day {
-            min-height: 100px;
-            border: 1px solid #e5e7eb;
-            transition: all 0.2s ease;
-        }
-
-        .calendar-day:hover {
-            background-color: #f9fafb;
-        }
-
-        .calendar-day.today {
-            background-color: #ecfdf5;
-            border: 2px solid #10b981;
-        }
-
-        .event-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 4px;
-        }
-    </style>
 </head>
 <body>
     <div class="min-h-screen">
