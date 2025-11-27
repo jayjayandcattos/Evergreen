@@ -620,9 +620,18 @@
         // Show loading
         showLoading('Moving transaction to bin...');
 
+        // Extract numeric ID from prefixed ID (e.g., "BT-123" -> "123", "JE-456" -> "456")
+        let numericId = transactionId;
+        if (typeof transactionId === 'string' && transactionId.includes('-')) {
+            const parts = transactionId.split('-');
+            if (parts.length > 1) {
+                numericId = parts[1]; // Get the numeric part after the prefix
+            }
+        }
+
         // Make AJAX call to delete transaction
         const url = 'api/transaction-data.php';
-        const data = `action=soft_delete_transaction&transaction_id=${transactionId}`;
+        const data = `action=soft_delete_transaction&transaction_id=${numericId}`;
         
         console.log('===== DELETE REQUEST DETAILS =====');
         console.log('Making request to:', url);

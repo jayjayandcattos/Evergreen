@@ -22,7 +22,24 @@ if ($apply_filters) {
                   !empty($filter_type) || !empty($filter_status) || !empty($filter_account);
 }
 
+// Check if deleted_at column exists in journal_entries
+$hasDeletedAtColumn = false;
+try {
+    $checkResult = $conn->query("SHOW COLUMNS FROM journal_entries LIKE 'deleted_at'");
+    $hasDeletedAtColumn = $checkResult && $checkResult->num_rows > 0;
+} catch (Exception $e) {
+    // Column doesn't exist, use status filter only
+    $hasDeletedAtColumn = false;
+}
+
 // Build query to fetch transactions from BOTH journal entries AND bank transactions
+// Filter out deleted items: check both status and deleted_at column if it exists
+// IMPORTANT: Always exclude voided status and items with deleted_at set
+$deletedFilter = "je.status != 'voided' AND je.status != 'deleted'";
+if ($hasDeletedAtColumn) {
+    $deletedFilter .= " AND (je.deleted_at IS NULL OR je.deleted_at = '' OR je.deleted_at = '0000-00-00 00:00:00')";
+}
+
 $sql = "SELECT * FROM (
             -- Journal Entries from Accounting System
             SELECT 
@@ -46,7 +63,7 @@ $sql = "SELECT * FROM (
             INNER JOIN journal_types jt ON je.journal_type_id = jt.id
             INNER JOIN users u ON je.created_by = u.id
             LEFT JOIN fiscal_periods fp ON je.fiscal_period_id = fp.id
-            WHERE je.status NOT IN ('deleted', 'voided')
+            WHERE $deletedFilter
             
             UNION ALL
             
@@ -116,11 +133,18 @@ $sql .= " ORDER BY entry_date DESC, created_at DESC";
 try {
     $stmt = $conn->prepare($sql);
     
+    if ($stmt === false) {
+        throw new Exception("Query preparation failed: " . $conn->error);
+    }
+    
     if (!empty($params)) {
         $stmt->bind_param($types, ...$params);
     }
     
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        throw new Exception("Query execution failed: " . $stmt->error);
+    }
+    
     $result = $stmt->get_result();
     
     while ($row = $result->fetch_assoc()) {
@@ -131,6 +155,7 @@ try {
 } catch (Exception $e) {
     // If database error, transactions will remain empty array
     error_log("Transaction query error: " . $e->getMessage());
+    // Don't throw - just log and continue with empty array
 }
 
 // Get statistics
@@ -502,13 +527,10 @@ try {
                                     </td>
                                     <td><?php echo htmlspecialchars($trans['created_by_name']); ?></td>
                                     <td>
-                                        <button class="btn btn-sm btn-info btn-action" onclick="viewTransactionDetails(<?php echo $trans['id']; ?>)" title="View Details">
+                                        <button class="btn btn-sm btn-info btn-action" onclick="viewTransactionDetails('<?php echo htmlspecialchars($trans['id'], ENT_QUOTES); ?>')" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-primary btn-action" onclick="viewAuditTrail(<?php echo $trans['id']; ?>)" title="Audit Trail">
-                                            <i class="fas fa-history"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-danger btn-action" onclick="deleteTransaction(<?php echo $trans['id']; ?>)" title="Delete Transaction">
+                                        <button class="btn btn-sm btn-danger btn-action" onclick="deleteTransaction('<?php echo htmlspecialchars($trans['id'], ENT_QUOTES); ?>')" title="Delete Transaction">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -637,9 +659,6 @@ try {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-info" onclick="viewAuditTrail(currentTransactionId)">
-                        <i class="fas fa-history me-1"></i>View Audit Trail
-                    </button>
                 </div>
             </div>
         </div>

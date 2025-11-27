@@ -296,9 +296,12 @@ $current_user = getCurrentUser();
                     data: { action: 'get_all_bin_items' },
                     dataType: 'json',
                     timeout: 10000
-                }).catch(function(xhr, status, error) {
+                }).then(function(response) {
+                    return response;
+                }, function(xhr, status, error) {
                     console.error('Error loading compliance reports:', error);
-                    return [{success: false, data: []}];
+                    console.error('Response:', xhr.responseText);
+                    return {success: false, data: []};
                 }),
                 $.ajax({
                     url: 'api/transaction-data.php',
@@ -306,9 +309,12 @@ $current_user = getCurrentUser();
                     data: { action: 'get_bin_items' },
                     dataType: 'json',
                     timeout: 10000
-                }).catch(function(xhr, status, error) {
+                }).then(function(response) {
+                    return response;
+                }, function(xhr, status, error) {
                     console.error('Error loading transaction data:', error);
-                    return [{success: false, data: []}];
+                    console.error('Response:', xhr.responseText);
+                    return {success: false, data: []};
                 }),
                 $.ajax({
                     url: 'api/loan-data.php',
@@ -316,17 +322,21 @@ $current_user = getCurrentUser();
                     data: { action: 'get_bin_items' },
                     dataType: 'json',
                     timeout: 10000
-                }).catch(function(xhr, status, error) {
+                }).then(function(response) {
+                    return response;
+                }, function(xhr, status, error) {
                     console.error('Error loading loan data:', error);
-                    return [{success: false, data: []}];
+                    console.error('Response:', xhr.responseText);
+                    return {success: false, data: []};
                 })
             ).done(function(complianceResponse, transactionResponse, loanResponse) {
                 console.log('Compliance response:', complianceResponse);
                 console.log('Transaction response:', transactionResponse);
+                console.log('Loan response:', loanResponse);
                 
-                const complianceData = complianceResponse[0] && complianceResponse[0].success ? complianceResponse[0].data : [];
-                const transactionData = transactionResponse[0] && transactionResponse[0].success ? transactionResponse[0].data : [];
-                const loanData = loanResponse[0] && loanResponse[0].success ? loanResponse[0].data : [];
+                const complianceData = (complianceResponse && complianceResponse.success) ? complianceResponse.data : [];
+                const transactionData = (transactionResponse && transactionResponse.success) ? transactionResponse.data : [];
+                const loanData = (loanResponse && loanResponse.success) ? loanResponse.data : [];
                 
                 console.log('Compliance data:', complianceData);
                 console.log('Transaction data:', transactionData);
@@ -373,6 +383,8 @@ $current_user = getCurrentUser();
                 const itemTypeLabel = getItemTypeLabel(item.item_type);
                 const itemIcon = getItemTypeIcon(item.item_type);
                 const title = item.title || item.description || item.journal_no || item.loan_number || 'Item';
+                const itemId = item.id || 0;
+                const itemType = item.item_type || 'unknown';
                 
                 html += `
                     <div class="bin-item border border-light rounded p-3 mb-3">
@@ -382,7 +394,7 @@ $current_user = getCurrentUser();
                                     <i class="fas ${itemIcon} me-2 text-primary fa-lg"></i>
                                     <div>
                                         <strong>${itemTypeLabel}</strong>
-                                        <br><small class="text-muted">${title}</small>
+                                        <br><small class="text-muted">${escapeHtml(title)}</small>
                                     </div>
                                 </div>
                             </div>
@@ -406,10 +418,10 @@ $current_user = getCurrentUser();
                             </div>
                             <div class="col-md-3">
                                 <div class="d-flex gap-1">
-                                    <button class="btn btn-sm btn-success" onclick="restoreItem('${item.item_type}', ${item.id})" title="Restore Item">
+                                    <button class="btn btn-sm btn-success" onclick="restoreItem('${itemType}', ${itemId})" title="Restore Item">
                                         <i class="fas fa-undo"></i> Restore
                                     </button>
-                                    <button class="btn btn-sm btn-danger" onclick="permanentDeleteItem('${item.item_type}', ${item.id})" title="Permanently Delete">
+                                    <button class="btn btn-sm btn-danger" onclick="permanentDeleteItem('${itemType}', ${itemId})" title="Permanently Delete">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </div>
@@ -516,34 +528,83 @@ $current_user = getCurrentUser();
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Restoring...';
             button.disabled = true;
 
-            $.ajax({
-                url: 'api/transaction-data.php',
-                method: 'POST',
-                data: { 
-                    action: 'restore_all_transactions'
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        showNotification(`Successfully restored ${response.restored_count} items!`, 'success');
-                        loadBinData(); // Refresh bin
-                        
-                        // Show any errors if they occurred
-                        if (response.errors && response.errors.length > 0) {
-                            console.warn('Some items failed to restore:', response.errors);
-                        }
-                    } else {
-                        showNotification('Restore all failed: ' + response.error, 'error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    showNotification('Restore all failed: ' + error, 'error');
-                },
-                complete: function() {
-                    // Reset button state
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
+            // Restore all items from all sources
+            $.when(
+                $.ajax({
+                    url: 'api/compliance-reports.php',
+                    method: 'POST',
+                    data: { action: 'restore_all_items' },
+                    dataType: 'json'
+                }).catch(function(xhr, status, error) {
+                    console.error('Error restoring compliance reports:', error);
+                    return {success: false, restored_count: 0, errors: []};
+                }),
+                $.ajax({
+                    url: 'api/transaction-data.php',
+                    method: 'POST',
+                    data: { action: 'restore_all_transactions' },
+                    dataType: 'json'
+                }).catch(function(xhr, status, error) {
+                    console.error('Error restoring transactions:', error);
+                    return {success: false, restored_count: 0, errors: []};
+                }),
+                $.ajax({
+                    url: 'api/loan-data.php',
+                    method: 'POST',
+                    data: { action: 'restore_all_loans' },
+                    dataType: 'json'
+                }).catch(function(xhr, status, error) {
+                    console.error('Error restoring loans:', error);
+                    return {success: false, restored_count: 0, errors: []};
+                })
+            ).done(function(complianceResponse, transactionResponse, loanResponse) {
+                // Handle response structure - $.when() with .catch() returns the resolved value
+                // For successful calls: [data, statusText, jqXHR], for caught errors: the fallback object
+                let complianceData = {};
+                let transactionData = {};
+                let loanData = {};
+                
+                // Check if response is an array (successful AJAX) or object (from catch)
+                if (Array.isArray(complianceResponse) && complianceResponse.length > 0) {
+                    complianceData = complianceResponse[0] || {};
+                } else if (typeof complianceResponse === 'object') {
+                    complianceData = complianceResponse;
                 }
+                
+                if (Array.isArray(transactionResponse) && transactionResponse.length > 0) {
+                    transactionData = transactionResponse[0] || {};
+                } else if (typeof transactionResponse === 'object') {
+                    transactionData = transactionResponse;
+                }
+                
+                if (Array.isArray(loanResponse) && loanResponse.length > 0) {
+                    loanData = loanResponse[0] || {};
+                } else if (typeof loanResponse === 'object') {
+                    loanData = loanResponse;
+                }
+                
+                const complianceCount = complianceData.compliance_restored || complianceData.restored_count || 0;
+                const transactionCount = transactionData.restored_count || transactionData.transaction_restored || 0;
+                const loanCount = loanData.restored_count || 0;
+                const totalRestored = complianceCount + transactionCount + loanCount;
+                
+                if (totalRestored > 0) {
+                    let message = `Successfully restored ${totalRestored} items! (${complianceCount} reports, ${transactionCount} transactions, ${loanCount} loans)`;
+                    if (transactionCount > 0 || loanCount > 0) {
+                        message += ' Please refresh the transaction history and loan accounting pages to see the restored items.';
+                    }
+                    showNotification(message, 'success');
+                } else {
+                    showNotification('No items to restore or restore failed', 'warning');
+                }
+                
+                loadBinData(); // Refresh bin
+            }).fail(function() {
+                showNotification('Restore all failed. Please try again.', 'error');
+            }).always(function() {
+                // Reset button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
             });
         }
 
@@ -566,29 +627,79 @@ $current_user = getCurrentUser();
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting...';
             button.disabled = true;
 
-            $.ajax({
-                url: 'api/transaction-data.php',
-                method: 'POST',
-                data: { 
-                    action: 'empty_bin_transactions'
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        showNotification(`Successfully permanently deleted ${response.deleted_count} items!`, 'success');
-                        loadBinData(); // Refresh bin
-                    } else {
-                        showNotification('Empty bin failed: ' + response.error, 'error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    showNotification('Empty bin failed: ' + error, 'error');
-                },
-                complete: function() {
-                    // Reset button state
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
+            // Empty bin for all item types
+            $.when(
+                $.ajax({
+                    url: 'api/compliance-reports.php',
+                    method: 'POST',
+                    data: { action: 'empty_bin' },
+                    dataType: 'json'
+                }).catch(function(xhr, status, error) {
+                    console.error('Error emptying compliance reports bin:', error);
+                    return {success: false, deleted_count: 0};
+                }),
+                $.ajax({
+                    url: 'api/transaction-data.php',
+                    method: 'POST',
+                    data: { action: 'empty_bin_transactions' },
+                    dataType: 'json'
+                }).catch(function(xhr, status, error) {
+                    console.error('Error emptying transactions bin:', error);
+                    return {success: false, deleted_count: 0};
+                }),
+                $.ajax({
+                    url: 'api/loan-data.php',
+                    method: 'POST',
+                    data: { action: 'empty_bin_loans' },
+                    dataType: 'json'
+                }).catch(function(xhr, status, error) {
+                    console.error('Error emptying loans bin:', error);
+                    return {success: false, deleted_count: 0};
+                })
+            ).done(function(complianceResponse, transactionResponse, loanResponse) {
+                // Handle response structure - $.when() with .catch() returns the resolved value
+                // For successful calls: [data, statusText, jqXHR], for caught errors: the fallback object
+                let complianceData = {};
+                let transactionData = {};
+                let loanData = {};
+                
+                // Check if response is an array (successful AJAX) or object (from catch)
+                if (Array.isArray(complianceResponse) && complianceResponse.length > 0) {
+                    complianceData = complianceResponse[0] || {};
+                } else if (typeof complianceResponse === 'object') {
+                    complianceData = complianceResponse;
                 }
+                
+                if (Array.isArray(transactionResponse) && transactionResponse.length > 0) {
+                    transactionData = transactionResponse[0] || {};
+                } else if (typeof transactionResponse === 'object') {
+                    transactionData = transactionResponse;
+                }
+                
+                if (Array.isArray(loanResponse) && loanResponse.length > 0) {
+                    loanData = loanResponse[0] || {};
+                } else if (typeof loanResponse === 'object') {
+                    loanData = loanResponse;
+                }
+                
+                const complianceCount = complianceData.deleted_count || 0;
+                const transactionCount = transactionData.deleted_count || 0;
+                const loanCount = loanData.deleted_count || 0;
+                const totalDeleted = complianceCount + transactionCount + loanCount;
+                
+                if (totalDeleted > 0) {
+                    showNotification(`Successfully permanently deleted ${totalDeleted} items! (${complianceCount} reports, ${transactionCount} transactions, ${loanCount} loans)`, 'success');
+                } else {
+                    showNotification('No items to delete or delete failed', 'warning');
+                }
+                
+                loadBinData(); // Refresh bin
+            }).fail(function() {
+                showNotification('Empty bin failed. Please try again.', 'error');
+            }).always(function() {
+                // Reset button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
             });
         }
 
@@ -649,7 +760,8 @@ $current_user = getCurrentUser();
                 'journal_entry': 'Journal Entry',
                 'expense': 'Expense',
                 'payroll': 'Payroll Record',
-                'loan': 'Loan'
+                'loan': 'Loan',
+                'loan_application': 'Loan Application'
             };
             return labels[type] || 'Unknown Item';
         }
@@ -661,30 +773,45 @@ $current_user = getCurrentUser();
                 'journal_entry': 'fa-book',
                 'expense': 'fa-receipt',
                 'payroll': 'fa-users',
-                'loan': 'fa-hand-holding-usd'
+                'loan': 'fa-hand-holding-usd',
+                'loan_application': 'fa-file-alt'
             };
             return icons[type] || 'fa-file';
         }
         
         function restoreItem(itemType, itemId) {
+            if (!itemId || itemId === 0) {
+                showNotification('Error: Invalid item ID', 'error');
+                return;
+            }
+            
             if (itemType === 'compliance_report') {
                 restoreReport(itemId);
-            } else if (itemType === 'journal_entry') {
+            } else if (itemType === 'journal_entry' || itemType === 'transaction') {
                 restoreTransaction(itemId);
             } else if (itemType === 'loan') {
                 restoreLoan(itemId);
+            } else if (itemType === 'loan_application') {
+                restoreLoanApplication(itemId);
             } else {
                 showNotification('Restore functionality for ' + itemType + ' not yet implemented.', 'info');
             }
         }
         
         function permanentDeleteItem(itemType, itemId) {
+            if (!itemId || itemId === 0) {
+                showNotification('Error: Invalid item ID', 'error');
+                return;
+            }
+            
             if (itemType === 'compliance_report') {
                 permanentDeleteReport(itemId);
-            } else if (itemType === 'journal_entry') {
+            } else if (itemType === 'journal_entry' || itemType === 'transaction') {
                 permanentDeleteTransaction(itemId);
             } else if (itemType === 'loan') {
                 permanentDeleteLoan(itemId);
+            } else if (itemType === 'loan_application') {
+                permanentDeleteLoanApplication(itemId);
             } else {
                 showNotification('Permanent delete functionality for ' + itemType + ' not yet implemented.', 'info');
             }
@@ -785,10 +912,38 @@ $current_user = getCurrentUser();
             }
         }
 
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Note: restoreTransaction is already defined in the restoreItem function context
         // This is the dedicated transaction restoration function called by restoreItem
         function restoreTransaction(transactionId) {
+            if (!transactionId || transactionId === 0) {
+                showNotification('Error: Invalid transaction ID', 'error');
+                return;
+            }
+            
             if (!confirm('Are you sure you want to restore this transaction? It will be moved back to active transactions.')) {
+                return;
+            }
+
+            // Extract numeric ID from prefixed ID if needed (e.g., "JE-123" -> 123)
+            let numericId = transactionId;
+            if (typeof transactionId === 'string' && transactionId.includes('-')) {
+                const parts = transactionId.split('-');
+                if (parts.length > 1) {
+                    numericId = parseInt(parts[1], 10);
+                }
+            } else {
+                numericId = parseInt(transactionId, 10);
+            }
+
+            if (isNaN(numericId) || numericId <= 0) {
+                showNotification('Error: Invalid transaction ID format', 'error');
                 return;
             }
 
@@ -797,12 +952,12 @@ $current_user = getCurrentUser();
                 method: 'POST',
                 data: { 
                     action: 'restore_transaction',
-                    transaction_id: transactionId
+                    transaction_id: numericId
                 },
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
-                        showNotification('Transaction restored successfully!', 'success');
+                        showNotification('Transaction restored successfully! Please refresh the transaction history page to see it.', 'success');
                         loadBinData(); // Refresh bin
                     } else {
                         showNotification('Restore failed: ' + (response.error || 'Unknown error'), 'error');
@@ -810,7 +965,17 @@ $current_user = getCurrentUser();
                 },
                 error: function(xhr, status, error) {
                     console.error('Restore transaction error:', error);
-                    showNotification('Restore failed: ' + error, 'error');
+                    console.error('Response:', xhr.responseText);
+                    let errorMessage = error;
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                    } catch (e) {
+                        // Use default error message
+                    }
+                    showNotification('Restore failed: ' + errorMessage, 'error');
                 }
             });
         }
@@ -849,6 +1014,11 @@ $current_user = getCurrentUser();
          * Restore loan from bin
          */
         function restoreLoan(loanId) {
+            if (!loanId || loanId === 0) {
+                showNotification('Error: Invalid loan ID', 'error');
+                return;
+            }
+            
             if (!confirm('Are you sure you want to restore this loan? It will be moved back to active loans.')) {
                 return;
             }
@@ -863,7 +1033,7 @@ $current_user = getCurrentUser();
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
-                        showNotification('Loan restored successfully!', 'success');
+                        showNotification('Loan restored successfully! Please refresh the Loan Accounting page to see the changes.', 'success');
                         loadBinData(); // Refresh bin
                     } else {
                         showNotification('Restore failed: ' + (response.error || 'Unknown error'), 'error');
@@ -871,6 +1041,7 @@ $current_user = getCurrentUser();
                 },
                 error: function(xhr, status, error) {
                     console.error('Restore loan error:', error);
+                    console.error('Response:', xhr.responseText);
                     showNotification('Restore failed: ' + error, 'error');
                 }
             });
@@ -894,7 +1065,74 @@ $current_user = getCurrentUser();
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
-                        showNotification('Loan permanently deleted!', 'success');
+                        showNotification('Loan permanently deleted! Please refresh the Loan Accounting page to see the changes.', 'success');
+                        loadBinData(); // Refresh bin
+                    } else {
+                        showNotification('Permanent delete failed: ' + response.error, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showNotification('Permanent delete failed: ' + error, 'error');
+                }
+            });
+        }
+
+        /**
+         * Restore loan application from bin
+         */
+        function restoreLoanApplication(applicationId) {
+            if (!applicationId || applicationId === 0) {
+                showNotification('Error: Invalid application ID', 'error');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to restore this loan application? It will be moved back to active applications.')) {
+                return;
+            }
+
+            $.ajax({
+                url: 'api/loan-data.php',
+                method: 'POST',
+                data: { 
+                    action: 'restore_application',
+                    application_id: applicationId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        showNotification('Loan application restored successfully! Please refresh the Loan Accounting page to see the changes.', 'success');
+                        loadBinData(); // Refresh bin
+                    } else {
+                        showNotification('Restore failed: ' + (response.error || 'Unknown error'), 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Restore loan application error:', error);
+                    console.error('Response:', xhr.responseText);
+                    showNotification('Restore failed: ' + error, 'error');
+                }
+            });
+        }
+
+        /**
+         * Permanently delete loan application from bin
+         */
+        function permanentDeleteLoanApplication(applicationId) {
+            if (!confirm('WARNING: Are you sure you want to permanently delete this loan application? This action cannot be undone.')) {
+                return;
+            }
+
+            $.ajax({
+                url: 'api/loan-data.php',
+                method: 'POST',
+                data: { 
+                    action: 'permanent_delete_application',
+                    application_id: applicationId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        showNotification('Loan application permanently deleted! Please refresh the Loan Accounting page to see the changes.', 'success');
                         loadBinData(); // Refresh bin
                     } else {
                         showNotification('Permanent delete failed: ' + response.error, 'error');
