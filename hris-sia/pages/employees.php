@@ -21,8 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 try {
                     $sql = "INSERT INTO employee (first_name, last_name, middle_name, gender, birth_date, 
-                            contact_number, email, address, hire_date, department_id, position_id, employment_status) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')";
+                            contact_number, email, address, house_number, street, barangay, city, province, 
+                            secondary_email, secondary_contact_number, hire_date, department_id, position_id, employment_status) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')";
 
                     $params = [
                         $_POST['first_name'],
@@ -32,7 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_POST['birth_date'],
                         $_POST['contact_number'],
                         $_POST['email'],
-                        $_POST['address'],
+                        $_POST['address'] ?? null, // Keep old address field for backward compatibility
+                        $_POST['house_number'] ?? null,
+                        $_POST['street'] ?? null,
+                        $_POST['barangay'] ?? null,
+                        $_POST['city'] ?? null,
+                        $_POST['province'] ?? null,
+                        $_POST['secondary_email'] ?? null,
+                        $_POST['secondary_contact_number'] ?? null,
                         $_POST['hire_date'],
                         $_POST['department_id'] ?: null,
                         $_POST['position_id'] ?: null
@@ -71,6 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $sql = "UPDATE employee SET 
                             first_name = ?, last_name = ?, middle_name = ?, gender = ?, 
                             birth_date = ?, contact_number = ?, email = ?, address = ?,
+                            house_number = ?, street = ?, barangay = ?, city = ?, province = ?,
+                            secondary_email = ?, secondary_contact_number = ?,
                             department_id = ?, position_id = ?
                             WHERE employee_id = ?";
 
@@ -82,7 +92,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_POST['birth_date'],
                         $_POST['contact_number'],
                         $_POST['email'],
-                        $_POST['address'],
+                        $_POST['address'] ?? null, // Keep old address field for backward compatibility
+                        $_POST['house_number'] ?? null,
+                        $_POST['street'] ?? null,
+                        $_POST['barangay'] ?? null,
+                        $_POST['city'] ?? null,
+                        $_POST['province'] ?? null,
+                        $_POST['secondary_email'] ?? null,
+                        $_POST['secondary_contact_number'] ?? null,
                         $_POST['department_id'] ?: null,
                         $_POST['position_id'] ?: null,
                         $_POST['employee_id']
@@ -695,10 +712,55 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">House Number</label>
+                            <input type="text" name="house_number" id="houseNumber"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="123">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Street</label>
+                            <input type="text" name="street" id="street"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="Street Name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Barangay</label>
+                            <input type="text" name="barangay" id="barangay"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="Barangay/Village">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">City</label>
+                            <input type="text" name="city" id="city"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="City/Municipality">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Province</label>
+                            <input type="text" name="province" id="province"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="Province/Region">
+                        </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <label class="block text-sm font-medium mb-1">Address (Legacy)</label>
                             <textarea name="address" id="address" rows="2"
-                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"></textarea>
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="Full address (for backward compatibility)"></textarea>
+                            <p class="text-xs text-gray-500 mt-1">Optional: Keep for backward compatibility</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Secondary Email</label>
+                            <input type="email" name="secondary_email" id="secondaryEmail"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="Optional secondary email">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Secondary Contact Number</label>
+                            <input type="tel" name="secondary_contact_number" id="secondaryContactNumber" pattern="[0-9]*"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                                placeholder="Optional secondary contact"
+                                onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                         </div>
                     </div>
 
@@ -835,6 +897,19 @@ $positions = fetchAll($conn, "SELECT * FROM position ORDER BY position_title");
                     this.value = this.value.replace(/[^0-9]/g, '');
                 });
                 contactNumberInput.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const paste = (e.clipboardData || window.clipboardData).getData('text');
+                    this.value = paste.replace(/[^0-9]/g, '');
+                });
+            }
+
+            // Secondary contact number validation
+            const secondaryContactInput = document.getElementById('secondaryContactNumber');
+            if (secondaryContactInput) {
+                secondaryContactInput.addEventListener('input', function(e) {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                });
+                secondaryContactInput.addEventListener('paste', function(e) {
                     e.preventDefault();
                     const paste = (e.clipboardData || window.clipboardData).getData('text');
                     this.value = paste.replace(/[^0-9]/g, '');

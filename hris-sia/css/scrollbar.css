@@ -1,0 +1,73 @@
+/* ========================================
+   Global Scrollbar Styles - Minimal & Sleek
+   Applies to all scrollable elements
+   ======================================== */
+
+/* Webkit browsers (Chrome, Safari, Edge, Opera) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Apply to all scrollable containers */
+.scrollable,
+[style*="overflow"],
+[style*="overflow-y"],
+[style*="overflow-x"] {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.scrollable::-webkit-scrollbar,
+[style*="overflow"]::-webkit-scrollbar,
+[style*="overflow-y"]::-webkit-scrollbar,
+[style*="overflow-x"]::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.scrollable::-webkit-scrollbar-track,
+[style*="overflow"]::-webkit-scrollbar-track,
+[style*="overflow-y"]::-webkit-scrollbar-track,
+[style*="overflow-x"]::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.scrollable::-webkit-scrollbar-thumb,
+[style*="overflow"]::-webkit-scrollbar-thumb,
+[style*="overflow-y"]::-webkit-scrollbar-thumb,
+[style*="overflow-x"]::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.scrollable::-webkit-scrollbar-thumb:hover,
+[style*="overflow"]::-webkit-scrollbar-thumb:hover,
+[style*="overflow-y"]::-webkit-scrollbar-thumb:hover,
+[style*="overflow-x"]::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+

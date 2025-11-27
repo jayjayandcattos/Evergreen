@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
 
                     $sql = "UPDATE leave_request 
-                            SET status = 'Rejected', 
+                            SET status = 'Declined', 
                                 approver_id = ?, 
                                 date_approved = CURDATE() 
                             WHERE leave_request_id = ?";
@@ -151,9 +151,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     if ($success) {
                         if (isset($logger)) {
-                            $logger->info('LEAVE', 'Leave request rejected', "Leave Request ID: $leave_request_id");
+                            $logger->info('LEAVE', 'Leave request declined', "Leave Request ID: $leave_request_id");
                         }
-                        $success_message = "Leave request rejected successfully!";
+                        $success_message = "Leave request declined successfully!";
                         $messageType = "success";
                     } else {
                         throw new Exception("Failed to reject leave request");
@@ -235,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // Fetch leave requests from database
 $status_filter = $_GET['status'] ?? '';
 $search = $_GET['search'] ?? '';
-$filter_type = $_GET['filter'] ?? ''; // 'pending', 'approved_month', 'rejected_month', 'total_month'
+$filter_type = $_GET['filter'] ?? ''; // 'pending', 'approved_month', 'declined_month', 'total_month'
 
 $sql = "SELECT lr.*, 
         e.first_name, e.last_name, e.employee_id,
@@ -259,15 +259,21 @@ if ($filter_type) {
             $sql .= " AND lr.status = 'Approved' AND MONTH(lr.date_approved) = MONTH(CURDATE()) AND YEAR(lr.date_approved) = YEAR(CURDATE())";
             break;
         case 'rejected_month':
-            $sql .= " AND lr.status = 'Rejected' AND MONTH(lr.date_approved) = MONTH(CURDATE()) AND YEAR(lr.date_approved) = YEAR(CURDATE())";
+        case 'declined_month':
+            $sql .= " AND (lr.status = 'Declined' OR lr.status = 'Rejected') AND MONTH(lr.date_approved) = MONTH(CURDATE()) AND YEAR(lr.date_approved) = YEAR(CURDATE())";
             break;
         case 'total_month':
             $sql .= " AND MONTH(lr.date_requested) = MONTH(CURDATE()) AND YEAR(lr.date_requested) = YEAR(CURDATE())";
             break;
     }
 } elseif ($status_filter) {
-    $sql .= " AND lr.status = ?";
-    $params[] = $status_filter;
+    // Handle both 'Declined' and 'Rejected' for backward compatibility
+    if ($status_filter === 'Declined' || $status_filter === 'Rejected') {
+        $sql .= " AND (lr.status = 'Declined' OR lr.status = 'Rejected')";
+    } else {
+        $sql .= " AND lr.status = ?";
+        $params[] = $status_filter;
+    }
 }
 
 if ($search) {
@@ -294,7 +300,7 @@ try {
     $stats = [
         'pending' => (int)fetchOne($conn, "SELECT COUNT(*) as total FROM leave_request WHERE status = 'Pending'")['total'],
         'approved_this_month' => (int)fetchOne($conn, "SELECT COUNT(*) as total FROM leave_request WHERE status = 'Approved' AND MONTH(date_approved) = MONTH(CURDATE()) AND YEAR(date_approved) = YEAR(CURDATE())")['total'],
-        'rejected_this_month' => (int)fetchOne($conn, "SELECT COUNT(*) as total FROM leave_request WHERE status = 'Rejected' AND MONTH(date_approved) = MONTH(CURDATE()) AND YEAR(date_approved) = YEAR(CURDATE())")['total'],
+        'rejected_this_month' => (int)fetchOne($conn, "SELECT COUNT(*) as total FROM leave_request WHERE (status = 'Declined' OR status = 'Rejected') AND MONTH(date_approved) = MONTH(CURDATE()) AND YEAR(date_approved) = YEAR(CURDATE())")['total'],
         'total_this_month' => (int)fetchOne($conn, "SELECT COUNT(*) as total FROM leave_request WHERE MONTH(date_requested) = MONTH(CURDATE()) AND YEAR(date_requested) = YEAR(CURDATE())")['total']
     ];
 } catch (Exception $e) {
@@ -679,6 +685,7 @@ try {
                                             case 'Approved':
                                                 $status_color = 'bg-green-100 text-green-800';
                                                 break;
+                                            case 'Declined':
                                             case 'Rejected':
                                                 $status_color = 'bg-red-100 text-red-800';
                                                 break;
@@ -696,6 +703,7 @@ try {
                                                 case 'Approved':
                                                     $status_icon = '<i class="fas fa-check-circle mr-1.5"></i>';
                                                     break;
+                                                case 'Declined':
                                                 case 'Rejected':
                                                     $status_icon = '<i class="fas fa-times-circle mr-1.5"></i>';
                                                     break;
@@ -763,6 +771,7 @@ try {
                                         case 'Approved':
                                             $status_color = 'bg-green-100 text-green-800';
                                             break;
+                                        case 'Declined':
                                         case 'Rejected':
                                             $status_color = 'bg-red-100 text-red-800';
                                             break;

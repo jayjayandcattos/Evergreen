@@ -79,18 +79,6 @@ function requireLogin() {
     }
 }
 
-function logoutUser() {
-    $_SESSION = array();
-    
-    if (isset($_COOKIE[session_name()])) {
-        setcookie(session_name(), '', time() - 3600, '/');
-    }
-    
-    session_destroy();
-    header('Location: index.php');
-    exit;
-}
-
 function recordTimeIn($conn, $employee_id) {
     try {
         // Check if employee already has a time-in today without time-out
@@ -264,5 +252,156 @@ function canManageRecruitment() {
 
 function canViewLogs() {
     return isAdmin();
+}
+
+function loginEmployee($conn, $employee_id_input, $employee_name) {
+    try {
+        // Parse EMP-XXX format or numeric ID
+        $employee_id = null;
+        if (preg_match('/^EMP-(\d+)$/i', $employee_id_input, $matches)) {
+            $employee_id = (int)$matches[1];
+        } elseif (is_numeric($employee_id_input)) {
+            $employee_id = (int)$employee_id_input;
+        } else {
+            return [
+                "success" => false,
+                "message" => "Invalid employee ID format. Use EMP-XXX or numeric ID."
+            ];
+        }
+
+        // Validate employee exists and name matches
+        $sql = "SELECT employee_id, first_name, last_name, employment_status 
+                FROM employee 
+                WHERE employee_id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$employee_id]);
+        $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$employee) {
+            logLoginAttempt($conn, 'EMP-' . str_pad($employee_id, 3, '0', STR_PAD_LEFT), false, 'Employee not found');
+            return [
+                "success" => false,
+                "message" => "Employee ID not found"
+            ];
+        }
+
+        // Check if employee is active
+        if ($employee['employment_status'] !== 'Active') {
+            logLoginAttempt($conn, 'EMP-' . str_pad($employee_id, 3, '0', STR_PAD_LEFT), false, 'Employee not active');
+            return [
+                "success" => false,
+                "message" => "Employee account is not active"
+            ];
+        }
+
+        // Validate employee name (case-insensitive, partial match allowed)
+        $full_name = trim(($employee['first_name'] ?? '') . ' ' . ($employee['last_name'] ?? ''));
+        $input_name = trim($employee_name);
+        
+        if (empty($input_name)) {
+            return [
+                "success" => false,
+                "message" => "Employee name is required"
+            ];
+        }
+
+        // Check if input name matches (case-insensitive, allows partial match)
+        $name_match = stripos($full_name, $input_name) !== false || stripos($input_name, $full_name) !== false;
+        
+        if (!$name_match) {
+            logLoginAttempt($conn, 'EMP-' . str_pad($employee_id, 3, '0', STR_PAD_LEFT), false, 'Name mismatch');
+            return [
+                "success" => false,
+                "message" => "Employee name does not match"
+            ];
+        }
+
+        // Set employee session
+        $_SESSION['employee_id'] = $employee['employee_id'];
+        $_SESSION['employee_name'] = $full_name;
+        $_SESSION['employee_logged_in'] = true;
+        $_SESSION['user_type'] = 'employee';
+        $_SESSION['logged_in'] = true;
+        
+        session_regenerate_id(true);
+        
+        // Automatically record time-in if not already recorded today
+        try {
+            $checkSql = "SELECT attendance_id FROM attendance 
+                         WHERE employee_id = ? 
+                         AND DATE(time_in) = CURDATE() 
+                         AND time_out IS NULL";
+            
+            $checkStmt = $conn->prepare($checkSql);
+            $checkStmt->execute([$employee_id]);
+            $existing_attendance = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$existing_attendance) {
+                // Record time-in automatically
+                $timeInResult = recordTimeIn($conn, $employee_id);
+                if (!$timeInResult['success']) {
+                    // Log but don't block login if attendance recording fails
+                    error_log("Auto-attendance recording failed for employee $employee_id: " . ($timeInResult['message'] ?? 'Unknown error'));
+                }
+            }
+        } catch (Exception $e) {
+            // Log but don't block login if attendance check fails
+            error_log("Auto-attendance check failed for employee $employee_id: " . $e->getMessage());
+        }
+        
+        logLoginAttempt($conn, 'EMP-' . str_pad($employee_id, 3, '0', STR_PAD_LEFT), true);
+        
+        return [
+            "success" => true,
+            "employee" => $employee
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Employee Login Error: " . $e->getMessage());
+        return [
+            "success" => false,
+            "message" => "System error occurred"
+        ];
+    }
+}
+
+function isEmployee() {
+    return isset($_SESSION['employee_logged_in']) && 
+           $_SESSION['employee_logged_in'] === true &&
+           isset($_SESSION['user_type']) &&
+           $_SESSION['user_type'] === 'employee';
+}
+
+function requireEmployee() {
+    if (!isEmployee()) {
+        header('Location: ../index.php');
+        exit;
+    }
+}
+
+function logoutUser() {
+    // Record time-out if employee is logged in
+    if (isset($_SESSION['employee_logged_in']) && $_SESSION['employee_logged_in'] === true && isset($_SESSION['employee_id'])) {
+        try {
+            require_once __DIR__ . '/../config/database.php';
+            global $conn;
+            if (isset($conn)) {
+                recordTimeOut($conn, $_SESSION['employee_id']);
+            }
+        } catch (Exception $e) {
+            error_log("Error recording time-out on logout: " . $e->getMessage());
+        }
+    }
+    
+    $_SESSION = array();
+    
+    if (isset($_COOKIE[session_name()])) {
+        setcookie(session_name(), '', time() - 3600, '/');
+    }
+    
+    session_destroy();
+    header('Location: index.php');
+    exit;
 }
 ?>

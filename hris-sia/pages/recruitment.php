@@ -114,13 +114,74 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     exit;
                 }
                 try {
-                    $sql = "UPDATE applicant SET application_status = ? WHERE applicant_id = ?";
-                    $stmt = $conn->prepare($sql);
-                    $success = $stmt->execute([$_POST['status'], $_POST['applicant_id']]);
-
-                    if ($success) {
-                        // If status is "Hired", automatically create employee record
-                        if ($_POST['status'] === 'Hired') {
+                    // If status is "Hired", send job offer instead of directly hiring
+                    if ($_POST['status'] === 'Hired') {
+                        // Generate unique offer token
+                        $offer_token = bin2hex(random_bytes(32));
+                        
+                        // Update applicant with offer information
+                        $sql = "UPDATE applicant 
+                                SET application_status = 'Job Offer Sent',
+                                    offer_status = 'Pending',
+                                    offer_token = ?,
+                                    offer_sent_at = NOW()
+                                WHERE applicant_id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $success = $stmt->execute([$offer_token, $_POST['applicant_id']]);
+                        
+                        if ($success) {
+                            // Get applicant info for display
+                            $applicant = fetchOne($conn, 
+                                "SELECT full_name, email FROM applicant WHERE applicant_id = ?", 
+                                [$_POST['applicant_id']]
+                            );
+                            
+                            // Construct offer URL dynamically
+                            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                            $host = $_SERVER['HTTP_HOST'];
+                            $scriptPath = dirname(dirname($_SERVER['SCRIPT_NAME'])); // Go up from pages/ to hris-sia/
+                            $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?token=" . $offer_token;
+                            
+                            $message = "Job offer sent successfully! Share this link with the applicant: <br><strong><a href='$offer_url' target='_blank' class='text-blue-600 underline'>$offer_url</a></strong>";
+                            $messageType = "success";
+                            
+                            if (isset($logger)) {
+                                $logger->info(
+                                    'RECRUITMENT',
+                                    'Job offer sent',
+                                    "Applicant ID: {$_POST['applicant_id']}, Token: $offer_token"
+                                );
+                            }
+                        } else {
+                            throw new Exception("Failed to send job offer");
+                        }
+                    } else {
+                        // For other statuses, update normally
+                        $sql = "UPDATE applicant SET application_status = ? WHERE applicant_id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $success = $stmt->execute([$_POST['status'], $_POST['applicant_id']]);
+                        
+                        if ($success) {
+                            $message = "Status updated successfully!";
+                            $messageType = "success";
+                        } else {
+                            throw new Exception("Failed to update status");
+                        }
+                    }
+                    
+                    // Log status update for non-Hired statuses
+                    if (isset($logger) && $_POST['status'] !== 'Hired' && !isset($messageType)) {
+                        $logger->info(
+                            'RECRUITMENT',
+                            'Applicant status updated',
+                            "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
+                        );
+                    }
+                    
+                    // OLD CODE: If status is "Hired", automatically create employee record
+                    // This is now handled by the finalize_hiring action
+                    // This block is disabled (if false) but kept for reference
+                    if (false && $_POST['status'] === 'Hired') {
                             // Fetch applicant data
                             $applicant = fetchOne($conn, 
                                 "SELECT a.*, r.department_id, r.job_title 
@@ -253,21 +314,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $message = "Status updated successfully, but applicant data not found for employee creation.";
                                 $messageType = "warning";
                             }
-                        } else {
-                            $message = "Status updated successfully!";
-                        }
-
-                        if (!isset($messageType) || $messageType !== "warning") {
-                            $messageType = "success";
-                        }
-
-                        if (isset($logger) && $_POST['status'] !== 'Hired') {
-                            $logger->info(
-                                'RECRUITMENT',
-                                'Applicant status updated',
-                                "ID: {$_POST['applicant_id']}, Status: {$_POST['status']}"
-                            );
-                        }
                     }
                 } catch (Exception $e) {
                     if (isset($logger)) {
@@ -368,6 +414,153 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 } catch (Exception $e) {
                     if (isset($logger)) {
                         $logger->error('RECRUITMENT', 'Failed to unarchive applicant', $e->getMessage());
+                    }
+                    $message = "Error: " . $e->getMessage();
+                    $messageType = "error";
+                }
+                break;
+
+            case 'finalize_hiring':
+                if (!canManageRecruitment()) {
+                    header('Location: recruitment.php');
+                    exit;
+                }
+                try {
+                    $applicant_id = $_POST['applicant_id'] ?? '';
+                    
+                    // Verify offer was accepted
+                    $applicant = fetchOne($conn, 
+                        "SELECT offer_status, application_status FROM applicant WHERE applicant_id = ?", 
+                        [$applicant_id]
+                    );
+                    
+                    if (!$applicant || $applicant['offer_status'] !== 'Accepted') {
+                        throw new Exception("Cannot finalize hiring. Job offer must be accepted first.");
+                    }
+                    
+                    // Fetch applicant data
+                    $applicant = fetchOne($conn, 
+                        "SELECT a.*, r.department_id, r.job_title 
+                         FROM applicant a 
+                         LEFT JOIN recruitment r ON a.recruitment_id = r.recruitment_id 
+                         WHERE a.applicant_id = ?", 
+                        [$applicant_id]
+                    );
+
+                    if ($applicant) {
+                        // Split full_name into first_name, last_name, and middle_name
+                        $nameParts = explode(' ', trim($applicant['full_name']));
+                        $firstName = $nameParts[0] ?? '';
+                        $lastName = end($nameParts) ?? '';
+                        $middleName = '';
+                        
+                        // If there are more than 2 parts, middle name is everything in between
+                        if (count($nameParts) > 2) {
+                            $middleName = implode(' ', array_slice($nameParts, 1, -1));
+                        }
+
+                        // Find position_id from job_title
+                        $position_id = null;
+                        if (!empty($applicant['job_title'])) {
+                            $position = fetchOne($conn, 
+                                "SELECT position_id FROM position WHERE position_title = ? LIMIT 1", 
+                                [$applicant['job_title']]
+                            );
+                            if ($position) {
+                                $position_id = $position['position_id'];
+                            }
+                        }
+
+                        // Create employee record
+                        $employeeSql = "INSERT INTO employee (first_name, last_name, middle_name, 
+                                contact_number, email, hire_date, department_id, position_id, employment_status) 
+                                VALUES (?, ?, ?, ?, ?, CURDATE(), ?, ?, 'Active')";
+                        
+                        $employeeParams = [
+                            $firstName,
+                            $lastName,
+                            $middleName ?: null,
+                            $applicant['contact_number'],
+                            $applicant['email'],
+                            $applicant['department_id'] ?: null,
+                            $position_id
+                        ];
+
+                        $employeeStmt = $conn->prepare($employeeSql);
+                        $employeeSuccess = $employeeStmt->execute($employeeParams);
+
+                        if ($employeeSuccess) {
+                            $new_employee_id = $conn->lastInsertId();
+                            
+                            // Create employee_refs record for payroll integration
+                            $external_employee_no = 'EMP' . str_pad($new_employee_id, 3, '0', STR_PAD_LEFT);
+                            
+                            // Get department and position names
+                            $dept_name = null;
+                            $pos_name = null;
+                            if (!empty($applicant['department_id'])) {
+                                $dept_result = fetchOne($conn, "SELECT department_name FROM department WHERE department_id = ?", [$applicant['department_id']]);
+                                $dept_name = $dept_result['department_name'] ?? null;
+                            }
+                            if (!empty($position_id)) {
+                                $pos_result = fetchOne($conn, "SELECT position_title FROM position WHERE position_id = ?", [$position_id]);
+                                $pos_name = $pos_result['position_title'] ?? null;
+                            }
+                            
+                            // Create employee_refs record
+                            $employee_refs_sql = "INSERT INTO employee_refs (
+                                external_employee_no,
+                                name,
+                                department,
+                                position,
+                                base_monthly_salary,
+                                employment_type,
+                                external_source
+                            ) VALUES (?, ?, ?, ?, 0.00, 'regular', 'HRIS')
+                            ON DUPLICATE KEY UPDATE
+                                name = VALUES(name),
+                                department = VALUES(department),
+                                position = VALUES(position)";
+                            
+                            $full_name = trim(($firstName ?? '') . ' ' . ($middleName ?? '') . ' ' . ($lastName ?? ''));
+                            $employee_refs_params = [
+                                $external_employee_no,
+                                $full_name,
+                                $dept_name,
+                                $pos_name
+                            ];
+                            
+                            $employee_refs_stmt = $conn->prepare($employee_refs_sql);
+                            $employee_refs_success = $employee_refs_stmt->execute($employee_refs_params);
+                            
+                            // Update applicant status to Hired
+                            $updateSql = "UPDATE applicant SET application_status = 'Hired' WHERE applicant_id = ?";
+                            $updateStmt = $conn->prepare($updateSql);
+                            $updateStmt->execute([$applicant_id]);
+                            
+                            if ($employee_refs_success) {
+                                $message = "Hiring finalized successfully! Employee record and payroll reference created. Employee ID: $new_employee_id, Employee No: $external_employee_no";
+                                if (isset($logger)) {
+                                    $logger->info(
+                                        'RECRUITMENT',
+                                        'Hiring finalized, employee and employee_refs created',
+                                        "Applicant ID: $applicant_id, Employee ID: $new_employee_id, Employee No: $external_employee_no"
+                                    );
+                                }
+                            } else {
+                                $message = "Hiring finalized! Employee record created, but payroll reference creation failed.";
+                                $messageType = "warning";
+                            }
+                            $messageType = "success";
+                        } else {
+                            throw new Exception("Failed to create employee record");
+                        }
+                    } else {
+                        throw new Exception("Applicant data not found");
+                    }
+                } catch (Exception $e) {
+                    if (isset($logger)) {
+                        $logger->error('RECRUITMENT', 'Failed to finalize hiring', $e->getMessage());
                     }
                     $message = "Error: " . $e->getMessage();
                     $messageType = "error";
@@ -777,61 +970,97 @@ $noRecruitments = empty($recruitments);
                     <table class="desktop-table w-full">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">ID</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Position</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Department</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Contact</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Interview Date</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ID</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Position</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Department</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Contact</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Interview Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($applicants as $applicant): ?>
                                 <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="px-3 py-2 text-sm"><?php echo $applicant['applicant_id']; ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['full_name']); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['job_title'] ?? 'N/A'); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['department_name'] ?? 'N/A'); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($applicant['contact_number'] ?? 'N/A'); ?></td>
-                                    <td class="px-3 py-2 text-sm"><?php echo $applicant['interview_date'] ? date('M d, Y', strtotime($applicant['interview_date'])) : '-'; ?></td>
-                                    <td class="px-3 py-2">
-                                        <span class="px-2 py-1 text-xs font-medium rounded-full 
-                                            <?php
-                                            if ($applicant['application_status'] === 'Pending') echo 'bg-blue-100 text-blue-800';
-                                            elseif ($applicant['application_status'] === 'To Interview') echo 'bg-yellow-100 text-yellow-800';
-                                            elseif ($applicant['application_status'] === 'To Evaluate') echo 'bg-purple-100 text-purple-800';
-                                            elseif ($applicant['application_status'] === 'Hired') echo 'bg-green-100 text-green-800';
-                                            elseif ($applicant['application_status'] === 'Archived') echo 'bg-gray-100 text-gray-800';
-                                            else echo 'bg-red-100 text-red-800';
-                                            ?>">
-                                            <?php echo $applicant['application_status']; ?>
-                                        </span>
+                                    <td class="px-4 py-3 text-sm"><?php echo $applicant['applicant_id']; ?></td>
+                                    <td class="px-4 py-3 text-sm font-medium"><?php echo htmlspecialchars($applicant['full_name']); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($applicant['job_title'] ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($applicant['department_name'] ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo htmlspecialchars($applicant['contact_number'] ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm"><?php echo $applicant['interview_date'] ? date('M d, Y', strtotime($applicant['interview_date'])) : '-'; ?></td>
+                                    <td class="px-4 py-3">
+                                        <div class="space-y-1.5">
+                                            <span class="px-2.5 py-1 text-xs font-medium rounded-full 
+                                                <?php
+                                                if ($applicant['application_status'] === 'Pending') echo 'bg-blue-100 text-blue-800';
+                                                elseif ($applicant['application_status'] === 'To Interview') echo 'bg-yellow-100 text-yellow-800';
+                                                elseif ($applicant['application_status'] === 'To Evaluate') echo 'bg-purple-100 text-purple-800';
+                                                elseif ($applicant['application_status'] === 'Hired') echo 'bg-green-100 text-green-800';
+                                                elseif ($applicant['application_status'] === 'Job Offer Sent') echo 'bg-indigo-100 text-indigo-800';
+                                                elseif ($applicant['application_status'] === 'Archived') echo 'bg-gray-100 text-gray-800';
+                                                else echo 'bg-red-100 text-red-800';
+                                                ?>">
+                                                <?php echo $applicant['application_status']; ?>
+                                            </span>
+                                            <?php if ($applicant['offer_status']): ?>
+                                                <span class="px-2.5 py-1 text-xs font-medium rounded-full 
+                                                    <?php
+                                                    if ($applicant['offer_status'] === 'Pending') echo 'bg-yellow-100 text-yellow-800';
+                                                    elseif ($applicant['offer_status'] === 'Accepted') echo 'bg-green-100 text-green-800';
+                                                    elseif ($applicant['offer_status'] === 'Declined') echo 'bg-red-100 text-red-800';
+                                                    ?>">
+                                                    Offer: <?php echo $applicant['offer_status']; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
-                                    <td class="px-3 py-2">
-                                        <div class="flex gap-2">
+                                    <td class="px-4 py-3">
+                                        <div class="flex flex-wrap gap-2">
                                             <button onclick='viewApplicant(<?php echo json_encode($applicant); ?>)'
-                                                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">
+                                                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                 View
                                             </button>
                                             <?php if (canManageRecruitment()): ?>
                                                 <?php if ($show_archived): ?>
                                                     <button onclick='unarchiveApplicant(<?php echo $applicant['applicant_id']; ?>)'
-                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Restore
                                                     </button>
                                                     <button onclick='deleteApplicant(<?php echo $applicant['applicant_id']; ?>)'
-                                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Delete
                                                     </button>
                                                 <?php else: ?>
+                                                    <?php if ($applicant['offer_status'] === 'Accepted' && $applicant['application_status'] !== 'Hired'): ?>
+                                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Finalize hiring for this applicant? This will create an employee record.');">
+                                                            <input type="hidden" name="action" value="finalize_hiring">
+                                                            <input type="hidden" name="applicant_id" value="<?php echo $applicant['applicant_id']; ?>">
+                                                            <button type="submit"
+                                                                class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
+                                                                Finalize Hiring
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                    <?php if ($applicant['offer_token'] && $applicant['offer_status'] === 'Pending'): ?>
+                                                        <?php
+                                                        // Construct offer URL dynamically
+                                                        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                                                        $host = $_SERVER['HTTP_HOST'];
+                                                        $scriptPath = dirname(dirname($_SERVER['SCRIPT_NAME'])); // Go up from pages/ to hris-sia/
+                                                        $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?token=" . $applicant['offer_token'];
+                                                        ?>
+                                                        <a href="<?php echo $offer_url; ?>" target="_blank"
+                                                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-xs inline-block whitespace-nowrap">
+                                                            View Offer Link
+                                                        </a>
+                                                    <?php endif; ?>
                                                     <button onclick='updateStatus(<?php echo json_encode($applicant); ?>)'
-                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Update
                                                     </button>
                                                     <button onclick='archiveApplicant(<?php echo $applicant['applicant_id']; ?>)'
-                                                        class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs">
+                                                        class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs whitespace-nowrap">
                                                         Archive
                                                     </button>
                                                 <?php endif; ?>
@@ -1234,8 +1463,6 @@ class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm
         });
     </script>
 
-    <script src="../js/modal.js"></script>
-
     <script>
         // Contact number validation (same as employees.php)
         document.addEventListener('DOMContentLoaded', function() {
@@ -1313,6 +1540,8 @@ class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm
             </div>
         </div>
     </div>
+
+    <script src="../js/modal.js"></script>
 
 </body>
 
