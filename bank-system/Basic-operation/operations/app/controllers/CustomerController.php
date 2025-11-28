@@ -263,55 +263,6 @@ class CustomerController extends Controller {
         }
     }
 
-    // -- CREATING ACCOUNT
-    public function create_account()
-    {
-        $data = [
-            'title' => 'Open New Account',
-            'account_types' => $this->customerModel->getAccountTypes(),
-            'account_type_id' => '',
-            'initial_deposit' => '',
-            'error_message' => ''
-        ];
-
-        // Process POST Request
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // Sanitize POST data
-            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
-            
-            $data['account_type_id'] = trim($_POST['account_type_id']);
-
-            // Validation
-            if (empty($_POST['agree_terms'])) {
-                $data['error_message'] = "You must agree to the Terms & Conditions before opening an account.";
-                $this->view('customer/open_account', $data);
-                return;
-            }
-            if (empty($data['account_type_id'])) {
-                $data['error_message'] = 'Please select an account type.';
-            } else {
-                // Perform account creation
-                $customer_id = $_SESSION['customer_id'] ?? 1; // Use a default if session isn't set (for testing)
-
-                $new_account_number = $this->customerModel->createBankAccount(
-                    $customer_id, 
-                    $data['account_type_id'], 
-                );
-
-                if ($new_account_number) {
-                    $_SESSION['success_message'] = "Success! Your new account (No. {$new_account_number}) has been opened.";
-                    // header('Location: ' . URLROOT . '/customer/account'); 
-                    // exit();
-                } else {
-                    $data['error_message'] = 'An error occurred while opening the account. Please try again.';
-                }
-            }
-        }
-
-        // Load View
-        $this->view('customer/create_account', $data);
-    }
-
     // --- PROFILE ---
     public function profile(){
         $customer_id = $_SESSION['customer_id'];
@@ -595,6 +546,13 @@ class CustomerController extends Controller {
                 exit();
             } else {
                 $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+                
+                // Enrich accounts with current balances
+                foreach ($accounts as $account) {
+                    $balance_result = $this->customerModel->validateAmount($account->account_number);
+                    $account->current_balance = $balance_result ? (float)$balance_result->balance : 0.00;
+                }
+                
                 $data = array_merge($data, [
                     'title' => 'Fund Transfer',
                     'accounts' => $accounts
@@ -603,6 +561,13 @@ class CustomerController extends Controller {
             }
         } else {
              $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+             
+             // Enrich accounts with current balances
+             foreach ($accounts as $account) {
+                 $balance_result = $this->customerModel->validateAmount($account->account_number);
+                 $account->current_balance = $balance_result ? (float)$balance_result->balance : 0.00;
+             }
+             
              $data = [
                 'title' => 'Fund Transfer',
                 'accounts' => $accounts

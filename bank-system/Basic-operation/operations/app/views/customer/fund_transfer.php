@@ -53,11 +53,15 @@
                             
                             <!-- Sender Number-->
                             <div class="mb-3">
-                                <label class="form-label fw-semibold" style="color: #003631;">From Account:</label>
-                                <select name="from_account" class="form-select" style="background-color: #e8e8df; border: none; border-radius: 8px;" required>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold" style="color: #003631; margin: 0;">From Account:</label>
+                                    <small class="text-muted" id="balance-display" style="font-weight: 500;">Balance: ₱ --</small>
+                                </div>
+                                <select name="from_account" id="from_account" class="form-select" style="background-color: #e8e8df; border: none; border-radius: 8px;" required>
+                                    <option value="">Select an account...</option>
                                     <?php foreach($data['accounts'] as $account): ?>
-                                        <option value="<?= $account->account_number?>">
-                                            <?= $account->account_number ?>
+                                        <option value="<?= $account->account_number?>" data-balance="<?= number_format($account->current_balance, 2, '.', '') ?>">
+                                            <?= $account->account_number ?> - <?= $account->account_type ?? 'Account' ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -139,6 +143,31 @@
                     setTimeout(() => alert.remove(), 500);
                 });
             }, 5000);
+        }
+        
+        // --- Balance Display Handler ---
+        const fromAccountSelect = document.getElementById('from_account');
+        const balanceDisplay = document.getElementById('balance-display');
+        
+        // Update balance when account is selected
+        fromAccountSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const balance = selectedOption.getAttribute('data-balance');
+            
+            if (balance && balance !== '--') {
+                balanceDisplay.textContent = 'Balance: ₱ ' + parseFloat(balance).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else {
+                balanceDisplay.textContent = 'Balance: ₱ --';
+            }
+        });
+        
+        // Set initial balance if an account is pre-selected
+        if (fromAccountSelect.value) {
+            const selectedOption = fromAccountSelect.options[fromAccountSelect.selectedIndex];
+            const balance = selectedOption.getAttribute('data-balance');
+            if (balance && balance !== '--') {
+                balanceDisplay.textContent = 'Balance: ₱ ' + parseFloat(balance).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
         }
       })
 </script>
