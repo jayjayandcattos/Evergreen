@@ -192,13 +192,40 @@ select.edit-input {
                         <span class="fw-bold" style="color: #003631;"><?= htmlspecialchars($data['full_name']) ?? 'N/A'; ?></span>
                     </div>
                     
-                    <!-- Home Address - EDITABLE -->
-                    <div class="edit-field-group view-mode mb-3" data-field="home_address">
+                    <!-- Home Address - split into Address Line, City, Province -->
+                    <div class="edit-field-group view-mode mb-3" data-field="address_line">
                         <div class="d-flex" style="flex: 1;">
-                            <span class="text-muted fw-normal me-5" style="width: 150px;">Home Address</span>
-                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->home_address ?? 'N/A'); ?></span>
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">Address</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars(($data['profile']->address_line ?? '') . (isset($data['profile']->city) && $data['profile']->city ? ', ' . $data['profile']->city : '') . (isset($data['profile']->province_name) && $data['profile']->province_name ? ', ' . $data['profile']->province_name : '')); ?></span>
                         </div>
-                        <input type="text" name="home_address" class="edit-input form-control" value="<?= htmlspecialchars($data['profile']->home_address ?? ''); ?>" placeholder="Street, City, Province">
+                        <input type="text" name="address_line" class="edit-input form-control" value="<?= htmlspecialchars($data['profile']->address_line ?? ''); ?>" placeholder="Street, Barangay, Subdivision">
+                        <button type="button" class="edit-btn" onclick="toggleEdit(this)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </div>
+
+                    <div class="edit-field-group view-mode mb-3" data-field="city">
+                        <div class="d-flex" style="flex: 1;">
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">City</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->city ?? 'N/A'); ?></span>
+                        </div>
+                        <input type="text" name="city" class="edit-input form-control" value="<?= htmlspecialchars($data['profile']->city ?? ''); ?>" placeholder="e.g., Quezon City">
+                        <button type="button" class="edit-btn" onclick="toggleEdit(this)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </div>
+
+                    <div class="edit-field-group view-mode mb-3" data-field="province_id">
+                        <div class="d-flex" style="flex: 1;">
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">Province</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->province_name ?? 'N/A'); ?></span>
+                        </div>
+                        <select name="province_id" class="edit-input form-control">
+                            <option value="">Select Province</option>
+                            <?php foreach (($data['provinces'] ?? []) as $prov): ?>
+                                <option value="<?= $prov->province_id; ?>" <?= (isset($data['profile']->province_id) && $data['profile']->province_id == $prov->province_id) ? 'selected' : ''; ?>><?= htmlspecialchars($prov->province_name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
                         <button type="button" class="edit-btn" onclick="toggleEdit(this)">
                             <i class="bi bi-pencil"></i> Edit
                         </button>

@@ -1,531 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <?php
 
 class Customer extends Database{
@@ -543,15 +15,16 @@ class Customer extends Database{
                 c.customer_id,
                 c.first_name,
                 c.last_name,
-                c.email,
                 c.password_hash,
                 a.account_number
             FROM
                 bank_customers c
             LEFT JOIN
+                emails e ON c.customer_id = e.customer_id
+            LEFT JOIN
                 customer_accounts a ON c.customer_id = a.customer_id
             WHERE
-                c.email = :emailIdentifier OR a.account_number = :accountIdentifier
+                e.email = :emailIdentifier OR a.account_number = :accountIdentifier
             LIMIT 1;
         ");
 
@@ -562,11 +35,11 @@ class Customer extends Database{
         $email = null;
         $account_number = $identifier;
     }
-
     $this->db->bind(':emailIdentifier', $email);
     $this->db->bind(':accountIdentifier', $account_number);
     return $this->db->single();
-  } 
+
+    }
 
     public function loginCustomer($identifier, $password) {
         $customer = $this->getCustomerByEmailOrAccountNumber($identifier);
@@ -694,15 +167,12 @@ class Customer extends Database{
         }
 
         // Step 2: Verify account type matches user input
-        // Use LIKE to match partial names (e.g., "Savings" matches "Savings Account")
         $this->db->query("
             SELECT account_type_id, type_name 
             FROM bank_account_types 
-            WHERE type_name LIKE :account_type
+            WHERE type_name = :account_type
         ");
-        // Add wildcards for flexible matching
-        $searchTerm = '%' . $data['account_type'] . '%';
-        $this->db->bind(':account_type', $searchTerm);
+        $this->db->bind(':account_type', $data['account_type']);
         $type = $this->db->single();
 
         if (!$type) {
@@ -858,7 +328,12 @@ class Customer extends Database{
                 cp.occupation,
                 cp.company AS name_of_employer,
                 g.gender_name AS gender,
-                -- Address (Home Address - assuming primary home address)
+                -- Address parts (Home Address - primary)
+                (SELECT a.address_line FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS address_line,
+                (SELECT a.city FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city,
+                (SELECT a.province_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province_id,
+                (SELECT p.province_name FROM addresses a JOIN provinces p ON a.province_id = p.province_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province_name,
+                -- Legacy concatenated field for compatibility
                 (SELECT CONCAT(a.address_line, ', ', a.city, ', ', p.province_name, ', Philippines') 
                  FROM addresses a
                  JOIN provinces p ON a.province_id = p.province_id
@@ -872,6 +347,15 @@ class Customer extends Database{
         $this->db->bind(':customer_id', $customer_id);
         
         return $this->db->single();
+    }
+
+    /**
+     * Get list of provinces
+     * @return array
+     */
+    public function getProvinces() {
+        $this->db->query("SELECT province_id, province_name FROM provinces ORDER BY province_name ASC");
+        return $this->db->resultSet();
     }
 
     // --- FOR THE CHANGE PASSWORD ---
@@ -977,22 +461,47 @@ class Customer extends Database{
                 }
             }
             
-            // Update address if provided (parse the concatenated address)
-            if (isset($profile_data['home_address'])) {
-                // For now, update the address_line field only
-                // Note: Full address parsing would require more complex logic
-                $address_parts = explode(',', $profile_data['home_address']);
-                $address_line = trim($address_parts[0] ?? '');
-                
-                if (!empty($address_line)) {
-                    $this->db->query("
-                        UPDATE addresses 
-                        SET address_line = :address_line 
-                        WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home'
-                    ");
-                    $this->db->bind(':address_line', $address_line);
-                    $this->db->bind(':customer_id', $customer_id);
-                    $success = $this->db->execute() && $success;
+            // Update address parts if provided (address_line, city, province_id)
+            if (isset($profile_data['address_line']) || isset($profile_data['city']) || isset($profile_data['province_id'])) {
+                $address_line = isset($profile_data['address_line']) ? trim($profile_data['address_line']) : null;
+                $city = isset($profile_data['city']) ? trim($profile_data['city']) : null;
+                $province_id = isset($profile_data['province_id']) ? (is_numeric($profile_data['province_id']) ? (int)$profile_data['province_id'] : null) : null;
+
+                // Check if primary home address exists
+                $this->db->query("SELECT address_id FROM addresses WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home' LIMIT 1");
+                $this->db->bind(':customer_id', $customer_id);
+                $addr_exists = $this->db->single();
+
+                if ($addr_exists) {
+                    // Build update dynamically
+                    $set_clauses = [];
+                    if ($address_line !== null) $set_clauses[] = "address_line = :address_line";
+                    if ($city !== null) $set_clauses[] = "city = :city";
+                    if ($province_id !== null) $set_clauses[] = "province_id = :province_id";
+
+                    if (!empty($set_clauses)) {
+                        $sql = "UPDATE addresses SET " . implode(', ', $set_clauses) . " WHERE address_id = :address_id";
+                        $this->db->query($sql);
+                        if ($address_line !== null) $this->db->bind(':address_line', $address_line);
+                        if ($city !== null) $this->db->bind(':city', $city);
+                        if ($province_id !== null) $this->db->bind(':province_id', $province_id);
+                        $this->db->bind(':address_id', $addr_exists->address_id);
+                        $result = $this->db->execute();
+                        if (!$result) error_log("Failed to update address for customer_id: $customer_id");
+                        $success = $result && $success;
+                    }
+                } else {
+                    // Insert new primary home address if at least one part provided
+                    if ($address_line || $city || $province_id) {
+                        $this->db->query("INSERT INTO addresses (customer_id, address_line, city, province_id, address_type, is_primary, created_at) VALUES (:customer_id, :address_line, :city, :province_id, 'home', 1, NOW())");
+                        $this->db->bind(':customer_id', $customer_id);
+                        $this->db->bind(':address_line', $address_line);
+                        $this->db->bind(':city', $city);
+                        $this->db->bind(':province_id', $province_id);
+                        $result = $this->db->execute();
+                        if (!$result) error_log("Failed to insert address for customer_id: $customer_id");
+                        $success = $result && $success;
+                    }
                 }
             }
             
@@ -1187,8 +696,7 @@ class Customer extends Database{
     }
 
     public function recordTransaction($transaction_ref, $sender, $receiver, $amount, $fee, $message){
-        // for sender - Transfer Out (debit)
-        // Store positive amount, the CASE statement in balance calculation will make it negative
+        // for sender
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -1209,14 +717,13 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 8); // Transfer Out - sender sends money
-        $this->db->bind(':amount', $amount); // Store positive, balance calc applies negative
+        $this->db->bind(':transaction_type', 8);
+        $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $receiver);
         $this->db->bind(':message', $message);
         $this->db->execute();
 
-        // For the fee - Service Charge (debit)
-        // Store positive amount, the CASE statement in balance calculation will make it negative
+        // For the fee
         $this->db->query("
         INSERT INTO bank_transactions (
             account_id,
@@ -1232,13 +739,12 @@ class Customer extends Database{
         );
         ");
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 5); // Service Charge type
-        $this->db->bind(':amount', $fee); // Store positive, balance calc applies negative
+        $this->db->bind(':transaction_type', 5);
+        $this->db->bind(':amount', $fee);
         $this->db->bind(':message', 'Transaction Service Charge - ' . $transaction_ref);
         $this->db->execute();
 
-        // for the receiver - Transfer In (credit)
-        // Store positive amount, the CASE statement in balance calculation will keep it positive
+        // for the receiver
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -1259,8 +765,8 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $receiver);
-        $this->db->bind(':transaction_type', 9); // Transfer In - receiver gets money
-        $this->db->bind(':amount', $amount); // Store positive, balance calc keeps positive
+        $this->db->bind(':transaction_type', 3);
+        $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $sender);
         $this->db->bind(':message', $message);
         $this->db->execute();
@@ -1924,4 +1430,125 @@ class Customer extends Database{
         return $result ? (float)$result->current_balance : 0.00;
     }
 
+    /**
+     * Calculate interest from a list of transactions using the daily-balance method.
+     *
+     * Assumptions:
+     * - Each transaction's amount is positive for credits (deposits) and negative for debits (withdrawals).
+     * - `opening_balance` is the balance at the start of `start_date` BEFORE transactions on that date are applied.
+     * - Each transaction affects the balance starting on its `date` (inclusive).
+     * - If `start_date` is omitted, calculation starts at the earliest transaction date (or today if none).
+     * - If `end_date` is omitted, calculation runs up to today.
+     *
+     * @param array $transactions Array of ['date' => 'YYYY-MM-DD', 'amount' => float]
+     * @param float $opening_balance Balance at start_date before transactions on that date
+     * @param float $annual_interest_rate e.g. 0.03 for 3%
+     * @param string|null $start_date inclusive, format 'YYYY-MM-DD'
+     * @param string|null $end_date inclusive, format 'YYYY-MM-DD'
+     * @param bool $return_breakdown when true returns per-period breakdown
+     * @return array ['total_interest' => float, 'daily_rate' => float, 'breakdown' => array|null]
+     */
+    public function calculateInterestFromTransactions(array $transactions, float $opening_balance, float $annual_interest_rate, $start_date = null, $end_date = null, $return_breakdown = false) {
+        if ($annual_interest_rate < 0) {
+            throw new InvalidArgumentException('annual_interest_rate must be non-negative');
+        }
+
+        $daily_rate = $annual_interest_rate / 365.0;
+
+        // Aggregate net change per date (YYYY-MM-DD)
+        $net_changes = [];
+        foreach ($transactions as $t) {
+            if (!isset($t['date']) || !isset($t['amount'])) {
+                continue;
+            }
+            try {
+                $d = (new DateTime($t['date']))->format('Y-m-d');
+            } catch (Exception $e) {
+                // Skip invalid dates
+                continue;
+            }
+            $amt = (float)$t['amount'];
+            if (!isset($net_changes[$d])) {
+                $net_changes[$d] = 0.0;
+            }
+            $net_changes[$d] += $amt;
+        }
+
+        if (!empty($net_changes)) {
+            ksort($net_changes);
+        }
+
+        // Determine start and end
+        if ($start_date) {
+            $start = (new DateTime($start_date))->format('Y-m-d');
+        } else {
+            $start = !empty($net_changes) ? array_key_first($net_changes) : date('Y-m-d');
+        }
+
+        if ($end_date) {
+            $end = (new DateTime($end_date))->format('Y-m-d');
+        } else {
+            $end = date('Y-m-d');
+        }
+
+        if ($end < $start) {
+            throw new InvalidArgumentException('end_date must be on or after start_date');
+        }
+
+        // Build the ordered list of dates to process. Each listed date is a day when the balance may change
+        $dates = [$start];
+        foreach ($net_changes as $d => $_) {
+            if ($d >= $start && $d <= $end && $d !== $start) {
+                $dates[] = $d;
+            }
+        }
+
+        // sentinel: the day after end (so periods end on end_date)
+        $end_next = (new DateTime($end))->modify('+1 day')->format('Y-m-d');
+        $dates[] = $end_next;
+
+        // Ensure unique and sorted
+        $dates = array_values(array_unique($dates));
+
+        $current_balance = (float)$opening_balance;
+        $total_interest = 0.0;
+        $breakdown = [];
+
+        for ($i = 0; $i < count($dates) - 1; $i++) {
+            $date = $dates[$i];
+
+            // Apply all transactions that occur on this date (their effect starts on this date)
+            if (isset($net_changes[$date])) {
+                $current_balance += $net_changes[$date];
+            }
+
+            $next_date = $dates[$i + 1];
+            $dt_date = new DateTime($date);
+            $dt_next = new DateTime($next_date);
+            $days = (int)$dt_date->diff($dt_next)->days; // number of days balance is constant
+
+            if ($days > 0) {
+                $interest = $current_balance * $days * $daily_rate;
+                $total_interest += $interest;
+            } else {
+                $interest = 0.0;
+            }
+
+            $period_end = (new DateTime($next_date))->modify('-1 day')->format('Y-m-d');
+
+            $breakdown[] = [
+                'period_start' => $date,
+                'period_end' => $period_end,
+                'days' => $days,
+                'balance' => round($current_balance, 2),
+                'interest' => round($interest, 2),
+            ];
+        }
+
+        return [
+            'total_interest' => round($total_interest, 2),
+            'daily_rate' => $daily_rate,
+            'breakdown' => $return_breakdown ? $breakdown : null,
+        ];
+    }
 }

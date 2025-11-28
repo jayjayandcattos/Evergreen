@@ -263,55 +263,6 @@ class CustomerController extends Controller {
         }
     }
 
-    // -- CREATING ACCOUNT
-    public function create_account()
-    {
-        $data = [
-            'title' => 'Open New Account',
-            'account_types' => $this->customerModel->getAccountTypes(),
-            'account_type_id' => '',
-            'initial_deposit' => '',
-            'error_message' => ''
-        ];
-
-        // Process POST Request
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // Sanitize POST data
-            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
-            
-            $data['account_type_id'] = trim($_POST['account_type_id']);
-
-            // Validation
-            if (empty($_POST['agree_terms'])) {
-                $data['error_message'] = "You must agree to the Terms & Conditions before opening an account.";
-                $this->view('customer/open_account', $data);
-                return;
-            }
-            if (empty($data['account_type_id'])) {
-                $data['error_message'] = 'Please select an account type.';
-            } else {
-                // Perform account creation
-                $customer_id = $_SESSION['customer_id'] ?? 1; // Use a default if session isn't set (for testing)
-
-                $new_account_number = $this->customerModel->createBankAccount(
-                    $customer_id, 
-                    $data['account_type_id'], 
-                );
-
-                if ($new_account_number) {
-                    $_SESSION['success_message'] = "Success! Your new account (No. {$new_account_number}) has been opened.";
-                    // header('Location: ' . URLROOT . '/customer/account'); 
-                    // exit();
-                } else {
-                    $data['error_message'] = 'An error occurred while opening the account. Please try again.';
-                }
-            }
-        }
-
-        // Load View
-        $this->view('customer/create_account', $data);
-    }
-
     // --- PROFILE ---
     public function profile(){
         $customer_id = $_SESSION['customer_id'];
@@ -331,6 +282,15 @@ class CustomerController extends Controller {
             }
             if (isset($_POST['home_address'])) {
                 $update_data['home_address'] = trim($_POST['home_address']);
+            }
+            if (isset($_POST['address_line'])) {
+                $update_data['address_line'] = trim($_POST['address_line']);
+            }
+            if (isset($_POST['city'])) {
+                $update_data['city'] = trim($_POST['city']);
+            }
+            if (isset($_POST['province_id'])) {
+                $update_data['province_id'] = trim($_POST['province_id']);
             }
             if (isset($_POST['gender'])) {
                 $update_data['gender'] = trim($_POST['gender']);
@@ -374,11 +334,13 @@ class CustomerController extends Controller {
         }
 
         $profile_data = $this->customerModel->getCustomerProfileData($customer_id);
+        $provinces = $this->customerModel->getProvinces();
 
         if (!$profile_data) {
              $profile_data = (object)[
                  'first_name' => 'N/A', 'last_name' => 'N/A', 'username' => 'N/A', 
                  'mobile_number' => 'N/A', 'email_address' => 'N/A', 'home_address' => 'N/A',
+                 'address_line' => '', 'city' => '', 'province_id' => null, 'province_name' => '',
                  'date_of_birth' => 'N/A', 'gender' => 'N/A', 'civil_status' => 'N/A', 
                  'citizenship' => 'N/A', 'occupation' => 'N/A', 'name_of_employer' => 'N/A'
              ];
@@ -387,6 +349,7 @@ class CustomerController extends Controller {
         $data = [
             'title' => "My Profile",
             'profile' => $profile_data,
+            'provinces' => $provinces,
             'full_name' => trim($profile_data->first_name . ' ' . $profile_data->middle_name . ' ' . $profile_data->last_name),
             'source_of_funds' => $profile_data->occupation,
             'employment_status' => $profile_data->occupation ? 'Employed' : 'Unemployed',

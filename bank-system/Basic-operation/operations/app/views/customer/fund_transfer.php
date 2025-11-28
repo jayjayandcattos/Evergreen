@@ -51,12 +51,17 @@
                         <!------- FORM --------------------------------------------------------------------------------------------->
                         <form action="<?= URLROOT ."/customer/fund_transfer"?>" method="POST">
                             
-                            <!-- Sender Number-->
+                            <!-- Sender Number with Balance Display -->
                             <div class="mb-3">
-                                <label class="form-label fw-semibold" style="color: #003631;">From Account:</label>
-                                <select name="from_account" class="form-select" style="background-color: #e8e8df; border: none; border-radius: 8px;" required>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold mb-0" style="color: #003631;">From Account:</label>
+                                    <small class="text-muted">
+                                        Available Balance: <span id="account_balance" class="fw-bold text-success">₱0.00</span>
+                                    </small>
+                                </div>
+                                <select name="from_account" id="from_account" class="form-select" style="background-color: #e8e8df; border: none; border-radius: 8px;" required>
                                     <?php foreach($data['accounts'] as $account): ?>
-                                        <option value="<?= $account->account_number?>">
+                                        <option value="<?= $account->account_number?>" data-balance="<?= number_format($account->ending_balance, 2, '.', '') ?>">
                                             <?= $account->account_number ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -79,10 +84,16 @@
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between ">
                                     <label class="form-label fw-semibold" style="color: #003631;">Amount:</label>
-                                    <!-- WILL ONLY SHOW IF NOT SUFFICIENT BALANCE(remove the comment below to be visible) -------------------------->
-                                    <!--- <label class="text-danger">No sufficient balance</label> -------------------------------------------------> 
+                                    <div>
+                                        <small id="insufficient_balance" class="text-danger d-none">
+                                            <i class="bi bi-exclamation-circle"></i> Insufficient balance
+                                        </small>
+                                        <small id="remaining_text" class="text-muted d-none">
+                                            Remaining after transfer: <span id="remaining_balance" class="fw-bold text-success">₱0.00</span>
+                                        </small>
+                                    </div>
                                 </div>
-                                <input type="number" name="amount" class="form-control" placeholder="600" style="background-color: #e8e8df; border: none; border-radius: 8px;">
+                                <input type="number" id="transfer_amount" name="amount" class="form-control" placeholder="600" style="background-color: #e8e8df; border: none; border-radius: 8px;" step="0.01" min="0">
                             </div>
 
                             <!--- MESSAGE ------------------------------------------------------------------------------------------>
@@ -128,17 +139,83 @@
 </div>
 <?php require_once ROOT_PATH . '/app/views/layouts/footer.php'; ?>
 <script>
+  const FEE = 15.00;
+
+  // Initialize balance on page load
+  function initializeBalance() {
+    const selectElement = document.getElementById('from_account');
+    updateBalance();
+  }
+
+  // Update balance when account selection changes
+  function updateBalance() {
+    const selectElement = document.getElementById('from_account');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+    
+    const balanceDisplay = document.getElementById('account_balance');
+    balanceDisplay.textContent = '₱' + balance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    // Update remaining balance calculation
+    updateRemainingBalance();
+  }
+
+  // Update remaining balance when amount changes
+  function updateRemainingBalance() {
+    const selectElement = document.getElementById('from_account');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+    
+    const amountInput = document.getElementById('transfer_amount');
+    const amount = parseFloat(amountInput.value) || 0;
+    const total = amount + FEE;
+    const remaining = balance - total;
+    
+    const insufficientAlert = document.getElementById('insufficient_balance');
+    const remainingText = document.getElementById('remaining_text');
+    const remainingBalanceSpan = document.getElementById('remaining_balance');
+    
+    if (amount > 0) {
+      if (balance < total) {
+        insufficientAlert.classList.remove('d-none');
+        remainingText.classList.add('d-none');
+      } else {
+        insufficientAlert.classList.add('d-none');
+        remainingText.classList.remove('d-none');
+        remainingBalanceSpan.textContent = '₱' + remaining.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+    } else {
+      insufficientAlert.classList.add('d-none');
+      remainingText.classList.add('d-none');
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
-        // --- Alert Message Handling ---
-        const alerts = document.querySelectorAll('.alert-message');
-        if (alerts.length > 0) {
-            setTimeout(() => {
-                alerts.forEach(alert => {
-                    alert.style.transition = 'opacity 0.5s ease';
-                    alert.style.opacity = '0';
-                    setTimeout(() => alert.remove(), 500);
-                });
-            }, 5000);
-        }
-      })
+    // Initialize balance on page load
+    initializeBalance();
+    
+    // Listen for account selection changes
+    const selectElement = document.getElementById('from_account');
+    if (selectElement) {
+      selectElement.addEventListener('change', updateBalance);
+    }
+    
+    // Listen for amount input changes
+    const amountInput = document.getElementById('transfer_amount');
+    if (amountInput) {
+      amountInput.addEventListener('input', updateRemainingBalance);
+    }
+    
+    // --- Alert Message Handling ---
+    const alerts = document.querySelectorAll('.alert-message');
+    if (alerts.length > 0) {
+      setTimeout(() => {
+        alerts.forEach(alert => {
+          alert.style.transition = 'opacity 0.5s ease';
+          alert.style.opacity = '0';
+          setTimeout(() => alert.remove(), 500);
+        });
+      }, 5000);
+    }
+  });
 </script>
