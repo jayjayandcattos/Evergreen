@@ -359,15 +359,32 @@
 
                         <!-- BODY ------------------------------------------------------------------------------------------>
                         <div class="modal-body rounded-bottom-3" style="background-color:#D9D9D9;">
+                            <?php if (!empty($data['account_number_error'])): ?>
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-exclamation-circle me-2"></i>
+                                    <?= $data['account_number_error']; ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($data['account_type_error'])): ?>
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-exclamation-circle me-2"></i>
+                                    <?= $data['account_type_error']; ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            <?php endif; ?>
+
                             <form id="addAccountForm" action=<?= URLROOT . "/customer/addAccount"?> method="POST">
                                 <div class="mb-3 bg-light rounded-4 p-3 shadow-sm">
                                     <label for="accountType" class="form-label fw-semibold text-dark mb-1 ms-2">Account Type</label>
                                     <select class="form-select border-1 border-secondary rounded-3 bg-body-secondary" id="accountType" name="account_type" required>
                                         <option value="">Select Account Type</option>
-                                        <option value="Savings">Savings Account</option>
-                                        <option value="Checking">Checking Account</option>
-                                        <option value="Loan">Loan Account</option>
-                                        <option value="Fixed Deposit">Fixed Deposit</option>
+                                        <option value="Savings Account">Savings Account</option>
+                                        <option value="Checking Account">Checking Account</option>
+                                        <option value="Time Deposit">Time Deposit</option>
+                                        <option value="Current Account">Current Account</option>
+                                        <option value="USD Account">USD Account</option>
                                     </select>
                                 </div>
 
@@ -838,6 +855,13 @@
         });
     });
 
+    // --- Auto-open Add Account Modal if there are errors ---
+    <?php if (!empty($data['show_add_account_modal']) && $data['show_add_account_modal']): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addAccountModal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+        addAccountModal.show();
+    });
+    <?php endif; ?>
     // --- Initialize content with the first active/visible card on page load ---
     // This needs to happen AFTER all filtering logic is set up
     filterAndSearchAccounts(); // Apply all filters (search, type, show/hide) initially

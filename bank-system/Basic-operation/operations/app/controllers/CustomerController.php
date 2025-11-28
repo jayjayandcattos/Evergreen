@@ -245,18 +245,26 @@ class CustomerController extends Controller {
                 'title' => "Accounts",
                 'first_name' => $_SESSION['customer_first_name'],
                 'last_name'  => $_SESSION['customer_last_name'],
-                'accounts' => $accounts
+                'accounts' => $accounts,
+                'show_add_account_modal' => true  // Flag to auto-show the modal
             ]);
 
             $this->view('customer/account', $data);
 
         } else {
+            $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+
             $data = [
+                'title' => "Accounts",
+                'first_name' => $_SESSION['customer_first_name'],
+                'last_name'  => $_SESSION['customer_last_name'],
                 'account_number' => '',
                 'account_type'   => '',
                 'account_number_error' => '',
                 'account_type_error'   => '',
                 'success_message'      => '',
+                'accounts' => $accounts,
+                'show_add_account_modal' => false
             ];
 
             $this->view('customer/account', $data);

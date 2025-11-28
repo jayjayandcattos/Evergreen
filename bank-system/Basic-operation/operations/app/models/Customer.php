@@ -152,18 +152,33 @@ class Customer extends Database{
     }
 
     public function addAccount($data) {
-        // Step 1: Get account_id and account_type by account_number
+        // Input validation
+        if (empty($data['account_number'])) {
+            return ['success' => false, 'error' => 'Account number is required.'];
+        }
+        if (empty($data['account_type'])) {
+            return ['success' => false, 'error' => 'Account type is required.'];
+        }
+        if (empty($data['customer_id'])) {
+            return ['success' => false, 'error' => 'Invalid customer session.'];
+        }
+
+        // Step 1: Get account_id and account_type by account_number AND VERIFY IT BELONGS TO THE CUSTOMER
         $this->db->query("
-            SELECT account_id, account_type_id 
-            FROM customer_accounts 
-            WHERE account_number = :account_number
+            SELECT ca.account_id, ca.account_type_id, ca.customer_id
+            FROM customer_accounts ca
+            WHERE ca.account_number = :account_number
         ");
         $this->db->bind(':account_number', $data['account_number']);
         $account = $this->db->single();
 
         if (!$account) {
-            // No account found with that number
             return ['success' => false, 'error' => 'Account number not found.'];
+        }
+
+        // SECURITY CHECK: Verify the account belongs to the logged-in customer
+        if ((int)$account->customer_id !== (int)$data['customer_id']) {
+            return ['success' => false, 'error' => 'You can only add your own accounts.'];
         }
 
         // Step 2: Verify account type matches user input
@@ -179,7 +194,7 @@ class Customer extends Database{
             return ['success' => false, 'error' => 'Invalid account type provided.'];
         }
 
-        if ($account->account_type_id !== $type->account_type_id) {
+        if ((int)$account->account_type_id !== (int)$type->account_type_id) {
             return ['success' => false, 'error' => 'Account type does not match the account number.'];
         }
 
@@ -196,7 +211,8 @@ class Customer extends Database{
         $existing = $this->db->single();
 
         if ($existing) {
-            if ($existing->is_active == 0) {
+            // Account link already exists
+            if ((int)$existing->is_active === 0) {
                 // Step 4: Reactivate if inactive
                 $this->db->query("
                     UPDATE customer_linked_accounts
@@ -205,14 +221,18 @@ class Customer extends Database{
                 ");
                 $this->db->bind(':customer_id', $data['customer_id']);
                 $this->db->bind(':account_id', $account_id);
-                $this->db->execute();
-                return ['success' => true, 'message' => 'Account reactivated successfully.'];
+                
+                if ($this->db->execute()) {
+                    return ['success' => true, 'message' => 'Account reactivated successfully.'];
+                } else {
+                    return ['success' => false, 'error' => 'Failed to reactivate account.'];
+                }
             } else {
                 return ['success' => false, 'error' => 'This account is already linked and active.'];
             }
         }
 
-        // Step 5: Insert new link
+        // Step 5: Insert new link if it doesn't exist
         $this->db->query("
             INSERT INTO customer_linked_accounts (customer_id, account_id, is_active)
             VALUES (:customer_id, :account_id, 1)
@@ -221,7 +241,7 @@ class Customer extends Database{
         $this->db->bind(':account_id', $account_id);
 
         if ($this->db->execute()) {
-            return ['success' => true, 'message' => 'Account linked successfully.'];
+            return ['success' => true, 'message' => 'Account added successfully.'];
         }
 
         return ['success' => false, 'error' => 'Failed to add account.'];
