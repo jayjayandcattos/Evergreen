@@ -330,11 +330,17 @@ class Customer extends Database{
                 cp.occupation,
                 cp.company AS name_of_employer,
                 g.gender_name AS gender,
-                -- Address (Home Address - assuming primary home address)
-                (SELECT CONCAT(a.address_line, ', ', a.city, ', ', p.province_name, ', Philippines') 
+                -- Address components (separated)
+                (SELECT a.address_line 
+                 FROM addresses a
+                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS address_line,
+                (SELECT a.city 
+                 FROM addresses a
+                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city,
+                (SELECT p.province_name 
                  FROM addresses a
                  JOIN provinces p ON a.province_id = p.province_id
-                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS home_address
+                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province
             FROM bank_customers c
             LEFT JOIN customer_profiles cp ON c.customer_id = cp.customer_id
             LEFT JOIN genders g ON cp.gender_id = g.gender_id
@@ -449,21 +455,41 @@ class Customer extends Database{
                 }
             }
             
-            // Update address if provided (parse the concatenated address)
-            if (isset($profile_data['home_address'])) {
-                // For now, update the address_line field only
-                // Note: Full address parsing would require more complex logic
-                $address_parts = explode(',', $profile_data['home_address']);
-                $address_line = trim($address_parts[0] ?? '');
+            // Update address if provided (handle separate address components)
+            if (isset($profile_data['address_line']) || isset($profile_data['city']) || isset($profile_data['province'])) {
+                // Build the update query dynamically based on provided fields
+                $update_fields = [];
+                $bind_params = [':customer_id' => $customer_id];
                 
-                if (!empty($address_line)) {
-                    $this->db->query("
-                        UPDATE addresses 
-                        SET address_line = :address_line 
-                        WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home'
-                    ");
-                    $this->db->bind(':address_line', $address_line);
-                    $this->db->bind(':customer_id', $customer_id);
+                if (isset($profile_data['address_line']) && !empty($profile_data['address_line'])) {
+                    $update_fields[] = "address_line = :address_line";
+                    $bind_params[':address_line'] = $profile_data['address_line'];
+                }
+                
+                if (isset($profile_data['city']) && !empty($profile_data['city'])) {
+                    $update_fields[] = "city = :city";
+                    $bind_params[':city'] = $profile_data['city'];
+                }
+                
+                // Handle province - need to get province_id from province name
+                if (isset($profile_data['province']) && !empty($profile_data['province'])) {
+                    $this->db->query("SELECT province_id FROM provinces WHERE province_name = :province_name LIMIT 1");
+                    $this->db->bind(':province_name', $profile_data['province']);
+                    $province_result = $this->db->single();
+                    if ($province_result) {
+                        $update_fields[] = "province_id = :province_id";
+                        $bind_params[':province_id'] = $province_result->province_id;
+                    }
+                }
+                
+                if (!empty($update_fields)) {
+                    $sql = "UPDATE addresses SET " . implode(", ", $update_fields) . 
+                           " WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home'";
+                    $this->db->query($sql);
+                    
+                    foreach ($bind_params as $param => $value) {
+                        $this->db->bind($param, $value);
+                    }
                     $success = $this->db->execute() && $success;
                 }
             }
