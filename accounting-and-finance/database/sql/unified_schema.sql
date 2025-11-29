@@ -98,6 +98,13 @@ CREATE TABLE employee (
     contact_number VARCHAR(20) DEFAULT NULL,
     email VARCHAR(100) DEFAULT NULL,
     address VARCHAR(255) DEFAULT NULL,
+    house_number VARCHAR(50) DEFAULT NULL,
+    street VARCHAR(100) DEFAULT NULL,
+    barangay VARCHAR(100) DEFAULT NULL,
+    city VARCHAR(100) DEFAULT NULL,
+    province VARCHAR(100) DEFAULT NULL,
+    secondary_email VARCHAR(100) DEFAULT NULL,
+    secondary_contact_number VARCHAR(20) DEFAULT NULL,
     hire_date DATE DEFAULT NULL,
     department_id INT DEFAULT NULL,
     position_id INT DEFAULT NULL,
@@ -223,7 +230,13 @@ CREATE TABLE applicant (
     resume_file VARCHAR(255) DEFAULT NULL,
     application_status VARCHAR(20) DEFAULT NULL,
     archived_at DATETIME DEFAULT NULL,
+    offer_status ENUM('Pending', 'Accepted', 'Declined') DEFAULT 'Pending',
+    offer_token VARCHAR(100) UNIQUE DEFAULT NULL,
+    offer_sent_at DATETIME DEFAULT NULL,
+    offer_acceptance_timestamp DATETIME DEFAULT NULL,
+    offer_declined_at DATETIME DEFAULT NULL,
     INDEX idx_recruitment_id (recruitment_id),
+     INDEX idx_offer_token (offer_token),
     FOREIGN KEY (recruitment_id) REFERENCES recruitment(recruitment_id)
 );
 
@@ -272,22 +285,48 @@ CREATE TABLE system_logs (
 -- ========================================
 -- BANKING MODULE
 -- ========================================
+CREATE TABLE account_applications (
+    application_id INT AUTO_INCREMENT PRIMARY KEY,
+    application_number VARCHAR(50) NOT NULL,
+    application_status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    street_address VARCHAR(255) NOT NULL,
+    barangay VARCHAR(150) NOT NULL DEFAULT '',
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    zip_code VARCHAR(20) NOT NULL,
+    ssn VARCHAR(50) NOT NULL,
+    id_type VARCHAR(50) NOT NULL,
+    id_number VARCHAR(100) NOT NULL,
+    employment_status VARCHAR(50) NOT NULL,
+    employer_name VARCHAR(150) DEFAULT NULL,
+    job_title VARCHAR(100) DEFAULT NULL,
+    annual_income DECIMAL(15,2) DEFAULT NULL,
+    account_type VARCHAR(50) NOT NULL COMMENT 'acct-checking, acct-savings, acct-both',
+    selected_cards TEXT DEFAULT NULL COMMENT 'Comma-separated: debit, credit, prepaid',
+    additional_services TEXT DEFAULT NULL COMMENT 'Comma-separated: debit, online, mobile, overdraft',
+    terms_accepted TINYINT(1) DEFAULT 0,
+    privacy_acknowledged TINYINT(1) DEFAULT 0,
+    marketing_consent TINYINT(1) DEFAULT 0,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME DEFAULT NULL,
+    UNIQUE KEY application_number (application_number),
+    INDEX idx_application_number (application_number),
+    INDEX idx_email (email),
+    INDEX idx_status (application_status),
+    INDEX idx_submitted_at (submitted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE missions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mission_text VARCHAR(255) NOT NULL,
     points_value DECIMAL(10,2) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE `points_history` (
-  `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `points` decimal(10,2) NOT NULL,
-  `description` varchar(255) NOT NULL,
-  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bank_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -310,20 +349,6 @@ CREATE TABLE bank_users (
     INDEX idx_bank_id (bank_id)
 );
 
-CREATE TABLE user_missions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    customer_id INT DEFAULT NULL,
-    mission_id INT NOT NULL,
-    points_earned DECIMAL(10,2) NOT NULL,
-    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_user_mission (user_id, mission_id),
-    INDEX idx_mission_id (mission_id),
-    INDEX idx_customer_id (customer_id),
-    FOREIGN KEY (user_id) REFERENCES bank_users(id) ON DELETE CASCADE,
-    FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-);
-
 CREATE TABLE genders (
     gender_id INT AUTO_INCREMENT PRIMARY KEY,
     gender_name VARCHAR(50) NOT NULL,
@@ -333,7 +358,33 @@ CREATE TABLE genders (
 CREATE TABLE provinces (
     province_id INT AUTO_INCREMENT PRIMARY KEY,
     province_name VARCHAR(100) NOT NULL,
-    country VARCHAR(100) DEFAULT 'Philippines'
+    country VARCHAR(100) NOT NULL DEFAULT 'Philippines',
+    region VARCHAR(100) DEFAULT NULL,
+    INDEX idx_province_name (province_name),
+    CHECK (country = 'Philippines')
+);
+
+CREATE TABLE cities (
+    city_id INT AUTO_INCREMENT PRIMARY KEY,
+    city_name VARCHAR(100) NOT NULL,
+    province_id INT NOT NULL,
+    city_type ENUM('city','municipality') DEFAULT 'city',
+    zip_code VARCHAR(10) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_city_name (city_name),
+    INDEX idx_province_id (province_id),
+    FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE CASCADE
+);
+
+CREATE TABLE barangays (
+    barangay_id INT AUTO_INCREMENT PRIMARY KEY,
+    barangay_name VARCHAR(100) NOT NULL,
+    city_id INT NOT NULL,
+    zip_code VARCHAR(10) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_barangay_name (barangay_name),
+    INDEX idx_city_id (city_id),
+    FOREIGN KEY (city_id) REFERENCES cities(city_id) ON DELETE CASCADE
 );
 
 CREATE TABLE bank_customers (
@@ -363,11 +414,48 @@ CREATE TABLE bank_customers (
     CONSTRAINT fk_referred_by FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL
 );
 
+CREATE TABLE `points_history` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` int(11) NOT NULL,
+  `points` decimal(10,2) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  INDEX idx_user_id (user_id),
+  INDEX idx_created_at (created_at),
+  FOREIGN KEY (user_id) REFERENCES bank_customers(customer_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE user_missions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    mission_id INT NOT NULL,
+    points_earned DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_mission (user_id, mission_id),
+    INDEX idx_mission_id (mission_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    FOREIGN KEY (user_id) REFERENCES bank_customers(customer_id) ON DELETE CASCADE,
+    FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE bank_employees (
-    employee_id INT AUTO_INCREMENT PRIMARY KEY,
-    employee_name VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+  employee_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username varchar(50) DEFAULT NULL,
+  password_hash varchar(255) DEFAULT NULL,
+  email varchar(100) DEFAULT NULL,
+  first_name varchar(50) DEFAULT NULL,
+  last_name varchar(50) DEFAULT NULL,
+  role enum('admin','teller','manager') DEFAULT 'teller',
+  is_active tinyint(1) DEFAULT 1,
+  employee_name varchar(100) NOT NULL,
+  created_at timestamp NOT NULL DEFAULT current_timestamp(),
+  updated_at timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  UNIQUE KEY idx_username (username),
+  UNIQUE KEY idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bank_account_types (
     account_type_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -389,6 +477,26 @@ CREATE TABLE bank_accounts (
     INDEX idx_code (code)
 );
 
+CREATE TABLE employment_statuses (
+    employment_status_id INT AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) DEFAULT NULL,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create Source of Funds Table
+CREATE TABLE source_of_funds (
+    source_id INT AUTO_INCREMENT PRIMARY KEY,
+    source_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) DEFAULT NULL,
+    requires_proof TINYINT(1) DEFAULT 0,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE customer_accounts (
     account_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
@@ -399,6 +507,12 @@ CREATE TABLE customer_accounts (
     is_locked BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
+    maintaining_balance_required DECIMAL(10,2) DEFAULT 500.00,
+    monthly_service_fee DECIMAL(10,2) DEFAULT 100.00,
+    below_maintaining_since DATE NULL,
+    account_status ENUM('active', 'below_maintaining', 'flagged_for_removal', 'closed'),
+    last_service_fee_date DATE NULL,
+    closure_warning_date DATE NULL,  
     UNIQUE KEY account_number (account_number),
     INDEX idx_customer_id (customer_id),
     INDEX idx_account_type_id (account_type_id),
@@ -432,15 +546,20 @@ CREATE TABLE addresses (
     address_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     address_line VARCHAR(200) NOT NULL,
-    city VARCHAR(100) DEFAULT NULL,
+    barangay_id INT DEFAULT NULL,
+    city_id INT DEFAULT NULL,
     province_id INT DEFAULT NULL,
     postal_code VARCHAR(20) DEFAULT NULL,
     address_type VARCHAR(20) DEFAULT 'home',
     is_primary BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_customer_id (customer_id),
+    INDEX idx_barangay_id (barangay_id),
+    INDEX idx_city_id (city_id),
     INDEX idx_province_id (province_id),
     FOREIGN KEY (customer_id) REFERENCES bank_customers(customer_id),
+    FOREIGN KEY (barangay_id) REFERENCES barangays(barangay_id),
+    FOREIGN KEY (city_id) REFERENCES cities(city_id),
     FOREIGN KEY (province_id) REFERENCES provinces(province_id)
 );
 
@@ -761,6 +880,7 @@ CREATE TABLE loan_payments (
 
 CREATE TABLE loan_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    loan_type_id int(11) DEFAULT NULL,
     -- Applicant information
     full_name VARCHAR(100) DEFAULT NULL,
     account_number VARCHAR(50) DEFAULT NULL,
@@ -771,7 +891,6 @@ CREATE TABLE loan_applications (
     user_email VARCHAR(255) NOT NULL,
     -- Requested loan details (transferred to loans table when approved)
     loan_type VARCHAR(50) DEFAULT NULL,
-    loan_type_id INT DEFAULT NULL,
     loan_terms VARCHAR(50) DEFAULT NULL,
     loan_amount DECIMAL(12,2) DEFAULT NULL,
     purpose TEXT DEFAULT NULL,
@@ -794,6 +913,9 @@ CREATE TABLE loan_applications (
     proof_of_income VARCHAR(255) DEFAULT NULL,
     coe_document VARCHAR(255) DEFAULT NULL,
     pdf_path VARCHAR(255) DEFAULT NULL,
+    pdf_approved VARCHAR(255) DEFAULT NULL,
+    pdf_active VARCHAR(255) DEFAULT NULL,
+    pdf_rejected VARCHAR(255) DEFAULT NULL,
     -- Link to approved loan (set when application is approved and loan created)
     loan_id BIGINT DEFAULT NULL,
     FOREIGN KEY (loan_type_id) REFERENCES loan_types(id) ON DELETE SET NULL,
@@ -1120,8 +1242,8 @@ ON DUPLICATE KEY UPDATE
 -- Step 1: Normalize ALL leave_request status values to 'Approved' (consistent case)
 -- This fixes both 'approved' (lowercase) and 'Approved' (capitalized) to be consistent
 UPDATE leave_request 
-SET status = 'Approved' 
-WHERE UPPER(TRIM(status)) = 'APPROVED';
+SET status = 'Declined' 
+WHERE UPPER(TRIM(status)) = 'REJECTED';
 
 -- Step 2: Ensure employees 22 and 3 are Active
 UPDATE employee 
@@ -1160,6 +1282,22 @@ SET status = 'Approved',
 WHERE leave_request_id = 2 
 AND employee_id = 3;
 
+-- ========================================
+-- ADDRESS FIELD MIGRATION
+-- ========================================
+-- Migrate existing address data to new atomic fields
+-- This preserves existing data by attempting to parse or setting defaults
+
+-- For existing records with address data, try to preserve it
+-- If address exists but new fields are NULL, copy to city as fallback
+UPDATE employee 
+SET city = COALESCE(city, address)
+WHERE address IS NOT NULL AND address != '' AND city IS NULL;
+
+-- Set default province if not set
+UPDATE employee 
+SET province = COALESCE(province, 'Metro Manila')
+WHERE province IS NULL;
 -- Step 6: Add/update index for better query performance on leave_request
 -- Check if index exists before dropping (safer approach)
 SET @index_exists = (
