@@ -48,10 +48,6 @@
                     href="<?= URLROOT ?>/customer/referral">Referral</a>
                 </li>
                 <li class="nav-item mx-2">
-                    <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Open New Account') ? 'active text-warning' : ''; ?>" 
-                    href="<?= URLROOT ?>/customer/create_account">Create Account</a>
-                </li>
-                <li class="nav-item mx-2">
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Pay Loan') ? 'active text-warning' : ''; ?>" 
                     href="<?= URLROOT ?>/customer/pay_loan">Pay Loan</a>
                 </li>

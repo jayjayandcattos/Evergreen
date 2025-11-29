@@ -4,8 +4,12 @@
  * Processes a deposit transaction for a customer account
  */
 
-session_start();
+// Suppress all output before JSON
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
+// Set headers BEFORE any other output
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -17,6 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
+
+session_start();
 
 require_once '../../config/database.php';
 
@@ -96,6 +102,24 @@ try {
         ]);
         exit();
     }
+    
+    // Minimum deposit restriction: 100 pesos
+    if ($amount < 100) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Minimum deposit amount is PHP 100.00'
+        ]);
+        exit();
+    }
+    
+    // Maximum deposit restriction: 50,000 pesos
+    if ($amount > 50000) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Maximum deposit amount is PHP 50,000.00'
+        ]);
+        exit();
+    }
 
     // Connect to database
     $db = getDBConnection();
@@ -118,6 +142,7 @@ try {
                 ca.account_id,
                 ca.customer_id,
                 ca.is_locked,
+                ca.account_status,
                 bat.account_type_id,
                 bat.type_name as account_type,
                 bc.first_name,
@@ -141,6 +166,14 @@ try {
 
         if ($account['is_locked']) {
             throw new Exception('Account is locked');
+        }
+        
+        if ($account['account_status'] === 'closed') {
+            throw new Exception('Account is closed and cannot accept deposits');
+        }
+        
+        if ($account['account_status'] === 'flagged_for_removal') {
+            throw new Exception('Account is flagged for removal. Please contact customer service.');
         }
         
         // --- 2. Calculate previous balance ---

@@ -245,71 +245,30 @@ class CustomerController extends Controller {
                 'title' => "Accounts",
                 'first_name' => $_SESSION['customer_first_name'],
                 'last_name'  => $_SESSION['customer_last_name'],
-                'accounts' => $accounts
+                'accounts' => $accounts,
+                'show_add_account_modal' => true  // Flag to auto-show the modal
             ]);
 
             $this->view('customer/account', $data);
 
         } else {
+            $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+
             $data = [
+                'title' => "Accounts",
+                'first_name' => $_SESSION['customer_first_name'],
+                'last_name'  => $_SESSION['customer_last_name'],
                 'account_number' => '',
                 'account_type'   => '',
                 'account_number_error' => '',
                 'account_type_error'   => '',
                 'success_message'      => '',
+                'accounts' => $accounts,
+                'show_add_account_modal' => false
             ];
 
             $this->view('customer/account', $data);
         }
-    }
-
-    // -- CREATING ACCOUNT
-    public function create_account()
-    {
-        $data = [
-            'title' => 'Open New Account',
-            'account_types' => $this->customerModel->getAccountTypes(),
-            'account_type_id' => '',
-            'initial_deposit' => '',
-            'error_message' => ''
-        ];
-
-        // Process POST Request
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // Sanitize POST data
-            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
-            
-            $data['account_type_id'] = trim($_POST['account_type_id']);
-
-            // Validation
-            if (empty($_POST['agree_terms'])) {
-                $data['error_message'] = "You must agree to the Terms & Conditions before opening an account.";
-                $this->view('customer/open_account', $data);
-                return;
-            }
-            if (empty($data['account_type_id'])) {
-                $data['error_message'] = 'Please select an account type.';
-            } else {
-                // Perform account creation
-                $customer_id = $_SESSION['customer_id'] ?? 1; // Use a default if session isn't set (for testing)
-
-                $new_account_number = $this->customerModel->createBankAccount(
-                    $customer_id, 
-                    $data['account_type_id'], 
-                );
-
-                if ($new_account_number) {
-                    $_SESSION['success_message'] = "Success! Your new account (No. {$new_account_number}) has been opened.";
-                    // header('Location: ' . URLROOT . '/customer/account'); 
-                    // exit();
-                } else {
-                    $data['error_message'] = 'An error occurred while opening the account. Please try again.';
-                }
-            }
-        }
-
-        // Load View
-        $this->view('customer/create_account', $data);
     }
 
     // --- PROFILE ---
@@ -331,6 +290,21 @@ class CustomerController extends Controller {
             }
             if (isset($_POST['home_address'])) {
                 $update_data['home_address'] = trim($_POST['home_address']);
+            }
+            if (isset($_POST['address_line'])) {
+                $update_data['address_line'] = trim($_POST['address_line']);
+            }
+            if (isset($_POST['city'])) {
+                $update_data['city'] = trim($_POST['city']);
+            }
+            if (isset($_POST['province_id'])) {
+                $update_data['province_id'] = trim($_POST['province_id']);
+            }
+            if (isset($_POST['city_id'])) {
+                $update_data['city_id'] = trim($_POST['city_id']);
+            }
+            if (isset($_POST['barangay_id'])) {
+                $update_data['barangay_id'] = trim($_POST['barangay_id']);
             }
             if (isset($_POST['gender'])) {
                 $update_data['gender'] = trim($_POST['gender']);
@@ -374,11 +348,23 @@ class CustomerController extends Controller {
         }
 
         $profile_data = $this->customerModel->getCustomerProfileData($customer_id);
+        $provinces = $this->customerModel->getProvinces();
+        $cities = $this->customerModel->getAllCities();
+        
+        // Get barangays - load ALL barangays for dynamic filtering on the frontend
+        // Also get barangays for current city if available
+        $barangays = $this->customerModel->getAllBarangays();
+        $current_barangays = [];
+        if (!empty($profile_data->city_id)) {
+            $current_barangays = $this->customerModel->getBarangaysByCity($profile_data->city_id);
+        }
 
         if (!$profile_data) {
              $profile_data = (object)[
                  'first_name' => 'N/A', 'last_name' => 'N/A', 'username' => 'N/A', 
                  'mobile_number' => 'N/A', 'email_address' => 'N/A', 'home_address' => 'N/A',
+                 'address_line' => '', 'city' => '', 'province_id' => null, 'province_name' => '',
+                 'city_id' => null, 'barangay_id' => null, 'barangay_name' => '',
                  'date_of_birth' => 'N/A', 'gender' => 'N/A', 'civil_status' => 'N/A', 
                  'citizenship' => 'N/A', 'occupation' => 'N/A', 'name_of_employer' => 'N/A'
              ];
@@ -387,6 +373,9 @@ class CustomerController extends Controller {
         $data = [
             'title' => "My Profile",
             'profile' => $profile_data,
+            'provinces' => $provinces,
+            'cities' => $cities,
+            'barangays' => $barangays,
             'full_name' => trim($profile_data->first_name . ' ' . $profile_data->middle_name . ' ' . $profile_data->last_name),
             'source_of_funds' => $profile_data->occupation,
             'employment_status' => $profile_data->occupation ? 'Employed' : 'Unemployed',
@@ -471,6 +460,27 @@ class CustomerController extends Controller {
                 $data['amount_error'] = 'Insufficient Funds';
             }
 
+            // Enforce maintaining balance confirmation on final submit as well
+            $senderAccount = $this->customerModel->getAccountByNumber($data['from_account']);
+            $maintaining_required = isset($senderAccount->maintaining_balance_required) ? (float)$senderAccount->maintaining_balance_required : 500.00;
+            $remaining_after = (float)$amount_validation->balance - $total;
+            if ($remaining_after < $maintaining_required && $remaining_after >= 0) {
+                if (empty($_POST['confirm_low_balance'])) {
+                    $data['other_error'] = 'Transfer requires confirmation: resulting balance will be below PHP ' . number_format($maintaining_required,2) . '.';
+                }
+            }
+
+            // Check maintaining balance rule and require confirmation flag if this transfer will leave balance below minimum
+            $senderAccount = $this->customerModel->getAccountByNumber($data['from_account']);
+            $maintaining_required = isset($senderAccount->maintaining_balance_required) ? (float)$senderAccount->maintaining_balance_required : 500.00;
+            $remaining_after = (float)$amount_validation->balance - $total;
+            if ($remaining_after < $maintaining_required && $remaining_after >= 0) {
+                // if confirm flag not present, set a flag so view can prompt/require confirmation
+                if (empty($_POST['confirm_low_balance'])) {
+                    $data['other_error'] = 'This transfer will bring your balance below the required maintaining balance of PHP ' . number_format($maintaining_required,2) . '. Please confirm to proceed.';
+                }
+            }
+
             if(strlen($message) >= 100){
                 $data['message_error'] = 'Pleaser enter 100 characters only';
             }
@@ -492,7 +502,19 @@ class CustomerController extends Controller {
                     'sender_name' => $sender_name,
                 ]);
 
-                $this->view('customer/receipt', $data);
+                // If remaining is below maintaining and confirmation not provided, re-render transfer page with warning
+                if ($remaining_balance < $maintaining_required && empty($_POST['confirm_low_balance'])) {
+                    $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+                    $data = array_merge($data, [
+                        'title' => 'Fund Transfer',
+                        'accounts' => $accounts,
+                        'low_balance_confirm_required' => true,
+                        'maintaining_required' => $maintaining_required
+                    ]);
+                    $this->view('customer/fund_transfer', $data);
+                } else {
+                    $this->view('customer/receipt', $data);
+                }
             } else {
                 $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
                 $data = array_merge($data, [

@@ -9,6 +9,209 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../assets/css/withdrawal-receipt.css?v=5" />
+    <style>
+      .btn-print {
+        background: linear-gradient(135deg, #2c5f2d 0%, #97bc62 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .btn-print:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(135deg, #1e4620 0%, #7da350 100%);
+      }
+      .btn-print:active {
+        transform: translateY(0);
+      }
+      @media print {
+        @page {
+          size: A4;
+          margin: 0;
+        }
+
+        body {
+          margin: 0;
+          padding: 0;
+        }
+
+        body * {
+          visibility: hidden;
+        }
+        .receipt-card,
+        .receipt-card * {
+          visibility: visible;
+        }
+        .receipt-card {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 210mm;
+          height: 297mm;
+          margin: 0;
+          box-shadow: none !important;
+          padding: 15mm 20mm;
+          page-break-after: avoid;
+        }
+        .navbar,
+        .sidebar,
+        footer,
+        .deposit-complete-btn,
+        .receipt-back-btn {
+          display: none !important;
+        }
+
+        /* Print Header */
+        .receipt-card::before {
+          content: '';
+          display: block;
+          width: calc(100% + 40mm);
+          height: 60px;
+          background: linear-gradient(135deg, #2c5f2d 0%, #97bc62 100%);
+          margin: -15mm -20mm 15px -20mm;
+          padding: 15px;
+        }
+
+        .receipt-title::before {
+          content: 'EVERGREEN BANK';
+          display: block;
+          font-size: 20px;
+          font-weight: 700;
+          color: #2c5f2d;
+          margin-bottom: 3px;
+          letter-spacing: 2px;
+        }
+
+        .receipt-title::after {
+          content: 'Main Branch • Manila, Philippines';
+          display: block;
+          font-size: 11px;
+          color: #666;
+          font-weight: 400;
+          margin-top: 3px;
+          margin-bottom: 8px;
+        }
+
+        .receipt-title {
+          font-size: 16px;
+          text-align: center;
+          border-bottom: 2px solid #2c5f2d;
+          padding-bottom: 8px;
+          margin-bottom: 12px;
+        }
+
+        .title-divider {
+          display: none;
+        }
+
+        /* Print Footer */
+        .receipt-card::after {
+          content: 'This is an official receipt from Evergreen Bank. For verification, contact (02) 8800-1234 or visit www.evergreenbank.ph • Member PDIC - Max coverage: PHP 500,000 per depositor';
+          display: block;
+          margin-top: 15px;
+          padding-top: 10px;
+          border-top: 1px solid #ddd;
+          font-size: 8px;
+          color: #666;
+          text-align: center;
+          line-height: 1.3;
+        }
+
+        /* Transaction Details Enhancement */
+        .info-section, .details-box {
+          page-break-inside: avoid;
+          margin-bottom: 10px;
+        }
+
+        .section-heading {
+          font-size: 12px;
+          font-weight: 700;
+          color: #2c5f2d;
+          border-bottom: 1px solid #ddd;
+          padding-bottom: 4px;
+          margin-bottom: 8px;
+        }
+
+        .info-row, .detail-item {
+          font-size: 10px;
+          line-height: 1.6;
+          margin-bottom: 2px;
+        }
+
+        .info-label, .detail-label {
+          font-weight: 600;
+          color: #333;
+        }
+
+        .info-value, .detail-value {
+          color: #000;
+        }
+
+        .amount-large {
+          font-size: 14px !important;
+          font-weight: 700 !important;
+          color: #2c5f2d !important;
+        }
+
+        .new-balance {
+          font-size: 12px !important;
+          font-weight: 700 !important;
+        }
+
+        .status-completed {
+          color: #4CAF50 !important;
+          font-weight: 700 !important;
+        }
+
+        /* Print timestamp */
+        .confirmation-layout::before {
+          content: 'OFFICIAL BANK RECEIPT';
+          display: block;
+          text-align: center;
+          font-size: 9px;
+          color: #999;
+          margin-bottom: 10px;
+          letter-spacing: 1px;
+        }
+
+        .security-section {
+          background: #f9f9f9;
+          padding: 8px;
+          border-left: 3px solid #2c5f2d;
+          font-size: 8px;
+        }
+
+        .security-text {
+          margin: 0;
+          line-height: 1.4;
+        }
+
+        /* Two column layout for print */
+        .confirmation-layout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+        }
+
+        /* Show print-only elements */
+        #print-only-info,
+        #print-bank-info,
+        #print-terms,
+        #print-signature {
+          display: block !important;
+        }
+      }
+        .receipt-back-btn {
+          display: none !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <!-- Navigation Bar -->
@@ -175,9 +378,43 @@
                   <h5 class="section-heading">Security & Support</h5>
                   <p class="security-text">
                     This receipt is for your records. If you did not authorize
-                    this transaction, contact us immediately at 02-800-1234 or
-                    support@evergreenbank.ph.
+                    this transaction, contact us immediately at (02) 8800-1234
+                    or support@evergreenbank.ph.
                   </p>
+                  <p
+                    class="security-text"
+                    style="margin-top: 10px; display: none"
+                    id="print-only-info"
+                  >
+                    <strong>Important Notice:</strong> Please retain this
+                    receipt for your records. This document serves as proof of
+                    transaction and may be required for account reconciliation.
+                  </p>
+                </div>
+
+                <!-- Print Only: Additional Bank Information -->
+                <div
+                  class="info-section"
+                  style="display: none"
+                  id="print-bank-info"
+                >
+                  <h5 class="section-heading">Bank Information</h5>
+                  <div class="info-row">
+                    <span class="info-label">Institution:</span>
+                    <span class="info-value">Evergreen Bank, N.A.</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Branch Code:</span>
+                    <span class="info-value">001-MNL</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Contact:</span>
+                    <span class="info-value">(02) 8800-1234</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">support@evergreenbank.ph</span>
+                  </div>
                 </div>
               </div>
 
@@ -216,6 +453,59 @@
                   </div>
                 </div>
 
+                <!-- Print Only: Terms and Conditions -->
+                <div class="details-box" style="display: none" id="print-terms">
+                  <h5 class="section-heading">Terms & Conditions</h5>
+                  <div style="font-size: 9px; line-height: 1.6; color: #666">
+                    <p style="margin: 0 0 8px 0">
+                      • This transaction is subject to verification and clearing
+                      procedures.
+                    </p>
+                    <p style="margin: 0 0 8px 0">
+                      • All deposits are subject to PDIC insurance coverage
+                      limits.
+                    </p>
+                    <p style="margin: 0 0 8px 0">
+                      • The bank reserves the right to verify the source of
+                      funds.
+                    </p>
+                    <p style="margin: 0">
+                      • For inquiries, please present this receipt at any
+                      branch.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Print Only: Authorized Signature -->
+                <div
+                  class="details-box"
+                  style="display: none; margin-top: 30px"
+                  id="print-signature"
+                >
+                  <div
+                    style="
+                      border-top: 1px solid #000;
+                      padding-top: 5px;
+                      margin-top: 40px;
+                      text-align: center;
+                    "
+                  >
+                    <span style="font-size: 10px; color: #333"
+                      >Authorized Bank Representative</span
+                    >
+                  </div>
+                  <p
+                    style="
+                      font-size: 8px;
+                      color: #999;
+                      text-align: center;
+                      margin-top: 5px;
+                    "
+                  >
+                    No signature required - System Generated Receipt
+                  </p>
+                </div>
+
                 <!-- Complete Button -->
                 <div class="text-center" style="margin-top: 8px">
                   <button type="button" class="deposit-complete-btn">
@@ -250,27 +540,25 @@
           Your deposit has been processed successfully
         </p>
 
-        <!-- QR Code in Modal -->
+        <!-- Print Receipt Section -->
         <div class="text-center mb-3">
-          <h5 style="font-size: 14px; color: #333; margin-bottom: 15px">
-            Digital Receipt
-          </h5>
-          <div
-            class="qr-code-box mx-auto"
-            style="
-              width: 220px;
-              height: 220px;
-              border: 2px solid #ddd;
-              border-radius: 8px;
-              padding: 10px;
-              background: white;
-            "
-          >
-            <!-- QR Code will be generated here -->
-          </div>
-          <p class="mt-2 text-muted" style="font-size: 12px">
-            Scan to view receipt details
-          </p>
+          <button type="button" class="btn btn-print" onclick="printReceipt()">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="vertical-align: middle; margin-right: 8px"
+            >
+              <path
+                d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"
+              />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            Print Receipt
+          </button>
         </div>
 
         <button type="button" class="btn modal-ok-btn">OK</button>

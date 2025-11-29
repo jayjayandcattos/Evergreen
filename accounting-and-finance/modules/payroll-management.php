@@ -365,20 +365,47 @@ if ($employer_contrib_result) {
     }
 }
 
-// Get payslip data for selected employee
+// Get payslip data for selected employee and period
+// Check if there's a saved payslip for the selected period (matching HRIS logic)
 $payslip_data = null;
-if ($selected_employee) {
-    $payslip_query = "SELECT ps.*, pr.run_at, pr.status as payroll_status 
+$has_saved_payslip_for_period = false;
+if ($selected_employee && $period_start && $period_end) {
+    // Check for payslip matching the selected period exactly
+    $payslip_query = "SELECT ps.*, pr.run_at, pr.status as payroll_status, pp.period_start, pp.period_end
                       FROM payslips ps 
-                      JOIN payroll_runs pr ON ps.payroll_run_id = pr.id 
-                      WHERE ps.employee_external_no = ? 
-                      ORDER BY pr.run_at DESC 
+                      JOIN payroll_runs pr ON ps.payroll_run_id = pr.id
+                      JOIN payroll_periods pp ON pr.payroll_period_id = pp.id
+                      WHERE ps.employee_external_no = ?
+                      AND pp.period_start = ?
+                      AND pp.period_end = ?
                       LIMIT 1";
     $payslip_stmt = $conn->prepare($payslip_query);
-    $payslip_stmt->bind_param("s", $selected_employee);
-    $payslip_stmt->execute();
-    $payslip_result = $payslip_stmt->get_result();
-    $payslip_data = $payslip_result->fetch_assoc();
+    if ($payslip_stmt) {
+        $payslip_stmt->bind_param("sss", $selected_employee, $period_start, $period_end);
+        $payslip_stmt->execute();
+        $payslip_result = $payslip_stmt->get_result();
+        $payslip_data = $payslip_result->fetch_assoc();
+        $has_saved_payslip_for_period = ($payslip_data !== null);
+        $payslip_stmt->close();
+    }
+    
+    // If no payslip found for exact period, get most recent for reference
+    if (!$payslip_data) {
+        $payslip_query = "SELECT ps.*, pr.run_at, pr.status as payroll_status 
+                          FROM payslips ps 
+                          JOIN payroll_runs pr ON ps.payroll_run_id = pr.id 
+                          WHERE ps.employee_external_no = ? 
+                          ORDER BY pr.run_at DESC 
+                          LIMIT 1";
+        $payslip_stmt = $conn->prepare($payslip_query);
+        if ($payslip_stmt) {
+            $payslip_stmt->bind_param("s", $selected_employee);
+            $payslip_stmt->execute();
+            $payslip_result = $payslip_stmt->get_result();
+            $payslip_data = $payslip_result->fetch_assoc();
+            $payslip_stmt->close();
+        }
+    }
 }
 
 // Get recent payslips for history
@@ -2073,8 +2100,12 @@ if ($selected_employee) {
                                         $unpaid_leave_deduction = 0;
                                         $unpaid_leave_days = 0;
                                         $actual_absent_deduction = 0;
+                                        $half_day_deduction_amount = 0;
+                                        $late_penalty_amount = 0;
                                         
-                                        if ($attendance_payroll_adjustments && !$payslip_data && $employee_id_from_external): 
+                                        // MATCHING HRIS LOGIC EXACTLY: Only include attendance-based deductions when NO saved payslip exists for this period
+                                        // This ensures consistency with HRIS payroll calculations (payslip-data.php logic)
+                                        if ($attendance_payroll_adjustments && $employee_id_from_external && !$has_saved_payslip_for_period) {
                                             $adj = $attendance_payroll_adjustments['salary_adjustments'];
                                             
                                             // Get daily rate for calculation
@@ -2151,12 +2182,30 @@ if ($selected_employee) {
                                                 $unpaid_leave_deduction = $unpaid_leave_days * $daily_rate_for_deduction;
                                                 
                                                 // Calculate actual absent deduction (excluding unpaid leaves)
-                                                $actual_absent_deduction = max(0, $adj['absent_deduction'] - $unpaid_leave_deduction);
+                                                // Note: absent_deduction from calculation includes both actual absences AND unpaid leaves
+                                                // So we subtract unpaid_leave_deduction to get actual absent deduction
+                                                $actual_absent_deduction = max(0, ($adj['absent_deduction'] ?? 0) - $unpaid_leave_deduction);
                                             } else {
-                                                // Fallback: use absent_deduction as is if we can't calculate daily rate
-                                                $actual_absent_deduction = $adj['absent_deduction'];
+                                                // Fallback: If we can't calculate daily rate, we can't separate unpaid leaves
+                                                // So use absent_deduction as is (which includes both absences and unpaid leaves)
+                                                $actual_absent_deduction = $adj['absent_deduction'] ?? 0;
+                                                $unpaid_leave_deduction = 0; // Can't calculate separately without daily rate
                                             }
                                             
+                                            // Store other deduction amounts for calculation
+                                            $half_day_deduction_amount = $adj['half_day_deduction'] ?? 0;
+                                            $late_penalty_amount = $adj['late_penalty'] ?? 0;
+                                            
+                                            // Add attendance-based deductions to total (matching HRIS logic)
+                                            // These are only included when there's NO saved payslip for the period
+                                            $total_deductions_overall += $actual_absent_deduction;
+                                            $total_deductions_overall += $unpaid_leave_deduction;
+                                            $total_deductions_overall += $half_day_deduction_amount;
+                                            $total_deductions_overall += $late_penalty_amount;
+                                        }
+                                        
+                                        // Display attendance-based deductions ONLY when NO saved payslip exists (matching HRIS logic)
+                                        if ($attendance_payroll_adjustments && $employee_id_from_external && !$has_saved_payslip_for_period) {
                                             // Absent days deduction (actual absences, excluding unpaid leaves)
                                             if ($actual_absent_deduction > 0): ?>
                                             <tr>
@@ -2164,7 +2213,6 @@ if ($selected_employee) {
                                                 <td class="amount-cell">₱<?php echo number_format($actual_absent_deduction, 2); ?></td>
                                             </tr>
                                         <?php 
-                                            $total_deductions_overall += $actual_absent_deduction;
                                             endif;
                                             
                                             // Unpaid Leave Days Deduction
@@ -2174,29 +2222,26 @@ if ($selected_employee) {
                                                 <td class="amount-cell">₱<?php echo number_format($unpaid_leave_deduction, 2); ?></td>
                                             </tr>
                                         <?php 
-                                            $total_deductions_overall += $unpaid_leave_deduction;
                                             endif;
                                             
                                             // Half day deduction
-                                            if ($adj['half_day_deduction'] > 0): ?>
+                                            if ($half_day_deduction_amount > 0): ?>
                                             <tr>
                                                 <td>Half Day Deduction</td>
-                                                <td class="amount-cell">₱<?php echo number_format($adj['half_day_deduction'], 2); ?></td>
+                                                <td class="amount-cell">₱<?php echo number_format($half_day_deduction_amount, 2); ?></td>
                                             </tr>
                                         <?php 
-                                            $total_deductions_overall += $adj['half_day_deduction'];
                                             endif;
                                             
                                             // Late penalty
-                                            if ($adj['late_penalty'] > 0): ?>
+                                            if ($late_penalty_amount > 0): ?>
                                             <tr>
                                                 <td>Late Arrival Penalty</td>
-                                                <td class="amount-cell">₱<?php echo number_format($adj['late_penalty'], 2); ?></td>
+                                                <td class="amount-cell">₱<?php echo number_format($late_penalty_amount, 2); ?></td>
                                             </tr>
                                         <?php 
-                                            $total_deductions_overall += $adj['late_penalty'];
                                             endif;
-                                        endif;
+                                        }
                                         
                                         // Calculate mandatory government contributions using 2025 rates
                                         // Use GROSS salary from attendance (same as Tax Management tab)

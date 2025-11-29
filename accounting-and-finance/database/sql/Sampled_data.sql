@@ -1529,11 +1529,11 @@ ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number);
 
 -- Customer Accounts
 INSERT INTO customer_accounts (account_id, customer_id, account_number, account_type_id, interest_rate, last_interest_date, is_locked, created_at, created_by_employee_id) VALUES
-(1, 1, 'SA-001-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 80 DAY, 1),
-(2, 2, 'CA-002-2024', 2, 1.00, '2025-11-30', FALSE, NOW() - INTERVAL 65 DAY, 1),
-(3, 3, 'TD-003-2024', 3, 3.50, '2025-11-30', FALSE, NOW() - INTERVAL 50 DAY, 2),
-(4, 4, 'SA-004-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 35 DAY, 2),
-(5, 5, 'CA-005-2024', 4, 1.50, '2025-11-30', FALSE, NOW() - INTERVAL 20 DAY, 3)
+(1, 1, 'SA-0001-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 80 DAY, 1),
+(2, 2, 'CHA-0002-2024', 2, 1.00, '2025-11-30', FALSE, NOW() - INTERVAL 65 DAY, 1),
+(3, 3, 'SA-0003-2024', 1, 3.50, '2025-11-30', FALSE, NOW() - INTERVAL 50 DAY, 2),
+(4, 4, 'SA-0004-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 35 DAY, 2),
+(5, 5, 'CHA-0005-2024', 2, 1.50, '2025-11-30', FALSE, NOW() - INTERVAL 20 DAY, 3)
 ON DUPLICATE KEY UPDATE account_number = VALUES(account_number);
 
 -- Customer Linked Accounts

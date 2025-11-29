@@ -1,0 +1,376 @@
+/* Color Palette */
+:root {
+  --primary-white: #faf7f7;
+  --secondary-white: #f0eee8;
+  --primary-green: #003631;
+  --primary-black: #000000;
+  --primary-gold: #f1b34a;
+  --secondary-gray: #3a3a3a;
+}
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #d3d0c7;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navigation Bar */
+.navbar-custom {
+  background-color: var(--primary-green);
+  padding: 0.6rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-custom .container-fluid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.navbar-brand {
+  margin-right: 0;
+  padding-left: 0;
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+  margin-right: 12px;
+}
+
+.brand-text {
+  color: var(--primary-white);
+  font-weight: 475;
+  font-size: 23px;
+  letter-spacing: 1px;
+}
+
+.navbar-nav {
+  gap: 50px;
+}
+
+.navbar-custom .nav-link {
+  color: var(--primary-white);
+  font-size: 0.9rem;
+  padding: 0.5rem 1.5rem;
+  transition: opacity 0.3s ease;
+}
+
+.navbar-custom .nav-link:hover {
+  opacity: 0.8;
+}
+
+.navbar-custom .nav-link.active {
+  font-weight: 500;
+  color: var(--primary-gold);
+}
+
+.username-text {
+  color: var(--primary-white);
+  font-size: 0.85rem;
+}
+
+.user-avatar {
+  background-color: var(--primary-white);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.navbar-toggler {
+  border-color: var(--primary-white);
+}
+
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(250, 247, 247, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 30px 0;
+}
+
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-title {
+  color: var(--primary-green);
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.page-subtitle {
+  color: var(--secondary-gray);
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Statistics Cards */
+.stats-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.stats-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.total-accounts .stats-icon {
+  background-color: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+}
+
+.active-accounts .stats-icon {
+  background-color: rgba(25, 135, 84, 0.1);
+  color: #198754;
+}
+
+.below-maintaining .stats-icon {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+.closed-accounts .stats-icon {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+.flagged-accounts .stats-icon {
+  background-color: rgba(253, 126, 20, 0.1);
+  color: #fd7e14;
+}
+
+.loan-approvals .stats-icon {
+  background-color: rgba(111, 66, 193, 0.1);
+  color: #6f42c1;
+}
+
+.stats-info {
+  flex: 1;
+}
+
+.stats-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-green);
+  margin: 0;
+  line-height: 1;
+}
+
+.stats-label {
+  font-size: 0.9rem;
+  color: var(--secondary-gray);
+  margin: 8px 0 0 0;
+}
+
+/* Table Card */
+.table-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.table-title {
+  color: var(--primary-green);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.table-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  min-width: 250px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+
+.filter-select {
+  min-width: 180px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+
+/* Table Styles */
+.table-responsive {
+  overflow-x: auto;
+}
+
+.accounts-table {
+  margin: 0;
+  width: 100%;
+}
+
+.accounts-table thead {
+  background-color: #f8f9fa;
+}
+
+.accounts-table th {
+  color: var(--primary-green);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 16px 20px;
+  border: none;
+  white-space: nowrap;
+}
+
+.accounts-table td {
+  padding: 16px 20px;
+  font-size: 0.9rem;
+  color: var(--secondary-gray);
+  vertical-align: middle;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.accounts-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-active {
+  background-color: rgba(25, 135, 84, 0.1);
+  color: #198754;
+}
+
+.status-below-maintaining {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+.status-flagged {
+  background-color: rgba(253, 126, 20, 0.1);
+  color: #fd7e14;
+}
+
+.status-closed {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+.balance-amount {
+  font-weight: 600;
+  color: var(--primary-green);
+}
+
+.balance-low {
+  color: #dc3545;
+}
+
+/* Footer */
+.footer {
+  background-color: var(--primary-green);
+  color: var(--primary-white);
+  padding: 1.5rem 0;
+  margin-top: auto;
+}
+
+.footer-text {
+  font-size: 0.9rem;
+}
+
+.footer-small {
+  font-size: 0.75rem;
+  color: rgba(250, 247, 247, 0.8);
+}
+
+.footer-link {
+  color: var(--primary-white);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: opacity 0.3s ease;
+}
+
+.footer-link:hover {
+  color: var(--primary-gold);
+  opacity: 0.8;
+}
+
+.footer-divider {
+  color: rgba(250, 247, 247, 0.5);
+  margin: 0 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .table-actions {
+    width: 100%;
+  }
+
+  .search-input,
+  .filter-select {
+    width: 100%;
+  }
+
+  .stats-value {
+    font-size: 1.5rem;
+  }
+}

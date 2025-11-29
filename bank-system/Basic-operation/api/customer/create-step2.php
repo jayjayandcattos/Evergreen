@@ -52,7 +52,9 @@ try {
     $validationData = [
         'password' => $data['password'] ?? '',
         'confirm_password' => $data['confirm_password'] ?? '',
-        'mobile_number' => $data['mobile_number'] ?? ''
+        'mobile_number' => $data['mobile_number'] ?? '',
+        'email_verification' => $data['email_verification'] ?? '',
+        'mfa_method' => $data['mfa_method'] ?? 'phone' // Track which MFA method was used
     ];
     
     // Validate all data
@@ -66,25 +68,42 @@ try {
         ], 422);
     }
     
-    // Check if mobile number is verified
-    if (!isPhoneVerified()) {
+    // Check if verification is completed (either phone or email)
+    $isVerified = isset($_SESSION['verification']['verified']) && $_SESSION['verification']['verified'] === true;
+    
+    if (!$isVerified) {
+        $mfaType = $validationData['mfa_method'] === 'phone' ? 'mobile number' : 'email address';
         sendJsonResponse([
             'success' => false,
-            'message' => 'Please verify your mobile number first',
-            'errors' => ['mobile_verification' => 'Mobile number not verified']
+            'message' => "Please verify your {$mfaType} first",
+            'errors' => ['verification' => 'Verification not completed']
         ], 422);
     }
     
     // Hash password before storing
     $hashedPassword = password_hash($validationData['password'], PASSWORD_DEFAULT);
     
+    // Determine which contact was verified
+    $verifiedContact = $validationData['mfa_method'] === 'phone' 
+        ? $validationData['mobile_number'] 
+        : $validationData['email_verification'];
+    
     // Store validated data in session (without plain password)
     // Note: No username - customers will use email for login (per unified schema)
     $sessionSaveData = [
         'password_hash' => $hashedPassword,
-        'mobile_number' => $validationData['mobile_number'],
-        'mobile_verified' => true
+        'mfa_method' => $validationData['mfa_method'],
+        'verified_contact' => $verifiedContact
     ];
+    
+    // Add the specific verified field
+    if ($validationData['mfa_method'] === 'phone') {
+        $sessionSaveData['mobile_number'] = $validationData['mobile_number'];
+        $sessionSaveData['mobile_verified'] = true;
+    } else {
+        $sessionSaveData['verified_email'] = $validationData['email_verification'];
+        $sessionSaveData['email_verified'] = true;
+    }
     
     updateOnboardingSession(2, $sessionSaveData);
     
