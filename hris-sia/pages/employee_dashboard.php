@@ -85,14 +85,99 @@ $payslips = fetchAll($conn,
     [$employee_id]
 );
 
-// Get employee info
+// Get employee info with department and position
 $employee = fetchOne($conn, 
-    "SELECT employee_id, first_name, last_name, 
-            CONCAT('EMP', LPAD(employee_id, 3, '0')) as employee_no
-     FROM employee 
-     WHERE employee_id = ?",
+    "SELECT e.employee_id, e.first_name, e.last_name, 
+            CONCAT('EMP', LPAD(e.employee_id, 3, '0')) as employee_no,
+            d.department_name, p.position_title, e.hire_date
+     FROM employee e
+     LEFT JOIN department d ON e.department_id = d.department_id
+     LEFT JOIN position p ON e.position_id = p.position_id
+     WHERE e.employee_id = ?",
     [$employee_id]
 );
+
+// Get attendance statistics for current month
+$currentMonth = date('Y-m');
+try {
+    $attendanceStats = fetchOne($conn,
+        "SELECT 
+            COUNT(*) as total_days,
+            SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present_days,
+            SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent_days,
+            SUM(CASE WHEN status = 'Late' THEN 1 ELSE 0 END) as late_days,
+            AVG(total_hours) as avg_hours
+         FROM attendance
+         WHERE employee_id = ? AND DATE_FORMAT(date, '%Y-%m') = ?",
+        [$employee_id, $currentMonth]
+    ) ?: ['total_days' => 0, 'present_days' => 0, 'absent_days' => 0, 'late_days' => 0, 'avg_hours' => null];
+} catch (Exception $e) {
+    $attendanceStats = ['total_days' => 0, 'present_days' => 0, 'absent_days' => 0, 'late_days' => 0, 'avg_hours' => null];
+}
+
+// Get today's attendance
+try {
+    $todayAttendance = fetchOne($conn,
+        "SELECT attendance_id, date, time_in, time_out, status, total_hours
+         FROM attendance
+         WHERE employee_id = ? AND DATE(date) = CURDATE()
+         ORDER BY attendance_id DESC
+         LIMIT 1",
+        [$employee_id]
+    ) ?: null;
+} catch (Exception $e) {
+    $todayAttendance = null;
+}
+
+// Get recent attendance (last 5 days)
+try {
+    $recentAttendance = fetchAll($conn,
+        "SELECT date, time_in, time_out, status, total_hours
+         FROM attendance
+         WHERE employee_id = ?
+         ORDER BY date DESC
+         LIMIT 5",
+        [$employee_id]
+    ) ?: [];
+} catch (Exception $e) {
+    $recentAttendance = [];
+}
+
+// Count pending leave requests
+try {
+    $pendingLeaves = fetchOne($conn,
+        "SELECT COUNT(*) as count
+         FROM leave_request
+         WHERE employee_id = ? AND status = 'Pending'",
+        [$employee_id]
+    ) ?: ['count' => 0];
+} catch (Exception $e) {
+    $pendingLeaves = ['count' => 0];
+}
+
+// Get approved leave count this year
+try {
+    $approvedLeaves = fetchOne($conn,
+        "SELECT COUNT(*) as count, COALESCE(SUM(total_days), 0) as total_days
+         FROM leave_request
+         WHERE employee_id = ? AND status = 'Approved' AND YEAR(date_requested) = YEAR(CURDATE())",
+        [$employee_id]
+    ) ?: ['count' => 0, 'total_days' => 0];
+} catch (Exception $e) {
+    $approvedLeaves = ['count' => 0, 'total_days' => 0];
+}
+
+// Get payslip count
+try {
+    $payslipCount = fetchOne($conn,
+        "SELECT COUNT(*) as count
+         FROM payroll_payslips
+         WHERE employee_id = ?",
+        [$employee_id]
+    ) ?: ['count' => 0];
+} catch (Exception $e) {
+    $payslipCount = ['count' => 0];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -108,145 +193,287 @@ $employee = fetchOne($conn,
 </head>
 <body>
     <div class="min-h-screen">
-        <header class="header-gradient text-white p-4 lg:p-6 shadow-xl">
-            <div class="flex items-center justify-between">
+        <header class="header-gradient text-white p-3 lg:p-4 shadow-xl">
+            <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
                     <img src="../assets/LOGO.png" alt="Logo" class="h-8 w-8 sm:h-10 sm:w-10 object-contain">
-                    <h1 class="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight">Employee Dashboard</h1>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight">Employee Dashboard</h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-sm sm:text-base">Welcome, <strong><?php echo htmlspecialchars($employee_name); ?></strong></span>
+                    <div class="text-right hidden sm:block">
+                        <p class="text-xs text-white/80">Welcome back</p>
+                        <p class="text-sm font-semibold"><?php echo htmlspecialchars($employee_name); ?></p>
+                    </div>
                     <button onclick="openLogoutModal()" 
-                       class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg font-semibold text-red-600 hover:text-red-700 hover:bg-white transition-all duration-200 text-xs sm:text-sm shadow-lg hover:shadow-xl transform hover:scale-105">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Time Out
+                       class="bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg font-semibold text-red-600 hover:text-red-700 hover:bg-white transition-all duration-200 text-xs sm:text-sm shadow-lg hover:shadow-xl transform hover:scale-105">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
                     </button>
                 </div>
             </div>
         </header>
 
-        <main class="p-4 lg:p-8">
+        <main class="p-4 lg:p-6 max-w-7xl mx-auto">
             <?php if ($message): ?>
                 <div class="mb-4 p-4 rounded-lg <?php echo $messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
                     <?php echo htmlspecialchars($message); ?>
                 </div>
             <?php endif; ?>
 
-            <!-- Action Buttons -->
+            <!-- Stats Cards Row -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <button onclick="openLeaveModal()" 
-                        class="card-enhanced p-6 text-left hover:scale-105 transition-transform">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar-plus text-teal-600 text-xl"></i>
+                <!-- Attendance Card -->
+                <div class="stat-card-attendance text-white rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                            <i class="fas fa-calendar-check text-2xl"></i>
                         </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Request Leave</h3>
-                            <p class="text-sm text-gray-500">Submit a leave request</p>
-                        </div>
+                        <span class="text-sm opacity-90">This Month</span>
                     </div>
-                </button>
+                    <h3 class="text-3xl font-bold mb-1"><?php echo $attendanceStats['present_days'] ?? 0; ?>/<?php echo $attendanceStats['total_days'] ?? 0; ?></h3>
+                    <p class="text-sm opacity-90">Days Present</p>
+                    <?php if (isset($attendanceStats['avg_hours']) && $attendanceStats['avg_hours']): ?>
+                        <p class="text-xs opacity-75 mt-2">Avg: <?php echo number_format($attendanceStats['avg_hours'], 1); ?> hrs/day</p>
+                    <?php endif; ?>
+                </div>
 
-                <button onclick="showPayslips()" 
-                        class="card-enhanced p-6 text-left hover:scale-105 transition-transform">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-file-invoice-dollar text-blue-600 text-xl"></i>
+                <!-- Leave Balance Card -->
+                <div class="stat-card-leave text-white rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                            <i class="fas fa-umbrella-beach text-2xl"></i>
                         </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">View My Payslip</h3>
-                            <p class="text-sm text-gray-500">View your payslips</p>
-                        </div>
+                        <span class="text-sm opacity-90"><?php echo $pendingLeaves['count'] ?? 0; ?> Pending</span>
                     </div>
-                </button>
+                    <h3 class="text-3xl font-bold mb-1"><?php echo $approvedLeaves['total_days'] ?? 0; ?></h3>
+                    <p class="text-sm opacity-90">Days Used This Year</p>
+                    <p class="text-xs opacity-75 mt-2"><?php echo $approvedLeaves['count'] ?? 0; ?> Approved Requests</p>
+                </div>
 
-                <a href="employee_calendar.php" 
-                   class="card-enhanced p-6 text-left hover:scale-105 transition-transform block">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar-alt text-green-600 text-xl"></i>
+                <!-- Today's Status Card -->
+                <div class="stat-card-today text-white rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                            <i class="fas fa-clock text-2xl"></i>
                         </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">View Calendar</h3>
-                            <p class="text-sm text-gray-500">Attendance & schedule</p>
-                        </div>
+                        <span class="text-sm opacity-90"><?php echo date('M d'); ?></span>
                     </div>
-                </a>
+                    <?php if ($todayAttendance): ?>
+                        <h3 class="text-lg font-bold mb-1"><?php echo htmlspecialchars($todayAttendance['status'] ?? 'N/A'); ?></h3>
+                        <p class="text-sm opacity-90">
+                            <?php if ($todayAttendance['time_in']): ?>
+                                In: <?php echo date('g:i A', strtotime($todayAttendance['time_in'])); ?>
+                            <?php else: ?>
+                                No time-in yet
+                            <?php endif; ?>
+                        </p>
+                        <?php if ($todayAttendance['time_out']): ?>
+                            <p class="text-xs opacity-75 mt-1">Out: <?php echo date('g:i A', strtotime($todayAttendance['time_out'])); ?></p>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <h3 class="text-lg font-bold mb-1">No Record</h3>
+                        <p class="text-sm opacity-90">No attendance today</p>
+                    <?php endif; ?>
+                </div>
 
-                <div class="card-enhanced p-6">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-id-badge text-purple-600 text-xl"></i>
+                <!-- Payslips Card -->
+                <div class="stat-card-payslip text-white rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-invoice-dollar text-2xl"></i>
                         </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-800">Employee ID</h3>
-                            <p class="text-sm text-gray-500"><?php echo htmlspecialchars($employee['employee_no'] ?? 'N/A'); ?></p>
-                        </div>
+                        <button onclick="showPayslips()" class="text-sm opacity-90 hover:opacity-100 underline">Click to view payslip</button>
                     </div>
+                    <p class="text-2xl font-bold mb-1">Payslip</p>
                 </div>
             </div>
 
-            <!-- Leave Requests Section -->
-            <div class="card-enhanced p-4 lg:p-6 mb-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">
-                    <i class="fas fa-list mr-2"></i>My Leave Requests
-                </h2>
-                <?php if (empty($leave_requests)): ?>
-                    <p class="text-gray-500 text-center py-8">No leave requests found</p>
-                <?php else: ?>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Leave Type</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Duration</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Days</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Reason</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Date Requested</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($leave_requests as $request): ?>
-                                    <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                        <td class="px-3 py-2 text-sm"><?php echo htmlspecialchars($request['leave_name'] ?? 'N/A'); ?></td>
-                                        <td class="px-3 py-2 text-sm">
-                                            <?php echo date('M d', strtotime($request['start_date'])); ?> - 
-                                            <?php echo date('M d, Y', strtotime($request['end_date'])); ?>
-                                        </td>
-                                        <td class="px-3 py-2 text-sm"><?php echo $request['total_days'] ?? 0; ?> day<?php echo ($request['total_days'] ?? 0) > 1 ? 's' : ''; ?></td>
-                                        <td class="px-3 py-2 text-sm max-w-xs truncate" title="<?php echo htmlspecialchars($request['reason'] ?? ''); ?>">
-                                            <?php echo htmlspecialchars($request['reason'] ?? 'N/A'); ?>
-                                        </td>
-                                        <td class="px-3 py-2">
-                                            <?php
-                                            $status = $request['status'] ?? 'Pending';
-                                            $status_color = '';
-                                            switch ($status) {
-                                                case 'Pending':
-                                                    $status_color = 'bg-yellow-100 text-yellow-800';
-                                                    break;
-                                                case 'Approved':
-                                                    $status_color = 'bg-green-100 text-green-800';
-                                                    break;
-                                                case 'Declined':
-                                                case 'Rejected':
-                                                    $status_color = 'bg-red-100 text-red-800';
-                                                    break;
-                                                default:
-                                                    $status_color = 'bg-gray-100 text-gray-800';
-                                            }
-                                            ?>
-                                            <span class="px-3 py-1.5 inline-flex items-center text-xs font-semibold rounded-full <?php echo $status_color; ?>">
-                                                <?php echo htmlspecialchars($status); ?>
-                                            </span>
-                                        </td>
-                                        <td class="px-3 py-2 text-sm"><?php echo $request['date_requested'] ? date('M d, Y', strtotime($request['date_requested'])) : 'N/A'; ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+            <!-- Main Content Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Left Column - 2/3 width -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Quick Actions -->
+                    <div class="card-enhanced p-5">
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-bolt text-teal-600 mr-2"></i>Quick Actions
+                        </h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <button onclick="openLeaveModal()" 
+                                    class="quick-action-btn bg-teal-50 hover:bg-teal-100 border-teal-200">
+                                <i class="fas fa-calendar-plus text-teal-600 text-xl mb-2"></i>
+                                <span class="text-sm font-semibold text-gray-800">Request Leave</span>
+                            </button>
+                            
+                            <button onclick="showPayslips()" 
+                                    class="quick-action-btn bg-blue-50 hover:bg-blue-100 border-blue-200">
+                                <i class="fas fa-file-invoice-dollar text-blue-600 text-xl mb-2"></i>
+                                <span class="text-sm font-semibold text-gray-800">View Payslips</span>
+                            </button>
+                            
+                            <a href="employee_calendar.php" 
+                               class="quick-action-btn bg-green-50 hover:bg-green-100 border-green-200">
+                                <i class="fas fa-calendar-alt text-green-600 text-xl mb-2"></i>
+                                <span class="text-sm font-semibold text-gray-800">Calendar</span>
+                            </a>
+                        </div>
                     </div>
-                <?php endif; ?>
+
+                    <!-- Leave Requests Table -->
+                    <div class="card-enhanced p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                                <i class="fas fa-list-ul text-teal-600 mr-2"></i>Recent Leave Requests
+                            </h2>
+                            <button onclick="openLeaveModal()" class="text-sm text-teal-600 hover:text-teal-700 font-semibold">
+                                <i class="fas fa-plus mr-1"></i>New Request
+                            </button>
+                        </div>
+                        <?php if (empty($leave_requests)): ?>
+                            <div class="text-center py-8 bg-gray-50 rounded-lg">
+                                <i class="fas fa-inbox text-gray-400 text-3xl mb-2"></i>
+                                <p class="text-gray-500">No leave requests yet</p>
+                                <button onclick="openLeaveModal()" class="mt-3 text-sm text-teal-600 hover:text-teal-700 font-semibold">
+                                    Submit your first request
+                                </button>
+                            </div>
+                        <?php else: ?>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 border-b border-gray-200">
+                                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Dates</th>
+                                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Days</th>
+                                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (array_slice($leave_requests, 0, 5) as $request): ?>
+                                            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                                <td class="px-3 py-2">
+                                                    <div class="font-medium text-gray-800"><?php echo htmlspecialchars($request['leave_name'] ?? 'N/A'); ?></div>
+                                                    <div class="text-xs text-gray-500"><?php echo date('M d, Y', strtotime($request['date_requested'])); ?></div>
+                                                </td>
+                                                <td class="px-3 py-2 text-gray-700">
+                                                    <?php echo date('M d', strtotime($request['start_date'])); ?> - 
+                                                    <?php echo date('M d', strtotime($request['end_date'])); ?>
+                                                </td>
+                                                <td class="px-3 py-2 text-gray-700"><?php echo $request['total_days'] ?? 0; ?> day<?php echo ($request['total_days'] ?? 0) > 1 ? 's' : ''; ?></td>
+                                                <td class="px-3 py-2">
+                                                    <?php
+                                                    $status = $request['status'] ?? 'Pending';
+                                                    $status_color = '';
+                                                    switch ($status) {
+                                                        case 'Pending':
+                                                            $status_color = 'bg-yellow-100 text-yellow-800';
+                                                            break;
+                                                        case 'Approved':
+                                                            $status_color = 'bg-green-100 text-green-800';
+                                                            break;
+                                                        case 'Declined':
+                                                        case 'Rejected':
+                                                            $status_color = 'bg-red-100 text-red-800';
+                                                            break;
+                                                        default:
+                                                            $status_color = 'bg-gray-100 text-gray-800';
+                                                    }
+                                                    ?>
+                                                    <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full <?php echo $status_color; ?>">
+                                                        <?php echo htmlspecialchars($status); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                                <?php if (count($leave_requests) > 5): ?>
+                                    <div class="text-center pt-3">
+                                        <a href="leave.php" class="text-sm text-teal-600 hover:text-teal-700 font-semibold">
+                                            View all <?php echo count($leave_requests); ?> requests <i class="fas fa-arrow-right ml-1"></i>
+                                        </a>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Right Column - 1/3 width -->
+                <div class="space-y-6">
+                    <!-- Employee Info Card -->
+                    <div class="card-enhanced p-5">
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-user-circle text-teal-600 mr-2"></i>Employee Info
+                        </h2>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Employee ID</p>
+                                <p class="text-lg font-bold text-gray-800"><?php echo htmlspecialchars($employee['employee_no'] ?? 'N/A'); ?></p>
+                            </div>
+                            <?php if ($employee['department_name']): ?>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Department</p>
+                                <p class="text-gray-700"><?php echo htmlspecialchars($employee['department_name']); ?></p>
+                            </div>
+                            <?php endif; ?>
+                            <?php if ($employee['position_title']): ?>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Position</p>
+                                <p class="text-gray-700"><?php echo htmlspecialchars($employee['position_title']); ?></p>
+                            </div>
+                            <?php endif; ?>
+                            <?php if ($employee['hire_date']): ?>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Date Hired</p>
+                                <p class="text-gray-700"><?php echo date('M d, Y', strtotime($employee['hire_date'])); ?></p>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Recent Attendance -->
+                    <div class="card-enhanced p-5">
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-history text-teal-600 mr-2"></i>Recent Attendance
+                        </h2>
+                        <?php if (empty($recentAttendance)): ?>
+                            <p class="text-gray-500 text-sm text-center py-4">No attendance records</p>
+                        <?php else: ?>
+                            <div class="space-y-3">
+                                <?php foreach ($recentAttendance as $att): ?>
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-800">
+                                                <?php echo date('M d, Y', strtotime($att['date'])); ?>
+                                            </p>
+                                            <p class="text-xs text-gray-600">
+                                                <?php if ($att['time_in']): ?>
+                                                    <?php echo date('g:i A', strtotime($att['time_in'])); ?>
+                                                    <?php if ($att['time_out']): ?>
+                                                        - <?php echo date('g:i A', strtotime($att['time_out'])); ?>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    No time record
+                                                <?php endif; ?>
+                                            </p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full <?php
+                                                echo $att['status'] === 'Present' ? 'bg-green-100 text-green-800' : 
+                                                    ($att['status'] === 'Absent' ? 'bg-red-100 text-red-800' : 
+                                                    ($att['status'] === 'Late' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'));
+                                            ?>">
+                                                <?php echo htmlspecialchars($att['status']); ?>
+                                            </span>
+                                            <?php if ($att['total_hours']): ?>
+                                                <p class="text-xs text-gray-600 mt-1"><?php echo number_format($att['total_hours'], 1); ?>h</p>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
 
             <!-- Payslips Section (Hidden by default) -->
@@ -691,17 +918,26 @@ $employee = fetchOne($conn,
                 const periodEnd = payslip.period_end ? new Date(payslip.period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
                 const runAt = payslip.run_at ? new Date(payslip.run_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
                 
+                const isCalculated = payslip.payroll_status === 'calculated' || payslip.is_calculated;
+                const statusBadge = isCalculated ? 
+                    '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 ml-2">Calculated (Not Finalized)</span>' : 
+                    '';
+                
                 html += `
                     <div class="mb-6 border border-gray-200 rounded-lg overflow-hidden ${index > 0 ? 'mt-6' : ''}">
                         <!-- Payslip Header -->
                         <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
                             <div class="flex justify-between items-center">
                                 <div>
-                                    <h3 class="text-lg font-bold">Payslip #${payslip.id}</h3>
+                                    <div class="flex items-center">
+                                        <h3 class="text-lg font-bold">${payslip.id > 0 ? 'Payslip #' + payslip.id : 'Calculated Payslip'}</h3>
+                                        ${statusBadge}
+                                    </div>
                                     <p class="text-sm text-blue-100">${periodStart} - ${periodEnd}</p>
+                                    ${isCalculated ? '<p class="text-xs text-blue-200 mt-1">This is calculated payroll data based on attendance. It will be finalized when payroll is processed.</p>' : ''}
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-sm text-blue-100">Payroll Date</p>
+                                    <p class="text-sm text-blue-100">${isCalculated ? 'Calculated On' : 'Payroll Date'}</p>
                                     <p class="text-sm font-semibold">${runAt}</p>
                                 </div>
                             </div>

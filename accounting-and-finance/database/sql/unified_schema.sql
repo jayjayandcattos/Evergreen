@@ -302,6 +302,7 @@ CREATE TABLE bank_users (
     password VARCHAR(255) NOT NULL,
     verification_code VARCHAR(100) DEFAULT NULL,
     bank_id VARCHAR(50) DEFAULT NULL,
+    referral_code VARCHAR(50) DEFAULT NULL,
     total_points DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_verified BOOLEAN NOT NULL,
@@ -340,12 +341,26 @@ CREATE TABLE bank_customers (
     last_name VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50) DEFAULT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    city_province VARCHAR(100) DEFAULT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
+    contact_number VARCHAR(20) DEFAULT NULL,
+    birthday DATE DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    verification_code VARCHAR(100) DEFAULT NULL,
+    bank_id VARCHAR(50) DEFAULT NULL,
+    referral_code VARCHAR(20) DEFAULT NULL,
+    total_points DECIMAL(10,2) DEFAULT 0.00,
+    referred_by_customer_id INT NULL,
+    is_verified BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
-    INDEX idx_email (email),
-    INDEX idx_created_by_employee_id (created_by_employee_id)
+    UNIQUE KEY idx_referral_code (referral_code),
+    UNIQUE KEY idx_email (email),
+    INDEX idx_created_by_employee_id (created_by_employee_id),
+    INDEX idx_referred_by (referred_by_customer_id),
+    INDEX idx_bank_id (bank_id),
+    CONSTRAINT fk_referred_by FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL
 );
 
 CREATE TABLE bank_employees (
@@ -893,16 +908,7 @@ CREATE TABLE integration_logs (
     INDEX idx_created_at (created_at)
 );
 
-ALTER TABLE bank_customers 
-ADD COLUMN referral_code VARCHAR(20) UNIQUE NULL,
-ADD COLUMN total_points DECIMAL(10,2) DEFAULT 0.00,
-ADD COLUMN referred_by_customer_id INT NULL,
-ADD INDEX idx_referral_code (referral_code),
-ADD INDEX idx_referred_by (referred_by_customer_id);
 
-ALTER TABLE bank_customers 
-ADD CONSTRAINT fk_referred_by 
-FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL;
 
 -- ========================================
 -- VIEWS
@@ -988,7 +994,6 @@ GROUP BY tt.type_name;
 
 -- Ensure user_account table has role column with correct type
 -- This is safe to run even if column already exists
-
 SET @db_exists = (SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'BankingDB');
 
 SET @table_exists = (

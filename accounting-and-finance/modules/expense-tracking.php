@@ -179,7 +179,161 @@ if ((empty($transactionType) || $transactionType === 'bank_fee') &&
         }
 }
 
-// 3. LOAN SUBSYSTEM: Get loan payments (if any fee component exists)
+// 3. REWARDS SYSTEM: Get reward redemptions as expenses
+// Only fetch if no transaction type filter OR if filter is set to reward_redemption
+if ((empty($transactionType) || $transactionType === 'reward_redemption') &&
+    $conn->query("SHOW TABLES LIKE 'points_history'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'bank_customers'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'bank_users'")->num_rows > 0) {
+    
+    $sql = "SELECT 
+                ph.id,
+                CONCAT('REWARD-', ph.id) as transaction_number,
+                CONCAT(bc.first_name, ' ', IFNULL(bc.middle_name, ''), ' ', bc.last_name) as employee_name,
+                bc.customer_id as employee_external_no,
+                DATE(ph.created_at) as transaction_date,
+                ABS(ph.points) as amount,
+                ph.description,
+                'approved' as status,
+                'reward_redemption' as transaction_type,
+                'Reward Redemption' as category_name,
+                'REWARD' as category_code,
+                CONCAT('REWARD-', ph.id) as account_code,
+                'Marketing Rewards' as account_name,
+                ph.created_at,
+                'System' as created_by_name,
+                NULL as approved_by_name,
+                NULL as approved_at
+            FROM points_history ph
+            LEFT JOIN bank_users bu ON ph.user_id = bu.id
+            INNER JOIN bank_customers bc ON bu.email = bc.email
+            WHERE ph.transaction_type = 'redemption'
+                AND ph.points < 0";
+    
+    $params = [];
+    $types = '';
+    
+    if ($applyFilters) {
+        if (!empty($dateFrom)) {
+            $sql .= " AND DATE(ph.created_at) >= ?";
+            $params[] = $dateFrom;
+            $types .= 's';
+        }
+        
+        if (!empty($dateTo)) {
+            $sql .= " AND DATE(ph.created_at) <= ?";
+            $params[] = $dateTo;
+            $types .= 's';
+        }
+        
+        // Account number filter: search by customer name or customer_id
+        if (!empty($accountNumber)) {
+            $sql .= " AND (bc.first_name LIKE ? OR bc.last_name LIKE ? OR bc.customer_id LIKE ? OR ph.description LIKE ?)";
+            $params[] = '%' . $accountNumber . '%';
+            $params[] = '%' . $accountNumber . '%';
+            $params[] = '%' . $accountNumber . '%';
+            $params[] = '%' . $accountNumber . '%';
+            $types .= 'ssss';
+        }
+    }
+    
+    // Note: Status filter doesn't apply to reward redemptions (they're always 'approved')
+    
+    $sql .= " ORDER BY ph.created_at DESC";
+    
+    $stmt = $conn->prepare($sql);
+    if ($stmt !== false) {
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $expenses[] = $row;
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// 4. REWARDS SYSTEM: Get mission rewards as marketing expenses
+// Only fetch if no transaction type filter OR if filter is set to mission_reward
+if ((empty($transactionType) || $transactionType === 'mission_reward') &&
+    $conn->query("SHOW TABLES LIKE 'points_history'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'bank_customers'")->num_rows > 0 &&
+    $conn->query("SHOW TABLES LIKE 'bank_users'")->num_rows > 0) {
+    
+    $sql = "SELECT 
+                ph.id,
+                CONCAT('MISSION-', ph.id) as transaction_number,
+                CONCAT(bc.first_name, ' ', IFNULL(bc.middle_name, ''), ' ', bc.last_name) as employee_name,
+                bc.customer_id as employee_external_no,
+                DATE(ph.created_at) as transaction_date,
+                ph.points as amount,
+                ph.description,
+                'approved' as status,
+                'mission_reward' as transaction_type,
+                'Marketing Program' as category_name,
+                'REWARD' as category_code,
+                CONCAT('MISSION-', ph.id) as account_code,
+                'Reward Program' as account_name,
+                ph.created_at,
+                'System' as created_by_name,
+                NULL as approved_by_name,
+                NULL as approved_at
+            FROM points_history ph
+            LEFT JOIN bank_users bu ON ph.user_id = bu.id
+            INNER JOIN bank_customers bc ON bu.email = bc.email
+            WHERE ph.transaction_type = 'mission'
+                AND ph.points > 0";
+    
+    $params = [];
+    $types = '';
+    
+    if ($applyFilters) {
+        if (!empty($dateFrom)) {
+            $sql .= " AND DATE(ph.created_at) >= ?";
+            $params[] = $dateFrom;
+            $types .= 's';
+        }
+        
+        if (!empty($dateTo)) {
+            $sql .= " AND DATE(ph.created_at) <= ?";
+            $params[] = $dateTo;
+            $types .= 's';
+        }
+        
+        // Account number filter: search by customer name or customer_id
+        if (!empty($accountNumber)) {
+            $sql .= " AND (bc.first_name LIKE ? OR bc.last_name LIKE ? OR bc.customer_id LIKE ? OR ph.description LIKE ?)";
+            $params[] = '%' . $accountNumber . '%';
+            $params[] = '%' . $accountNumber . '%';
+            $params[] = '%' . $accountNumber . '%';
+            $params[] = '%' . $accountNumber . '%';
+            $types .= 'ssss';
+        }
+    }
+    
+    // Note: Status filter doesn't apply to mission rewards (they're always 'approved')
+    
+    $sql .= " ORDER BY ph.created_at DESC";
+    
+    $stmt = $conn->prepare($sql);
+    if ($stmt !== false) {
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $expenses[] = $row;
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// 5. LOAN SUBSYSTEM: Get loan payments (if any fee component exists)
 // Note: This is a simplified version - adjust based on your loan payment structure
 if (empty($transactionType) || $transactionType === 'loan_fee') {
     // Loan payments are typically not expenses, but if there are fees, they can be tracked here
@@ -194,12 +348,13 @@ if (!empty($transactionType)) {
     $expenses = array_values($expenses); // Re-index array
 }
 
-// Apply status filter post-query (for bank_transactions that don't support status in WHERE clause)
+// Apply status filter post-query (for bank_transactions and reward transactions that don't support status in WHERE clause)
 if (!empty($status) && $status !== 'approved') {
-    // Bank transactions are always 'approved', so only filter expense_claims if status is not 'approved'
+    // Bank transactions and reward transactions are always 'approved', so only filter expense_claims if status is not 'approved'
     $expenses = array_filter($expenses, function($exp) use ($status) {
-        if (isset($exp['transaction_type']) && $exp['transaction_type'] === 'bank_fee') {
-            // Bank transactions are always approved, so exclude them if filtering for other statuses
+        $alwaysApprovedTypes = ['bank_fee', 'reward_redemption', 'mission_reward'];
+        if (isset($exp['transaction_type']) && in_array($exp['transaction_type'], $alwaysApprovedTypes)) {
+            // These transaction types are always approved, so exclude them if filtering for other statuses
             return $status === 'approved';
         }
         return isset($exp['status']) && $exp['status'] === $status;
@@ -221,7 +376,7 @@ usort($expenses, function($a, $b) {
 
 // Get filter options
 $statusOptions = ['draft', 'submitted', 'approved', 'rejected', 'paid'];
-$transactionTypeOptions = ['expense_claim', 'bank_fee', 'loan_fee'];
+$transactionTypeOptions = ['expense_claim', 'bank_fee', 'loan_fee', 'reward_redemption', 'mission_reward'];
 
 // Get account codes for filter (from real expense categories, not mock accounts)
 $accountOptions = [];
@@ -441,7 +596,9 @@ if ($conn->query("SHOW TABLES LIKE 'expense_categories'")->num_rows > 0) {
                                         $displayNames = [
                                             'expense_claim' => 'Expense Claim (HRIS)',
                                             'bank_fee' => 'Bank Fee/Charge (Bank System)',
-                                            'loan_fee' => 'Loan Fee (Loan Subsystem)'
+                                            'loan_fee' => 'Loan Fee (Loan Subsystem)',
+                                            'reward_redemption' => 'Reward Redemption (Marketing)',
+                                            'mission_reward' => 'Mission Rewards (Marketing)'
                                         ];
                                         echo $displayNames[$type] ?? ucfirst(str_replace('_', ' ', $type)); 
                                         ?>
@@ -564,7 +721,9 @@ if ($conn->query("SHOW TABLES LIKE 'expense_categories'")->num_rows > 0) {
                                                         <?php 
                                                         $typeLabels = [
                                                             'bank_fee' => '(Bank System)',
-                                                            'loan_fee' => '(Loan Subsystem)'
+                                                            'loan_fee' => '(Loan Subsystem)',
+                                                            'reward_redemption' => '(Marketing)',
+                                                            'mission_reward' => '(Marketing)'
                                                         ];
                                                         echo $typeLabels[$expense['transaction_type']] ?? '(' . ucfirst(str_replace('_', ' ', $expense['transaction_type'])) . ')'; 
                                                         ?>

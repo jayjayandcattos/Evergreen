@@ -36,8 +36,49 @@ function ensureSoftDeleteColumnsExist($conn) {
     }
 }
 
+// Ensure soft delete columns exist in loan_applications table
+function ensureApplicationSoftDeleteColumnsExist($conn) {
+    try {
+        // Check if deleted_at column exists
+        $checkSql = "SHOW COLUMNS FROM loan_applications LIKE 'deleted_at'";
+        $result = $conn->query($checkSql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Add deleted_at column
+            $alterSql = "ALTER TABLE loan_applications ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL";
+            if (!$conn->query($alterSql)) {
+                error_log("Failed to add deleted_at column to loan_applications: " . $conn->error);
+            }
+        }
+        
+        // Check if deleted_by column exists
+        $checkSql = "SHOW COLUMNS FROM loan_applications LIKE 'deleted_by'";
+        $result = $conn->query($checkSql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Add deleted_by column
+            $alterSql = "ALTER TABLE loan_applications ADD COLUMN deleted_by INT NULL DEFAULT NULL";
+            if (!$conn->query($alterSql)) {
+                error_log("Failed to add deleted_by column to loan_applications: " . $conn->error);
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error ensuring soft delete columns exist for loan_applications: " . $e->getMessage());
+    }
+}
+
 // Ensure columns exist before querying
 ensureSoftDeleteColumnsExist($conn);
+ensureApplicationSoftDeleteColumnsExist($conn);
+
+// Check if deleted_at column exists in loan_applications
+$hasAppDeletedAtColumn = false;
+try {
+    $checkResult = $conn->query("SHOW COLUMNS FROM loan_applications LIKE 'deleted_at'");
+    $hasAppDeletedAtColumn = $checkResult && $checkResult->num_rows > 0;
+} catch (Exception $e) {
+    $hasAppDeletedAtColumn = false;
+}
 
 // Get filter parameters
 $dateFrom = $_GET['date_from'] ?? '';
@@ -54,6 +95,8 @@ $applyFilters = isset($_GET['apply_filters']);
 $showOnlyApplications = true;
 
 if ($showOnlyApplications) {
+    $deletedFilter = $hasAppDeletedAtColumn ? "WHERE (la.deleted_at IS NULL OR la.deleted_at = '')" : "";
+    
     $sql = "SELECT 
             la.id,
             CONCAT('APP-', la.id) as loan_number,
@@ -91,7 +134,7 @@ if ($showOnlyApplications) {
             la.pdf_path,
             la.id as application_id
         FROM loan_applications la
-        WHERE 1=1
+        $deletedFilter
         ORDER BY la.id DESC";
 } else {
 $sql = "SELECT 
@@ -171,7 +214,7 @@ $sql = "SELECT
         FROM loan_applications la
         LEFT JOIN loan_types lt_app ON la.loan_type_id = lt_app.id
         LEFT JOIN users u_app ON la.approved_by_user_id = u_app.id
-        WHERE 1=1"; // Show all loan applications (matching adminindex.php)
+        " . ($hasAppDeletedAtColumn ? "WHERE (la.deleted_at IS NULL OR la.deleted_at = '')" : "WHERE 1=1"); // Exclude soft-deleted applications
 }
 
 $params = [];

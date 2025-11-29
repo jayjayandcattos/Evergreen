@@ -104,6 +104,20 @@ try {
         case 'delete_application':
             deleteApplication();
             break;
+        case 'restore_application':
+            restoreApplication();
+            break;
+        case 'permanent_delete_application':
+            permanentDeleteApplication();
+            break;
+        
+        case 'restore_all_loans':
+            restoreAllLoans();
+            break;
+        
+        case 'empty_bin_loans':
+            emptyBinLoans();
+            break;
         
         default:
             throw new Exception('Invalid action');
@@ -628,7 +642,11 @@ function getBinItems() {
     
     // Ensure soft delete columns exist
     ensureSoftDeleteColumnsExist($conn);
+    ensureApplicationSoftDeleteColumnsExist($conn);
     
+    $items = [];
+    
+    // Get deleted loans
     $sql = "SELECT 
                 l.id,
                 l.loan_no as loan_number,
@@ -650,10 +668,36 @@ function getBinItems() {
             ORDER BY l.deleted_at DESC";
     
     $result = $conn->query($sql);
-    
-    $items = [];
     if ($result) {
         while ($row = $result->fetch_assoc()) {
+            $items[] = $row;
+        }
+    }
+    
+    // Get deleted loan applications
+    $appSql = "SELECT 
+                la.id,
+                CONCAT('APP-', la.id) as loan_number,
+                COALESCE(la.full_name, la.user_email) as borrower_name,
+                la.loan_amount,
+                0.00 as outstanding_balance,
+                la.created_at as start_date,
+                la.due_date as maturity_date,
+                la.deleted_at,
+                la.status,
+                COALESCE(lt.name, la.loan_type, 'N/A') as loan_type_name,
+                COALESCE(u.username, '') as deleted_by_username,
+                COALESCE(u.full_name, '') as deleted_by_name,
+                'loan_application' as item_type
+            FROM loan_applications la
+            LEFT JOIN loan_types lt ON la.loan_type_id = lt.id
+            LEFT JOIN users u ON la.deleted_by = u.id
+            WHERE la.deleted_at IS NOT NULL AND la.deleted_at != ''
+            ORDER BY la.deleted_at DESC";
+    
+    $appResult = $conn->query($appSql);
+    if ($appResult) {
+        while ($row = $appResult->fetch_assoc()) {
             $items[] = $row;
         }
     }
@@ -1090,6 +1134,54 @@ function ensureSoftDeleteColumnsExist($conn) {
 }
 
 /**
+ * Ensure soft delete columns exist in loan_applications table
+ */
+function ensureApplicationSoftDeleteColumnsExist($conn) {
+    try {
+        // Check if deleted_at column exists
+        $checkSql = "SHOW COLUMNS FROM loan_applications LIKE 'deleted_at'";
+        $result = $conn->query($checkSql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Add deleted_at column
+            $alterSql = "ALTER TABLE loan_applications ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL";
+            if (!$conn->query($alterSql)) {
+                error_log("Failed to add deleted_at column to loan_applications: " . $conn->error);
+            } else {
+                error_log("Successfully added deleted_at column to loan_applications table");
+            }
+        }
+        
+        // Check if deleted_by column exists
+        $checkSql = "SHOW COLUMNS FROM loan_applications LIKE 'deleted_by'";
+        $result = $conn->query($checkSql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Add deleted_by column
+            $alterSql = "ALTER TABLE loan_applications ADD COLUMN deleted_by INT NULL DEFAULT NULL";
+            if (!$conn->query($alterSql)) {
+                error_log("Failed to add deleted_by column to loan_applications: " . $conn->error);
+            } else {
+                error_log("Successfully added deleted_by column to loan_applications table");
+            }
+        }
+        
+        // Add index if it doesn't exist
+        $indexCheck = "SHOW INDEX FROM loan_applications WHERE Key_name = 'idx_deleted_at'";
+        $indexResult = $conn->query($indexCheck);
+        if (!$indexResult || $indexResult->num_rows === 0) {
+            $indexSql = "ALTER TABLE loan_applications ADD INDEX idx_deleted_at (deleted_at)";
+            if (!$conn->query($indexSql)) {
+                error_log("Failed to add idx_deleted_at index to loan_applications: " . $conn->error);
+            }
+        }
+    } catch (Exception $e) {
+        // Log error but don't fail - columns might already exist
+        error_log("Error ensuring soft delete columns exist for loan_applications: " . $e->getMessage());
+    }
+}
+
+/**
  * Get detailed information for a loan application
  * Including all application fields from the updated schema
  */
@@ -1170,12 +1262,15 @@ function deleteApplication() {
         throw new Exception('Application ID is required');
     }
     
+    // Ensure soft delete columns exist for loan_applications
+    ensureApplicationSoftDeleteColumnsExist($conn);
+    
     // Start transaction
     $conn->begin_transaction();
     
     try {
-        // Check if application exists
-        $checkSql = "SELECT id, status FROM loan_applications WHERE id = ?";
+        // Check if application exists and is not already deleted
+        $checkSql = "SELECT id, status FROM loan_applications WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')";
         $checkStmt = $conn->prepare($checkSql);
         $checkStmt->bind_param('i', $applicationId);
         $checkStmt->execute();
@@ -1184,13 +1279,15 @@ function deleteApplication() {
         $checkStmt->close();
         
         if (!$application) {
-            throw new Exception('Application not found');
+            throw new Exception('Application not found or already deleted');
         }
         
-        // Delete the application
-        $deleteSql = "DELETE FROM loan_applications WHERE id = ?";
+        // Soft delete by setting deleted_at timestamp
+        $deleteSql = "UPDATE loan_applications 
+                      SET deleted_at = NOW(), deleted_by = ?
+                      WHERE id = ?";
         $deleteStmt = $conn->prepare($deleteSql);
-        $deleteStmt->bind_param('i', $applicationId);
+        $deleteStmt->bind_param('ii', $currentUser['id'], $applicationId);
         $deleteStmt->execute();
         
         if ($deleteStmt->affected_rows === 0) {
@@ -1198,10 +1295,23 @@ function deleteApplication() {
         }
         $deleteStmt->close();
         
+        // Verify the deletion worked
+        $verifySql = "SELECT id, deleted_at FROM loan_applications WHERE id = ?";
+        $verifyStmt = $conn->prepare($verifySql);
+        $verifyStmt->bind_param('i', $applicationId);
+        $verifyStmt->execute();
+        $verifyResult = $verifyStmt->get_result();
+        $verifyApp = $verifyResult->fetch_assoc();
+        $verifyStmt->close();
+        
+        if (!$verifyApp || empty($verifyApp['deleted_at'])) {
+            throw new Exception('Verification failed: Application was not properly soft deleted');
+        }
+        
         // Log the deletion in audit trail
         if (tableExists('audit_logs')) {
             $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
-                         VALUES (?, 'DELETE', 'loan_application', ?, 'Loan application permanently deleted', ?, NOW())";
+                         VALUES (?, 'DELETE', 'loan_application', ?, 'Loan application moved to bin', ?, NOW())";
             
             $auditStmt = $conn->prepare($auditSql);
             $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -1216,7 +1326,297 @@ function deleteApplication() {
         
         echo json_encode([
             'success' => true,
-            'message' => 'Application deleted successfully'
+            'message' => 'Application moved to bin successfully'
+        ]);
+        
+        ob_end_flush();
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        throw $e;
+    }
+}
+
+/**
+ * Restore loan application from bin
+ */
+function restoreApplication() {
+    global $conn;
+    
+    $applicationId = $_POST['application_id'] ?? '';
+    $currentUser = getCurrentUser();
+    
+    if (empty($applicationId)) {
+        throw new Exception('Application ID is required');
+    }
+    
+    // Ensure soft delete columns exist
+    ensureApplicationSoftDeleteColumnsExist($conn);
+    
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Restore application by clearing deleted_at
+        $sql = "UPDATE loan_applications 
+                SET deleted_at = NULL, deleted_by = NULL
+                WHERE id = ? AND deleted_at IS NOT NULL AND deleted_at != ''";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('i', $applicationId);
+        $stmt->execute();
+        
+        if ($stmt->affected_rows === 0) {
+            throw new Exception('Application not found or not in bin');
+        }
+        $stmt->close();
+        
+        // Log the restoration in audit trail
+        if (tableExists('audit_logs')) {
+            $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
+                         VALUES (?, 'RESTORE', 'loan_application', ?, 'Loan application restored from bin', ?, NOW())";
+            
+            $auditStmt = $conn->prepare($auditSql);
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $auditStmt->bind_param('iis', $currentUser['id'], $applicationId, $ipAddress);
+            $auditStmt->execute();
+        }
+        
+        // Log activity
+        logActivity('restore', 'loan_accounting', "Restored loan application #$applicationId from bin", $conn);
+        
+        $conn->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Loan application restored successfully'
+        ]);
+        
+        ob_end_flush();
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        throw $e;
+    }
+}
+
+/**
+ * Permanently delete loan application from bin
+ */
+function permanentDeleteApplication() {
+    global $conn;
+    
+    $applicationId = $_POST['application_id'] ?? '';
+    $currentUser = getCurrentUser();
+    
+    if (empty($applicationId)) {
+        throw new Exception('Application ID is required');
+    }
+    
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Log the permanent deletion in audit trail first
+        if (tableExists('audit_logs')) {
+            $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
+                         VALUES (?, 'PERMANENT_DELETE', 'loan_application', ?, 'Loan application permanently deleted from bin', ?, NOW())";
+            
+            $auditStmt = $conn->prepare($auditSql);
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $auditStmt->bind_param('iis', $currentUser['id'], $applicationId, $ipAddress);
+            $auditStmt->execute();
+        }
+        
+        // Delete the application (only if soft deleted)
+        $deleteSql = "DELETE FROM loan_applications WHERE id = ? AND deleted_at IS NOT NULL AND deleted_at != ''";
+        $deleteStmt = $conn->prepare($deleteSql);
+        $deleteStmt->bind_param('i', $applicationId);
+        $deleteStmt->execute();
+        
+        if ($deleteStmt->affected_rows === 0) {
+            throw new Exception('Application not found or not in bin');
+        }
+        $deleteStmt->close();
+        
+        // Log activity
+        logActivity('permanent_delete', 'loan_accounting', "Permanently deleted loan application #$applicationId from bin", $conn);
+        
+        $conn->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Loan application permanently deleted'
+        ]);
+        
+        ob_end_flush();
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        throw $e;
+    }
+}
+
+/**
+ * Restore all loans and loan applications from bin
+ */
+function restoreAllLoans() {
+    global $conn;
+    
+    $currentUser = getCurrentUser();
+    $totalRestoredCount = 0;
+    $errors = [];
+    
+    // Ensure soft delete columns exist
+    ensureSoftDeleteColumnsExist($conn);
+    ensureApplicationSoftDeleteColumnsExist($conn);
+    
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Restore all loans
+        $loanSql = "UPDATE loans 
+                    SET deleted_at = NULL, deleted_by = NULL
+                    WHERE deleted_at IS NOT NULL AND deleted_at != ''";
+        $loanStmt = $conn->prepare($loanSql);
+        $loanStmt->execute();
+        $loanRestoredCount = $loanStmt->affected_rows;
+        $loanStmt->close();
+        
+        // Restore all loan applications
+        $appSql = "UPDATE loan_applications 
+                   SET deleted_at = NULL, deleted_by = NULL
+                   WHERE deleted_at IS NOT NULL AND deleted_at != ''";
+        $appStmt = $conn->prepare($appSql);
+        $appStmt->execute();
+        $appRestoredCount = $appStmt->affected_rows;
+        $appStmt->close();
+        
+        $totalRestoredCount = $loanRestoredCount + $appRestoredCount;
+        
+        // Log bulk restore action
+        if (tableExists('audit_logs')) {
+            $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
+                         VALUES (?, 'RESTORE_ALL', 'loan', 0, ?, ?, NOW())";
+            $auditStmt = $conn->prepare($auditSql);
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $info = "Restored all loans from bin: {$loanRestoredCount} loans, {$appRestoredCount} applications";
+            $auditStmt->bind_param('iss', $currentUser['id'], $info, $ipAddress);
+            $auditStmt->execute();
+        }
+        
+        // Log activity
+        logActivity('restore_all', 'loan_accounting', "Restored all loans from bin ({$loanRestoredCount} loans, {$appRestoredCount} applications)", $conn);
+        
+        $conn->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => "Successfully restored {$totalRestoredCount} items ({$loanRestoredCount} loans, {$appRestoredCount} applications)",
+            'restored_count' => $totalRestoredCount,
+            'loan_restored' => $loanRestoredCount,
+            'application_restored' => $appRestoredCount,
+            'errors' => $errors
+        ]);
+        
+        ob_end_flush();
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        throw $e;
+    }
+}
+
+/**
+ * Empty bin for loans (permanently delete all loans and applications in bin)
+ */
+function emptyBinLoans() {
+    global $conn;
+    
+    $currentUser = getCurrentUser();
+    $totalDeletedCount = 0;
+    
+    // Ensure soft delete columns exist
+    ensureSoftDeleteColumnsExist($conn);
+    ensureApplicationSoftDeleteColumnsExist($conn);
+    
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Get count of items to be deleted for logging
+        $countSql = "SELECT COUNT(*) as count FROM loans WHERE deleted_at IS NOT NULL AND deleted_at != ''";
+        $countResult = $conn->query($countSql);
+        $loanCount = $countResult ? $countResult->fetch_assoc()['count'] : 0;
+        
+        $countSql = "SELECT COUNT(*) as count FROM loan_applications WHERE deleted_at IS NOT NULL AND deleted_at != ''";
+        $countResult = $conn->query($countSql);
+        $appCount = $countResult ? $countResult->fetch_assoc()['count'] : 0;
+        
+        // Log the permanent deletion in audit trail first
+        if (tableExists('audit_logs')) {
+            $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
+                         VALUES (?, 'EMPTY_BIN', 'loan', 0, ?, ?, NOW())";
+            $auditStmt = $conn->prepare($auditSql);
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $info = "Permanently deleted all loans from bin: {$loanCount} loans, {$appCount} applications";
+            $auditStmt->bind_param('iss', $currentUser['id'], $info, $ipAddress);
+            $auditStmt->execute();
+        }
+        
+        // Delete related records first (foreign key constraints) for loans
+        if ($loanCount > 0) {
+            if (tableExists('loan_payments')) {
+                $deletePaymentsSql = "DELETE lp FROM loan_payments lp 
+                                     INNER JOIN loans l ON lp.loan_id = l.id 
+                                     WHERE l.deleted_at IS NOT NULL AND l.deleted_at != ''";
+                $conn->query($deletePaymentsSql);
+            }
+            
+            if (tableExists('loan_transactions')) {
+                $deleteTransSql = "DELETE lt FROM loan_transactions lt 
+                                  INNER JOIN loans l ON lt.loan_id = l.id 
+                                  WHERE l.deleted_at IS NOT NULL AND l.deleted_at != ''";
+                $conn->query($deleteTransSql);
+            }
+            
+            // Delete the loans
+            $deleteLoanSql = "DELETE FROM loans WHERE deleted_at IS NOT NULL AND deleted_at != ''";
+            $deleteLoanStmt = $conn->prepare($deleteLoanSql);
+            $deleteLoanStmt->execute();
+            $loanDeletedCount = $deleteLoanStmt->affected_rows;
+        } else {
+            $loanDeletedCount = 0;
+        }
+        
+        // Delete loan applications
+        if ($appCount > 0) {
+            $deleteAppSql = "DELETE FROM loan_applications WHERE deleted_at IS NOT NULL AND deleted_at != ''";
+            $deleteAppStmt = $conn->prepare($deleteAppSql);
+            $deleteAppStmt->execute();
+            $appDeletedCount = $deleteAppStmt->affected_rows;
+        } else {
+            $appDeletedCount = 0;
+        }
+        
+        $totalDeletedCount = $loanDeletedCount + $appDeletedCount;
+        
+        // Log activity
+        logActivity('empty_bin', 'loan_accounting', "Permanently deleted {$totalDeletedCount} loans from bin ({$loanDeletedCount} loans, {$appDeletedCount} applications)", $conn);
+        
+        $conn->commit();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => "Successfully permanently deleted {$totalDeletedCount} items ({$loanDeletedCount} loans, {$appDeletedCount} applications)",
+            'deleted_count' => $totalDeletedCount,
+            'loan_deleted' => $loanDeletedCount,
+            'application_deleted' => $appDeletedCount
         ]);
         
         ob_end_flush();

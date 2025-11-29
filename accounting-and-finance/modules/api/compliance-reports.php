@@ -11,8 +11,14 @@
  * - users: User information
  */
 
+// Start output buffering to prevent any output before JSON
+ob_start();
+
 require_once dirname(__DIR__, 2) . '/config/database.php';
 require_once dirname(__DIR__, 2) . '/includes/session.php';
+
+// Clear any output that may have been generated
+ob_clean();
 
 header('Content-Type: application/json');
 
@@ -932,38 +938,50 @@ function getAllBinItems() {
     
     $binItems = [];
     
-    // Get deleted compliance reports
-    $stmt = $conn->prepare("
-        SELECT 
-            'compliance_report' as item_type,
-            cr.id,
-            cr.report_type as title,
-            cr.period_start,
-            cr.period_end,
-            cr.deleted_at,
-            u.full_name as deleted_by_name,
-            cr.compliance_score as score,
-            cr.status
-        FROM compliance_reports cr
-        LEFT JOIN users u ON cr.generated_by = u.id
-        WHERE cr.deleted_at IS NOT NULL
-        ORDER BY cr.deleted_at DESC
-        LIMIT 50
-    ");
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    while ($row = $result->fetch_assoc()) {
-        $binItems[] = $row;
+    try {
+        // Get deleted compliance reports
+        $stmt = $conn->prepare("
+            SELECT 
+                'compliance_report' as item_type,
+                cr.id,
+                cr.report_type as title,
+                cr.period_start,
+                cr.period_end,
+                cr.deleted_at,
+                u.full_name as deleted_by_name,
+                cr.compliance_score as score,
+                cr.status
+            FROM compliance_reports cr
+            LEFT JOIN users u ON cr.generated_by = u.id
+            WHERE cr.deleted_at IS NOT NULL
+            ORDER BY cr.deleted_at DESC
+            LIMIT 50
+        ");
+        
+        if ($stmt) {
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                $binItems[] = $row;
+            }
+            $stmt->close();
+        }
+    } catch (Exception $e) {
+        // Log error but continue
+        error_log("Error fetching compliance reports from bin: " . $e->getMessage());
     }
     
     // Add other deleted item types here in the future
     // Example: deleted transactions, deleted journal entries, etc.
     
+    ob_clean();
     echo json_encode([
         'success' => true,
         'data' => $binItems
     ]);
+    ob_end_flush();
+    exit();
 }
 
 /**
