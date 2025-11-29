@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['employee_login'])) {
     <title>HRIS - Employee Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kulim+Park:wght@400;600;700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@600&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" />
@@ -88,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['employee_login'])) {
         <div class="login-section">
             <div class="login-card">
                 <div class="login-header">
-                    <div class="flex justify-center mb-3 sm:mb-4">
+                    <div class="flex justify-center mb-2">
                         <img src="assets/evergreen.svg" alt="HRIS Logo" class="login-logo" loading="lazy">
                     </div>
                     <h2 class="login-title">Employee Login</h2>

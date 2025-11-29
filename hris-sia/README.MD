@@ -8,9 +8,8 @@ Project - HRIS - Subsystem
 - Leave requests and approvals
 - Basic reporting and exports
 
-## Credits
-- Front-End by Justin Rivera
-- Back-End by Augoste Flores
+Justin Rivera
+
 
 ## Installation (local)
 1. Copy project to XAMPP htdocs:
