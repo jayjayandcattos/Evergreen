@@ -189,10 +189,10 @@ async function handleFormSubmit(e) {
       // Reset source account row visibility
       document.getElementById('source_account_row').style.display = 'none';
       
-      // Redirect to accounts page after a delay
+      // Redirect to employee dashboard after a delay
       setTimeout(() => {
-        // Redirect to customer accounts page
-        window.location.href = '/Evergreen/bank-system/Basic-operation/operations/public/customer/account';
+        // Redirect to employee dashboard
+        window.location.href = 'employee-dashboard.html';
       }, 3000);
     } else {
       // Show validation errors
