@@ -150,15 +150,7 @@ function recordTimeOut($conn, $employee_id) {
         // Get current Philippine time
         $current_time = new DateTime('now', new DateTimeZone('Asia/Manila'));
         
-        // Update the record with time-out
-        $updateSql = "UPDATE attendance SET time_out = ? WHERE attendance_id = ?";
-        $updateStmt = $conn->prepare($updateSql);
-        $updateStmt->execute([
-            $current_time->format('Y-m-d H:i:s'),
-            $active_attendance['attendance_id']
-        ]);
-        
-        // Calculate hours worked - FIXED: Use actual time_in from database
+        // Calculate hours worked BEFORE updating database
         $time_in = new DateTime($active_attendance['time_in'], new DateTimeZone('Asia/Manila'));
         $time_out = clone $current_time;
         
@@ -168,7 +160,28 @@ function recordTimeOut($conn, $employee_id) {
         $hours = floor($total_minutes / 60);
         $minutes = $total_minutes % 60;
         
+        // Calculate total_hours as decimal (e.g., 8.5 for 8 hours 30 minutes)
+        $total_hours = round($total_minutes / 60, 2);
+        
         // Handle edge case for very short duration
+        if ($total_seconds < 60) {
+            $total_hours = 0;
+        }
+        
+        // CRITICAL FIX: Update time_out AND total_hours in database
+        // This ensures accounting system can read accurate hours worked
+        $updateSql = "UPDATE attendance 
+                     SET time_out = ?, 
+                         total_hours = ? 
+                     WHERE attendance_id = ?";
+        $updateStmt = $conn->prepare($updateSql);
+        $updateStmt->execute([
+            $current_time->format('Y-m-d H:i:s'),
+            $total_hours,
+            $active_attendance['attendance_id']
+        ]);
+        
+        // Return success message with hours worked
         if ($total_seconds < 60) {
             return [
                 "success" => true, 
@@ -190,7 +203,7 @@ function recordTimeOut($conn, $employee_id) {
                 $minutes,
                 $minutes != 1 ? 's' : ''
             ),
-            "hours_worked" => round($total_minutes / 60, 2)
+            "hours_worked" => $total_hours
         ];
         
     } catch (Exception $e) {
