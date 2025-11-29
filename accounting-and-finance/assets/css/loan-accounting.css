@@ -1,0 +1,938 @@
+/* ========================================
+   LOAN ACCOUNTING MODULE STYLES
+   ======================================== */
+
+/* Navigation Bar Styling - Exact Match */
+.navbar-custom {
+    background: linear-gradient(135deg, #0A3D3D 0%, #165A5A 100%) !important;
+    padding: 0 !important;
+    box-shadow: none;
+}
+
+.navbar-custom .logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.navbar-custom .logo-circle {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, #E89B2E 0%, #F5A833 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFF;
+    box-shadow: 0 2px 8px rgba(232, 155, 46, 0.3);
+    overflow: hidden;
+}
+
+.navbar-custom .logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.navbar-custom .logo-text h1 {
+    font-size: 16px;
+    margin: 0;
+    color: #FFF;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.navbar-custom .logo-text p {
+    font-size: 9px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}
+
+.navbar-custom .navbar-nav {
+    gap: 0;
+}
+
+.navbar-custom .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 18px 22px;
+    margin: 0;
+    border-radius: 0;
+    transition: all 0.3s ease;
+    position: relative;
+    border-bottom: 3px solid transparent;
+}
+
+.navbar-custom .navbar-nav .nav-link:hover {
+    color: #E89B2E !important;
+}
+
+.navbar-custom .navbar-nav .nav-link.active,
+.navbar-custom .navbar-nav .dropdown.show > .nav-link {
+    color: #FFF !important;
+    border-bottom: 3px solid #E89B2E;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.navbar-custom .dropdown-toggle::after {
+    color: #FFF;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.navbar-custom .dropdown-menu {
+    background-color: #FFF;
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 0;
+    margin-top: 0;
+}
+
+.navbar-custom .dropdown-menu .dropdown-item {
+    color: #333;
+    padding: 12px 20px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.navbar-custom .dropdown-menu .dropdown-item:hover {
+    background-color: #F8F9FA;
+    color: #0A3D3D;
+    border-left-color: #E89B2E;
+    padding-left: 25px;
+}
+
+.navbar-custom .dropdown-menu .dropdown-item.active {
+    background-color: rgba(232, 155, 46, 0.1);
+    color: #0A3D3D;
+    border-left-color: #E89B2E;
+    font-weight: 600;
+}
+
+.navbar-custom .dropdown-menu .dropdown-divider {
+    margin: 0;
+    border-color: #E9ECEF;
+}
+
+/* Notifications */
+.navbar-custom .nav-icon-btn {
+    color: #FFF;
+    font-size: 18px;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.navbar-custom .nav-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #FFF;
+}
+
+.navbar-custom .notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #dc3545;
+    color: #FFF;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.navbar-custom .notifications-dropdown {
+    min-width: 300px;
+}
+
+.navbar-custom .notification-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+}
+
+.navbar-custom .notification-content {
+    flex: 1;
+}
+
+.navbar-custom .notification-content strong {
+    display: block;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.navbar-custom .notification-content small {
+    color: #666;
+    font-size: 11px;
+}
+
+/* User Profile */
+.navbar-custom .user-profile-btn {
+    color: #FFF;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.navbar-custom .user-profile-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #FFF;
+}
+
+.navbar-custom .user-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.navbar-custom .user-dropdown-header i {
+    color: #0A3D3D;
+}
+
+.navbar-custom .user-dropdown-header strong {
+    display: block;
+    color: #333;
+    font-size: 14px;
+}
+
+.navbar-custom .user-dropdown-header small {
+    color: #666;
+    font-size: 12px;
+}
+
+/* Responsive Navigation */
+@media (max-width: 991px) {
+    .navbar-custom .navbar-collapse {
+        background-color: rgba(10, 61, 61, 0.95);
+        margin-top: 15px;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    
+    .navbar-custom .navbar-nav {
+        margin-top: 10px;
+    }
+    
+    .navbar-custom .navbar-nav .nav-link {
+        margin: 5px 0;
+        padding: 12px 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar-custom .logo-text h1 {
+        font-size: 16px;
+    }
+    
+    .navbar-custom .logo-text p {
+        font-size: 10px;
+    }
+    
+    .navbar-custom .logo-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+        overflow: hidden;
+    }
+    
+    .navbar-custom .logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+}
+
+/* Stats Cards */
+.stat-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.3s ease;
+    border-left: 4px solid;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.stat-card-primary {
+    border-left-color: #0A3D3D;
+}
+
+.stat-card-success {
+    border-left-color: #28a745;
+}
+
+.stat-card-warning {
+    border-left-color: #ffc107;
+}
+
+.stat-card-info {
+    border-left-color: #17a2b8;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+}
+
+.stat-card-primary .stat-icon {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A);
+}
+
+.stat-card-success .stat-icon {
+    background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.stat-card-warning .stat-icon {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+}
+
+.stat-card-info .stat-icon {
+    background: linear-gradient(135deg, #17a2b8, #20c997);
+}
+
+.stat-content h3 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0A3D3D;
+    margin: 0 0 5px 0;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Filter Panel */
+#filterPanel {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card-header.bg-primary {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A) !important;
+}
+
+/* Table Styles */
+.table-hover tbody tr:hover {
+    background-color: rgba(10, 61, 61, 0.05);
+}
+
+.table thead th {
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #0A3D3D;
+    background-color: #f8f9fa;
+    color: #0A3D3D;
+}
+
+.table-light thead th {
+    background-color: #f8f9fa !important;
+    color: #0A3D3D !important;
+    font-weight: 600;
+}
+
+.table-dark {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A);
+}
+
+/* Status Badges */
+.badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.status-active {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.status-paid {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.status-defaulted {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.status-cancelled {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.status-overdue {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.status-approved {
+    background-color: #28a745;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.status-rejected {
+    background-color: #dc3545;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.status-closed {
+    background-color: #6c757d;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Transaction Type Badges */
+.badge-type-disbursement {
+    background-color: #17a2b8;
+    color: #fff;
+}
+
+.badge-type-payment {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.badge-type-interest {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.badge-type-restructure {
+    background-color: #6f42c1;
+    color: #fff;
+}
+
+.badge-type-other {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+/* Action Buttons */
+.btn-action {
+    padding: 5px 12px;
+    font-size: 12px;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.btn-action:hover {
+    transform: scale(1.05);
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 15px 20px;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+    color: #0A3D3D;
+}
+
+.empty-state h4 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #666;
+}
+
+/* Modal Customization */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: none;
+    padding: 20px 25px;
+}
+
+/* Audit Trail Modal Styling */
+#auditTrailModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+#auditTrailModal .table th {
+    background-color: #f8f9fa;
+    color: #0A3D3D;
+    font-weight: 600;
+    border-bottom: 2px solid #0A3D3D;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#auditTrailModal .table td {
+    vertical-align: middle;
+}
+
+#auditTrailModal .table td:nth-child(5) {
+    max-width: 300px;
+    word-wrap: break-word;
+    font-size: 0.9em;
+}
+
+#auditTrailModal .table td small {
+    display: block;
+    line-height: 1.4;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.05);
+    padding: 15px 25px;
+}
+
+/* Loan Details Styling */
+.loan-detail-section {
+    margin-bottom: 25px;
+}
+
+.loan-detail-section h6 {
+    color: #0A3D3D;
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #0A3D3D;
+}
+
+.loan-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.loan-detail-label {
+    font-weight: 600;
+    color: #666;
+}
+
+.loan-detail-value {
+    color: #333;
+    text-align: right;
+}
+
+/* Payment Schedule Table */
+.payment-schedule-table {
+    margin-top: 20px;
+}
+
+.payment-schedule-table thead {
+    background-color: #f8f9fa;
+}
+
+.payment-schedule-table th {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0A3D3D;
+}
+
+.payment-schedule-table td {
+    font-size: 13px;
+}
+
+/* Print Specific Styles */
+@media print {
+    .navbar-custom,
+    .page-header,
+    .beautiful-page-header,
+    footer,
+    .btn,
+    .card-header,
+    .stat-card,
+    #filterPanel,
+    .btn-group,
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate,
+    .dataTables_wrapper .dataTables_processing {
+        display: none !important;
+    }
+    
+    /* Show print title */
+    .print-title {
+        display: block !important;
+        page-break-after: avoid;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #0A3D3D;
+    }
+    
+    .print-title h2 {
+        color: #0A3D3D;
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 1px;
+    }
+    
+    .print-title p {
+        font-size: 12px;
+        margin: 5px 0 0 0;
+        color: #666;
+    }
+    
+    /* Remove all margins and padding for full-width layout */
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .container,
+    .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card-body {
+        padding: 10px !important;
+    }
+    
+    /* Make table expand to full width */
+    .table-responsive {
+        width: 100% !important;
+        overflow: visible !important;
+    }
+    
+    .table {
+        width: 100% !important;
+        font-size: 10px !important;
+        table-layout: auto !important;
+    }
+    
+    /* Table header styling - match screen view */
+    .table thead th {
+        background-color: #f8f9fa !important;
+        color: #0A3D3D !important;
+        font-weight: 600 !important;
+        font-size: 10px !important;
+        padding: 8px 6px !important;
+        border: 1px solid #dee2e6 !important;
+        text-align: left !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Table body cells */
+    .table tbody td {
+        border: 1px solid #dee2e6 !important;
+        padding: 6px 6px !important;
+        font-size: 9px !important;
+        vertical-align: middle !important;
+    }
+    
+    /* Ensure text alignment is preserved */
+    .table tbody td.text-end {
+        text-align: right !important;
+    }
+    
+    .table tbody td.text-center {
+        text-align: center !important;
+    }
+    
+    /* Status badges - keep visible and styled */
+    .badge {
+        border: 1px solid #333 !important;
+        padding: 3px 8px !important;
+        font-size: 8px !important;
+        font-weight: 600 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Action buttons column - hide in print */
+    .table thead th:last-child,
+    .table tbody td:last-child {
+        display: none !important;
+    }
+    
+    /* Remove table hover effects */
+    .table-hover tbody tr:hover {
+        background-color: transparent !important;
+    }
+    
+    /* Ensure alternating row colors print */
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0, 0, 0, 0.02) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Page setup for portrait orientation */
+    @page {
+        size: A4 portrait;
+        margin: 0.5cm;
+    }
+    
+    /* Print header */
+    @media print {
+        @page {
+            @top-center {
+                content: "Loan History Report - " counter(page);
+                font-size: 8px;
+                color: #666;
+            }
+        }
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+    
+    .stat-content h3 {
+        font-size: 28px;
+    }
+    
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .table thead th {
+        font-size: 11px;
+        padding: 8px 4px;
+    }
+    
+    .table tbody td {
+        padding: 8px 4px;
+    }
+}
+
+/* Loading Spinner */
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner-overlay .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3em;
+    color: #fff;
+}
+
+/* Highlight Active Filters */
+.filter-active {
+    border-left: 3px solid #0A3D3D;
+}
+
+/* Loan Amount Styling */
+.amount-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.amount-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* DataTables Custom Styling */
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A) !important;
+    border-color: #0A3D3D !important;
+    color: white !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: linear-gradient(135deg, #165A5A, #0A3D3D) !important;
+    border-color: #0A3D3D !important;
+    color: white !important;
+}
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 5px 10px;
+}
+
+.dataTables_wrapper .dataTables_info {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Interest Rate Indicator */
+.interest-rate-high {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.interest-rate-medium {
+    color: #ffc107;
+    font-weight: 600;
+}
+
+.interest-rate-low {
+    color: #28a745;
+    font-weight: 600;
+}
+
+/* Tooltip Customization */
+.tooltip-inner {
+    background-color: #0A3D3D;
+    color: white;
+    font-size: 12px;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: #0A3D3D;
+}
+
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+    border-bottom-color: #0A3D3D;
+}
+
+/* Alert Customization */
+.alert {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+

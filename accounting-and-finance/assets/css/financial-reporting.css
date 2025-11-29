@@ -1,0 +1,3814 @@
+/* ========================================
+   FINANCIAL REPORTING & COMPLIANCE - MODERN UI
+   Based on Groupmate Design
+   ======================================== */
+
+/* ========================================
+   LOADING SPINNER
+   ======================================== */
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-state {
+    text-align: center;
+    padding: 2rem;
+}
+
+.loading-state p {
+    margin-top: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* ========================================
+   FILTERING SECTION IMPROVEMENTS
+   ======================================== */
+
+.filtering-section {
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.filtering-section:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.filter-status-badge .badge {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* ========================================
+   TABLE IMPROVEMENTS
+   ======================================== */
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+/* ========================================
+   FINANCIAL REPORTING - THEME CONSISTENT DESIGN
+   ======================================== */
+
+:root {
+    --primary-teal: #0A3D3D;
+    --secondary-teal: #165A5A;
+    --accent-gold: #C17817;
+    --light-gold: #E89B2E;
+    --bg-cream: #F5F1E8;
+    --text-dark: #2c3e50;
+    --text-muted: #6c757d;
+}
+
+/* Beautiful Page Header */
+.beautiful-page-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 20px;
+    padding: 2.5rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 32px rgba(10, 61, 61, 0.1);
+    border: 1px solid rgba(10, 61, 61, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.beautiful-page-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+}
+
+.page-title-beautiful {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--primary-teal);
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+}
+
+.page-title-beautiful i {
+    color: var(--primary-teal);
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.page-subtitle-beautiful {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin: 0;
+    font-weight: 400;
+}
+
+.header-info-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(10, 61, 61, 0.08);
+    border: 1px solid rgba(10, 61, 61, 0.1);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.info-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 15px rgba(10, 61, 61, 0.2);
+}
+
+.info-content {
+    flex: 1;
+}
+
+.info-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.info-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.status-connected {
+    color: #28a745;
+    position: relative;
+}
+
+.status-connected::before {
+    content: '';
+    position: absolute;
+    left: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: #28a745;
+    border-radius: 50%;
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateY(-50%) scale(1.2);
+    }
+}
+
+.header-actions {
+    text-align: right;
+}
+
+/* Section Headers Simple */
+.section-header-simple {
+    margin-bottom: 2rem;
+}
+
+.section-title-simple {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0 0 0.5rem 0;
+}
+
+.section-subtitle-simple {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Report Cards Modern */
+.report-card-modern {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 5px 20px rgba(10, 61, 61, 0.08);
+    transition: all 0.3s ease;
+    border: 1px solid #f8f9fa;
+    overflow: hidden;
+    position: relative;
+}
+
+.report-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+}
+
+.report-card-modern:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(10, 61, 61, 0.15);
+    border-color: var(--primary-teal);
+}
+
+.card-header-modern {
+    padding: 2rem 2rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+
+.report-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: white;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+    box-shadow: 0 4px 15px rgba(10, 61, 61, 0.3);
+}
+
+.report-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.report-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.card-body-modern {
+    padding: 0 2rem 1rem;
+}
+
+.report-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.summary-value {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.card-footer-modern {
+    padding: 1rem 2rem 2rem;
+    background: #f8f9fa;
+}
+
+.btn-generate-modern {
+    width: 100%;
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+    border: none;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-generate-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-generate-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(10, 61, 61, 0.3);
+}
+
+.btn-generate-modern:hover::before {
+    left: 100%;
+}
+
+/* Filtering Section Modern */
+.filtering-section-modern {
+    margin: 3rem 0;
+}
+
+.filtering-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 5px 20px rgba(10, 61, 61, 0.08);
+    border: 1px solid #f8f9fa;
+    position: relative;
+}
+
+.filtering-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, var(--accent-gold) 0%, var(--light-gold) 100%);
+    border-radius: 20px 20px 0 0;
+}
+
+.filter-group {
+    margin-bottom: 1rem;
+}
+
+.filter-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-control-modern,
+.form-select-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control-modern:focus,
+.form-select-modern:focus {
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 0 0.2rem rgba(10, 61, 61, 0.15);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Filtered Results Modern */
+.filtered-results-modern {
+    margin: 3rem 0;
+}
+
+.results-table-container {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 5px 20px rgba(10, 61, 61, 0.08);
+    border: 1px solid #f8f9fa;
+    position: relative;
+}
+
+.results-table-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--secondary-teal) 100%);
+    border-radius: 20px 20px 0 0;
+}
+
+.table-modern {
+    margin: 0;
+}
+
+.table-modern thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: none;
+    padding: 1rem;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.table-modern tbody td {
+    padding: 1rem;
+    border-top: 1px solid #f8f9fa;
+    vertical-align: middle;
+}
+
+.table-modern tbody tr:hover {
+    background-color: rgba(10, 61, 61, 0.05);
+}
+
+.results-actions-simple {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* No Results Modern */
+.no-results-modern {
+    background: white;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    border: 1px solid #f8f9fa;
+}
+
+.no-results-icon {
+    opacity: 0.5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .beautiful-page-header {
+        padding: 2rem 0;
+    }
+    
+    .page-title-beautiful {
+        font-size: 1.8rem;
+    }
+    
+    .page-title-beautiful i {
+        font-size: 1.5rem;
+    }
+    
+    .page-subtitle-beautiful {
+        font-size: 1rem;
+    }
+    
+    .header-info-card {
+        margin-top: 1.5rem;
+        padding: 1.25rem;
+    }
+    
+    .info-item {
+        gap: 0.75rem;
+    }
+    
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+    
+    .header-actions {
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .section-title-simple {
+        font-size: 1.3rem;
+    }
+    
+    .report-card-modern {
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header-modern {
+        padding: 1.5rem 1.5rem 1rem;
+    }
+    
+    .card-body-modern {
+        padding: 0 1.5rem 1rem;
+    }
+    
+    .card-footer-modern {
+        padding: 1rem 1.5rem 1.5rem;
+    }
+    
+    .filtering-card {
+        padding: 1.5rem;
+    }
+    
+    .results-table-container {
+        padding: 1rem;
+    }
+    
+    .results-actions-simple {
+        justify-content: center;
+    }
+}
+
+.regulatory-reports-flow .flow-step {
+    transition: all 0.3s ease;
+}
+
+.regulatory-reports-flow .card {
+    border-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.regulatory-reports-flow .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.regulatory-reports-flow .btn {
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.regulatory-reports-flow .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+#regulatory-report-table {
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#regulatory-data-table .progress {
+    background-color: #e9ecef;
+}
+
+#regulatory-data-table .progress-bar {
+    transition: width 0.6s ease;
+}
+
+/* Flowchart step indicators */
+.flow-step::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid #007bff;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+}
+
+.flow-step:first-child::before {
+    display: none;
+}
+
+/* ========================================
+   NOTIFICATION IMPROVEMENTS
+   ======================================== */
+
+.alert {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+}
+
+/* ========================================
+   BIN STATION STYLING
+   ======================================== */
+
+.bin-item {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.bin-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stats-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-dark);
+}
+
+.stats-content p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.page-header-simple {
+    background: transparent;
+    padding: 1.5rem 0;
+    margin-bottom: 1rem;
+}
+
+.page-header-simple h2 {
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 24px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.page-header-simple h2 i {
+    font-size: 28px;
+}
+
+/* Enhanced Bin Station Cards */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    color: white;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    padding: 1.25rem 1.5rem;
+}
+
+.card-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Responsive Design for Bin Station */
+@media (max-width: 768px) {
+    .stats-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .stats-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .stats-content h3 {
+        font-size: 1.5rem;
+    }
+    
+    .bin-item .row > div {
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-header-simple .row {
+        text-align: center;
+    }
+    
+    .page-header-simple .col-md-4 {
+        margin-top: 1rem;
+    }
+}
+
+.compliance-status-card {
+    background: var(--card-bg);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+}
+
+.compliance-status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.compliance-status-card h6 {
+    color: var(--text-dark);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.badge-compliant {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.badge-review {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.badge-due-soon {
+    background: linear-gradient(135deg, #dc3545, #e83e8c);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.badge-secondary {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+/* Compliance Score Circle */
+.compliance-score-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: white;
+}
+
+.score-excellent {
+    background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.score-good {
+    background: linear-gradient(135deg, #17a2b8, #6f42c1);
+}
+
+.score-fair {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+}
+
+.score-poor {
+    background: linear-gradient(135deg, #dc3545, #e83e8c);
+}
+
+/* Enhanced Table Actions */
+.table .btn-sm {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.table .btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-teal);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notification Styles */
+.alert {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    color: #0c5460;
+}
+
+/* Dropdown Menu Enhancements */
+.dropdown-menu {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    padding: 0.5rem 0;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    color: white;
+}
+
+/* Modal Enhancements */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--primary-teal), var(--bg-dark-teal));
+    color: white;
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+}
+
+.modal-header .btn-close {
+    filter: invert(1);
+}
+
+/* Compliance Reports Table Enhancements */
+.modern-table tbody tr:hover {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    transform: scale(1.01);
+    transition: all 0.2s ease;
+}
+
+.modern-table td {
+    vertical-align: middle;
+    padding: 1rem 0.75rem;
+}
+
+/* Section Header Enhancements */
+.section-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.section-header h4 {
+    color: var(--text-dark);
+    font-weight: 600;
+    margin: 0;
+}
+
+.section-header .d-flex {
+    gap: 0.75rem;
+}
+
+/* Button Enhancements */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--secondary-teal), var(--primary-teal));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(10, 61, 61, 0.3);
+}
+
+.btn-outline-secondary {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .compliance-status-card {
+        margin-bottom: 1rem;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .section-header .d-flex {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+}
+
+:root {
+    --primary-teal: #0A3D3D;
+    --secondary-teal: #165A5A;
+    --accent-gold: #C17817;
+    --light-gold: #E89B2E;
+    --bg-cream: #F5F1E8;
+    --bg-dark-teal: #0D4D4D;
+    --card-bg: #FFFFFF;
+    --text-dark: #333333;
+    --text-muted: #666666;
+}
+
+body {
+    background-color: var(--bg-cream) !important;
+}
+
+/* ========================================
+   SIMPLIFIED PAGE HEADER
+   ======================================== */
+
+.page-header-simple {
+    background: transparent;
+    padding: 1.5rem 0;
+    margin-bottom: 1rem;
+}
+
+.page-header-simple h2 {
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 20px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.page-header-simple h2 i {
+    font-size: 24px;
+}
+
+/* ========================================
+   MODERN TAB NAVIGATION
+   ======================================== */
+
+.modern-tabs-container {
+    background: linear-gradient(135deg, var(--primary-teal) 0%, var(--bg-dark-teal) 100%);
+    border-radius: 50px;
+    padding: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.modern-nav-tabs {
+    gap: 5px;
+    border: none;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+}
+
+.modern-nav-tabs .nav-link {
+    color: rgba(255, 255, 255, 0.7);
+    background: transparent;
+    border: none;
+    border-radius: 30px;
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+}
+
+.modern-nav-tabs .nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modern-nav-tabs .nav-link.active {
+    color: var(--text-dark);
+    background: var(--accent-gold);
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(193, 120, 23, 0.3);
+}
+
+.modern-nav-tabs .nav-link i {
+    font-size: 14px;
+}
+
+/* ========================================
+   SECTION HEADERS
+   ======================================== */
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #ddd;
+}
+
+.section-header h4 {
+    color: var(--primary-teal);
+    font-weight: 700;
+    font-size: 18px;
+    margin: 0;
+}
+
+/* ========================================
+   REPORT CARDS GRID
+   ======================================== */
+
+.report-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    padding: 20px 0;
+}
+
+.report-card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.report-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    border-color: var(--accent-gold);
+}
+
+.report-card-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 36px;
+    color: #fff;
+}
+
+.report-card-icon-small {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #fff;
+}
+
+.report-card h5 {
+    color: var(--primary-teal);
+    font-weight: 700;
+    font-size: 18px;
+    margin: 15px 0 10px;
+}
+
+.report-card .report-description {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.report-card .report-details {
+    text-align: left;
+    color: var(--text-dark);
+    font-size: 13px;
+    margin: 15px 0;
+}
+
+.report-card .report-details p {
+    margin: 5px 0;
+}
+
+.btn-generate {
+    background: transparent;
+    color: var(--text-dark);
+    border: 2px solid var(--text-dark);
+    border-radius: 8px;
+    padding: 10px 30px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+
+.btn-generate:hover {
+    background: var(--primary-teal);
+    color: #fff;
+    border-color: var(--primary-teal);
+    transform: scale(1.05);
+}
+
+/* ========================================
+   COMPLIANCE SECTION
+   ======================================== */
+
+.compliance-cards-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 3rem;
+}
+
+.compliance-status-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+}
+
+.compliance-status-card:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.12);
+    transform: translateY(-3px);
+}
+
+.compliance-status-card h6 {
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 15px;
+    margin: 0;
+}
+
+.badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.badge-compliant {
+    background: linear-gradient(135deg, #1e8e8e, #2ab8b8);
+    color: #fff;
+}
+
+.badge-review {
+    background: linear-gradient(135deg, var(--accent-gold), var(--light-gold));
+    color: #fff;
+}
+
+.badge-due-soon {
+    background: linear-gradient(135deg, #d32f2f, #f44336);
+    color: #fff;
+}
+
+.badge-current {
+    background: linear-gradient(135deg, #1e8e8e, #2ab8b8);
+    color: #fff;
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+
+.table-container {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    overflow-x: auto;
+}
+
+.modern-table {
+    width: 100%;
+    margin: 0;
+}
+
+.modern-table thead {
+    background: var(--bg-cream);
+}
+
+.modern-table thead th {
+    color: var(--text-dark);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 15px;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modern-table tbody td {
+    padding: 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid #e0e0e0;
+    color: var(--text-dark);
+    font-size: 14px;
+}
+
+.modern-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.modern-table tbody tr:hover {
+    background-color: rgba(10, 61, 61, 0.03);
+}
+
+/* ========================================
+   AUDIT TRAIL FILTERS
+   ======================================== */
+
+.audit-filters {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+.audit-filters .form-control,
+.audit-filters .form-select {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 13px;
+}
+
+.audit-filters .form-control:focus,
+.audit-filters .form-select:focus {
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 0 0.2rem rgba(10, 61, 61, 0.1);
+}
+
+/* ========================================
+   SETTINGS SECTION
+   ======================================== */
+
+.settings-container {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+.settings-card {
+    margin-bottom: 0;
+}
+
+.settings-card label {
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.settings-card .form-control,
+.settings-card .form-select {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 14px;
+}
+
+.settings-card .form-control:focus,
+.settings-card .form-select:focus {
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 0 0.2rem rgba(10, 61, 61, 0.1);
+}
+
+/* ========================================
+   AUTOMATED REPORTS
+   ======================================== */
+
+.automated-reports-list {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+.automation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.automation-item:last-child {
+    border-bottom: none;
+}
+
+.automation-item h6 {
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 15px;
+    margin: 0 0 5px 0;
+}
+
+.automation-item .text-muted {
+    color: var(--text-muted);
+}
+
+.form-check-input {
+    width: 50px;
+    height: 26px;
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: var(--accent-gold);
+    border-color: var(--accent-gold);
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    border: none;
+    border-radius: 8px;
+    padding: 10px 25px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(10, 61, 61, 0.3);
+    background: linear-gradient(135deg, var(--secondary-teal), var(--primary-teal));
+}
+
+.btn-outline-secondary {
+    border: 2px solid var(--text-dark);
+    color: var(--text-dark);
+    background: transparent;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: var(--text-dark);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+/* ========================================
+   MODAL
+   ======================================== */
+
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    color: #fff;
+    border-radius: 15px 15px 0 0;
+    padding: 20px 30px;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+/* ========================================
+   REPORT DISPLAY IN MODAL
+   ======================================== */
+
+.report-display {
+    min-height: 400px;
+}
+
+.report-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--bg-cream);
+}
+
+.report-header h3 {
+    color: var(--primary-teal);
+    font-weight: 700;
+    font-size: 24px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
+.report-header .company-name {
+    color: var(--text-dark);
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.report-header .report-period {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.report-table {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.report-table thead th {
+    background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 12px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.report-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 13px;
+}
+
+.report-table tbody td.amount {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+}
+
+.report-table tfoot td {
+    padding: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    background: var(--bg-cream);
+    border-top: 2px solid var(--primary-teal);
+}
+
+/* ========================================
+   EMPTY STATES
+   ======================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 60px;
+    color: #ccc;
+    margin-bottom: 20px;
+}
+
+.empty-state h4 {
+    color: var(--text-muted);
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+
+.loading-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--bg-cream);
+    border-top: 5px solid var(--primary-teal);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1200px) {
+    .modern-nav-tabs .nav-link {
+        font-size: 11px;
+        padding: 10px 15px;
+    }
+    
+    .report-cards-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 991px) {
+    .modern-tabs-container {
+        border-radius: 20px;
+        padding: 8px;
+    }
+    
+    .modern-nav-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .modern-nav-tabs .nav-link {
+        flex: 1 1 45%;
+        margin: 3px;
+        font-size: 11px;
+        padding: 10px;
+    }
+    
+    .modern-nav-tabs .nav-link i {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header-simple h2 {
+        font-size: 16px;
+    }
+    
+    .page-header-simple h2 i {
+        font-size: 20px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .report-cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .compliance-cards-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .modern-nav-tabs .nav-link {
+        flex: 1 1 100%;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 576px) {
+    .modern-tabs-container {
+        padding: 5px;
+    }
+    
+    .report-card {
+        padding: 20px;
+    }
+    
+    .report-card-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+    }
+    
+    .settings-container {
+        padding: 20px;
+    }
+}
+
+/* ========================================
+   PRINT STYLES - COMPLETE REDESIGN
+   
+   ENHANCED FEATURES:
+   - Professional, clean print layout for all financial reports
+   - Zero dark backgrounds - all headers, sections, and tables use white/light backgrounds
+   - Optimized typography and spacing for readability
+   - Smart page breaks to prevent content cutoff
+   - Consistent styling across all report types
+   - Better user experience with print preview
+   - Uses body classes for report-specific styling
+   ======================================== */
+
+/* Hide elements in print */
+.no-print {
+    display: block;
+}
+
+@media print {
+    /* ========================================
+       CRITICAL: FORCE WHITE BACKGROUNDS ON EVERYTHING
+       ======================================== */
+    
+    /* Universal rule to remove ALL dark/colored backgrounds */
+    *,
+    *::before,
+    *::after {
+        /* First, remove any dark backgrounds */
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Specifically target elements with dark color values */
+    [style*="background-color: #1e3a3a"],
+    [style*="background: #1e3a3a"],
+    [style*="background-color: #0A3D3D"],
+    [style*="background: #0A3D3D"],
+    [style*="background-color: #165A5A"],
+    [style*="background: #165A5A"],
+    [style*="background-color: rgb(30, 58, 58)"],
+    [style*="background: rgb(30, 58, 58)"],
+    [style*="background-color: rgb(10, 61, 61)"],
+    [style*="background: rgb(10, 61, 61)"],
+    [style*="background-color: #000"],
+    [style*="background: #000"],
+    [style*="background-color: black"],
+    [style*="background: black"] {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    /* Then allow specific light backgrounds */
+    *,
+    *::before,
+    *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Then selectively allow light backgrounds for specific elements */
+    body,
+    html,
+    main,
+    .container,
+    .container-fluid,
+    .modal-content,
+    .modal-body,
+    .report-display,
+    .balance-sheet-report,
+    .report-section,
+    .report-table,
+    .report-table-financial,
+    .table-modern,
+    table,
+    thead,
+    tbody,
+    tfoot,
+    tr,
+    td,
+    th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    /* CRITICAL: Override inline styles on table headers */
+    th[style],
+    thead th[style],
+    .report-table-financial th[style],
+    .report-table th[style],
+    table th[style] {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    /* Allow light gray only for table footers and totals */
+    .report-table-financial tfoot td,
+    .report-table tfoot td,
+    .table-modern tfoot td,
+    table tfoot td,
+    .final-total-box,
+    .total-row td {
+        background: #F5F5F5 !important;
+        background-color: #F5F5F5 !important;
+    }
+    
+    /* Allow light gray for alternating rows */
+    .report-table-financial tbody tr:nth-child(even) td,
+    .report-table tbody tr:nth-child(even) td,
+    .table-modern tbody tr:nth-child(even) td,
+    table tbody tr:nth-child(even) td {
+        background: #F9F9F9 !important;
+        background-color: #F9F9F9 !important;
+    }
+    /* ========================================
+       PAGE SETUP
+       ======================================== */
+    @page {
+        size: A4 portrait;
+        margin: 1.2cm 1.5cm;
+        marks: none;
+    }
+    
+    /* Narrower margins for filtered results */
+    body.printing-filtered-results {
+        @page {
+            size: A4 portrait;
+            margin: 0.8cm 1cm;
+        }
+    }
+    
+    /* ========================================
+       GLOBAL RESETS
+       ======================================== */
+    * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+    
+    /* Base white background */
+    body,
+    html,
+    main,
+    .container,
+    .container-fluid,
+    .modal-content,
+    .modal-body,
+    .report-display {
+        background: #fff !important;
+        background-color: #fff !important;
+        color: #000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Remove ALL dark backgrounds from UI elements */
+    nav,
+    header,
+    footer,
+    .navbar,
+    .card-header,
+    .modal-header,
+    .btn,
+    button,
+    .badge,
+    .alert {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+    
+    /* Hide navigation and UI elements */
+    .navbar-custom,
+    .page-header-simple,
+    .modern-tabs-container,
+    .btn-generate,
+    .beautiful-page-header,
+    .filtering-section-modern,
+    .results-actions-simple,
+    .pagination-controls,
+    .no-results-modern,
+    .modal-header,
+    .modal-footer,
+    .report-action-buttons,
+    .flow-step,
+    footer,
+    .notification,
+    .toast,
+    .toast-container,
+    .position-fixed,
+    .print-hide-notification,
+    .no-print,
+    button,
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-success,
+    .btn-danger,
+    .btn-outline-secondary,
+    div[style*="position: fixed"],
+    div[style*="position:fixed"],
+    .form-control,
+    .form-select,
+    select,
+    input[type="date"],
+    input[type="text"],
+    .row.g-3,
+    .row.g-3.mb-4,
+    label,
+    .form-label,
+    .reports-section,
+    .report-card-modern,
+    .report-cards-grid,
+    .section-header-simple,
+    .filtering-section-modern,
+    .beautiful-page-header,
+    .header-actions,
+    .header-info-card,
+    .page-title-beautiful,
+    .page-subtitle-beautiful,
+    .card-header-modern,
+    .card-body-modern,
+    .card-footer-modern,
+    .report-icon,
+    .report-title,
+    .report-subtitle,
+    .report-summary,
+    .summary-item,
+    .summary-label,
+    .summary-value,
+    main > .container-fluid > .reports-section,
+    main > .container-fluid > div:not(.report-display):not(.balance-sheet-report):not(.modal) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+    
+    /* Hide alerts ONLY in print for reports, not the balance check message */
+    .alert-dismissible,
+    div.alert.position-fixed,
+    [role="alert"].position-fixed {
+        display: none !important;
+    }
+    
+    /* Body and HTML - clean white background */
+    body,
+    html {
+        background: #fff !important;
+        background-color: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    body.printing-report {
+        background: #fff !important;
+        background-color: #fff !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* Prevent page duplication */
+    body > *:not(.modal):not(.balance-sheet-report):not(.report-display):not(.report-header) {
+        page-break-inside: avoid !important;
+    }
+    
+    /* Ensure only one instance of content */
+    .modal.show .modal-dialog {
+        position: static !important;
+    }
+    
+    .modal.show {
+        display: block !important;
+        position: static !important;
+    }
+    
+    /* Remove modal styling for print */
+    .modal-dialog {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        position: static !important;
+        transform: none !important;
+    }
+    
+    .modal-content {
+        border: none !important;
+        box-shadow: none !important;
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    .modal-header {
+        display: none !important;
+    }
+    
+    .modal-body {
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* Ensure report content is not constrained */
+    #report-content {
+        height: auto !important;
+        overflow: visible !important;
+        max-height: none !important;
+    }
+    
+    .report-display {
+        height: auto !important;
+        overflow: visible !important;
+        max-height: none !important;
+    }
+    
+
+    
+    /* Report display styling - make it more visible */
+    .report-display {
+        box-shadow: none !important;
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* ========================================
+       REPORT HEADER - CLEAN WHITE DESIGN
+       ======================================== */
+    .report-header {
+        text-align: center !important;
+        margin: 0 0 25px 0 !important;
+        padding: 20px 0 15px 0 !important;
+        border-bottom: 3px solid #000 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .company-name {
+        font-size: 22px !important;
+        font-weight: 900 !important;
+        color: #000 !important;
+        margin: 0 0 8px 0 !important;
+        letter-spacing: 2px !important;
+        font-family: 'Arial Black', 'Arial', sans-serif !important;
+        text-transform: uppercase !important;
+        line-height: 1.2 !important;
+    }
+    
+    .report-header h3 {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #000 !important;
+        margin: 8px 0 6px 0 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        line-height: 1.3 !important;
+    }
+    
+    .report-period {
+        font-size: 13px !important;
+        color: #333 !important;
+        font-weight: 500 !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        margin: 4px 0 0 0 !important;
+        line-height: 1.4 !important;
+    }
+    
+    /* Balance Sheet Report - ensure visibility and allow page breaks */
+    .balance-sheet-report {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        page-break-inside: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+        min-height: auto !important;
+    }
+    
+    .balance-sheet-report .report-section {
+        display: block !important;
+        visibility: visible !important;
+        page-break-inside: auto !important;
+        page-break-before: auto !important;
+        page-break-after: auto !important;
+        margin-bottom: 20px !important;
+        height: auto !important;
+        overflow: visible !important;
+        min-height: auto !important;
+    }
+    
+    .balance-sheet-report .report-section:first-child {
+        margin-top: 0 !important;
+        page-break-before: avoid !important;
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* Report display - ensure white background */
+    .report-display {
+        background: #fff !important;
+        padding: 0 !important;
+    }
+    
+    .report-header {
+        background: #fff !important;
+    }
+    
+    .report-table-financial,
+    .report-table,
+    .table-modern {
+        background: #fff !important;
+    }
+    
+    .card,
+    .alert {
+        background: #fff !important;
+    }
+    
+    /* Table styling for print */
+    .report-table,
+    .table-modern {
+        width: 100% !important;
+        font-size: 11px !important;
+        page-break-inside: auto;
+        border-collapse: collapse !important;
+        background: #fff !important;
+    }
+    
+    .report-table thead,
+    .table-modern thead {
+        display: table-header-group;
+    }
+    
+    .report-table thead th,
+    .table-modern thead th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        font-weight: 700 !important;
+        border: 2px solid #000 !important;
+        padding: 8px !important;
+        text-align: center !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table tbody td,
+    .table-modern tbody td {
+        border: 1px solid #333 !important;
+        padding: 6px !important;
+        color: #000 !important;
+    }
+    
+    .report-table tfoot th,
+    .report-table tfoot td,
+    .table-modern tfoot th,
+    .table-modern tfoot td {
+        border: 2px solid #000 !important;
+        border-top: 3px solid #000 !important;
+        padding: 8px !important;
+        font-weight: 700 !important;
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table tr,
+    .table-modern tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* Amount/number alignment */
+    .amount {
+        text-align: right !important;
+    }
+    
+    /* Report content wrapper */
+    .report-content-wrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Section headers for print */
+    .section-header-print {
+        margin-top: 25px !important;
+        margin-bottom: 15px !important;
+        padding: 10px 0 !important;
+        border-bottom: 2px solid #000 !important;
+    }
+    
+    .section-title-print {
+        color: #000 !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+        letter-spacing: 0.5px !important;
+    }
+    
+    /* Section headers */
+    h5.mt-4,
+    h5.text-teal {
+        color: #000 !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        margin-top: 15px !important;
+        padding-top: 10px !important;
+        border-top: 1px solid #333 !important;
+    }
+    
+    /* Report table enhancements */
+    .report-table.account-table tbody tr td:first-child {
+        font-weight: 600 !important;
+    }
+    
+    .report-table.cash-flow-table .section-row {
+        background: #f8f9fa !important;
+        font-weight: 600 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .report-table.cash-flow-table .section-row td {
+        padding: 10px 8px !important;
+        border-top: 2px solid #333 !important;
+        border-bottom: 1px solid #333 !important;
+    }
+    
+    .report-table.cash-flow-table .indent-item {
+        padding-left: 30px !important;
+    }
+    
+    .report-table .total-row {
+        background: #f8f9fa !important;
+        border-top: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .report-table .total-row td {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+    }
+    
+    /* Report summary boxes */
+    .report-summary {
+        margin-top: 20px !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .summary-box {
+        border: 2px solid #000 !important;
+        padding: 15px !important;
+        background: #fff !important;
+        text-align: center !important;
+    }
+    
+    .summary-box.success {
+        border-color: #28a745 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .summary-box.warning {
+        border-color: #ffc107 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .summary-box.info {
+        border-color: #17a2b8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .summary-box i {
+        font-size: 16px !important;
+        color: #000 !important;
+    }
+    
+    .summary-box strong {
+        font-size: 14px !important;
+        color: #000 !important;
+    }
+    
+    .summary-box p {
+        margin: 5px 0 0 0 !important;
+        color: #333 !important;
+        font-size: 12px !important;
+    }
+    
+    .summary-item-large {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .summary-label-large {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        color: #000 !important;
+    }
+    
+    .summary-value-large {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #000 !important;
+    }
+    
+    .summary-item-small {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+    
+    .summary-label-small {
+        font-size: 12px !important;
+        color: #333 !important;
+    }
+    
+    .summary-value-small {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #000 !important;
+    }
+    
+    /* Alerts and info boxes */
+    .alert {
+        border: 1px solid #333 !important;
+        padding: 10px !important;
+        margin: 10px 0 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+    
+    .alert strong {
+        color: #000 !important;
+    }
+    
+    /* Badges in print */
+    .badge {
+        border: 1px solid #333 !important;
+        padding: 2px 6px !important;
+        font-size: 10px !important;
+        color: #000 !important;
+        background: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Regulatory report specific */
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        display: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    /* Regulatory report table styling */
+    #regulatory-data-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+    
+    #regulatory-data-table thead th {
+        background: #f8f9fa !important;
+        color: #000 !important;
+        font-weight: 600 !important;
+        border: 1px solid #333 !important;
+        padding: 10px !important;
+        text-align: left !important;
+        font-size: 11px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    #regulatory-data-table tbody td {
+        border: 1px solid #333 !important;
+        padding: 8px !important;
+        color: #000 !important;
+        font-size: 10px !important;
+    }
+    
+    #regulatory-data-table code {
+        background: #f8f9fa !important;
+        color: #000 !important;
+        padding: 2px 6px !important;
+        border: 1px solid #ddd !important;
+        font-size: 10px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Progress bars in print */
+    .progress {
+        border: 1px solid #333 !important;
+        background: #fff !important;
+    }
+    
+    .progress-bar {
+        background: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Ensure container uses full width */
+    .container,
+    .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 10px !important;
+        margin: 0 !important;
+    }
+    
+    /* Avoid page breaks in important sections */
+    .report-table,
+    .table-modern,
+    .alert {
+        page-break-inside: avoid;
+    }
+    
+    /* Hide all scrollbars in print */
+    * {
+        scrollbar-width: none !important; /* Firefox */
+        -ms-overflow-style: none !important; /* IE/Edge */
+    }
+    
+    *::-webkit-scrollbar {
+        display: none !important; /* Chrome, Safari, Opera */
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    *::-webkit-scrollbar-track,
+    *::-webkit-scrollbar-thumb {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    body,
+    html,
+    .modal-body,
+    .modal-content,
+    .report-display,
+    .table-responsive,
+    .card-body,
+    .modal-dialog {
+        overflow: visible !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+    
+    body::-webkit-scrollbar,
+    html::-webkit-scrollbar,
+    .modal-body::-webkit-scrollbar,
+    .modal-content::-webkit-scrollbar,
+    .report-display::-webkit-scrollbar,
+    .table-responsive::-webkit-scrollbar,
+    .modal-dialog::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    /* Remove any browser-generated page numbers or indicators */
+    body::after,
+    html::after,
+    .modal-content::after,
+    .report-display::after {
+        display: none !important;
+        content: none !important;
+    }
+    
+    /* Page setup - Hide print marks and page indicators */
+    @page {
+        size: A4 portrait;
+        margin: 1.5cm 2cm;
+        marks: none;
+    }
+    
+    /* Ensure crisp rendering for all print elements */
+    * {
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+        image-rendering: -webkit-optimize-contrast !important;
+        image-rendering: crisp-edges !important;
+    }
+    
+    body, html {
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        text-rendering: optimizeLegibility !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Global color printing for all report elements */
+    .balance-sheet-report,
+    .report-display,
+    .report-table-financial,
+    .section-header-financial,
+    .report-header,
+    .final-total-section,
+    .final-total-box {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Ensure crisp borders and lines - but preserve colors */
+    .report-table-financial {
+        border-width: 2px !important;
+        border-style: solid !important;
+        border-color: #000 !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial th,
+    .report-table-financial td {
+        border-style: solid !important;
+        border-color: #666 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Ensure high contrast for readability */
+    .report-table-financial tbody td {
+        color: #000 !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial tbody tr:nth-child(even) td {
+        background: #F5F9FA !important;
+        background-color: #F5F9FA !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial tbody tr:nth-child(odd) td {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Hide any page numbering or indicators that browsers add */
+    @page :first {
+        marks: none;
+    }
+    
+    @page :left {
+        marks: none;
+    }
+    
+    @page :right {
+        marks: none;
+    }
+    
+    /* ========================================
+       FILTERED RESULTS PRINT OPTIMIZATION
+       ======================================== */
+    
+    /* Filtered Results Print Styles */
+    body.printing-filtered-results .filtered-results-modern {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    body.printing-filtered-results .filtering-section-modern,
+    body.printing-filtered-results .beautiful-page-header,
+    body.printing-filtered-results .reports-section,
+    body.printing-filtered-results .results-actions-simple button,
+    body.printing-filtered-results .pagination-controls {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern .section-header-simple {
+        display: none !important;
+        visibility: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern .section-title-simple {
+        display: none !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern #results-summary {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern #filter-status {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern .results-table-container {
+        margin-top: -5px !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern .table-responsive {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        border: none !important;
+    }
+    
+    /* Aggressive spacing removal - target all possible spacing sources */
+    body.printing-filtered-results .filtered-results-modern > div {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    /* Hide ALL elements between header and table */
+    body.printing-filtered-results .filtered-results-modern > .section-header-simple ~ *:not(.results-table-container) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Ensure table container is right after header */
+    body.printing-filtered-results .filtered-results-modern .results-table-container {
+        position: relative;
+        top: -2px;
+    }
+    
+    /* Override Bootstrap margin classes in print */
+    body.printing-filtered-results .mb-1,
+    body.printing-filtered-results .mb-2,
+    body.printing-filtered-results .mb-3,
+    body.printing-filtered-results .mb-4,
+    body.printing-filtered-results .mb-5 {
+        margin-bottom: 0 !important;
+    }
+    
+    body.printing-filtered-results .mt-1,
+    body.printing-filtered-results .mt-2,
+    body.printing-filtered-results .mt-3,
+    body.printing-filtered-results .mt-4,
+    body.printing-filtered-results .mt-5 {
+        margin-top: 0 !important;
+    }
+    
+    /* Optimize filtered results table for print */
+    body.printing-filtered-results .table {
+        font-size: 9px !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    body.printing-filtered-results .table thead th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        border: 2px solid #000 !important;
+        border-bottom: 3px solid #000 !important;
+        padding: 6px 8px !important;
+        font-size: 8px !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    body.printing-filtered-results .table tbody td {
+        border: 1px solid #ccc !important;
+        padding: 5px 8px !important;
+        font-size: 8px !important;
+        line-height: 1.3 !important;
+        vertical-align: middle !important;
+        page-break-inside: avoid !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    body.printing-filtered-results .table tbody tr {
+        page-break-inside: avoid !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    body.printing-filtered-results .table tbody tr:nth-child(even) td {
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    body.printing-filtered-results .table tbody tr:nth-child(odd) td {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Hide icons in table headers */
+    body.printing-filtered-results .table thead th i,
+    body.printing-filtered-results .table thead th .fas {
+        display: none !important;
+    }
+    
+    /* Hide badges and styling in print */
+    body.printing-filtered-results .badge {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        border: none !important;
+        padding: 0 !important;
+        font-weight: 400 !important;
+    }
+    
+    body.printing-filtered-results code {
+        color: #000 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        font-size: 8px !important;
+        font-weight: 600 !important;
+    }
+    
+    /* ========================================
+       UNIFIED PRINT STYLES FOR ALL REPORTS
+       ======================================== */
+    
+    /* Apply white backgrounds to report content */
+    body.printing-report .report-display,
+    body.printing-report .balance-sheet-report,
+    body.printing-report .report-header,
+    body.printing-report .report-section,
+    body.printing-report #report-content,
+    body.printing-report #regulatory-report-table,
+    body.printing-report .card,
+    body.printing-report .card-body {
+        background: #fff !important;
+        background-color: #fff !important;
+    }
+    
+    /* Hide regulatory report card headers in print */
+    body.printing-regulatory-reports .card-header,
+    body.printing-regulatory-reports .flow-step {
+        display: none !important;
+    }
+    
+    /* Make regulatory tables print-friendly */
+    body.printing-regulatory-reports #regulatory-data-table {
+        background: #fff !important;
+        background-color: #fff !important;
+    }
+    
+    body.printing-regulatory-reports #regulatory-data-table thead th {
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+        color: #000 !important;
+        border: 1px solid #333 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    body.printing-regulatory-reports #regulatory-data-table tbody td {
+        background: #fff !important;
+        background-color: #fff !important;
+        color: #000 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* Income Statement and Cash Flow print styles */
+    body.printing-income-statement h5,
+    body.printing-cash-flow h5 {
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        margin-top: 20px !important;
+        padding-bottom: 8px !important;
+    }
+    
+    body.printing-income-statement .alert,
+    body.printing-cash-flow .alert {
+        border: 1px solid #333 !important;
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Trial Balance print styles */
+    body.printing-trial-balance .report-table {
+        background: #fff !important;
+        background-color: #fff !important;
+    }
+    
+    body.printing-trial-balance .report-table thead th {
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    body.printing-trial-balance .report-table tbody td {
+        background: #fff !important;
+        background-color: #fff !important;
+        color: #000 !important;
+    }
+    
+    body.printing-trial-balance .report-table tfoot td {
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Ensure badges don't print with color backgrounds */
+    body.printing-report .badge {
+        background: transparent !important;
+        background-color: transparent !important;
+        color: #000 !important;
+        border: 1px solid #333 !important;
+        padding: 2px 6px !important;
+        font-size: 10px !important;
+    }
+    
+    /* Hide all icons in print */
+    body.printing-report .fas,
+    body.printing-report .far,
+    body.printing-report .fab,
+    body.printing-report i.fas,
+    body.printing-report i.far,
+    body.printing-report i.fab {
+        display: none !important;
+    }
+    
+    /* Progress bars in regulatory reports */
+    body.printing-regulatory-reports .progress {
+        display: none !important;
+    }
+    
+    /* Ensure all table headers are white/light gray */
+    body.printing-report table thead th,
+    body.printing-report .report-table thead th,
+    body.printing-report .report-table-financial thead th,
+    body.printing-report .table-modern thead th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        border: 1px solid #333 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Ensure all table bodies are white */
+    body.printing-report table tbody td,
+    body.printing-report .report-table tbody td,
+    body.printing-report .report-table-financial tbody td,
+    body.printing-report .table-modern tbody td {
+        background: #fff !important;
+        background-color: #fff !important;
+        color: #000 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* Alternating row colors for readability */
+    body.printing-report table tbody tr:nth-child(even) td,
+    body.printing-report .report-table tbody tr:nth-child(even) td,
+    body.printing-report .report-table-financial tbody tr:nth-child(even) td {
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Table footers */
+    body.printing-report table tfoot th,
+    body.printing-report table tfoot td,
+    body.printing-report .report-table tfoot th,
+    body.printing-report .report-table tfoot td,
+    body.printing-report .report-table-financial tfoot td {
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        color: #000 !important;
+        border: 1px solid #333 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Section headers in reports */
+    body.printing-report .section-header-financial,
+    body.printing-report h5.section-header-financial {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+    }
+    
+    /* Final total boxes */
+    body.printing-report .final-total-box {
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        border: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Text alignment */
+    body.printing-filtered-results .text-end {
+        text-align: right !important;
+    }
+    
+    body.printing-filtered-results .text-danger,
+    body.printing-filtered-results .text-success,
+    body.printing-filtered-results .text-primary,
+    body.printing-filtered-results .text-muted {
+        color: #000 !important;
+    }
+    
+    /* Ensure proper page breaks */
+    body.printing-filtered-results thead {
+        display: table-header-group !important;
+    }
+    
+    body.printing-filtered-results tfoot {
+        display: table-footer-group !important;
+    }
+    
+    /* Reduce container padding and margins */
+    body.printing-filtered-results .container-fluid,
+    body.printing-filtered-results .container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    body.printing-filtered-results .filtered-results-modern {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Reduce gap between header and table */
+    body.printing-filtered-results .filtered-results-modern::before {
+        margin-bottom: 0 !important;
+        padding-bottom: 3px !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    body.printing-filtered-results .table {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    
+    /* Ensure no spacing between header and first table element */
+    body.printing-filtered-results .filtered-results-modern > *:first-of-type {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Hide pagination completely - no space */
+    body.printing-filtered-results .pagination-controls,
+    body.printing-filtered-results .pagination-controls * {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Ensure section-header takes no space at all */
+    body.printing-filtered-results .section-header-simple,
+    body.printing-filtered-results .section-header-simple * {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Direct child spacing removal */
+    body.printing-filtered-results .filtered-results-modern > .section-header-simple,
+    body.printing-filtered-results .filtered-results-modern > .pagination-controls {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Remove any spacing from d-flex containers */
+    body.printing-filtered-results .d-flex {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Optimize page layout for filtered results - narrower margins */
+    body.printing-filtered-results {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Force white background on all elements in filtered results print */
+    body.printing-filtered-results * {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Re-apply specific backgrounds for table elements */
+    body.printing-filtered-results .table thead th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+    }
+    
+    body.printing-filtered-results .table tbody tr:nth-child(even) td {
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+    }
+    
+    /* ========================================
+       FINAL OVERRIDE - REMOVE ALL DARK BACKGROUNDS
+       This catches any remaining dark backgrounds
+       ======================================== */
+    body.printing-report *[style*="background-color: #1e3a3a"],
+    body.printing-report *[style*="background: #1e3a3a"],
+    body.printing-report *[style*="background-color: #0A3D3D"],
+    body.printing-report *[style*="background: #0A3D3D"],
+    body.printing-report *[style*="background-color: #165A5A"],
+    body.printing-report *[style*="background: #165A5A"],
+    body.printing-report *[style*="background-color: rgb(30, 58, 58)"],
+    body.printing-report *[style*="background: rgb(30, 58, 58)"],
+    body.printing-report .report-header,
+    body.printing-report .report-header * {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000 !important;
+    }
+    
+    /* Ensure report header is always white */
+    body.printing-report .report-header,
+    body.printing-report .company-name,
+    body.printing-report .report-header h3,
+    body.printing-report .report-period {
+        background: transparent !important;
+        background-color: transparent !important;
+        color: #000 !important;
+    }
+}
+
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.text-teal {
+    color: var(--primary-teal);
+}
+
+.bg-teal {
+    background-color: var(--primary-teal);
+}
+
+.text-gold {
+    color: var(--accent-gold);
+}
+
+.bg-gold {
+    background-color: var(--accent-gold);
+}
+
+/* Refresh Button Styles */
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-outline-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+/* Section Header Styles */
+.section-header .d-flex {
+    margin-bottom: 0;
+}
+
+.section-header h5 {
+    margin-bottom: 0.25rem;
+}
+
+.section-header p {
+    margin-bottom: 0;
+}
+
+/* Enhanced Settings Styles */
+.settings-card small {
+    margin-top: 5px;
+    display: block;
+}
+
+.automation-item {
+    background: var(--card-bg);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.automation-item:hover {
+    border-color: var(--primary-teal);
+    box-shadow: 0 2px 8px rgba(10, 61, 61, 0.1);
+}
+
+.automation-item h6 {
+    margin-bottom: 5px;
+    color: var(--text-dark);
+}
+
+.automation-item small {
+    color: var(--text-muted);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-teal);
+    border-color: var(--primary-teal);
+}
+
+/* Settings Summary */
+.card {
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.card-body ul li {
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.card-body ul li:last-child {
+    border-bottom: none;
+}
+
+/* ========================================
+   BALANCE SHEET SPECIFIC STYLES
+   ======================================== */
+
+.balance-sheet-report {
+    margin: 0;
+    padding: 0;
+}
+
+.report-section {
+    margin-bottom: 30px;
+    page-break-inside: avoid;
+}
+
+.section-header-financial {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 15px;
+    padding: 10px 0;
+    border-bottom: 2px solid var(--primary-teal);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.report-table-financial {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background: #fff;
+}
+
+.report-table-financial thead th {
+    background-color: #1e3a3a;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 12px;
+    text-align: left;
+    text-transform: uppercase;
+    border: 1px solid #1e3a3a;
+}
+
+.report-table-financial thead th:last-child {
+    text-align: right;
+}
+
+.report-table-financial tbody td {
+    padding: 10px 12px;
+    border: 1px solid #dee2e6;
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.report-table-financial tbody tr:hover {
+    background-color: rgba(10, 61, 61, 0.05);
+}
+
+.report-table-financial tfoot td {
+    padding: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    background-color: #f0f0f0;
+    border: 1px solid #dee2e6;
+    border-top: 2px solid #1e3a3a;
+}
+
+.final-total-section {
+    margin-top: 30px;
+    padding: 20px 0;
+    border-top: 3px solid var(--primary-teal);
+    page-break-inside: avoid;
+}
+
+.final-total-box {
+    background: linear-gradient(135deg, #e9f7f7 0%, #d4eded 100%);
+    border: 2px solid var(--primary-teal);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(10, 61, 61, 0.1);
+}
+
+.final-total-label {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-teal);
+    letter-spacing: 0.5px;
+}
+
+.final-total-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-teal);
+    font-family: 'Courier New', monospace;
+}
+
+/* Print-specific Balance Sheet styles */
+@media print {
+    /* CRITICAL: Ensure ASSETS section is visible and not cut off */
+    .balance-sheet-report {
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        overflow: visible !important;
+        page-break-inside: auto !important;
+    }
+    
+    /* ASSETS SECTION - MUST BE VISIBLE */
+    .balance-sheet-report .report-section:first-child,
+    .balance-sheet-report .report-section:nth-child(1),
+    .balance-sheet-report .report-section:first-of-type {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        overflow: visible !important;
+        min-height: auto !important;
+        max-height: none !important;
+        page-break-before: avoid !important;
+        page-break-after: auto !important;
+        page-break-inside: auto !important;
+        margin: 0 0 20px 0 !important;
+        padding: 0 !important;
+        position: static !important;
+        transform: none !important;
+    }
+    
+    /* ========================================
+       SECTION HEADERS - WHITE BACKGROUND
+       CRITICAL: Override ALL possible dark backgrounds
+       ======================================== */
+    .section-header-financial,
+    h5.section-header-financial,
+    h5[style*="background"],
+    h5[style*="background-color"],
+    .report-section h5,
+    .report-section .section-header-financial,
+    h5.mt-4,
+    h5.text-teal,
+    .report-section h5,
+    .balance-sheet-report h5,
+    h5 {
+        color: #000000 !important;
+        border-bottom: 3px solid #000000 !important;
+        font-size: 15px !important;
+        padding: 10px 0 8px 0 !important;
+        margin: 25px 0 12px 0 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+        height: auto !important;
+        overflow: visible !important;
+        font-weight: 800 !important;
+        letter-spacing: 1.5px !important;
+        text-transform: uppercase !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        line-height: 1.4 !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* All section headers - clean uniform style */
+    .balance-sheet-report .report-section:first-child .section-header-financial,
+    .balance-sheet-report .report-section:first-of-type .section-header-financial,
+    .balance-sheet-report .report-section:nth-child(2) .section-header-financial,
+    .balance-sheet-report .report-section:nth-child(3) .section-header-financial {
+        display: block !important;
+        visibility: visible !important;
+        margin-top: 5px !important;
+        margin-bottom: 10px !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        padding: 8px 10px !important;
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    /* Tables - make highly readable and visible with crisp rendering */
+    .report-table-financial {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto !important;
+        page-break-before: auto !important;
+        page-break-after: auto !important;
+        margin: 0 0 30px 0 !important;
+        font-size: 12px !important;
+        display: table !important;
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        border: 2px solid #000 !important;
+        background: #fff !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        text-rendering: optimizeLegibility !important;
+        line-height: 1.6 !important;
+    }
+    
+    .report-table-financial thead {
+        display: table-header-group !important;
+        page-break-inside: avoid !important;
+    }
+    
+    /* ========================================
+       TABLE HEADERS - WHITE BACKGROUND
+       CRITICAL: Override ALL possible dark backgrounds
+       ======================================== */
+    .report-table-financial thead th,
+    .report-table-financial thead tr th,
+    .report-table thead th,
+    .report-table thead tr th,
+    .table-modern thead th,
+    .table-modern thead tr th,
+    table thead th,
+    table thead tr th,
+    th[style*="background"],
+    th[style*="background-color"],
+    thead th,
+    thead tr th,
+    .report-table-financial thead,
+    .report-table thead,
+    .table-modern thead,
+    table thead {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        font-weight: 800 !important;
+        font-size: 11px !important;
+        padding: 10px 12px !important;
+        border: 2px solid #000000 !important;
+        text-align: left !important;
+        letter-spacing: 0.8px !important;
+        text-transform: uppercase !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        vertical-align: middle !important;
+        line-height: 1.4 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial thead th:last-child,
+    .report-table thead th:last-child,
+    table thead th:last-child {
+        text-align: right !important;
+    }
+    
+    .report-table-financial thead th:last-child {
+        text-align: right !important;
+    }
+    
+    .report-table-financial tbody {
+        display: table-row-group !important;
+    }
+    
+    .report-table-financial tbody tr {
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+        display: table-row !important;
+        visibility: visible !important;
+    }
+    
+    .report-table-financial tbody td {
+        padding: 10px 15px !important;
+        border: 1px solid #666 !important;
+        font-size: 12px !important;
+        color: #000 !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        line-height: 1.6 !important;
+        display: table-cell !important;
+        visibility: visible !important;
+        font-weight: 400 !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        text-rendering: optimizeLegibility !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        vertical-align: middle !important;
+    }
+    
+    .report-table-financial tbody td:first-child {
+        font-weight: 700 !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        font-size: 11px !important;
+    }
+    
+    .report-table-financial tbody td:nth-child(2) {
+        font-weight: 500 !important;
+        font-size: 12px !important;
+    }
+    
+    .report-table-financial tbody td:last-child {
+        font-family: 'Courier New', 'Courier', monospace !important;
+        font-weight: 600 !important;
+        font-size: 12px !important;
+        text-align: right !important;
+    }
+    
+    .report-table-financial tbody tr:nth-child(even) td {
+        background: #F8F8F8 !important;
+        background-color: #F8F8F8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial tbody tr:nth-child(odd) td {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial tfoot {
+        display: table-footer-group !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .report-table-financial tfoot tr {
+        display: table-row !important;
+        visibility: visible !important;
+    }
+    
+    .report-table-financial tfoot td {
+        padding: 10px 12px !important;
+        font-weight: 700 !important;
+        font-size: 11px !important;
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        border-top: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        display: table-cell !important;
+        visibility: visible !important;
+        letter-spacing: 0.5px !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        text-rendering: optimizeLegibility !important;
+        text-transform: uppercase !important;
+    }
+    
+    /* Clean totals for all sections */
+    .balance-sheet-report .report-section:first-child .report-table-financial tfoot td,
+    .balance-sheet-report .report-section:nth-child(2) .report-table-financial tfoot td,
+    .balance-sheet-report .report-section:nth-child(3) .report-table-financial tfoot td {
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        color: #000 !important;
+        border-color: #000 !important;
+        border-top: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .report-table-financial tfoot td:last-child {
+        font-family: 'Courier New', 'Courier', monospace !important;
+        font-weight: 800 !important;
+        text-align: right !important;
+        font-size: 13px !important;
+    }
+    
+    /* Right alignment */
+    .report-table-financial td[style*="text-align: right"],
+    .report-table-financial th[style*="text-align: right"] {
+        text-align: right !important;
+    }
+    
+    /* Other sections */
+    .balance-sheet-report .report-section {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin: 0 0 20px 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        page-break-inside: auto !important;
+        page-break-before: auto !important;
+        page-break-after: auto !important;
+    }
+    
+    /* Final total */
+    .final-total-section {
+        margin-top: 25px !important;
+        padding: 0 !important;
+        border-top: 4px double #000 !important;
+        page-break-inside: avoid !important;
+        page-break-before: avoid !important;
+        display: block !important;
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .final-total-box {
+        background: #F0F0F0 !important;
+        background-color: #F0F0F0 !important;
+        border: 2px solid #000 !important;
+        border-radius: 0 !important;
+        padding: 12px 15px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        box-shadow: none !important;
+        margin-top: 15px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .final-total-label,
+    .final-total-value {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+    
+    .final-total-label {
+        font-size: 15px !important;
+        font-weight: 800 !important;
+        color: #000 !important;
+        letter-spacing: 1px !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        text-rendering: optimizeLegibility !important;
+        text-transform: uppercase !important;
+    }
+    
+    .final-total-value {
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        color: #000 !important;
+        font-family: 'Courier New', 'Courier', monospace !important;
+        letter-spacing: 0.5px !important;
+        -webkit-font-smoothing: antialiased !important;
+        text-rendering: optimizeLegibility !important;
+    }
+    
+    /* ========================================
+       FINAL CATCH-ALL: Remove ANY remaining dark backgrounds
+       ======================================== */
+    * {
+        /* Remove any dark colors from any element */
+        background-image: none !important;
+    }
+    
+    /* Force white on any element that might have been missed */
+    [class*="bg-"],
+    [class*="background"],
+    [style*="background-color"],
+    [style*="background:"] {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+    }
+    
+    /* Final override for table-related elements - but exclude footers */
+    thead *,
+    tbody *,
+    thead td,
+    thead th,
+    tbody td,
+    tbody th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    /* Headers are always white */
+    th,
+    thead th,
+    table th,
+    .report-table-financial th,
+    .report-table th {
+        background: #FFFFFF !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    /* Exception: Allow light gray only for footers and totals (must come after general rules) */
+    tfoot td,
+    tfoot th,
+    .total-row td,
+    .final-total-box,
+    .final-total-box * {
+        background: #F5F5F5 !important;
+        background-color: #F5F5F5 !important;
+        color: #000000 !important;
+    }
+}

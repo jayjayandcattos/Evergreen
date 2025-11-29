@@ -1,0 +1,298 @@
+/* ========================================
+   TRANSACTION READING MODULE STYLES
+   ======================================== */
+
+/* Stats Cards */
+.stat-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.3s ease;
+    border-left: 4px solid;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.stat-card-primary {
+    border-left-color: #0A3D3D;
+}
+
+.stat-card-success {
+    border-left-color: #28a745;
+}
+
+.stat-card-warning {
+    border-left-color: #ffc107;
+}
+
+.stat-card-info {
+    border-left-color: #17a2b8;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+}
+
+.stat-card-primary .stat-icon {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A);
+}
+
+.stat-card-success .stat-icon {
+    background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.stat-card-warning .stat-icon {
+    background: linear-gradient(135deg, #ffc107, #ff9800);
+}
+
+.stat-card-info .stat-icon {
+    background: linear-gradient(135deg, #17a2b8, #20c997);
+}
+
+.stat-content h3 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0A3D3D;
+    margin: 0 0 5px 0;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Filter Panel */
+#filterPanel {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card-header.bg-primary {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A) !important;
+}
+
+/* Table Styles */
+.table-hover tbody tr:hover {
+    background-color: rgba(10, 61, 61, 0.05);
+}
+
+.table thead th {
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #0A3D3D;
+}
+
+.table-dark {
+    background: linear-gradient(135deg, #0A3D3D, #165A5A);
+}
+
+/* Status Badges */
+.badge-status {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-draft {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.status-posted {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.status-reversed {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.status-voided {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+/* Action Buttons */
+.btn-action {
+    padding: 5px 12px;
+    font-size: 12px;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.btn-action:hover {
+    transform: scale(1.05);
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 15px 20px;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+/* Modal Customization */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: none;
+    padding: 20px 25px;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.05);
+    padding: 15px 25px;
+}
+
+/* Print Specific Styles */
+@media print {
+    .navbar-custom,
+    .page-header,
+    .beautiful-page-header,
+    footer,
+    .btn,
+    .card-header,
+    .stat-card,
+    #filterPanel {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .table thead {
+        background-color: #0A3D3D !important;
+        color: #fff !important;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+    
+    .stat-content h3 {
+        font-size: 28px;
+    }
+    
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}
+
+/* Loading Spinner */
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner-overlay .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3em;
+    color: #fff;
+}
+
+/* Transaction Amount Styling */
+.amount-debit {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.amount-credit {
+    color: #28a745;
+    font-weight: 600;
+}
+
+/* Highlight Active Filters */
+.filter-active {
+    border-left: 3px solid #0A3D3D;
+}
+

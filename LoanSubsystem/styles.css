@@ -1,0 +1,614 @@
+ html {
+  scroll-behavior: smooth;
+}
+ :root {
+      --primary-color: #003631;
+      --secondary-color: #FAF7EF;
+      --accent-color: #f4b244;
+      --text-dark: #1a3a30;
+      --text-light: #ffffff;
+    }
+
+  * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+   body {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.6;
+  color: var(--text-dark);
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    var(--primary-color) 0%,
+    var(--primary-color) 50%,
+    var(--secondary-color) 50%,
+    var(--secondary-color) 100%
+  );
+}
+
+ 
+    /* Hero Section */
+    .hero {
+      padding: 100px 2rem 60px;
+       background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 2rem;
+      min-height: 100vh;
+    }
+
+    .hero-content {
+      flex: 1;
+      max-width: 600px;
+    }
+
+    .hero-title {
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-top: 4rem;
+      color: var(--accent-color);
+    }
+
+    .hero-subtitle {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-description {
+      font-size: 1rem;
+      margin-bottom: 2rem;
+      opacity: 0.9;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      margin-right: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #082d24;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--primary-color);
+      border: 2px solid var(--primary-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(10,61,48,0.1);
+      transform: translateY(-2px);
+    }
+
+    .hero-image {
+      flex: 1;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    .hero-image img {
+      max-width: 100%;
+      height: auto;
+    
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0) rotate(45deg);
+      }
+      40% {
+        transform: translateY(-10px) rotate(45deg);
+      }
+      60% {
+        transform: translateY(-5px) rotate(45deg);
+      }
+    }
+
+    /* Loan Services Section */
+    .loan-services-wrapper {
+     background: linear-gradient(
+        to bottom,
+        var(--accent-color) 50%,
+        var(--secondary-color) 50%
+      );
+      width: 100%;
+      padding: 80px 2rem;
+      text-align: center;
+    }
+
+    .loan-services-title {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+
+    .loan-cards {
+      display: grid;
+      align-items: stretch;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      cursor: pointer;
+    }
+
+    .loan-card {
+     background: linear-gradient(
+    to bottom,
+    var(--secondary-color) 30%,
+    var(--accent-color) 67%,
+    rgb(253, 241, 241) 10%
+  );
+      border-radius: 10px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      justify-content: space-between;
+
+    }
+
+    .loan-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .loan-card img {
+      width: 100%;
+      height: 310px;
+      object-fit: cover;
+
+    }
+
+    .loan-card-content {
+      padding: 1.5rem;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .loan-card-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+
+    .loan-card-desc {
+      font-size: 0.9rem;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    /* Sections Below Hero */
+    .section {
+      padding: 80px 2rem;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .section-title {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary-color);
+    }
+
+    .section-content {
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        padding: 1rem;
+      }
+
+      nav ul {
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .hero {
+        flex-direction: column;
+        padding: 120px 1rem 60px;
+      }
+
+      .hero-title {
+        font-size: 2.5rem;
+      }
+
+      .hero-subtitle {
+        font-size: 2.5rem;
+      }
+
+      .hero-content, .hero-image {
+        flex: 1 1 100%;
+        max-width: 100%;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+      }
+
+      .section {
+        padding: 60px 1rem;
+      }
+
+      .section-title {
+        font-size: 2rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero-title {
+        font-size: 2rem;
+      }
+
+      .hero-subtitle {
+        font-size: 2rem;
+      }
+
+      .hero-description {
+        font-size: 0.9rem;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        width: 100%;
+        max-width: 250px;
+        text-align: center;
+      }
+
+      .btn-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
+
+    * {
+  box-sizing: border-box;
+}
+/*Loan Dashboard Section*/
+.Loan_Dashboard {
+  background-color: #f7f5ed;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.loan-title {
+  font-size: 3rem;
+  color: var(--text-dark);
+  font-weight: bold;
+  margin-bottom: 30px;
+
+}
+
+section.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.card-title {
+  color: #065f46;
+  font-weight: 500;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.card-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #000;
+}
+
+/* ===== Loan Section ===== */
+section.loans {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+}
+
+@media (max-width: 768px) {
+  section.loans {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loan-table {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+td {
+  font-size: 0.9rem;
+}
+
+.loan-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (min-width: 480px) {
+  .loan-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.loan-footer p {
+  color: #444;
+}
+
+.pay-btn {
+  background: (var(--text-dark));
+  color: (var(--text-dark));
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.pay-btn:hover {
+  background: #046137;
+}
+
+/* ===== Notification Section ===== */
+.notifications {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+}
+
+.notifications h2 {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.notifications p {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* ================================================= */
+/* FOOTER STYLES */
+/* ================================================= */
+
+footer {
+    background-color: #064e3b; /* Dark green background */
+    color: white;
+    padding: 30px 0 10px;
+    width: 100%;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* --- Top Columns Layout --- */
+.footer-top-columns {
+    display: grid;
+    /* Create 4 columns, adjusting the first column width */
+    grid-template-columns: 1.5fr repeat(3, 1fr); 
+    gap: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2); /* Separator line */
+}
+
+.footer-col h3 {
+    font-size: 1rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: white;
+}
+
+/* --- Links and List Styling --- */
+.footer-col ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-col ul li {
+    margin-bottom: 8px;
+}
+
+.footer-col a {
+    color: #ccc;
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: color 0.2s;
+}
+
+.footer-col a:hover {
+    color: #f7b500; /* Yellow hover color */
+}
+
+/* --- Branding Column --- */
+.branding-col .footer-logo {
+    height: 25px;
+    margin-bottom: 15px;
+}
+
+.branding-col .tagline {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    color: #ccc;
+}
+
+.social-links a {
+    color: white;
+    font-size: 1rem;
+    margin-right: 15px;
+}
+
+/* --- Contact Column --- */
+.contact-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    line-height: 1.4;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.contact-item i {
+    margin-right: 10px;
+    font-size: 0.8rem;
+    margin-top: 3px; /* Align icon vertically */
+    color: #f7b500; /* Yellow icon color */
+}
+
+.contact-item.address i {
+    align-self: flex-start;
+}
+
+
+/* --- Bottom Bar Layout --- */
+.footer-bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-top: 20px;
+}
+
+.copyright-text,
+.disclaimer {
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-bottom: 10px;
+}
+
+.legal-links a {
+    color: #ccc;
+    font-size: 0.8rem;
+    margin: 0 5px;
+}
+
+.separator {
+    color: #777;
+    font-size: 0.8rem;
+}
+
+.disclaimer {
+    width: 100%; /* Ensure disclaimer is on its own line below */
+    text-align: left;
+    margin-top: 10px;
+    padding-bottom: 10px;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 900px) {
+    .footer-top-columns {
+        /* Switch to 2 columns on medium screens */
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 550px) {
+    .footer-top-columns {
+        /* Switch to 1 column on small screens */
+        grid-template-columns: 1fr;
+    }
+    
+    .footer-bottom-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .legal-links {
+        margin-top: 10px;
+        margin-bottom: 15px;
+    }
+}
