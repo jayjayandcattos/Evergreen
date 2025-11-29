@@ -868,6 +868,11 @@
         height: 40px;
     }
 
+    .profile-btn img {
+        width: 35px;
+        height: 35px;
+    }
+
     .nav-links {
         order: 3;
         width: 100%;
