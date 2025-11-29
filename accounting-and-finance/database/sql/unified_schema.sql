@@ -442,10 +442,20 @@ CREATE TABLE user_missions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bank_employees (
-    employee_id INT AUTO_INCREMENT PRIMARY KEY,
-    employee_name VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+  employee_id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username varchar(50) DEFAULT NULL,
+  password_hash varchar(255) DEFAULT NULL,
+  email varchar(100) DEFAULT NULL,
+  first_name varchar(50) DEFAULT NULL,
+  last_name varchar(50) DEFAULT NULL,
+  role enum('admin','teller','manager') DEFAULT 'teller',
+  is_active tinyint(1) DEFAULT 1,
+  employee_name varchar(100) NOT NULL,
+  created_at timestamp NOT NULL DEFAULT current_timestamp(),
+  updated_at timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  UNIQUE KEY idx_username (username),
+  UNIQUE KEY idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bank_account_types (
     account_type_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -467,6 +477,26 @@ CREATE TABLE bank_accounts (
     INDEX idx_code (code)
 );
 
+CREATE TABLE employment_statuses (
+    employment_status_id INT AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) DEFAULT NULL,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create Source of Funds Table
+CREATE TABLE source_of_funds (
+    source_id INT AUTO_INCREMENT PRIMARY KEY,
+    source_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255) DEFAULT NULL,
+    requires_proof TINYINT(1) DEFAULT 0,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE customer_accounts (
     account_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
@@ -477,6 +507,12 @@ CREATE TABLE customer_accounts (
     is_locked BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
+    maintaining_balance_required DECIMAL(10,2) DEFAULT 500.00,
+    monthly_service_fee DECIMAL(10,2) DEFAULT 100.00,
+    below_maintaining_since DATE NULL,
+    account_status ENUM('active', 'below_maintaining', 'flagged_for_removal', 'closed'),
+    last_service_fee_date DATE NULL,
+    closure_warning_date DATE NULL,  
     UNIQUE KEY account_number (account_number),
     INDEX idx_customer_id (customer_id),
     INDEX idx_account_type_id (account_type_id),

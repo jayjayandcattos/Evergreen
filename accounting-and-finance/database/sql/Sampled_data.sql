@@ -1448,12 +1448,12 @@ INSERT INTO bank_account_types (account_type_id, type_name, description) VALUES
 ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
 
 -- Bank Employees (for customer account creation tracking)
-INSERT INTO bank_employees (employee_id, employee_name, created_at) VALUES
-(1, 'Bank Teller 001', NOW() - INTERVAL 30 DAY),
-(2, 'Bank Teller 002', NOW() - INTERVAL 25 DAY),
-(3, 'Account Manager 001', NOW() - INTERVAL 20 DAY),
-(4, 'Bank Officer 001', NOW() - INTERVAL 15 DAY)
-ON DUPLICATE KEY UPDATE employee_name = VALUES(employee_name);
+INSERT INTO bank_employees (employee_id, username, password_hash, email, first_name, last_name, role, is_active, employee_name, created_at, updated_at) VALUES
+(1, 'admin', '$2y$10$kCoxX3xFyKc0QPuoiUdqVeDshsMP54kAS5DPoP6YLqFbozEkjh89W', 'admin@evergreenbank.com', 'System', 'Administrator', 'admin', 1, 'Bank Teller 001', '2025-10-27 19:46:01', '2025-11-29 02:14:45'),
+(2, 'teller1', '$2y$10$kCoxX3xFyKc0QPuoiUdqVeDshsMP54kAS5DPoP6YLqFbozEkjh89W', 'teller1@evergreenbank.com', 'John', 'Doe', 'teller', 1, 'Bank Teller 002', '2025-11-01 19:46:01', '2025-11-29 02:14:45'),
+(3, NULL, NULL, NULL, NULL, NULL, 'teller', 1, 'Account Manager 001', '2025-11-06 19:46:01', '2025-11-29 01:44:08'),
+(4, NULL, NULL, NULL, NULL, NULL, 'teller', 1, 'Bank Officer 001', '2025-11-11 19:46:01', '2025-11-29 01:44:08'),
+(7, 'testuser', '$2y$10$kCoxX3xFyKc0QPuoiUdqVeDshsMP54kAS5DPoP6YLqFbozEkjh89W', 'testuser@evergreenbank.com', 'Test', 'User', 'teller', 1, '', '2025-11-29 02:13:04', '2025-11-29 02:15:14');
 
 -- Bank Customers
 INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, email, password_hash, created_at, created_by_employee_id) VALUES
@@ -1554,9 +1554,29 @@ INSERT INTO transaction_types (transaction_type_id, type_name, description) VALU
 (5, 'Service Charge', 'Bank service fee charged'),
 (6, 'Loan Disbursement', 'Loan amount disbursed to account'),
 (7, 'Loan Payment', 'Loan payment received'),
-(8, 'Transfer out', 'Sending funds to another account'),
-(9, 'Transfer in', 'Receiving funds from another account')
+(8, 'Transfer Out', 'Sending funds to another account'),
+(9, 'Transfer In', 'Receiving funds from another account')
 ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
+
+INSERT INTO employment_statuses (status_name, description) VALUES
+('Employed', 'Regular employee working for a company or organization'),
+('Self-Employed', 'Individual running their own business or working as a freelancer'),
+('Unemployed', 'Currently not employed'),
+('Retired', 'No longer in active employment due to retirement'),
+('Student', 'Currently pursuing education'),
+('Homemaker', 'Managing household responsibilities');
+
+-- Insert default source of funds
+INSERT INTO source_of_funds (source_name, description, requires_proof) VALUES
+('Employment', 'Income from regular employment or salary', 1),
+('Business', 'Income from business operations or entrepreneurship', 1),
+('Investment', 'Returns from investments, stocks, or securities', 1),
+('Savings', 'Personal savings accumulated over time', 0),
+('Inheritance', 'Funds received through inheritance', 1),
+('Gift', 'Monetary gifts from family or friends', 1),
+('Pension', 'Retirement pension or benefits', 1),
+('Remittance', 'Money sent from abroad by family members', 0),
+('Other', 'Other legitimate sources of funds', 1);
 
 -- Bank Transactions
 INSERT INTO bank_transactions (transaction_id, transaction_ref, account_id, transaction_type_id, amount, related_account_id, description, employee_id, created_at) VALUES
