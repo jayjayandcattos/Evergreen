@@ -142,6 +142,7 @@ try {
                 ca.account_id,
                 ca.customer_id,
                 ca.is_locked,
+                ca.account_status,
                 bat.account_type_id,
                 bat.type_name as account_type,
                 bc.first_name,
@@ -165,6 +166,14 @@ try {
 
         if ($account['is_locked']) {
             throw new Exception('Account is locked');
+        }
+        
+        if ($account['account_status'] === 'closed') {
+            throw new Exception('Account is closed and cannot accept deposits');
+        }
+        
+        if ($account['account_status'] === 'flagged_for_removal') {
+            throw new Exception('Account is flagged for removal. Please contact customer service.');
         }
         
         // --- 2. Calculate previous balance ---

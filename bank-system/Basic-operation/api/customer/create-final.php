@@ -22,6 +22,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
 
+// Set error handler to ensure JSON responses
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("PHP Error [$errno]: $errstr in $errfile on line $errline");
+    if (!headers_sent()) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Server error occurred',
+            'debug' => [
+                'error' => $errstr,
+                'file' => $errfile,
+                'line' => $errline
+            ]
+        ]);
+        exit;
+    }
+});
+
 try {
     // Check if session data exists
     if (!isset($_SESSION['customer_onboarding']) || !isset($_SESSION['customer_onboarding']['data'])) {
@@ -35,6 +53,24 @@ try {
     $data = $_SESSION['customer_onboarding']['data'];
     $errors = [];
 
+    // Helper function to extract string from potential array/object
+    function extractString($value) {
+        if (is_array($value) && !empty($value)) {
+            // If it's an array, get the first element
+            $first = $value[0];
+            // If the first element is still an array or object, try to get a string value
+            if (is_array($first)) {
+                return $first['value'] ?? $first['email'] ?? $first['phone'] ?? $first[0] ?? '';
+            } elseif (is_object($first)) {
+                return $first->value ?? $first->email ?? $first->phone ?? '';
+            }
+            return (string)$first;
+        } elseif (is_object($value)) {
+            return $value->value ?? $value->email ?? $value->phone ?? '';
+        }
+        return $value;
+    }
+
     // Map field names (handle variations from different steps)
     $mappedData = [
         'first_name' => $data['first_name'] ?? null,
@@ -45,8 +81,8 @@ try {
         'gender' => $data['gender'] ?? null,
         'civil_status' => $data['marital_status'] ?? $data['civil_status'] ?? null,
         'nationality' => $data['nationality'] ?? null,
-        'email' => is_array($data['emails'] ?? null) ? $data['emails'][0] : ($data['email'] ?? null),
-        'mobile_number' => $data['mobile_number'] ?? (is_array($data['phones'] ?? null) ? $data['phones'][0] : null),
+        'email' => extractString($data['emails'] ?? $data['email'] ?? null),
+        'mobile_number' => extractString($data['phones'] ?? $data['mobile_number'] ?? null),
         'address_line' => $data['address_line'] ?? $data['street'] ?? null,
         'province_id' => $data['province_id'] ?? null,
         'city_id' => $data['city_id'] ?? null,
@@ -61,10 +97,10 @@ try {
     ];
 
     // Validate required fields
-    // Note: Username removed - customers will use email for login (per unified schema)
+    // Note: Either email OR mobile_number is required (at least one must be verified)
     $requiredFields = [
         'first_name', 'last_name', 'birth_date', 'birth_place',
-        'gender', 'civil_status', 'nationality', 'email', 'mobile_number',
+        'gender', 'civil_status', 'nationality',
         'address_line', 'province_id', 'city_id', 'barangay_id', 'postal_code', 'country',
         'occupation', 'password_hash'
     ];
@@ -73,6 +109,14 @@ try {
         if (empty($mappedData[$field])) {
             $errors[$field] = ucfirst(str_replace('_', ' ', $field)) . " is required";
         }
+    }
+
+    // Check that at least one contact method (email OR phone) is provided
+    $hasEmail = !empty($mappedData['email']);
+    $hasPhone = !empty($mappedData['mobile_number']);
+    
+    if (!$hasEmail && !$hasPhone) {
+        $errors['contact'] = "At least one contact method (email or phone number) is required";
     }
 
     if (!empty($errors)) {
@@ -94,32 +138,36 @@ try {
         exit();
     }
 
-    // Check for duplicate email
-    $stmt = $db->prepare("SELECT customer_id FROM emails WHERE email = :email LIMIT 1");
-    $stmt->bindParam(':email', $mappedData['email']);
-    $stmt->execute();
-    
-    if ($stmt->fetch(PDO::FETCH_ASSOC)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'This email address is already registered',
-            'errors' => ['email' => 'Email already exists']
-        ]);
-        exit();
+    // Check for duplicate email (only if email is provided)
+    if ($hasEmail) {
+        $stmt = $db->prepare("SELECT customer_id FROM emails WHERE email = :email LIMIT 1");
+        $stmt->bindParam(':email', $mappedData['email']);
+        $stmt->execute();
+        
+        if ($stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'This email address is already registered',
+                'errors' => ['email' => 'Email already exists']
+            ]);
+            exit();
+        }
     }
 
-    // Check for duplicate phone
-    $stmt = $db->prepare("SELECT customer_id FROM phones WHERE phone_number = :phone LIMIT 1");
-    $stmt->bindParam(':phone', $mappedData['mobile_number']);
-    $stmt->execute();
-    
-    if ($stmt->fetch(PDO::FETCH_ASSOC)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'This phone number is already registered',
-            'errors' => ['mobile_number' => 'Phone number already exists']
-        ]);
-        exit();
+    // Check for duplicate phone (only if phone is provided)
+    if ($hasPhone) {
+        $stmt = $db->prepare("SELECT customer_id FROM phones WHERE phone_number = :phone LIMIT 1");
+        $stmt->bindParam(':phone', $mappedData['mobile_number']);
+        $stmt->execute();
+        
+        if ($stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'This phone number is already registered',
+                'errors' => ['mobile_number' => 'Phone number already exists']
+            ]);
+            exit();
+        }
     }
 
     // Note: Username check removed - customers will use email for login (per unified schema)
@@ -159,17 +207,53 @@ try {
         error_log("Using Bank ID for customer: " . $bank_id);
         
         // Insert into bank_customers table (unified schema)
-        // Note: email column added to bank_customers for login compatibility
+        // Note: email is optional (can be NULL if only phone verification was used)
+        $customerEmail = $hasEmail ? $mappedData['email'] : null;
+        $customerPhone = $hasPhone ? $mappedData['mobile_number'] : null;
+        
+        // Get city and province names for address field
+        $cityName = '';
+        $provinceName = '';
+        
+        if ($mappedData['city_id']) {
+            $stmt = $db->prepare("SELECT city_name FROM cities WHERE city_id = :city_id");
+            $stmt->bindParam(':city_id', $mappedData['city_id']);
+            $stmt->execute();
+            $cityResult = $stmt->fetch(PDO::FETCH_ASSOC);
+            $cityName = $cityResult['city_name'] ?? '';
+        }
+        
+        if ($mappedData['province_id']) {
+            $stmt = $db->prepare("SELECT province_name FROM provinces WHERE province_id = :province_id");
+            $stmt->bindParam(':province_id', $mappedData['province_id']);
+            $stmt->execute();
+            $provinceResult = $stmt->fetch(PDO::FETCH_ASSOC);
+            $provinceName = $provinceResult['province_name'] ?? '';
+        }
+        
+        // Build full address string
+        $fullAddress = $mappedData['address_line'];
+        $cityProvince = trim($cityName . ', ' . $provinceName, ', ');
+        
         $stmt = $db->prepare("
-            INSERT INTO bank_customers (first_name, middle_name, last_name, email, password_hash, created_at)
-            VALUES (:first_name, :middle_name, :last_name, :email, :password_hash, NOW())
+            INSERT INTO bank_customers (
+                first_name, middle_name, last_name, email, password_hash, 
+                address, city_province, contact_number, birthday, created_at
+            ) VALUES (
+                :first_name, :middle_name, :last_name, :email, :password_hash,
+                :address, :city_province, :contact_number, :birthday, NOW()
+            )
         ");
         
         $stmt->bindParam(':first_name', $mappedData['first_name']);
         $stmt->bindParam(':middle_name', $mappedData['middle_name']);
         $stmt->bindParam(':last_name', $mappedData['last_name']);
-        $stmt->bindParam(':email', $mappedData['email']);
+        $stmt->bindParam(':email', $customerEmail);
         $stmt->bindParam(':password_hash', $mappedData['password_hash']);
+        $stmt->bindParam(':address', $fullAddress);
+        $stmt->bindParam(':city_province', $cityProvince);
+        $stmt->bindParam(':contact_number', $customerPhone);
+        $stmt->bindParam(':birthday', $mappedData['birth_date']);
         $stmt->execute();
 
         $customerId = $db->lastInsertId();
@@ -196,26 +280,29 @@ try {
         $stmt->bindParam(':annual_income', $mappedData['annual_income']);
         $stmt->execute();
 
-        // Insert into emails table
-        $stmt = $db->prepare("
-            INSERT INTO emails (customer_id, email, is_primary, created_at)
-            VALUES (:customer_id, :email, 1, NOW())
-        ");
-        
-        $stmt->bindParam(':customer_id', $customerId);
-        $stmt->bindParam(':email', $mappedData['email']);
-        $stmt->execute();
+        // Insert into emails table (only if email was provided)
+        if ($hasEmail) {
+            $stmt = $db->prepare("
+                INSERT INTO emails (customer_id, email, is_primary, created_at)
+                VALUES (:customer_id, :email, 1, NOW())
+            ");
+            
+            $stmt->bindParam(':customer_id', $customerId);
+            $stmt->bindParam(':email', $mappedData['email']);
+            $stmt->execute();
+        }
 
-        // Insert into phones table (unified schema)
-        // Note: phones table doesn't have country_code_id - phone_number should include country code
-        $stmt = $db->prepare("
-            INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at)
-            VALUES (:customer_id, :phone_number, 'mobile', 1, NOW())
-        ");
-        
-        $stmt->bindParam(':customer_id', $customerId);
-        $stmt->bindParam(':phone_number', $mappedData['mobile_number']);
-        $stmt->execute();
+        // Insert into phones table (only if phone was provided)
+        if ($hasPhone) {
+            $stmt = $db->prepare("
+                INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at)
+                VALUES (:customer_id, :phone_number, 'mobile', 1, NOW())
+            ");
+            
+            $stmt->bindParam(':customer_id', $customerId);
+            $stmt->bindParam(':phone_number', $mappedData['mobile_number']);
+            $stmt->execute();
+        }
 
         // Insert into addresses table (unified schema)
         // Note: addresses table uses foreign keys for location hierarchy
@@ -271,6 +358,18 @@ try {
         $stmt->bindParam(':account_type_id', $accountTypeId);
         $stmt->bindParam(':interest_rate', $interestRate);
         $stmt->execute();
+        
+        // Get the new account ID
+        $accountId = $db->lastInsertId();
+        
+        // Link the account to the customer (CRITICAL: Required for account queries)
+        $stmt = $db->prepare("
+            INSERT INTO customer_linked_accounts (customer_id, account_id, is_active, linked_at)
+            VALUES (:customer_id, :account_id, 1, NOW())
+        ");
+        $stmt->bindParam(':customer_id', $customerId);
+        $stmt->bindParam(':account_id', $accountId);
+        $stmt->execute();
 
         // Commit transaction
         $db->commit();
@@ -292,13 +391,34 @@ try {
         throw $e;
     }
 
+} catch (PDOException $e) {
+    error_log("Database error in create-final.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Database error: ' . $e->getMessage(),
+        'error_code' => $e->getCode(),
+        'debug' => [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]
+    ]);
 } catch (Exception $e) {
     error_log("Create final account error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     
+    http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'An error occurred while creating your account. Please try again.',
-        'debug' => $e->getMessage()
+        'debug' => [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]
     ]);
 }
 

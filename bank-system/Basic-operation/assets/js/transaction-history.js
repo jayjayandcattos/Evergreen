@@ -3,37 +3,43 @@
 function getApiBaseUrl() {
   // Get the current page path
   const currentPath = window.location.pathname;
-  
+
   // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Fallback: construct from known structure
   // For bank-system/Basic-operation/public/transaction-history.html
   // API should be at bank-system/Basic-operation/api
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
 
 // Log the API base URL for debugging
-console.log('API Base URL:', API_BASE_URL);
-console.log('Current path:', window.location.pathname);
+console.log("API Base URL:", API_BASE_URL);
+console.log("Current path:", window.location.pathname);
 
 let allTransactions = [];
 let filteredTransactions = [];
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
+  // Check authentication and update employee display
+  const employee = await checkAuthentication();
+  if (employee) {
+    updateEmployeeDisplay(employee);
+  }
+
   // Load transactions on page load
   loadTransactions();
 
@@ -132,23 +138,23 @@ async function loadTransactions() {
   try {
     const apiUrl = `${API_BASE_URL}/employee/get-transactions.php`;
     console.log("Fetching transactions from:", apiUrl);
-    
+
     const response = await fetch(apiUrl);
 
     console.log("Response status:", response.status);
-    
+
     // Check if response is OK before parsing JSON
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       const text = await response.text();
       console.error("Expected JSON but got:", text.substring(0, 200));
       throw new Error("Server returned non-JSON response. Check API path.");
     }
-    
+
     const result = await response.json();
     console.log("Result:", result);
 
@@ -194,20 +200,20 @@ async function applyFilters(dateFilter = "") {
   try {
     const url = `${API_BASE_URL}/employee/get-transactions.php?${params.toString()}`;
     console.log("Filtering transactions from:", url);
-    
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       const text = await response.text();
       console.error("Expected JSON but got:", text.substring(0, 200));
       throw new Error("Server returned non-JSON response. Check API path.");
     }
-    
+
     const result = await response.json();
 
     if (result.success) {
@@ -305,7 +311,13 @@ function exportAsCSV() {
     "Date,Transaction ID,Account Number,Title,Customer Name,Type,Method,Amount,Status\n";
 
   filteredTransactions.forEach((transaction) => {
-    csv += `"${transaction.date}","${transaction.reference}","${transaction.account_number}","${transaction.title || transaction.customer_name}","${transaction.customer_name}","${transaction.type}","${transaction.method}","PHP ${transaction.amount}","${transaction.status}"\n`;
+    csv += `"${transaction.date}","${transaction.reference}","${
+      transaction.account_number
+    }","${transaction.title || transaction.customer_name}","${
+      transaction.customer_name
+    }","${transaction.type}","${transaction.method}","PHP ${
+      transaction.amount
+    }","${transaction.status}"\n`;
   });
 
   // Download CSV

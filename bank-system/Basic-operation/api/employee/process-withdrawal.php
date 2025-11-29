@@ -177,23 +177,45 @@ try {
         $warnings = [];
         $statusUpdate = null;
         
+        // Prevent withdrawal that would result in negative balance
+        if ($newBalance < 0) {
+            throw new Exception('Withdrawal would result in negative balance');
+        }
+        
         // Check if withdrawal would bring balance below maintaining requirement
         if ($newBalance < $maintainingBalance && $previousBalance >= $maintainingBalance) {
-            $warnings[] = "This withdrawal will bring your balance below the maintaining balance of PHP " . number_format($maintainingBalance, 2);
-            $warnings[] = "A monthly service fee of PHP " . number_format($serviceFee, 2) . " will be charged";
+            $deficit = $maintainingBalance - $newBalance;
+            throw new Exception(
+                'Withdrawal denied. This would bring your balance to PHP ' . number_format($newBalance, 2) . ', ' .
+                'which is PHP ' . number_format($deficit, 2) . ' below the required maintaining balance of PHP ' . 
+                number_format($maintainingBalance, 2) . '. ' .
+                'Maximum withdrawal allowed: PHP ' . number_format($previousBalance - $maintainingBalance, 2)
+            );
+        }
+        
+        // Check if balance is already below maintaining and withdrawal would make it worse
+        if ($previousBalance < $maintainingBalance && $newBalance < $previousBalance) {
+            throw new Exception(
+                'Withdrawal denied. Your current balance (PHP ' . number_format($previousBalance, 2) . ') ' .
+                'is already below the maintaining balance of PHP ' . number_format($maintainingBalance, 2) . '. ' .
+                'Please deposit funds to meet the maintaining balance requirement before making withdrawals.'
+            );
+        }
+        
+        // If already below maintaining, only allow withdrawal if it maintains the same level
+        if ($previousBalance < $maintainingBalance) {
+            $warnings[] = "Warning: Your balance is below the maintaining balance of PHP " . number_format($maintainingBalance, 2);
+            $warnings[] = "Monthly service fees may apply";
             $statusUpdate = 'below_maintaining';
         }
         
         // Check if balance will reach zero
         if ($newBalance == 0) {
-            $warnings[] = "CRITICAL: Account balance will be ZERO. Account will be flagged for removal.";
-            $warnings[] = "You must deposit at least PHP " . number_format($maintainingBalance, 2) . " to reactivate the account.";
-            $statusUpdate = 'flagged_for_removal';
-        }
-        
-        // Prevent withdrawal that would result in negative balance
-        if ($newBalance < 0) {
-            throw new Exception('Withdrawal would result in negative balance');
+            throw new Exception(
+                'Withdrawal denied. This would result in a zero balance. ' .
+                'Minimum balance of PHP ' . number_format($maintainingBalance, 2) . ' must be maintained. ' .
+                'Maximum withdrawal allowed: PHP ' . number_format($previousBalance - $maintainingBalance, 2)
+            );
         }
         
         // **IMPORTANT FIX:** Removed the `UPDATE accounts SET balance = :new_balance` query,

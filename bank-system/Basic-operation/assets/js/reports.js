@@ -20,7 +20,13 @@ const API_BASE_URL = getApiBaseUrl();
 let allAccounts = [];
 
 // Load data on page load
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
+  // Check authentication and update employee display
+  const employee = await checkAuthentication();
+  if (employee) {
+    updateEmployeeDisplay(employee);
+  }
+
   loadReportsData();
 
   // Setup search and filter

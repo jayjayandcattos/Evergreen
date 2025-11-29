@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Employee Authentication</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #003631;
+      }
+      .info-box {
+        background: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 15px;
+        margin: 15px 0;
+      }
+      .error-box {
+        background: #ffebee;
+        border-left: 4px solid #f44336;
+        padding: 15px;
+        margin: 15px 0;
+      }
+      code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+      }
+      .nav-links {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      .nav-links a {
+        padding: 10px 20px;
+        background: #003631;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+      }
+      .nav-links a:hover {
+        background: #005544;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔐 Employee Authentication Test</h1>
+
+      <div id="loading">
+        <p>Checking authentication...</p>
+      </div>
+
+      <div id="result" style="display: none">
+        <h2>Session Status</h2>
+        <div id="session-info"></div>
+
+        <h2>Employee Name Display Test</h2>
+        <p>The employee name should appear below:</p>
+        <div class="info-box">
+          <strong>Employee Name:</strong>
+          <span id="employeeName">Loading...</span>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <a href="employee-login.html">Login Page</a>
+        <a href="employee-dashboard.html">Dashboard</a>
+        <a href="reports.html">Reports</a>
+        <a href="transaction-history.html">Transaction History</a>
+        <a href="employee-transaction.html">Transactions</a>
+      </div>
+    </div>
+
+    <script src="../assets/js/auth-helper.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", async function () {
+        const loading = document.getElementById("loading");
+        const result = document.getElementById("result");
+        const sessionInfo = document.getElementById("session-info");
+
+        try {
+          // Check authentication
+          const employee = await checkAuthentication();
+
+          loading.style.display = "none";
+          result.style.display = "block";
+
+          if (employee) {
+            // Update employee display
+            updateEmployeeDisplay(employee);
+
+            // Show session info
+            sessionInfo.innerHTML = `
+                        <div class="info-box">
+                            <h3>✅ Logged In</h3>
+                            <p><strong>ID:</strong> ${employee.id}</p>
+                            <p><strong>Username:</strong> ${
+                              employee.username
+                            }</p>
+                            <p><strong>Name:</strong> ${employee.name}</p>
+                            <p><strong>Email:</strong> ${employee.email}</p>
+                            <p><strong>Role:</strong> ${employee.role}</p>
+                            <p><strong>HRIS ID:</strong> ${
+                              employee.hris_employee_id || "Not linked"
+                            }</p>
+                        </div>
+                    `;
+          } else {
+            sessionInfo.innerHTML = `
+                        <div class="error-box">
+                            <h3>❌ Not Logged In</h3>
+                            <p>You will be redirected to the login page...</p>
+                        </div>
+                    `;
+          }
+        } catch (error) {
+          loading.style.display = "none";
+          result.style.display = "block";
+          sessionInfo.innerHTML = `
+                    <div class="error-box">
+                        <h3>❌ Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+        }
+      });
+    </script>
+  </body>
+</html>

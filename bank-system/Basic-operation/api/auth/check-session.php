@@ -38,7 +38,8 @@ if ($logged_in) {
             'username' => $_SESSION['employee_username'] ?? null,
             'name' => $_SESSION['employee_name'] ?? null,
             'role' => $_SESSION['employee_role'] ?? null,
-            'email' => $_SESSION['employee_email'] ?? null
+            'email' => $_SESSION['employee_email'] ?? null,
+            'hris_employee_id' => $_SESSION['hris_employee_id'] ?? null
         ]
     ]);
 } else {
