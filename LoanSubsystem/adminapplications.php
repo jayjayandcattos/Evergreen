@@ -1,3 +1,4 @@
+<!--adminapplications.php--> 
 <?php
 session_start();
 include 'admin_header.php';
@@ -5,15 +6,15 @@ include 'admin_header.php';
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db = "bankingdb";
+$db = "loan_system";
 
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
   die("DB Error: " . $conn->connect_error);
 }
 
-// Count statuses (for future use if needed)
-$counts = ['Approved' => 0, 'Pending' => 0, 'Rejected' => 0, 'Closed' => 0];
+// Count statuses
+$counts = ['Active' => 0, 'Pending' => 0, 'Approved' => 0, 'Rejected' => 0, 'Closed' => 0];
 $statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications GROUP BY status");
 if ($statusResult) {
   while ($row = $statusResult->fetch_assoc()) {
@@ -27,19 +28,37 @@ if ($statusResult) {
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Evergreen | Loan Applications</title>
   <link rel="stylesheet" href="adminstyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .section-title {
+      margin: 30px 0 15px 0;
+      font-size: 22px;
+      font-weight: bold;
+      color: #003631;
+      border-bottom: 3px solid #003631;
+      padding-bottom: 10px;
+    }
+    .table-container {
+      margin-bottom: 40px;
+    }
+    .pending { color: #FF9800; font-weight: bold; }
+    .approved { color: #4CAF50; font-weight: bold; }
+    .active { color: #2e7d32; font-weight: bold; }
+    .rejected { color: #f44336; font-weight: bold; }
+  </style>
 </head>
 
 <body>
   <main>
-    <h1>Loan Applications</h1>
+    <h1>Loan Applications Management</h1>
 
+    <!-- PENDING LOANS TABLE -->
+    <h2 class="section-title">📋 Pending Applications (<?= $counts['Pending'] ?>)</h2>
     <div class="table-container">
       <table>
         <thead>
@@ -54,33 +73,73 @@ if ($statusResult) {
             <th>Action</th>
           </tr>
         </thead>
-        <tbody id="loanTableBody">
+        <tbody id="pendingTableBody">
           <?php
-          // ONLY PENDING LOANS
-          $result = $conn->query("SELECT * FROM loan_applications WHERE status = 'Pending' ORDER BY id DESC");
+          $result = $conn->query("SELECT la.*, lt.name AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Pending' ORDER BY la.id DESC");
           if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
               $applied_date = date("m/d/Y", strtotime($row['created_at'] ?? 'now'));
               $applied_time = date("h:i A", strtotime($row['created_at'] ?? 'now'));
-              $statusClass = strtolower($row['status']);
           ?>
               <tr data-loan-id="<?= (int)$row['id'] ?>">
                 <td><?= htmlspecialchars($row['id']) ?></td>
                 <td><?= htmlspecialchars($row['full_name']) ?></td>
-                <td><?= htmlspecialchars($row['loan_type']) ?></td>
+                <td><?= htmlspecialchars($row['loan_type_name'] ?? 'N/A') ?></td>
                 <td>₱<?= number_format($row['loan_amount'], 2) ?></td>
                 <td><?= htmlspecialchars($_SESSION['loan_officer_id'] ?? 'LO-0123') ?></td>
                 <td><?= $applied_date ?> <?= $applied_time ?></td>
-                <td class="<?= $statusClass ?>"><?= htmlspecialchars($row['status']) ?></td>
+                <td class="pending">Pending</td>
                 <td>
-                  <button onclick="viewLoanApplication(<?= (int)$row['id'] ?>)">View Details</button>
+                  <button onclick="viewLoanApplication(<?= (int)$row['id'] ?>, 'pending')">View Details</button>
                 </td>
               </tr>
             <?php endwhile;
           else: ?>
-            <tr>
-              <td colspan="8" style="text-align:center;">No pending loans found</td>
-            </tr>
+            <tr><td colspan="8" style="text-align:center;">No pending loans</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- APPROVED LOANS TABLE (Awaiting 2nd Approval) -->
+    <h2 class="section-title">✅ Approved Applications - Awaiting Claim (<?= $counts['Approved'] ?>)</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Loan ID</th>
+            <th>Client Name</th>
+            <th>Loan Type</th>
+            <th>Amount</th>
+            <th>Loan Officer ID</th>
+            <th>Approved Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="approvedTableBody">
+          <?php
+          $result = $conn->query("SELECT la.*, lt.name AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Approved' ORDER BY la.approved_at DESC");
+          if ($result && $result->num_rows > 0):
+            while ($row = $result->fetch_assoc()):
+              $approved_date = date("m/d/Y", strtotime($row['approved_at'] ?? 'now'));
+              $approved_time = date("h:i A", strtotime($row['approved_at'] ?? 'now'));
+          ?>
+              <tr data-loan-id="<?= (int)$row['id'] ?>">
+                <td><?= htmlspecialchars($row['id']) ?></td>
+                <td><?= htmlspecialchars($row['full_name']) ?></td>
+                <td><?= htmlspecialchars($row['loan_type_name'] ?? 'N/A') ?></td>
+                <td>₱<?= number_format($row['loan_amount'], 2) ?></td>
+                <td><?= htmlspecialchars($_SESSION['loan_officer_id'] ?? 'LO-0123') ?></td>
+                <td><?= $approved_date ?> <?= $approved_time ?></td>
+                <td class="approved">Approved</td>
+                <td>
+                  <button onclick="viewLoanApplication(<?= (int)$row['id'] ?>, 'approved')">View Details</button>
+                </td>
+              </tr>
+            <?php endwhile;
+          else: ?>
+            <tr><td colspan="8" style="text-align:center;">No approved loans awaiting claim</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
@@ -91,358 +150,277 @@ if ($statusResult) {
   <div id="statusModal" class="modal">
     <div class="status-modal" style="max-height: 90vh; overflow-y: auto; position: relative;">
       <span class="close-status" onclick="closeApplicationModal()">&times;</span>
-
       <div style="padding: 1.5rem;">
-        <h2 style="margin-top: 0;">Loan Application Status</h2>
+        <h2 style="margin-top: 0;">Loan Application Details</h2>
         <hr>
+        
         <!-- Account Information -->
         <h3>Account Information</h3>
         <div class="info-grid">
-          <div class="field">
-            <label>Full Name</label>
-            <input type="text" id="modal-full-name" readonly>
-          </div>
-          <div class="field">
-            <label>Account Number</label>
-            <input type="text" id="modal-account-number" readonly>
-          </div>
-          <div class="field">
-            <label>Loan ID</label>
-            <input type="text" id="modal-loan-id" readonly>
-          </div>
-          <div class="field">
-            <label>Contact Number</label>
-            <input type="text" id="modal-contact-number" readonly>
-          </div>
-          <div class="field">
-            <label>Email Address</label>
-            <input type="text" id="modal-email" readonly>
-          </div>
-          <div class="field">
-            <label>Job Title</label>
-            <input type="text" id="modal-job" readonly>
-          </div>
-          <div class="field">
-            <label>Monthly Salary</label>
-            <input type="text" id="modal-monthly-salary" readonly>
-          </div>
-          <div class="field">
-            <label>Date Applied</label>
-            <input type="text" id="modal-date-applied" readonly>
-          </div>
+          <div class="field"><label>Full Name</label><input type="text" id="modal-full-name" readonly></div>
+          <div class="field"><label>Account Number</label><input type="text" id="modal-account-number" readonly></div>
+          <div class="field"><label>Loan ID</label><input type="text" id="modal-loan-id" readonly></div>
+          <div class="field"><label>Contact Number</label><input type="text" id="modal-contact-number" readonly></div>
+          <div class="field"><label>Email Address</label><input type="text" id="modal-email" readonly></div>
+          <div class="field"><label>Job Title</label><input type="text" id="modal-job" readonly></div>
+          <div class="field"><label>Monthly Salary</label><input type="text" id="modal-monthly-salary" readonly></div>
+          <div class="field"><label>Date Applied</label><input type="text" id="modal-date-applied" readonly></div>
         </div>
         <br>
+        
+        <!-- Salary Validation Alert -->
+        <div id="salary-alert" class="salary-alert" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: 4px; background: #ffebee; color: #c62828; font-weight: 500;">
+          Monthly payment exceeds 50% of client's salary. Approval is disabled.
+        </div>
+        
         <!-- Loan Details -->
         <h3>Loan Details</h3>
         <div class="info-grid">
-          <div class="field">
-            <label>Loan Type</label>
-            <input type="text" id="modal-loan-type" readonly>
-          </div>
-          <div class="field">
-            <label>Loan Term</label>
-            <input type="text" id="modal-loan-term" readonly>
-          </div>
-          <div class="field">
-            <label>Loan Amount</label>
-            <input type="text" id="modal-loan-amount" readonly>
-          </div>
-          <div class="field">
-            <label>Purpose</label>
-            <input type="text" id="modal-purpose" readonly>
-          </div>
+          <div class="field"><label>Loan Type</label><input type="text" id="modal-loan-type" readonly></div>
+          <div class="field"><label>Loan Term</label><input type="text" id="modal-loan-term" readonly></div>
+          <div class="field"><label>Loan Amount</label><input type="text" id="modal-loan-amount" readonly></div>
+          <div class="field"><label>Purpose</label><input type="text" id="modal-purpose" readonly></div>
         </div>
         <br>
+        
         <!-- Payment Summary -->
         <h3>Payment Summary (20% Annual Interest)</h3>
         <div class="info-grid">
-          <div class="field">
-            <label>Monthly Payment</label>
-            <input type="text" id="modal-monthly-payment" readonly>
-          </div>
-          <div class="field">
-            <label>Total Payable</label>
-            <input type="text" id="modal-total-payable" readonly>
-          </div>
-          <div class="field">
-            <label>Due Date</label>
-            <input type="text" id="modal-due-date" readonly>
-          </div>
-          <div class="field">
-            <label>Status</label>
-            <input type="text" id="modal-status" readonly>
-          </div>
+          <div class="field"><label>Monthly Payment</label><input type="text" id="modal-monthly-payment" readonly></div>
+          <div class="field"><label>Total Payable</label><input type="text" id="modal-total-payable" readonly></div>
+          <div class="field"><label>Due Date</label><input type="text" id="modal-due-date" readonly></div>
+          <div class="field"><label>Status</label><input type="text" id="modal-status" readonly></div>
         </div>
 
-        <!-- Remarks 
-        <h3>Remarks</h3>
-        <div class="field" style="grid-column: span 2;">
-          <label>Remarks</label>
-          <textarea id="modal-remarks" readonly style="height: 80px; resize: vertical;"></textarea>
-        </div>-->
-        <br>
         <!-- Uploaded Documents -->
         <h3>Uploaded Documents</h3>
         <div class="info-grid">
-          <div class="field">
-            <label>Valid ID</label>
-            <button type="button" id="view-valid-id-btn" class="view-doc-btn" onclick="viewDocument('valid_id')">View Document</button>
-          </div>
-          <div class="field">
-            <label>Proof of Income / Payslip</label>
-            <button type="button" id="view-proof-income-btn" class="view-doc-btn" onclick="viewDocument('proof_of_income')">View Document</button>
-          </div>
-          <div class="field">
-            <label>Certificate of Employment (COE)</label>
-            <button type="button" id="view-coe-btn" class="view-doc-btn" onclick="viewDocument('coe_document')">View Document</button>
-          </div>
+          <div class="field"><label>Valid ID</label><button type="button" id="view-valid-id-btn" class="view-doc-btn" onclick="viewDocument('valid_id')">View Document</button></div>
+          <div class="field"><label>Proof of Income</label><button type="button" id="view-proof-income-btn" class="view-doc-btn" onclick="viewDocument('proof_of_income')">View Document</button></div>
+          <div class="field"><label>COE</label><button type="button" id="view-coe-btn" class="view-doc-btn" onclick="viewDocument('coe_document')">View Document</button></div>
         </div>
 
         <!-- Action Buttons -->
         <div class="button-group">
           <button class="back-status" onclick="closeApplicationModal()">Back</button>
-          <button class="approve-btn" onclick="confirmAndApproveLoan()">Approve</button>
+          <button id="approve-btn" class="approve-btn" onclick="confirmAndApproveLoan()">Approve</button>
           <button class="reject-btn" onclick="confirmAndRejectLoan()">Reject</button>
-          <!-- <button class="remarks-btn" onclick="openRemarksModal()">Add Remarks</button>-->
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Remarks Modal -->
-  <div id="remarksModal" class="modal">
-    <div class="remarks-modal">
-      <button class="close-btn" onclick="closeRemarksModal()">&times;</button>
-      <div class="remarks-content">
-        <h3>Add Remarks</h3>
-        <textarea id="remarksText" placeholder="Input Remarks....."></textarea>
-      </div>
-      <div class="remarks-buttons">
-        <button class="back-remarks" onclick="closeRemarksModal()">Back</button>
-        <button class="submit-btn" onclick="submitRemarks()">Submit</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
+<script>
     let currentLoanId = null;
+    let currentLoanStage = 'pending';
     let currentValidId = '';
     let currentProofIncome = '';
     let currentCoeDocument = '';
+    let currentMonthlySalary = 0;
+    let currentMonthlyPayment = 0;
+    let currentClientName = '';
 
     function viewDocument(docType) {
       let filePath = '';
       let docName = '';
-
       switch (docType) {
-        case 'valid_id':
-          filePath = currentValidId;
-          docName = 'Valid ID';
-          break;
-        case 'proof_of_income':
-          filePath = currentProofIncome;
-          docName = 'Proof of Income';
-          break;
-        case 'coe_document':
-          filePath = currentCoeDocument;
-          docName = 'Certificate of Employment';
-          break;
-        default:
-          return;
+        case 'valid_id': filePath = currentValidId; docName = 'Valid ID'; break;
+        case 'proof_of_income': filePath = currentProofIncome; docName = 'Proof of Income'; break;
+        case 'coe_document': filePath = currentCoeDocument; docName = 'COE'; break;
+        default: return;
       }
-
-      if (!filePath) {
-        alert(`No ${docName} uploaded`);
-        return;
-      }
-
+      if (!filePath) { alert(`No ${docName} uploaded`); return; }
       window.open(filePath, '_blank');
     }
 
-    function viewLoanApplication(loanId) {
+    function checkSalaryValidation() {
+      const alertDiv = document.getElementById('salary-alert');
+      const approveBtn = document.getElementById('approve-btn');
+      const fiftyPercentSalary = currentMonthlySalary * 0.5;
+      
+      if (currentMonthlyPayment > fiftyPercentSalary) {
+        alertDiv.style.display = 'block';
+        approveBtn.disabled = true;
+        approveBtn.style.opacity = '0.5';
+        approveBtn.style.cursor = 'not-allowed';
+      } else {
+        alertDiv.style.display = 'none';
+        approveBtn.disabled = false;
+        approveBtn.style.opacity = '1';
+        approveBtn.style.cursor = 'pointer';
+      }
+    }
+
+    function viewLoanApplication(loanId, stage) {
       currentLoanId = loanId;
-      fetch(`view_loan.php?id=${loanId}`)
+      currentLoanStage = stage;
+      
+      fetch('view_loan.php?id=' + loanId)
         .then(res => res.json())
         .then(data => {
-          if (data.error) {
-            alert(data.error);
-            return;
-          }
+          if (data.error) { alert(data.error); return; }
 
+          currentClientName = data.full_name || '';
           document.getElementById('modal-full-name').value = data.full_name || '';
           document.getElementById('modal-account-number').value = data.account_number || '';
           document.getElementById('modal-loan-id').value = data.id || '';
           document.getElementById('modal-contact-number').value = data.contact_number || '';
           document.getElementById('modal-email').value = data.email || '';
           document.getElementById('modal-job').value = data.job || '';
-          document.getElementById('modal-monthly-salary').value = '₱' + parseFloat(data.monthly_salary || 0).toLocaleString(undefined, {
-            minimumFractionDigits: 2
-          });
-
+          
+          currentMonthlySalary = parseFloat(data.monthly_salary) || 0;
+          currentMonthlyPayment = parseFloat(data.monthly_payment) || 0;
+          
+          document.getElementById('modal-monthly-salary').value = '₱' + currentMonthlySalary.toLocaleString(undefined, {minimumFractionDigits: 2});
+          
           const appliedDate = data.created_at ? new Date(data.created_at) : null;
-          document.getElementById('modal-date-applied').value =
-            appliedDate ? appliedDate.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            }) : 'N/A';
-
+          document.getElementById('modal-date-applied').value = appliedDate ? appliedDate.toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
+          
           document.getElementById('modal-loan-type').value = data.loan_type || '';
           document.getElementById('modal-loan-term').value = data.loan_terms || '';
-          document.getElementById('modal-loan-amount').value = '₱' + parseFloat(data.loan_amount || 0).toLocaleString(undefined, {
-            minimumFractionDigits: 2
-          });
+          document.getElementById('modal-loan-amount').value = '₱' + parseFloat(data.loan_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
           document.getElementById('modal-purpose').value = data.purpose || '';
-
-          document.getElementById('modal-monthly-payment').value = '₱' + parseFloat(data.monthly_payment || 0).toLocaleString(undefined, {
-            minimumFractionDigits: 2
-          });
-          document.getElementById('modal-total-payable').value = '₱' + (parseFloat(data.loan_amount || 0) * 1.20).toLocaleString(undefined, {
-            minimumFractionDigits: 2
-          });
-
+          document.getElementById('modal-monthly-payment').value = '₱' + currentMonthlyPayment.toLocaleString(undefined, {minimumFractionDigits: 2});
+          document.getElementById('modal-total-payable').value = '₱' + (parseFloat(data.loan_amount || 0) * 1.20).toLocaleString(undefined, {minimumFractionDigits: 2});
+          
           const dueDate = data.due_date ? new Date(data.due_date) : null;
-          document.getElementById('modal-due-date').value =
-            dueDate ? dueDate.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            }) : 'N/A';
-
+          document.getElementById('modal-due-date').value = dueDate ? dueDate.toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
           document.getElementById('modal-status').value = data.status || '';
-          //document.getElementById('modal-remarks').value = data.remarks || '';
 
-          // Store document paths for viewing
           currentValidId = data.file_url || '';
           currentProofIncome = data.proof_of_income || '';
           currentCoeDocument = data.coe_document || '';
 
-          // Enable/disable view buttons based on document availability
-          const validIdBtn = document.getElementById('view-valid-id-btn');
-          const proofIncomeBtn = document.getElementById('view-proof-income-btn');
-          const coeBtn = document.getElementById('view-coe-btn');
+          document.getElementById('view-valid-id-btn').disabled = !currentValidId;
+          document.getElementById('view-proof-income-btn').disabled = !currentProofIncome;
+          document.getElementById('view-coe-btn').disabled = !currentCoeDocument;
 
-          validIdBtn.disabled = !currentValidId;
-          proofIncomeBtn.disabled = !currentProofIncome;
-          coeBtn.disabled = !currentCoeDocument;
-
+          checkSalaryValidation();
           document.getElementById('statusModal').style.display = 'flex';
           document.getElementById('statusModal').classList.add('show');
         })
-        .catch(err => {
-          console.error(err);
-          alert('Failed to load loan details.');
-        });
+        .catch(err => { console.error(err); alert('Failed to load loan details.'); });
     }
 
     function confirmAndApproveLoan() {
       if (!currentLoanId) return;
-      const remarks = prompt('Enter approval remarks (optional):', '');
-      if (remarks === null) return;
-      if (confirm('Approve this loan?')) {
-        updateLoanStatus(currentLoanId, 'Approved', remarks);
+      
+      const fiftyPercentSalary = currentMonthlySalary * 0.5;
+      if (currentMonthlyPayment > fiftyPercentSalary) {
+        alert('Cannot approve: Monthly payment exceeds 50% of salary.');
+        return;
+      }
+      
+      if (currentLoanStage === 'pending') {
+        if (confirm('Approve this loan for ' + currentClientName + '? Client must claim within 30 days.')) {
+          updateLoanStatus(currentLoanId, 'Approved', 'first_approve');
+        }
+      } else if (currentLoanStage === 'approved') {
+        if (confirm('Confirm that ' + currentClientName + ' has claimed the loan? This will activate the loan.')) {
+          updateLoanStatus(currentLoanId, 'Active', 'second_approve');
+        }
       }
     }
 
     function confirmAndRejectLoan() {
       if (!currentLoanId) return;
-      const remarks = prompt('Enter rejection remarks (required):', '');
-      if (remarks === null || !remarks.trim()) {
-        alert('Remarks are required for rejection.');
-        return;
-      }
-      if (confirm('Reject this loan?')) {
-        updateLoanStatus(currentLoanId, 'Rejected', remarks);
+      
+      if (currentLoanStage === 'pending') {
+        const remarks = prompt('Enter rejection reason (required):');
+        if (!remarks || !remarks.trim()) {
+          alert('Remarks are required for rejection.');
+          return;
+        }
+        if (confirm('Reject this loan for ' + currentClientName + '?')) {
+          updateLoanStatus(currentLoanId, 'Rejected', 'first_reject', remarks);
+        }
+      } else if (currentLoanStage === 'approved') {
+        const remarks = prompt('Enter reason why client did not claim (optional):');
+        if (confirm('Reject this approved loan for ' + currentClientName + '? They chose not to claim.')) {
+          updateLoanStatus(currentLoanId, 'Rejected', 'second_reject', remarks || '');
+        }
       }
     }
 
+function updateLoanStatus(loanId, status, action, remarks) {
+  remarks = remarks || '';
+  
+  console.log('Sending update:', {loanId, status, action, remarks});
+  
+  // FIXED: Use relative path from current directory
+  fetch('./upload_loan_status.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      loan_id: loanId,
+      status: status,
+      action: action,
+      remarks: remarks
+    })
+  })
+  .then(function(res) {
+    console.log('Response status:', res.status);
+    console.log('Response URL:', res.url);
+    
+    if (res.status === 404) {
+      throw new Error('update_loan_status.php not found! Make sure it is in: C:/xampp/htdocs/LoanSubsystem/');
+    }
+    
+    if (!res.ok) {
+      throw new Error('HTTP error! status: ' + res.status);
+    }
+    
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return res.text().then(text => {
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned non-JSON response. This usually means a PHP error.');
+      });
+    }
+    
+    return res.json();
+  })
+  .then(function(data) {
+    console.log('Parsed data:', data);
+    
+    if (data.success) {
+      alert(data.message);
+      var row = document.querySelector('tr[data-loan-id="' + loanId + '"]');
+      if (row) row.remove();
+      closeApplicationModal();
+      location.reload();
+    } else {
+      alert('Update failed: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(function(err) {
+    console.error('Full error:', err);
+    alert('Error: ' + err.message + '\n\nCheck console (F12) for details.');
+  });
+}
     function closeApplicationModal() {
       const modal = document.getElementById('statusModal');
       modal.classList.remove('show');
-      setTimeout(() => modal.style.display = 'none', 300);
-    }
-
-    function openRemarksModal() {
-      document.getElementById('statusModal').classList.remove('show');
-      setTimeout(() => {
-        document.getElementById('statusModal').style.display = 'none';
-        document.getElementById('remarksModal').style.display = 'flex';
-        document.getElementById('remarksModal').classList.add('show');
-      }, 300);
-    }
-
-    function closeRemarksModal() {
-      document.getElementById('remarksModal').classList.remove('show');
-      setTimeout(() => {
-        document.getElementById('remarksModal').style.display = 'none';
-        document.getElementById('statusModal').style.display = 'flex';
-        document.getElementById('statusModal').classList.add('show');
-      }, 300);
-    }
-
-    function submitRemarks() {
-      const remarks = document.getElementById('remarksText').value.trim();
-      if (!remarks) {
-        alert('Please enter remarks');
-        return;
-      }
-      if (!currentLoanId) return;
-
-      fetch('update_loan_remarks.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            loan_id: currentLoanId,
-            remarks: remarks
-          })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            alert('Remarks added!');
-            document.getElementById('modal-remarks').value = remarks;
-            document.getElementById('remarksText').value = '';
-            closeRemarksModal();
-          } else {
-            alert('Failed: ' + (data.error || 'Unknown error'));
-          }
-        });
-    }
-
-    function updateLoanStatus(loanId, status, remarks = '') {
-      fetch('upload_loan_status.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            loan_id: loanId,
-            status: status,
-            remarks: remarks
-          })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            alert(`Loan ${status.toLowerCase()} successfully!`);
-            const row = document.querySelector(`tr[data-loan-id="${loanId}"]`);
-            if (row) row.remove(); // Remove from list
-            document.getElementById('modal-status').value = status;
-            if (remarks) document.getElementById('modal-remarks').value = remarks;
-            // Do NOT close modal — but row is gone
-          } else {
-            alert('Update failed: ' + (data.error || 'Unknown error'));
-          }
-        });
+      setTimeout(function() { modal.style.display = 'none'; }, 300);
     }
 
     window.onclick = function(e) {
       if (e.target.id === 'statusModal') closeApplicationModal();
-      if (e.target.id === 'remarksModal') closeRemarksModal();
     }
   </script>
-</body>
 
+  <style>
+    .salary-alert {
+      background: #ffebee;
+      color: #c62828;
+      padding: 10px;
+      border-radius: 4px;
+      font-weight: 500;
+      border-left: 4px solid #f44336;
+    }
+  </style>
+</body>
 </html>

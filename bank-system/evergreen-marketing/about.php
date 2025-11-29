@@ -777,7 +777,7 @@
                 </div>
             </div>
 
-            <a href="#loans">Loans</a>
+            <a href="../../LoanSubsystem/index.php">Loans</a>
             <a href="about.php">About Us</a>
         </div>
 

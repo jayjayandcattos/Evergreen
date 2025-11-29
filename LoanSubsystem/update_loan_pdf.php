@@ -10,21 +10,29 @@ if (!isset($_SESSION['user_email'])) {
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db = "bankingdb";
+$db = "loan_system";
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
-    exit(json_encode(['error' => 'DB error']));
+    exit(json_encode(['error' => 'DB error: ' . $conn->connect_error]));
 }
 
-// Add pdf_path column if missing
-$conn->query("ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS pdf_path VARCHAR(255) DEFAULT NULL");
+// ✅ Create separate PDF columns (not just pdf_path)
+$conn->query("ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS pdf_approved VARCHAR(255) DEFAULT NULL");
+$conn->query("ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS pdf_active VARCHAR(255) DEFAULT NULL");
+$conn->query("ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS pdf_rejected VARCHAR(255) DEFAULT NULL");
 
 $data = json_decode(file_get_contents('php://input'), true);
 $loan_id = intval($data['loan_id'] ?? 0);
 $pdf_path = $data['pdf_path'] ?? '';
+$pdf_type = $data['type'] ?? ''; // ✅ CRITICAL: Get the type parameter
 
-if ($loan_id <= 0 || !$pdf_path) {
-    exit(json_encode(['error' => 'Invalid input']));
+if ($loan_id <= 0 || !$pdf_path || !$pdf_type) {
+    exit(json_encode(['error' => 'Invalid input - missing loan_id, pdf_path, or type']));
+}
+
+// ✅ Validate type
+if (!in_array($pdf_type, ['approved', 'active', 'rejected'])) {
+    exit(json_encode(['error' => 'Invalid type. Must be: approved, active, or rejected']));
 }
 
 // Verify loan belongs to user
@@ -34,25 +42,46 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
+    $stmt->close();
+    $conn->close();
     exit(json_encode(['error' => 'Loan not found']));
 }
 
 $row = $result->fetch_assoc();
 if ($row['email'] !== $_SESSION['user_email']) {
+    $stmt->close();
+    $conn->close();
     exit(json_encode(['error' => 'Unauthorized']));
 }
 $stmt->close();
 
-// Update PDF path
-$stmt = $conn->prepare("UPDATE loan_applications SET pdf_path = ? WHERE id = ?");
+// ✅ Update the correct PDF column based on type
+$column_map = [
+    'approved' => 'pdf_approved',
+    'active' => 'pdf_active',
+    'rejected' => 'pdf_rejected'
+];
+
+$column = $column_map[$pdf_type];
+
+// ✅ Use dynamic column name (safe because we validated $pdf_type above)
+$sql = "UPDATE loan_applications SET $column = ? WHERE id = ?";
+$stmt = $conn->prepare($sql);
 $stmt->bind_param("si", $pdf_path, $loan_id);
 
 if ($stmt->execute()) {
-    exit(json_encode(['success' => true]));
+    $stmt->close();
+    $conn->close();
+    exit(json_encode([
+        'success' => true, 
+        'type' => $pdf_type,
+        'column' => $column,
+        'message' => 'PDF path updated successfully'
+    ]));
 } else {
-    exit(json_encode(['error' => 'Update failed: ' . $conn->error]));
+    $error = $conn->error;
+    $stmt->close();
+    $conn->close();
+    exit(json_encode(['error' => 'Update failed: ' . $error]));
 }
-
-$stmt->close();
-$conn->close();
 ?>

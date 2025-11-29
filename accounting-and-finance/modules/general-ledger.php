@@ -178,43 +178,44 @@ $current_user = getCurrentUser();
             </div>
 
             <!-- Statistics Cards -->
-            <div class="row g-3 mb-4">
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-list-alt"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="total-accounts">Loading...</h3>
-                                <p>Total Accounts</p>
-                                <a href="#accounts" class="stat-link">View Details</a>
-                            </div>
+            <div class="row g-3 mb-4 stats-cards-row">
+                <div class="col-md-4 col-lg-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-list-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-accounts">Loading...</h3>
+                            <p>Total Accounts</p>
+                            <a href="#accounts" class="stat-link">View Details</a>
                         </div>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="total-transactions">Loading...</h3>
-                                <p>Posted Transactions</p>
-                                <a href="#transactions" class="stat-link">View Details</a>
-                            </div>
+                </div>
+                <div class="col-md-4 col-lg-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-transactions">Loading...</h3>
+                            <p>Posted Transactions</p>
+                            <a href="#transactions" class="stat-link">View Details</a>
                         </div>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-history"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="total-audit">Loading...</h3>
-                                <p>Total Audit Entries</p>
-                                <a href="#audit" class="stat-link">View Details</a>
-                            </div>
+                </div>
+                <div class="col-md-4 col-lg-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-audit">Loading...</h3>
+                            <p>Total Audit Entries</p>
+                            <a href="#audit" class="stat-link">View Details</a>
                         </div>
                     </div>
+                </div>
+            </div>
 
             <!-- Charts Overview -->
             <div class="gl-section">
