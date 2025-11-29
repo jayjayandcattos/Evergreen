@@ -116,31 +116,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 try {
                     // If status is "Hired", send job offer instead of directly hiring
                     if ($_POST['status'] === 'Hired') {
-                        // Generate unique offer token
-                        $offer_token = bin2hex(random_bytes(32));
+                        $applicant_id = (int)$_POST['applicant_id'];
                         
                         // Update applicant with offer information
                         $sql = "UPDATE applicant 
                                 SET application_status = 'Job Offer Sent',
                                     offer_status = 'Pending',
-                                    offer_token = ?,
                                     offer_sent_at = NOW()
                                 WHERE applicant_id = ?";
                         $stmt = $conn->prepare($sql);
-                        $success = $stmt->execute([$offer_token, $_POST['applicant_id']]);
+                        $success = $stmt->execute([$applicant_id]);
                         
                         if ($success) {
                             // Get applicant info for display
                             $applicant = fetchOne($conn, 
                                 "SELECT full_name, email FROM applicant WHERE applicant_id = ?", 
-                                [$_POST['applicant_id']]
+                                [$applicant_id]
                             );
                             
                             // Construct offer URL dynamically
                             $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
                             $host = $_SERVER['HTTP_HOST'];
                             $scriptPath = dirname(dirname($_SERVER['SCRIPT_NAME'])); // Go up from pages/ to hris-sia/
-                            $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?token=" . $offer_token;
+                            $scriptPath = rtrim($scriptPath, '/');
+                            $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?id=" . $applicant_id;
                             
                             $message = "Job offer sent successfully! Share this link with the applicant: <br><strong><a href='$offer_url' target='_blank' class='text-blue-600 underline'>$offer_url</a></strong>";
                             $messageType = "success";
@@ -149,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 $logger->info(
                                     'RECRUITMENT',
                                     'Job offer sent',
-                                    "Applicant ID: {$_POST['applicant_id']}, Token: $offer_token"
+                                    "Applicant ID: $applicant_id"
                                 );
                             }
                         } else {
@@ -882,7 +881,14 @@ $noRecruitments = empty($recruitments);
         <main class="p-3 sm:p-4 lg:p-8">
             <?php if ($message): ?>
                 <div class="mb-4 p-4 rounded-lg <?php echo $messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
-                    <?php echo htmlspecialchars($message); ?>
+                    <?php 
+                    // Allow HTML in success messages (for links), escape error messages
+                    if ($messageType === 'success' && strpos($message, '<') !== false) {
+                        echo $message; 
+                    } else {
+                        echo htmlspecialchars($message); 
+                    }
+                    ?>
                 </div>
             <?php endif; ?>
 
@@ -1042,13 +1048,15 @@ $noRecruitments = empty($recruitments);
                                                             </button>
                                                         </form>
                                                     <?php endif; ?>
-                                                    <?php if ($applicant['offer_token'] && $applicant['offer_status'] === 'Pending'): ?>
+                                                    <?php if ($applicant['application_status'] === 'Job Offer Sent' && $applicant['offer_status'] === 'Pending'): ?>
                                                         <?php
                                                         // Construct offer URL dynamically
+                                                        $applicant_id = (int)$applicant['applicant_id'];
                                                         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
                                                         $host = $_SERVER['HTTP_HOST'];
                                                         $scriptPath = dirname(dirname($_SERVER['SCRIPT_NAME'])); // Go up from pages/ to hris-sia/
-                                                        $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?token=" . $applicant['offer_token'];
+                                                        $scriptPath = rtrim($scriptPath, '/');
+                                                        $offer_url = $protocol . "://" . $host . $scriptPath . "/offer.php?id=" . $applicant_id;
                                                         ?>
                                                         <a href="<?php echo $offer_url; ?>" target="_blank"
                                                             class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded text-xs inline-block whitespace-nowrap">
