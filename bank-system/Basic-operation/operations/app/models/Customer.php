@@ -350,13 +350,18 @@ class Customer extends Database{
                 g.gender_name AS gender,
                 -- Address parts (Home Address - primary)
                 (SELECT a.address_line FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS address_line,
-                (SELECT a.city FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city,
+                (SELECT a.city_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city_id,
+                (SELECT a.barangay_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS barangay_id,
+                (SELECT ct.city_name FROM addresses a JOIN cities ct ON a.city_id = ct.city_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city_name,
+                (SELECT br.barangay_name FROM addresses a JOIN barangays br ON a.barangay_id = br.barangay_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS barangay_name,
                 (SELECT a.province_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province_id,
                 (SELECT p.province_name FROM addresses a JOIN provinces p ON a.province_id = p.province_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province_name,
                 -- Legacy concatenated field for compatibility
-                (SELECT CONCAT(a.address_line, ', ', a.city, ', ', p.province_name, ', Philippines') 
+                (SELECT CONCAT(a.address_line, ', ', br.barangay_name, ', ', ct.city_name, ', ', p.province_name, ', Philippines') 
                  FROM addresses a
-                 JOIN provinces p ON a.province_id = p.province_id
+                 LEFT JOIN barangays br ON a.barangay_id = br.barangay_id
+                 LEFT JOIN cities ct ON a.city_id = ct.city_id
+                 LEFT JOIN provinces p ON a.province_id = p.province_id
                  WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS home_address
             FROM bank_customers c
             LEFT JOIN customer_profiles cp ON c.customer_id = cp.customer_id
@@ -375,6 +380,46 @@ class Customer extends Database{
      */
     public function getProvinces() {
         $this->db->query("SELECT province_id, province_name FROM provinces ORDER BY province_name ASC");
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get list of cities by province
+     * @param int $province_id
+     * @return array
+     */
+    public function getCitiesByProvince($province_id) {
+        $this->db->query("SELECT city_id, city_name, province_id FROM cities WHERE province_id = :province_id ORDER BY city_name ASC");
+        $this->db->bind(':province_id', $province_id);
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get list of barangays by city
+     * @param int $city_id
+     * @return array
+     */
+    public function getBarangaysByCity($city_id) {
+        $this->db->query("SELECT barangay_id, barangay_name, city_id FROM barangays WHERE city_id = :city_id ORDER BY barangay_name ASC");
+        $this->db->bind(':city_id', $city_id);
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get all cities
+     * @return array
+     */
+    public function getAllCities() {
+        $this->db->query("SELECT city_id, city_name, province_id FROM cities ORDER BY city_name ASC");
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get all barangays
+     * @return array
+     */
+    public function getAllBarangays() {
+        $this->db->query("SELECT barangay_id, barangay_name, city_id FROM barangays ORDER BY barangay_name ASC");
         return $this->db->resultSet();
     }
 
@@ -481,10 +526,11 @@ class Customer extends Database{
                 }
             }
             
-            // Update address parts if provided (address_line, city, province_id)
-            if (isset($profile_data['address_line']) || isset($profile_data['city']) || isset($profile_data['province_id'])) {
+            // Update address parts if provided (address_line, city_id, barangay_id, province_id)
+            if (isset($profile_data['address_line']) || isset($profile_data['city_id']) || isset($profile_data['barangay_id']) || isset($profile_data['province_id'])) {
                 $address_line = isset($profile_data['address_line']) ? trim($profile_data['address_line']) : null;
-                $city = isset($profile_data['city']) ? trim($profile_data['city']) : null;
+                $city_id = isset($profile_data['city_id']) ? (is_numeric($profile_data['city_id']) ? (int)$profile_data['city_id'] : null) : null;
+                $barangay_id = isset($profile_data['barangay_id']) ? (is_numeric($profile_data['barangay_id']) ? (int)$profile_data['barangay_id'] : null) : null;
                 $province_id = isset($profile_data['province_id']) ? (is_numeric($profile_data['province_id']) ? (int)$profile_data['province_id'] : null) : null;
 
                 // Check if primary home address exists
@@ -496,14 +542,16 @@ class Customer extends Database{
                     // Build update dynamically
                     $set_clauses = [];
                     if ($address_line !== null) $set_clauses[] = "address_line = :address_line";
-                    if ($city !== null) $set_clauses[] = "city = :city";
+                    if ($city_id !== null) $set_clauses[] = "city_id = :city_id";
+                    if ($barangay_id !== null) $set_clauses[] = "barangay_id = :barangay_id";
                     if ($province_id !== null) $set_clauses[] = "province_id = :province_id";
 
                     if (!empty($set_clauses)) {
                         $sql = "UPDATE addresses SET " . implode(', ', $set_clauses) . " WHERE address_id = :address_id";
                         $this->db->query($sql);
                         if ($address_line !== null) $this->db->bind(':address_line', $address_line);
-                        if ($city !== null) $this->db->bind(':city', $city);
+                        if ($city_id !== null) $this->db->bind(':city_id', $city_id);
+                        if ($barangay_id !== null) $this->db->bind(':barangay_id', $barangay_id);
                         if ($province_id !== null) $this->db->bind(':province_id', $province_id);
                         $this->db->bind(':address_id', $addr_exists->address_id);
                         $result = $this->db->execute();
@@ -512,11 +560,12 @@ class Customer extends Database{
                     }
                 } else {
                     // Insert new primary home address if at least one part provided
-                    if ($address_line || $city || $province_id) {
-                        $this->db->query("INSERT INTO addresses (customer_id, address_line, city, province_id, address_type, is_primary, created_at) VALUES (:customer_id, :address_line, :city, :province_id, 'home', 1, NOW())");
+                    if ($address_line || $city_id || $barangay_id || $province_id) {
+                        $this->db->query("INSERT INTO addresses (customer_id, address_line, city_id, barangay_id, province_id, address_type, is_primary, created_at) VALUES (:customer_id, :address_line, :city_id, :barangay_id, :province_id, 'home', 1, NOW())");
                         $this->db->bind(':customer_id', $customer_id);
                         $this->db->bind(':address_line', $address_line);
-                        $this->db->bind(':city', $city);
+                        $this->db->bind(':city_id', $city_id);
+                        $this->db->bind(':barangay_id', $barangay_id);
                         $this->db->bind(':province_id', $province_id);
                         $result = $this->db->execute();
                         if (!$result) error_log("Failed to insert address for customer_id: $customer_id");

@@ -1228,7 +1228,9 @@ INSERT INTO transaction_types (transaction_type_id, type_name, description) VALU
 (4, 'Interest Credit', 'Interest payment credited'),
 (5, 'Service Charge', 'Bank service fee charged'),
 (6, 'Loan Disbursement', 'Loan amount disbursed to account'),
-(7, 'Loan Payment', 'Loan payment received')
+(7, 'Loan Payment', 'Loan payment received'),
+(8, 'Transfer Out', 'Sending money to another account'),
+(9, 'Transfer In', 'Receiving money from another account')
 ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
 
 -- Bank Transactions

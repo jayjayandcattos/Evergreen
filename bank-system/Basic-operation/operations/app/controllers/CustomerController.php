@@ -300,6 +300,12 @@ class CustomerController extends Controller {
             if (isset($_POST['province_id'])) {
                 $update_data['province_id'] = trim($_POST['province_id']);
             }
+            if (isset($_POST['city_id'])) {
+                $update_data['city_id'] = trim($_POST['city_id']);
+            }
+            if (isset($_POST['barangay_id'])) {
+                $update_data['barangay_id'] = trim($_POST['barangay_id']);
+            }
             if (isset($_POST['gender'])) {
                 $update_data['gender'] = trim($_POST['gender']);
             }
@@ -343,12 +349,22 @@ class CustomerController extends Controller {
 
         $profile_data = $this->customerModel->getCustomerProfileData($customer_id);
         $provinces = $this->customerModel->getProvinces();
+        $cities = $this->customerModel->getAllCities();
+        
+        // Get barangays - load ALL barangays for dynamic filtering on the frontend
+        // Also get barangays for current city if available
+        $barangays = $this->customerModel->getAllBarangays();
+        $current_barangays = [];
+        if (!empty($profile_data->city_id)) {
+            $current_barangays = $this->customerModel->getBarangaysByCity($profile_data->city_id);
+        }
 
         if (!$profile_data) {
              $profile_data = (object)[
                  'first_name' => 'N/A', 'last_name' => 'N/A', 'username' => 'N/A', 
                  'mobile_number' => 'N/A', 'email_address' => 'N/A', 'home_address' => 'N/A',
                  'address_line' => '', 'city' => '', 'province_id' => null, 'province_name' => '',
+                 'city_id' => null, 'barangay_id' => null, 'barangay_name' => '',
                  'date_of_birth' => 'N/A', 'gender' => 'N/A', 'civil_status' => 'N/A', 
                  'citizenship' => 'N/A', 'occupation' => 'N/A', 'name_of_employer' => 'N/A'
              ];
@@ -358,6 +374,8 @@ class CustomerController extends Controller {
             'title' => "My Profile",
             'profile' => $profile_data,
             'provinces' => $provinces,
+            'cities' => $cities,
+            'barangays' => $barangays,
             'full_name' => trim($profile_data->first_name . ' ' . $profile_data->middle_name . ' ' . $profile_data->last_name),
             'source_of_funds' => $profile_data->occupation,
             'employment_status' => $profile_data->occupation ? 'Employed' : 'Unemployed',
