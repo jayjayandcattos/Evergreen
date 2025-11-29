@@ -1006,4 +1006,110 @@ class CustomerController extends Controller {
         echo json_encode($result, JSON_PRETTY_PRINT);
         exit;
     }
+
+    /**
+     * View Account Applications Status
+     * Shows all account applications for the logged-in customer
+     * Access via: /customer/account_applications
+     */
+    public function account_applications() {
+        // Get customer email from session or customer data
+        $customerEmail = $_SESSION['customer_email'] ?? null;
+        
+        // If email not in session, try to get it from customer data
+        if (!$customerEmail && isset($_SESSION['customer_id'])) {
+            // Get email from emails table using the parent controller's database connection
+            $this->db->query("
+                SELECT email FROM emails 
+                WHERE customer_id = :customer_id 
+                ORDER BY is_primary DESC, created_at ASC 
+                LIMIT 1
+            ");
+            $this->db->bind(':customer_id', $_SESSION['customer_id']);
+            $emailResult = $this->db->single();
+            $customerEmail = $emailResult->email ?? null;
+        }
+
+        $applications = [];
+        if ($customerEmail) {
+            $applications = $this->customerModel->getAccountApplicationsByEmail($customerEmail);
+        }
+
+        // Format applications data
+        $formattedApplications = [];
+        foreach ($applications as $app) {
+            // Format account type
+            $accountTypeDisplay = ucfirst(str_replace(['acct-', '-'], ['', ' '], $app->account_type ?? ''));
+            
+            // Format dates
+            $submittedAt = $app->submitted_at ? date('M d, Y h:i A', strtotime($app->submitted_at)) : 'N/A';
+            $reviewedAt = $app->reviewed_at ? date('M d, Y h:i A', strtotime($app->reviewed_at)) : null;
+            $dateOfBirth = $app->date_of_birth ? date('M d, Y', strtotime($app->date_of_birth)) : 'N/A';
+            
+            // Format annual income
+            $annualIncome = $app->annual_income ? '₱' . number_format($app->annual_income, 2) : 'N/A';
+            
+            // Parse selected cards and services
+            $selectedCards = $app->selected_cards ? explode(',', $app->selected_cards) : [];
+            $additionalServices = $app->additional_services ? explode(',', $app->additional_services) : [];
+            
+            // Status badge class
+            $statusClass = 'warning';
+            if ($app->application_status === 'approved') {
+                $statusClass = 'success';
+            } elseif ($app->application_status === 'rejected') {
+                $statusClass = 'danger';
+            }
+            
+            $formattedApplications[] = [
+                'application_id' => $app->application_id,
+                'application_number' => $app->application_number,
+                'application_status' => ucfirst($app->application_status),
+                'status_class' => $statusClass,
+                'first_name' => $app->first_name,
+                'last_name' => $app->last_name,
+                'full_name' => $app->first_name . ' ' . $app->last_name,
+                'email' => $app->email,
+                'phone_number' => $app->phone_number,
+                'date_of_birth' => $dateOfBirth,
+                'street_address' => $app->street_address,
+                'barangay' => $app->barangay,
+                'city' => $app->city,
+                'state' => $app->state,
+                'zip_code' => $app->zip_code,
+                'full_address' => trim(implode(', ', array_filter([
+                    $app->street_address,
+                    $app->barangay,
+                    $app->city,
+                    $app->state,
+                    $app->zip_code
+                ]))),
+                'ssn' => $app->ssn,
+                'id_type' => $app->id_type,
+                'id_number' => $app->id_number,
+                'employment_status' => $app->employment_status,
+                'employer_name' => $app->employer_name ?? 'N/A',
+                'job_title' => $app->job_title ?? 'N/A',
+                'annual_income' => $annualIncome,
+                'account_type' => $accountTypeDisplay,
+                'selected_cards' => $selectedCards,
+                'additional_services' => $additionalServices,
+                'submitted_at' => $submittedAt,
+                'reviewed_at' => $reviewedAt
+            ];
+        }
+
+        $data = [
+            'title' => 'Account Applications',
+            'first_name' => $_SESSION['customer_first_name'] ?? '',
+            'last_name' => $_SESSION['customer_last_name'] ?? '',
+            'applications' => $formattedApplications,
+            'total_applications' => count($formattedApplications),
+            'pending_count' => count(array_filter($formattedApplications, fn($app) => strtolower($app['application_status']) === 'pending')),
+            'approved_count' => count(array_filter($formattedApplications, fn($app) => strtolower($app['application_status']) === 'approved')),
+            'rejected_count' => count(array_filter($formattedApplications, fn($app) => strtolower($app['application_status']) === 'rejected'))
+        ];
+
+        $this->view('customer/account_applications', $data);
+    }
 }

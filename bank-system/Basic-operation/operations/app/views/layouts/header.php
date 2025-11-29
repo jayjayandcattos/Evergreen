@@ -51,6 +51,10 @@
                     <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Pay Loan') ? 'active text-warning' : ''; ?>" 
                     href="<?= URLROOT ?>/customer/pay_loan">Pay Loan</a>
                 </li>
+                <li class="nav-item mx-2">
+                    <a class="nav-link <?= (!empty($data['title']) && $data['title'] == 'Account Applications') ? 'active text-warning' : ''; ?>" 
+                    href="<?= URLROOT ?>/customer/account_applications">Applications</a>
+                </li>
             </ul>
 
         <!------------------------- USERNAME AND PROFILE ----------------------------------------------------------------------------->

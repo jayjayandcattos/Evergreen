@@ -944,7 +944,7 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $receiver);
-        $this->db->bind(':transaction_type', 9);
+        $this->db->bind(':transaction_type', 3);
         $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $sender);
         $this->db->bind(':message', $message);
@@ -1461,50 +1461,6 @@ class Customer extends Database{
             $this->db->bind(':customer_id', $customerId);
             $this->db->execute();
 
-            // Create referral record in referrals table (for mission tracking)
-            // This is critical for the mission system to detect referrals and unlock missions
-            try {
-                $this->db->query("
-                    INSERT INTO referrals (referrer_id, referred_id, points_earned, created_at)
-                    VALUES (:referrer_id, :referred_id, :points_earned, NOW())
-                ");
-                $this->db->bind(':referrer_id', $referrerId);
-                $this->db->bind(':referred_id', $customerId);
-                $this->db->bind(':points_earned', $referrerPoints);
-                $this->db->execute();
-            } catch (Exception $e) {
-                // If referrals table doesn't exist, log but don't fail the referral
-                error_log("Referrals table insert failed: " . $e->getMessage());
-            }
-
-            // Add referral points to points_history for referrer
-            try {
-                $this->db->query("
-                    INSERT INTO points_history (user_id, points, description, transaction_type, created_at)
-                    VALUES (:referrer_id, :points, :description, 'referral', NOW())
-                ");
-                $this->db->bind(':referrer_id', $referrerId);
-                $this->db->bind(':points', $referrerPoints);
-                $this->db->bind(':description', 'Referral bonus: Friend used your referral code');
-                $this->db->execute();
-            } catch (Exception $e) {
-                error_log("Points history insert failed: " . $e->getMessage());
-            }
-
-            // Add referral points to points_history for referred user
-            try {
-                $this->db->query("
-                    INSERT INTO points_history (user_id, points, description, transaction_type, created_at)
-                    VALUES (:customer_id, :points, :description, 'referral', NOW())
-                ");
-                $this->db->bind(':customer_id', $customerId);
-                $this->db->bind(':points', $referredPoints);
-                $this->db->bind(':description', 'Referral bonus: Used a friend\'s referral code');
-                $this->db->execute();
-            } catch (Exception $e) {
-                error_log("Points history insert failed: " . $e->getMessage());
-            }
-
             $this->db->commit();
 
             return [
@@ -1773,5 +1729,50 @@ class Customer extends Database{
             'daily_rate' => $daily_rate,
             'breakdown' => $return_breakdown ? $breakdown : null,
         ];
+    }
+
+    /**
+     * Get account applications by customer email
+     * @param string $email Customer email address
+     * @return array|false Array of applications or false on failure
+     */
+    public function getAccountApplicationsByEmail($email) {
+        $this->db->query("
+            SELECT 
+                application_id,
+                application_number,
+                application_status,
+                first_name,
+                last_name,
+                email,
+                phone_number,
+                date_of_birth,
+                street_address,
+                barangay,
+                city,
+                state,
+                zip_code,
+                ssn,
+                id_type,
+                id_number,
+                employment_status,
+                employer_name,
+                job_title,
+                annual_income,
+                account_type,
+                selected_cards,
+                additional_services,
+                terms_accepted,
+                privacy_acknowledged,
+                marketing_consent,
+                submitted_at,
+                reviewed_at
+            FROM account_applications
+            WHERE email = :email
+            ORDER BY submitted_at DESC
+        ");
+        
+        $this->db->bind(':email', $email);
+        return $this->db->resultSet();
     }
 }
