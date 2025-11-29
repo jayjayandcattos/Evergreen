@@ -7,113 +7,38 @@ $success = false;
 $login_failed = false;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $bank_id = trim($_POST['bank_id']);
     $email = trim($_POST['email']);
-    $password = trim($_POST['password']);
+    $password = trim($_POST['password'] ?? '');
 
     if (empty($email) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        $user_found = false;
-        
-        // First, try to find user in bank_users (marketing system)
-        if (!empty($bank_id)) {
-            $sql = "SELECT id, first_name, last_name, middle_name, password, bank_id, email, is_verified 
-                    FROM bank_users 
-                    WHERE email = ? AND bank_id = ? AND is_verified = 1";
-            $stmt = $conn->prepare($sql);
-            
-            if ($stmt !== false) {
-                $stmt->bind_param("ss", $email, $bank_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
+        $sql = "SELECT * FROM bank_customers WHERE email = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-                if ($result && $result->num_rows === 1) {
-                    $row = $result->fetch_assoc();
-                    
-                    // Verify password
-                    if (password_verify($password, $row['password'])) {
-                        $user_found = true;
-                        
-                        // Set session variables for marketing system
-                        $_SESSION['user_id'] = $row['id'];
-                        $_SESSION['email'] = $row['email'];
-                        $_SESSION['first_name'] = $row['first_name'];
-                        $_SESSION['last_name'] = $row['last_name'];
-                        $_SESSION['bank_id'] = $row['bank_id'];
-                        $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
-                        
-                        // Now get the customer_id from bank_customers
-                        $sql2 = "SELECT customer_id FROM bank_customers WHERE email = ?";
-                        $stmt2 = $conn->prepare($sql2);
-                        if ($stmt2) {
-                            $stmt2->bind_param("s", $email);
-                            $stmt2->execute();
-                            $result2 = $stmt2->get_result();
-                            if ($result2 && $result2->num_rows === 1) {
-                                $row2 = $result2->fetch_assoc();
-                                $_SESSION['customer_id'] = $row2['customer_id'];
-                                $_SESSION['customer_first_name'] = $row['first_name'];
-                                $_SESSION['customer_last_name'] = $row['last_name'];
-                            }
-                            $stmt2->close();
-                        }
-
-                        // Redirect to viewing page after successful login
-                        header("Location: viewingpage.php");
-                        exit();
-                    }
-                }
-                $stmt->close();
-            }
-        }
-        
-        // If not found in bank_users, try bank_customers (Basic-operation system)
-        if (!$user_found) {
-            $sql = "SELECT customer_id, first_name, last_name, middle_name, email, password_hash 
-                    FROM bank_customers 
-                    WHERE email = ?";
-            $stmt = $conn->prepare($sql);
+        if ($result && $result->num_rows === 1) {
+            $row = $result->fetch_assoc();
             
-            if ($stmt === false) {
-                $error = "Database error: " . $conn->error;
+            if (password_verify($password, $row['password_hash'])) {
+                // Set session variables
+                $_SESSION['user_id'] = $row['customer_id'];
+                $_SESSION['email'] = $row['email'];
+                $_SESSION['first_name'] = $row['first_name'];
+                $_SESSION['last_name'] = $row['last_name'];
+                $_SESSION['bank_id'] = $row['bank_id'];
+                $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+
+                $success = true;
             } else {
-                $stmt->bind_param("s", $email);
-                $stmt->execute();
-                $result = $stmt->get_result();
-
-                if ($result && $result->num_rows === 1) {
-                    $row = $result->fetch_assoc();
-                    
-                    // Verify password
-                    if (password_verify($password, $row['password_hash'])) {
-                        $user_found = true;
-                        
-                        // Set session variables for both systems
-                        $_SESSION['customer_id'] = $row['customer_id'];
-                        $_SESSION['user_id'] = $row['customer_id']; // Use customer_id as user_id
-                        $_SESSION['email'] = $row['email'];
-                        $_SESSION['first_name'] = $row['first_name'];
-                        $_SESSION['last_name'] = $row['last_name'];
-                        $_SESSION['customer_first_name'] = $row['first_name'];
-                        $_SESSION['customer_last_name'] = $row['last_name'];
-                        $_SESSION['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
-                        $_SESSION['bank_id'] = ''; // No bank_id for Basic-operation users
-
-                        // Redirect to viewing page after successful login
-                        header("Location: viewingpage.php");
-                        exit();
-                    }
-                }
-                $stmt->close();
+                $login_failed = true;
             }
-        }
-        
-        // If still not found, show error
-        if (!$user_found) {
+        } else {
             $login_failed = true;
-            $error = "Invalid email or password.";
         }
+        $stmt->close();
     }
 }
 ?>
@@ -671,11 +596,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <h2>Log In</h2>
 
     <form method="POST" id="loginForm" novalidate>
-      <div class="input-wrapper">
-        <label class="input-label">Bank ID <span style="color: #999; font-weight: 400; font-size: 11px;">(Optional - for marketing accounts)</span></label>
-        <input type="text" name="bank_id" id="bank_id" placeholder="Bank ID (Optional)">
-        <span class="error-message" id="bank_id_error">This field is required</span>
-      </div>
 
       <div class="input-wrapper">
         <label class="input-label">Email</label>
@@ -934,23 +854,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       let isValid = true;
       
-      // Bank ID is now optional - no validation needed
       const bankId = document.getElementById('bank_id');
-      bankId.classList.remove('error');
       const bankIdError = document.getElementById('bank_id_error');
-      if (bankIdError) bankIdError.classList.remove('show');
+      if (!bankId.value.trim()) {
+        bankId.classList.add('error');
+        bankIdError.classList.add('show');
+        isValid = false;
+      } else {
+        bankId.classList.remove('error');
+        bankIdError.classList.remove('show');
+      }
       
       const email = document.getElementById('email');
       const emailError = document.getElementById('email_error');
       if (!email.value.trim()) {
         email.classList.add('error');
         emailError.classList.add('show');
-        emailError.textContent = 'Email is required';
-        isValid = false;
-      } else if (!email.value.includes('@')) {
-        email.classList.add('error');
-        emailError.classList.add('show');
-        emailError.textContent = 'Please enter a valid email';
         isValid = false;
       } else {
         email.classList.remove('error');

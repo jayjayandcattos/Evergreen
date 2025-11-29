@@ -326,7 +326,16 @@ CREATE TABLE missions (
     mission_text VARCHAR(255) NOT NULL,
     points_value DECIMAL(10,2) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+
+CREATE TABLE `points_history` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `points` decimal(10,2) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE bank_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -349,6 +358,20 @@ CREATE TABLE bank_users (
     INDEX idx_bank_id (bank_id)
 );
 
+CREATE TABLE user_missions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    customer_id INT DEFAULT NULL,
+    mission_id INT NOT NULL,
+    points_earned DECIMAL(10,2) NOT NULL,
+    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_mission (user_id, mission_id),
+    INDEX idx_mission_id (mission_id),
+    INDEX idx_customer_id (customer_id),
+    FOREIGN KEY (user_id) REFERENCES bank_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+);
+
 CREATE TABLE genders (
     gender_id INT AUTO_INCREMENT PRIMARY KEY,
     gender_name VARCHAR(50) NOT NULL,
@@ -358,33 +381,7 @@ CREATE TABLE genders (
 CREATE TABLE provinces (
     province_id INT AUTO_INCREMENT PRIMARY KEY,
     province_name VARCHAR(100) NOT NULL,
-    country VARCHAR(100) NOT NULL DEFAULT 'Philippines',
-    region VARCHAR(100) DEFAULT NULL,
-    INDEX idx_province_name (province_name),
-    CHECK (country = 'Philippines')
-);
-
-CREATE TABLE cities (
-    city_id INT AUTO_INCREMENT PRIMARY KEY,
-    city_name VARCHAR(100) NOT NULL,
-    province_id INT NOT NULL,
-    city_type ENUM('city','municipality') DEFAULT 'city',
-    zip_code VARCHAR(10) DEFAULT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_city_name (city_name),
-    INDEX idx_province_id (province_id),
-    FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE CASCADE
-);
-
-CREATE TABLE barangays (
-    barangay_id INT AUTO_INCREMENT PRIMARY KEY,
-    barangay_name VARCHAR(100) NOT NULL,
-    city_id INT NOT NULL,
-    zip_code VARCHAR(10) DEFAULT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_barangay_name (barangay_name),
-    INDEX idx_city_id (city_id),
-    FOREIGN KEY (city_id) REFERENCES cities(city_id) ON DELETE CASCADE
+    country VARCHAR(100) DEFAULT 'Philippines'
 );
 
 CREATE TABLE bank_customers (
@@ -413,33 +410,6 @@ CREATE TABLE bank_customers (
     INDEX idx_bank_id (bank_id),
     CONSTRAINT fk_referred_by FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL
 );
-
-CREATE TABLE `points_history` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `user_id` int(11) NOT NULL,
-  `points` decimal(10,2) NOT NULL,
-  `description` varchar(255) NOT NULL,
-  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  INDEX idx_user_id (user_id),
-  INDEX idx_created_at (created_at),
-  FOREIGN KEY (user_id) REFERENCES bank_customers(customer_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-CREATE TABLE user_missions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    mission_id INT NOT NULL,
-    points_earned DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending',
-    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_user_mission (user_id, mission_id),
-    INDEX idx_mission_id (mission_id),
-    INDEX idx_user_id (user_id),
-    INDEX idx_status (status),
-    FOREIGN KEY (user_id) REFERENCES bank_customers(customer_id) ON DELETE CASCADE,
-    FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bank_employees (
     employee_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -510,20 +480,15 @@ CREATE TABLE addresses (
     address_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     address_line VARCHAR(200) NOT NULL,
-    barangay_id INT DEFAULT NULL,
-    city_id INT DEFAULT NULL,
+    city VARCHAR(100) DEFAULT NULL,
     province_id INT DEFAULT NULL,
     postal_code VARCHAR(20) DEFAULT NULL,
     address_type VARCHAR(20) DEFAULT 'home',
     is_primary BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_customer_id (customer_id),
-    INDEX idx_barangay_id (barangay_id),
-    INDEX idx_city_id (city_id),
     INDEX idx_province_id (province_id),
     FOREIGN KEY (customer_id) REFERENCES bank_customers(customer_id),
-    FOREIGN KEY (barangay_id) REFERENCES barangays(barangay_id),
-    FOREIGN KEY (city_id) REFERENCES cities(city_id),
     FOREIGN KEY (province_id) REFERENCES provinces(province_id)
 );
 
@@ -844,7 +809,6 @@ CREATE TABLE loan_payments (
 
 CREATE TABLE loan_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    loan_type_id int(11) DEFAULT NULL,
     -- Applicant information
     full_name VARCHAR(100) DEFAULT NULL,
     account_number VARCHAR(50) DEFAULT NULL,
@@ -855,6 +819,7 @@ CREATE TABLE loan_applications (
     user_email VARCHAR(255) NOT NULL,
     -- Requested loan details (transferred to loans table when approved)
     loan_type VARCHAR(50) DEFAULT NULL,
+    loan_type_id INT DEFAULT NULL,
     loan_terms VARCHAR(50) DEFAULT NULL,
     loan_amount DECIMAL(12,2) DEFAULT NULL,
     purpose TEXT DEFAULT NULL,
@@ -877,9 +842,6 @@ CREATE TABLE loan_applications (
     proof_of_income VARCHAR(255) DEFAULT NULL,
     coe_document VARCHAR(255) DEFAULT NULL,
     pdf_path VARCHAR(255) DEFAULT NULL,
-    pdf_approved VARCHAR(255) DEFAULT NULL,
-    pdf_active VARCHAR(255) DEFAULT NULL,
-    pdf_rejected VARCHAR(255) DEFAULT NULL,
     -- Link to approved loan (set when application is approved and loan created)
     loan_id BIGINT DEFAULT NULL,
     FOREIGN KEY (loan_type_id) REFERENCES loan_types(id) ON DELETE SET NULL,

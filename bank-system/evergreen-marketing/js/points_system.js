@@ -8,20 +8,13 @@ class PointsSystem {
     // Load user's total points
     async loadUserPoints() {
         try {
-            const response = await fetch(`${this.apiUrl}?action=get_user_points`, {
-                credentials: 'same-origin'
-            });
+            const response = await fetch(`${this.apiUrl}?action=get_user_points`);
             const data = await response.json();
-            
-            console.log('Points API Response:', data);
             
             if (data.success) {
                 this.totalPoints = parseFloat(data.total_points);
-                console.log('Total Points Loaded:', this.totalPoints);
                 this.updatePointsDisplay();
                 return this.totalPoints;
-            } else {
-                console.error('Failed to load points:', data.message);
             }
         } catch (error) {
             console.error('Error loading points:', error);
@@ -71,7 +64,6 @@ class PointsSystem {
             
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
-                credentials: 'same-origin',
                 body: formData
             });
             
@@ -100,12 +92,8 @@ class PointsSystem {
     // Load available missions
     async loadMissions() {
         try {
-            console.log('Loading missions from:', `${this.apiUrl}?action=get_missions`);
-            const response = await fetch(`${this.apiUrl}?action=get_missions`, {
-                credentials: 'same-origin'
-            });
+            const response = await fetch(`${this.apiUrl}?action=get_missions`);
             const data = await response.json();
-            console.log('Missions API Response:', data);
             
             if (data.success) {
                 return data.missions;
@@ -128,26 +116,14 @@ class PointsSystem {
             
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
-                credentials: 'same-origin',
                 body: formData
             });
             
             const data = await response.json();
             
-            console.log('Mission collected response:', data);
-            
             if (data.success) {
-                console.log('New total points:', data.total_points);
                 this.totalPoints = parseFloat(data.total_points);
-                console.log('Updated this.totalPoints to:', this.totalPoints);
-                
-                // Force immediate update of all points displays
-                const pointsElements = document.querySelectorAll('#totalPoints, .points-number, .points-value');
-                console.log('Found points elements:', pointsElements.length);
-                pointsElements.forEach(el => {
-                    console.log('Updating element:', el, 'to:', this.totalPoints.toFixed(2));
-                    el.textContent = this.totalPoints.toFixed(2);
-                });
+                this.updatePointsDisplay();
                 
                 const missionCard = buttonElement.closest('.mission-card');
                 this.showSuccessMessage(data.points_earned);
@@ -200,9 +176,7 @@ class PointsSystem {
     // Load point history
     async loadPointHistory() {
         try {
-            const response = await fetch(`${this.apiUrl}?action=get_point_history`, {
-                credentials: 'same-origin'
-            });
+            const response = await fetch(`${this.apiUrl}?action=get_point_history`);
             const data = await response.json();
             
             if (data.success) {
@@ -217,9 +191,7 @@ class PointsSystem {
     // Load completed missions
     async loadCompletedMissions() {
         try {
-            const response = await fetch(`${this.apiUrl}?action=get_completed_missions`, {
-                credentials: 'same-origin'
-            });
+            const response = await fetch(`${this.apiUrl}?action=get_completed_missions`);
             const data = await response.json();
             
             if (data.success) {
@@ -322,20 +294,14 @@ class PointsSystem {
     // Render missions
     // Render missions
         async renderMissions(containerId) {
-            console.log('renderMissions called for container:', containerId);
             const missions = await this.loadMissions();
-            console.log('Missions to render:', missions);
             const container = document.getElementById(containerId);
             
-            if (!container) {
-                console.error('Container not found:', containerId);
-                return;
-            }
+            if (!container) return;
             
             container.innerHTML = '';
             
             if (missions.length === 0) {
-                console.log('No missions to display');
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">🎉</div>
@@ -345,12 +311,10 @@ class PointsSystem {
                 return;
             }
             
-            console.log('Rendering', missions.length, 'missions');
-            
             missions.forEach(mission => {
                 const card = document.createElement('div');
                 card.className = 'mission-card';
-                card.dataset.missionId = mission.id; // ✅ FIXED: Use mission.id not mission.customer_id
+                card.dataset.missionId = mission.id;
                 
                 const statusBadge = mission.status === 'pending' 
                     ? '<span style="color:#ff9800;font-size:12px;font-weight:600;">⏳ Pending</span>'
@@ -377,8 +341,6 @@ class PointsSystem {
                 
                 container.appendChild(card);
             });
-            
-            console.log('Missions rendered successfully');
         }
 
     // renderPointHistory
