@@ -1080,7 +1080,7 @@ function applyReferral($conn, $user_id) {
                 </div>
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
-                    <a href="#" role="menuitem">Profile</a>
+                    <a href="../Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
                     <a href="refer.php" role="menuitem">Refer to a friend</a>
                     <a href="./cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
