@@ -415,6 +415,116 @@ class Customer extends Database{
     }
 
     /**
+     * Get all accounts to process for maintaining balance checks
+     * @return array
+     */
+    public function getAllAccountsForMaintainingProcessing() {
+        $this->db->query("SELECT account_id, account_number, customer_id, maintaining_balance_required, monthly_service_fee, below_maintaining_since, account_status, last_service_fee_date, closure_warning_date, is_locked FROM customer_accounts");
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get transaction_type_id by name
+     */
+    public function getTransactionTypeId($type_name) {
+        $this->db->query("SELECT transaction_type_id FROM transaction_types WHERE type_name = :type_name LIMIT 1");
+        $this->db->bind(':type_name', $type_name);
+        $row = $this->db->single();
+        return $row ? (int)$row->transaction_type_id : null;
+    }
+
+    /**
+     * Charge service fee: insert bank transaction and service_fee_charges record
+     */
+    public function chargeServiceFee($account_id, $fee_amount, $fee_type = 'monthly_service_fee') {
+        $transactionTypeId = $this->getTransactionTypeId('Service Charge');
+        if (!$transactionTypeId) {
+            // fallback to a default known id (if migration not run)
+            $transactionTypeId = 5; // best-effort
+        }
+
+        $transaction_ref = 'SF-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
+
+        // Insert bank_transactions record for the fee (debit)
+        $this->db->query("INSERT INTO bank_transactions (transaction_ref, account_id, transaction_type_id, amount, description, created_at) VALUES (:transaction_ref, :account_id, :type_id, :amount, :description, NOW())");
+        $this->db->bind(':transaction_ref', $transaction_ref);
+        $this->db->bind(':account_id', $account_id);
+        $this->db->bind(':type_id', $transactionTypeId);
+        $this->db->bind(':amount', $fee_amount);
+        $this->db->bind(':description', 'Service Charge - ' . $transaction_ref);
+        $this->db->execute();
+
+        $transaction_id = $this->db->lastInsertId();
+
+        // Get balance before and after
+        $this->db->query("SELECT COALESCE(SUM(CASE tt.type_name WHEN 'Deposit' THEN t.amount WHEN 'Transfer In' THEN t.amount WHEN 'Interest Payment' THEN t.amount WHEN 'Loan Disbursement' THEN t.amount WHEN 'Withdrawal' THEN -t.amount WHEN 'Transfer Out' THEN -t.amount WHEN 'Service Charge' THEN -t.amount ELSE 0 END),0) AS balance FROM bank_transactions t LEFT JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id WHERE t.account_id = :account_id");
+        $this->db->bind(':account_id', $account_id);
+        $row = $this->db->single();
+        $balance_after = $row ? (float)$row->balance : 0.00;
+        $balance_before = $balance_after + $fee_amount;
+
+        // Insert into service_fee_charges
+        $this->db->query("INSERT INTO service_fee_charges (account_id, transaction_id, fee_amount, balance_before, balance_after, charge_date, fee_type, created_at) VALUES (:account_id, :transaction_id, :fee_amount, :balance_before, :balance_after, CURDATE(), :fee_type, NOW())");
+        $this->db->bind(':account_id', $account_id);
+        $this->db->bind(':transaction_id', $transaction_id);
+        $this->db->bind(':fee_amount', $fee_amount);
+        $this->db->bind(':balance_before', $balance_before);
+        $this->db->bind(':balance_after', $balance_after);
+        $this->db->bind(':fee_type', $fee_type);
+        $this->db->execute();
+
+        return ['transaction_id' => $transaction_id, 'balance_before' => $balance_before, 'balance_after' => $balance_after];
+    }
+
+    /**
+     * Update account status and write to history
+     */
+    public function setAccountStatus($account_id, $new_status, $balance_at_change = 0.00, $reason = null, $changed_by = null, $extraFields = []) {
+        // fetch previous status
+        $this->db->query("SELECT account_status FROM customer_accounts WHERE account_id = :account_id LIMIT 1");
+        $this->db->bind(':account_id', $account_id);
+        $prev = $this->db->single();
+        $previous_status = $prev ? $prev->account_status : null;
+
+        // Build update query parts
+        $updates = [];
+        $params = [':account_id' => $account_id];
+        if (isset($extraFields['below_maintaining_since'])) {
+            $updates[] = "below_maintaining_since = :below_maintaining_since";
+            $params[':below_maintaining_since'] = $extraFields['below_maintaining_since'];
+        }
+        if (isset($extraFields['last_service_fee_date'])) {
+            $updates[] = "last_service_fee_date = :last_service_fee_date";
+            $params[':last_service_fee_date'] = $extraFields['last_service_fee_date'];
+        }
+        if (isset($extraFields['closure_warning_date'])) {
+            $updates[] = "closure_warning_date = :closure_warning_date";
+            $params[':closure_warning_date'] = $extraFields['closure_warning_date'];
+        }
+        $updates[] = "account_status = :account_status";
+        $params[':account_status'] = $new_status;
+
+        $sql = "UPDATE customer_accounts SET " . implode(', ', $updates) . " WHERE account_id = :account_id";
+        $this->db->query($sql);
+        foreach ($params as $k => $v) {
+            $this->db->bind($k, $v);
+        }
+        $this->db->execute();
+
+        // Insert into account_status_history
+        $this->db->query("INSERT INTO account_status_history (account_id, previous_status, new_status, balance_at_change, reason, changed_by, created_at) VALUES (:account_id, :previous_status, :new_status, :balance_at_change, :reason, :changed_by, NOW())");
+        $this->db->bind(':account_id', $account_id);
+        $this->db->bind(':previous_status', $previous_status);
+        $this->db->bind(':new_status', $new_status);
+        $this->db->bind(':balance_at_change', $balance_at_change);
+        $this->db->bind(':reason', $reason);
+        $this->db->bind(':changed_by', $changed_by);
+        $this->db->execute();
+
+        return true;
+    }
+
+    /**
      * Get all barangays
      * @return array
      */

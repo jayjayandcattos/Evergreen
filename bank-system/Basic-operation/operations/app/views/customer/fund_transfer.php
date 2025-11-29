@@ -50,6 +50,15 @@
 
                         <!------- FORM --------------------------------------------------------------------------------------------->
                         <form action="<?= URLROOT ."/customer/fund_transfer"?>" method="POST">
+
+                            <?php if (!empty($data['low_balance_confirm_required'])): ?>
+                                <div class="alert alert-warning">
+                                    <strong>Warning:</strong> This transfer will bring your account balance below the required maintaining balance of
+                                    <strong>PHP <?= number_format($data['maintaining_required'] ?? 500.00, 2); ?></strong>.
+                                    Please confirm to proceed. By confirming you acknowledge the account may incur monthly service fees and possible restrictions.
+                                </div>
+                                <input type="hidden" name="confirm_low_balance" value="1">
+                            <?php endif; ?>
                             
                             <!-- Sender Number with Balance Display -->
                             <div class="mb-3">
@@ -131,6 +140,50 @@
                             </div>
                         </form>
 
+                        <!------- LOW BALANCE CONFIRMATION MODAL ------------------------------------------------------------------>
+                        <div class="modal fade" id="lowBalanceConfirmModal" tabindex="-1" aria-labelledby="lowBalanceModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content" style="background-color: #f5f5f0; border-radius: 15px;">
+                                    <div class="modal-header border-0" style="background-color: #003631;">
+                                        <h5 class="modal-title text-white" id="lowBalanceModalLabel">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> Low Balance Warning
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body p-4">
+                                        <p class="mb-3">
+                                            <strong>After this transfer, your account balance will be:</strong>
+                                        </p>
+                                        <div class="alert alert-warning mb-3" style="background-color: #fff3cd; border-color: #ffc107;">
+                                            <h6 class="mb-0" style="color: #856404;">
+                                                <span id="modalRemainingBalance" class="fw-bold">₱0.00</span>
+                                            </h6>
+                                        </div>
+                                        <p class="mb-3">
+                                            This is <strong>below the maintaining balance requirement</strong>. Consequences may include:
+                                        </p>
+                                        <ul class="small" style="color: #666;">
+                                            <li>Monthly service fees will be charged</li>
+                                            <li>Service interruptions or transaction restrictions</li>
+                                            <li>Possible overdraft or additional charges</li>
+                                            <li>Account may be flagged for closure if balance reaches zero</li>
+                                        </ul>
+                                        <p class="mt-3 mb-0">
+                                            <strong style="color: #003631;">Do you want to proceed with this transfer?</strong>
+                                        </p>
+                                    </div>
+                                    <div class="modal-footer border-0 p-3">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="background-color: #6c757d;">
+                                            Cancel
+                                        </button>
+                                        <button type="button" class="btn fw-semibold" id="confirmLowBalanceBtn" style="background-color: #F1B24A; color: #000;">
+                                            Yes, Continue Transfer
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -139,7 +192,9 @@
 </div>
 <?php require_once ROOT_PATH . '/app/views/layouts/footer.php'; ?>
 <script>
-  const FEE = 15.00;
+    const FEE = 15.00;
+    // Minimum required remaining balance after transfer for confirmation modal
+    const MIN_REQUIRED_BALANCE = 500.00;
 
   // Initialize balance on page load
   function initializeBalance() {
@@ -205,6 +260,63 @@
     if (amountInput) {
       amountInput.addEventListener('input', updateRemainingBalance);
     }
+
+        // Intercept form submit to warn if remaining balance will fall below minimum
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const selectElement = document.getElementById('from_account');
+                const selectedOption = selectElement.options[selectElement.selectedIndex];
+                const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+                const amount = parseFloat(document.getElementById('transfer_amount').value) || 0;
+                const total = amount + FEE;
+                const remaining = balance - total;
+
+                // If insufficient funds, let server validation handle it (we still prevent form submit here)
+                if (remaining < 0) {
+                    e.preventDefault();
+                    alert('Insufficient funds. Please enter a smaller amount or choose another account.');
+                    return false;
+                }
+
+                // If remaining is below 500 but not negative, show modal confirmation
+                if (remaining < MIN_REQUIRED_BALANCE) {
+                    e.preventDefault();
+                    // Update modal content with remaining balance
+                    const modalRemainingElement = document.getElementById('modalRemainingBalance');
+                    if (modalRemainingElement) {
+                        modalRemainingElement.textContent = '₱' + remaining.toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+                    }
+                    // Show modal
+                    const modalElement = document.getElementById('lowBalanceConfirmModal');
+                    if (modalElement) {
+                        const confirmModal = new bootstrap.Modal(modalElement);
+                        confirmModal.show();
+                        // Set up confirm button to submit form
+                        const confirmBtn = document.getElementById('confirmLowBalanceBtn');
+                        if (confirmBtn) {
+                            confirmBtn.onclick = function() {
+                                // Mark confirmation and resubmit
+                                let hidden = form.querySelector('input[name="confirm_low_balance"]');
+                                if (!hidden) {
+                                    hidden = document.createElement('input');
+                                    hidden.type = 'hidden';
+                                    hidden.name = 'confirm_low_balance';
+                                    hidden.value = '1';
+                                    form.appendChild(hidden);
+                                } else {
+                                    hidden.value = '1';
+                                }
+                                confirmModal.hide();
+                                form.submit();
+                            };
+                        }
+                    }
+                    return false;
+                }
+                // otherwise allow submit
+            });
+        }
     
     // --- Alert Message Handling ---
     const alerts = document.querySelectorAll('.alert-message');

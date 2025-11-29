@@ -460,6 +460,27 @@ class CustomerController extends Controller {
                 $data['amount_error'] = 'Insufficient Funds';
             }
 
+            // Enforce maintaining balance confirmation on final submit as well
+            $senderAccount = $this->customerModel->getAccountByNumber($data['from_account']);
+            $maintaining_required = isset($senderAccount->maintaining_balance_required) ? (float)$senderAccount->maintaining_balance_required : 500.00;
+            $remaining_after = (float)$amount_validation->balance - $total;
+            if ($remaining_after < $maintaining_required && $remaining_after >= 0) {
+                if (empty($_POST['confirm_low_balance'])) {
+                    $data['other_error'] = 'Transfer requires confirmation: resulting balance will be below PHP ' . number_format($maintaining_required,2) . '.';
+                }
+            }
+
+            // Check maintaining balance rule and require confirmation flag if this transfer will leave balance below minimum
+            $senderAccount = $this->customerModel->getAccountByNumber($data['from_account']);
+            $maintaining_required = isset($senderAccount->maintaining_balance_required) ? (float)$senderAccount->maintaining_balance_required : 500.00;
+            $remaining_after = (float)$amount_validation->balance - $total;
+            if ($remaining_after < $maintaining_required && $remaining_after >= 0) {
+                // if confirm flag not present, set a flag so view can prompt/require confirmation
+                if (empty($_POST['confirm_low_balance'])) {
+                    $data['other_error'] = 'This transfer will bring your balance below the required maintaining balance of PHP ' . number_format($maintaining_required,2) . '. Please confirm to proceed.';
+                }
+            }
+
             if(strlen($message) >= 100){
                 $data['message_error'] = 'Pleaser enter 100 characters only';
             }
@@ -481,7 +502,19 @@ class CustomerController extends Controller {
                     'sender_name' => $sender_name,
                 ]);
 
-                $this->view('customer/receipt', $data);
+                // If remaining is below maintaining and confirmation not provided, re-render transfer page with warning
+                if ($remaining_balance < $maintaining_required && empty($_POST['confirm_low_balance'])) {
+                    $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+                    $data = array_merge($data, [
+                        'title' => 'Fund Transfer',
+                        'accounts' => $accounts,
+                        'low_balance_confirm_required' => true,
+                        'maintaining_required' => $maintaining_required
+                    ]);
+                    $this->view('customer/fund_transfer', $data);
+                } else {
+                    $this->view('customer/receipt', $data);
+                }
             } else {
                 $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
                 $data = array_merge($data, [

@@ -243,9 +243,19 @@ select.edit-input {
                         </div>
                         <select name="barangay_id" class="edit-input form-control" id="barangaySelect" data-city-id="<?= isset($data['profile']->city_id) ? $data['profile']->city_id : ''; ?>">
                             <option value="">Select Barangay</option>
-                            <?php foreach (($data['barangays'] ?? []) as $brgy): ?>
+                            <?php
+                                $foundCurrentBarangay = false;
+                                foreach (($data['barangays'] ?? []) as $brgy):
+                                    if (isset($data['profile']->barangay_id) && $data['profile']->barangay_id == $brgy->barangay_id) {
+                                        $foundCurrentBarangay = true;
+                                    }
+                            ?>
                                 <option value="<?= $brgy->barangay_id; ?>" data-city="<?= $brgy->city_id; ?>" <?= (isset($data['profile']->barangay_id) && $data['profile']->barangay_id == $brgy->barangay_id) ? 'selected' : ''; ?>><?= htmlspecialchars($brgy->barangay_name); ?></option>
                             <?php endforeach; ?>
+                            <?php if (!empty($data['profile']->barangay_id) && !$foundCurrentBarangay): ?>
+                                <!-- Fallback option when barangay_id referenced by address is not present in barangays table -->
+                                <option value="<?= htmlspecialchars($data['profile']->barangay_id); ?>" selected>Unknown Barangay (ID: <?= htmlspecialchars($data['profile']->barangay_id); ?>)</option>
+                            <?php endif; ?>
                         </select>
                         <button type="button" class="edit-btn" onclick="toggleEdit(this)">
                             <i class="bi bi-pencil"></i> Edit
