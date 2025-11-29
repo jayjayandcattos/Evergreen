@@ -1632,7 +1632,7 @@
             color: white;
             padding: 50px;
             border-radius: 15px;
-            width: 80%;
+            width: 500px;
             display: flex;
             flex-direction: column;
             gap: 20px;
