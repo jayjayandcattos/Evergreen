@@ -1730,4 +1730,49 @@ class Customer extends Database{
             'breakdown' => $return_breakdown ? $breakdown : null,
         ];
     }
+
+    /**
+     * Get account applications by customer email
+     * @param string $email Customer email address
+     * @return array|false Array of applications or false on failure
+     */
+    public function getAccountApplicationsByEmail($email) {
+        $this->db->query("
+            SELECT 
+                application_id,
+                application_number,
+                application_status,
+                first_name,
+                last_name,
+                email,
+                phone_number,
+                date_of_birth,
+                street_address,
+                barangay,
+                city,
+                state,
+                zip_code,
+                ssn,
+                id_type,
+                id_number,
+                employment_status,
+                employer_name,
+                job_title,
+                annual_income,
+                account_type,
+                selected_cards,
+                additional_services,
+                terms_accepted,
+                privacy_acknowledged,
+                marketing_consent,
+                submitted_at,
+                reviewed_at
+            FROM account_applications
+            WHERE email = :email
+            ORDER BY submitted_at DESC
+        ");
+        
+        $this->db->bind(':email', $email);
+        return $this->db->resultSet();
+    }
 }
