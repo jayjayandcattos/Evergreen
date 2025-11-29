@@ -14,6 +14,42 @@ include("db_connect.php");
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+/**
+ * Generate unique account number based on account type prefix
+ * Format: PREFIX-XXXX-YYYY (e.g., SA-1234-2025)
+ * @param mysqli $conn Database connection
+ * @param string $prefix Account type prefix (e.g., 'SA' for Savings Account)
+ * @return string Generated unique account number
+ */
+function generateUniqueAccountNumber($conn, $prefix = 'SA') {
+    $current_year = date('Y');
+    $max_attempts = 100;
+    $attempt = 0;
+    
+    do {
+        $unique_digits = str_pad(mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+        $account_number = "{$prefix}-{$unique_digits}-{$current_year}";
+        
+        // Check if account number already exists
+        $check_sql = "SELECT COUNT(*) as count FROM customer_accounts WHERE account_number = ?";
+        $check_stmt = $conn->prepare($check_sql);
+        $check_stmt->bind_param("s", $account_number);
+        $check_stmt->execute();
+        $result = $check_stmt->get_result();
+        $row = $result->fetch_assoc();
+        $check_stmt->close();
+        
+        $attempt++;
+    } while ($row && $row['count'] > 0 && $attempt < $max_attempts);
+    
+    if ($attempt >= $max_attempts) {
+        // Fallback: add timestamp to ensure uniqueness
+        $account_number = "{$prefix}-{$unique_digits}-{$current_year}-" . time();
+    }
+    
+    return $account_number;
+}
+
 // Check if user has registration data in session OR if account was just created
 if (!isset($_SESSION['temp_registration']) && !isset($_SESSION['show_success_modal'])) {
     header("Location: signup.php");
@@ -68,6 +104,61 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 if ($stmt->execute()) {
                     error_log("Account created successfully for: " . $registration_data['email']);
+                    
+                    // Get the newly created customer_id
+                    $customer_id = $conn->insert_id;
+                    
+                    // Automatically create a Savings Account for the new customer
+                    try {
+                        // Generate unique account number for Savings Account
+                        $account_number = generateUniqueAccountNumber($conn, 'SA');
+                        
+                        // Get Savings Account type ID (usually 1)
+                        $account_type_sql = "SELECT account_type_id FROM bank_account_types WHERE type_name = 'Savings Account' LIMIT 1";
+                        $account_type_result = $conn->query($account_type_sql);
+                        if ($account_type_result && $account_type_row = $account_type_result->fetch_assoc()) {
+                            $account_type_id = $account_type_row['account_type_id'];
+                        } else {
+                            // If Savings Account type doesn't exist, use default ID 1
+                            $account_type_id = 1;
+                            error_log("Warning: Savings Account type not found, using default ID 1");
+                        }
+                        
+                        // Create account in customer_accounts table
+                        $interest_rate = 0.50; // 0.5% for Savings Account
+                        $create_account_sql = "INSERT INTO customer_accounts (customer_id, account_number, account_type_id, interest_rate, is_locked, created_at) VALUES (?, ?, ?, ?, 0, NOW())";
+                        $create_account_stmt = $conn->prepare($create_account_sql);
+                        if ($create_account_stmt) {
+                            $create_account_stmt->bind_param("isid", $customer_id, $account_number, $account_type_id, $interest_rate);
+                            if ($create_account_stmt->execute()) {
+                                $account_id = $conn->insert_id;
+                                error_log("Bank account created successfully: Account #{$account_number} for customer ID {$customer_id}");
+                                
+                                // Link account to customer in customer_linked_accounts
+                                $link_sql = "INSERT INTO customer_linked_accounts (customer_id, account_id, is_active, linked_at) VALUES (?, ?, 1, NOW())";
+                                $link_stmt = $conn->prepare($link_sql);
+                                if ($link_stmt) {
+                                    $link_stmt->bind_param("ii", $customer_id, $account_id);
+                                    if ($link_stmt->execute()) {
+                                        error_log("Account link created successfully for customer ID {$customer_id} and account ID {$account_id}");
+                                    } else {
+                                        error_log("Warning: Failed to create account link: " . $link_stmt->error);
+                                    }
+                                    $link_stmt->close();
+                                } else {
+                                    error_log("Warning: Failed to prepare account link statement: " . $conn->error);
+                                }
+                            } else {
+                                error_log("Warning: Failed to create bank account: " . $create_account_stmt->error);
+                            }
+                            $create_account_stmt->close();
+                        } else {
+                            error_log("Warning: Failed to prepare account creation statement: " . $conn->error);
+                        }
+                    } catch (Exception $e) {
+                        // Log error but don't fail the entire registration process
+                        error_log("Error creating bank account for customer ID {$customer_id}: " . $e->getMessage());
+                    }
                     
                     // Set success flag BEFORE clearing temp data
                     $_SESSION['account_created'] = true;
