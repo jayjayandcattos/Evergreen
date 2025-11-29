@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['admin_login'])) {
     <title>HRIS - Management Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kulim+Park:wght@400;600;700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@600&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" />
