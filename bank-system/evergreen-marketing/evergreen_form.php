@@ -163,9 +163,15 @@
         flex-direction: column;
       }
 
-      .upper-input-wrap, .lower-input-wrap, .city-input-wrap{
+      .upper-input-wrap, .lower-input-wrap{
         display: flex;
         gap: 20px;
+      }
+
+      .city-input-wrap {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
       }
 
       .input-wrap {
@@ -779,10 +785,14 @@
         }
 
         .upper-input-wrap,
-        .lower-input-wrap,
-        .city-input-wrap {
+        .lower-input-wrap {
           flex-direction: column;
           gap: 15px;
+        }
+
+        .city-input-wrap {
+          grid-template-columns: 1fr;
+          gap: 12px;
         }
 
         .inp-credentials {
@@ -907,8 +917,12 @@
         }
 
         .upper-input-wrap,
-        .lower-input-wrap,
+        .lower-input-wrap {
+          gap: 12px;
+        }
+
         .city-input-wrap {
+          grid-template-columns: 1fr;
           gap: 12px;
         }
 
@@ -1391,8 +1405,14 @@
 
             <div class="city-input-wrap">
               <div class="input-wrap">
+                <label for="region">Region<span style="color: red;">*</span></label>
+                <select class="inp-credentials" id="region">
+                  <option value="">Select Region</option>
+                </select>
+              </div>
+              <div class="input-wrap">
                 <label for="state">Province<span style="color: red;">*</span></label>
-                <select class="inp-credentials" id="state">
+                <select class="inp-credentials" id="state" disabled>
                   <option value="">Select Province</option>
                 </select>
               </div>
@@ -1577,16 +1597,24 @@
 
             <div class="content-group">
               <div class="content-wrap">
-                <label for="rev-city">City</label>
-                <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
+                <label for="rev-region">Region</label>
+                <h4 class="rev-region">None</h4>           <!-- Content will be dynamically injected here -->
               </div>
               <div class="content-wrap">
-                <label for="rev-state">State</label>
+                <label for="rev-state">Province</label>
                 <h4 class="rev-state">None</h4>           <!-- Content will be dynamically injected here -->
               </div>
               <div class="content-wrap">
+                <label for="rev-city">City/Municipality</label>
+                <h4 class="rev-city">None</h4>           <!-- Content will be dynamically injected here -->
+              </div>
+              <div class="content-wrap">
+                <label for="rev-barangay">Barangay</label>
+                <h4 class="rev-barangay">None</h4>           <!-- Content will be dynamically injected here -->
+              </div>
+              <div class="content-wrap">
                 <label for="rev-zip">Zip Code</label>
-                <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
+                <h4 class="rev-zip">None</h4>           <!-- Content will be dynamically injected here -->
               </div>
           </div>       
           </div>
@@ -1720,7 +1748,7 @@
     // Per-step validation
     function validatePersonal() {
       let valid = true;
-      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','barangay','city','state','zip-code'];
+      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','region','barangay','city','zip-code'];
       required.forEach(id => {
         const el = document.getElementById(id);
         if (!isNotEmpty(el.value)) {
@@ -1730,6 +1758,15 @@
           clearFieldError(el);
         }
       });
+      
+      // Special validation for province (can be "NO_PROVINCE" for NCR)
+      const provinceEl = document.getElementById('state');
+      if (!isNotEmpty(provinceEl.value)) {
+        showFieldError(provinceEl, 'This field is required');
+        valid = false;
+      } else {
+        clearFieldError(provinceEl);
+      }
 
       const emailEl = document.getElementById('e-mail');
       if (isNotEmpty(emailEl.value) && !isEmail(emailEl.value)) {
@@ -1848,6 +1885,10 @@
         // Simulate processing time
         setTimeout(() => {
           // Gather data
+          const provinceSelect = document.getElementById('state');
+          const provinceValue = provinceSelect.value;
+          const provinceName = provinceValue === 'NO_PROVINCE' ? 'N/A' : provinceSelect.options[provinceSelect.selectedIndex].text;
+          
           let injector = {
             firstName: document.getElementById('f-name').value,
             lastName: document.getElementById('l-name').value,
@@ -1855,9 +1896,10 @@
             phoneNumber: document.getElementById('phone-number').value,
             dateOfBirth: document.getElementById('date-of-birth').value,
             streetAddress: document.getElementById('street-address').value,
-            barangay: document.getElementById('barangay').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
+            region: document.getElementById('region').options[document.getElementById('region').selectedIndex].text,
+            barangay: document.getElementById('barangay').options[document.getElementById('barangay').selectedIndex].text,
+            city: document.getElementById('city').options[document.getElementById('city').selectedIndex].text,
+            state: provinceName,
             zipCode: document.getElementById('zip-code').value,
             socialSecurityNumber: document.getElementById('ssn').value,
             idType: document.getElementById('id-type').value,
@@ -1875,8 +1917,10 @@
           displayCred('rev-l-name', injector.lastName);
           displayCred('rev-birth', injector.dateOfBirth);
           displayCred('rev-street', injector.streetAddress);
-          displayCred('rev-city', injector.city);
+          displayCred('rev-region', injector.region);
           displayCred('rev-state', injector.state);
+          displayCred('rev-city', injector.city);
+          displayCred('rev-barangay', injector.barangay);
           displayCred('rev-zip', injector.zipCode);
           displayCred('rev-ssn', injector.socialSecurityNumber);
           displayCred('rev-id-type', injector.idType);
@@ -1901,9 +1945,15 @@
       okBtn.disabled = true;
       okBtn.textContent = 'Processing...';
       
-      // Prepare data for submission
+      // Prepare data for submission - include codes for database storage
+      const provinceCodeValue = document.getElementById('state').value;
       const applicationData = {
         ...infoData[0],
+        // Include location codes for precise database storage
+        regionCode: document.getElementById('region').value,
+        provinceCode: provinceCodeValue === 'NO_PROVINCE' ? null : provinceCodeValue,
+        cityCode: document.getElementById('city').value,
+        barangayCode: document.getElementById('barangay').value,
         selectedCards: getSelectedCards(),
         additionalServices: getSelectedServices(),
         termsAccepted: document.getElementById('term-tnc').checked,
@@ -2027,12 +2077,16 @@
     updateStepUI();
 
     // ========================================
-    // PROVINCE AND CITY DROPDOWN
+    // PHILIPPINE LOCATION DROPDOWNS (Using PSGC Cloud API)
     // ========================================
     
-    // Load provinces on page load
+    // Store current region code for later use
+    let currentRegionCode = '';
+    let regionHasNoProvinces = false;
+    
+    // Load regions on page load
     document.addEventListener('DOMContentLoaded', function() {
-      loadProvinces();
+      loadRegions();
       setMaxBirthDate();
     });
 
@@ -2044,97 +2098,222 @@
       document.getElementById('date-of-birth').setAttribute('max', maxDateString);
     }
 
-    function loadProvinces() {
-      fetch('get_locations.php?action=get_provinces')
+    // Load all regions
+    function loadRegions() {
+      const regionSelect = document.getElementById('region');
+      
+      // Add loading indicator
+      regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+      
+      fetch('get_locations.php?action=get_regions')
         .then(response => response.json())
-        .then(provinces => {
-          const provinceSelect = document.getElementById('state');
-          provinces.forEach(province => {
+        .then(regions => {
+          regionSelect.innerHTML = '<option value="">Select Region</option>';
+          
+          if (regions.length > 0) {
+            regions.forEach(region => {
+              const option = document.createElement('option');
+              option.value = region.code;
+              option.textContent = region.name;
+              option.dataset.name = region.name;
+              regionSelect.appendChild(option);
+            });
+          } else {
             const option = document.createElement('option');
-            option.value = province;
-            option.textContent = province;
-            provinceSelect.appendChild(option);
-          });
+            option.value = '';
+            option.textContent = 'No regions available';
+            regionSelect.appendChild(option);
+          }
         })
         .catch(error => {
-          console.error('Error loading provinces:', error);
+          console.error('Error loading regions:', error);
+          regionSelect.innerHTML = '<option value="">Error loading regions</option>';
+        });
+    }
+
+    // Load provinces when region is selected
+    document.getElementById('region').addEventListener('change', function() {
+      const regionCode = this.value;
+      currentRegionCode = regionCode;
+      const provinceSelect = document.getElementById('state');
+      const citySelect = document.getElementById('city');
+      const barangaySelect = document.getElementById('barangay');
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      // Clear and disable subsequent dropdowns
+      provinceSelect.innerHTML = '<option value="">Select Province</option>';
+      citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+      zipCodeInput.value = '';
+      
+      citySelect.disabled = true;
+      barangaySelect.disabled = true;
+      regionHasNoProvinces = false;
+      
+      if (regionCode) {
+        // Enable province dropdown and show loading
+        provinceSelect.disabled = false;
+        provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+        
+        // Fetch provinces for selected region
+        fetch(`get_locations.php?action=get_provinces&region_code=${encodeURIComponent(regionCode)}`)
+          .then(response => response.json())
+          .then(provinces => {
+            if (provinces.length > 0) {
+              // Region has provinces - normal flow
+              regionHasNoProvinces = false;
+              provinceSelect.innerHTML = '<option value="">Select Province</option>';
+              provinces.forEach(province => {
+                const option = document.createElement('option');
+                option.value = province.code;
+                option.textContent = province.name;
+                option.dataset.name = province.name;
+                provinceSelect.appendChild(option);
+              });
+            } else {
+              // Region has NO provinces (like NCR) - load cities directly from region
+              regionHasNoProvinces = true;
+              provinceSelect.innerHTML = '<option value="NO_PROVINCE">N/A (No Province)</option>';
+              provinceSelect.value = 'NO_PROVINCE';
+              
+              // Automatically load cities from region
+              loadCitiesFromRegion(regionCode);
+            }
+          })
+          .catch(error => {
+            console.error('Error loading provinces:', error);
+            provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
+          });
+      } else {
+        provinceSelect.disabled = true;
+      }
+    });
+    
+    // Function to load cities directly from region (for regions without provinces)
+    function loadCitiesFromRegion(regionCode) {
+      const citySelect = document.getElementById('city');
+      const barangaySelect = document.getElementById('barangay');
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      // Clear and enable city dropdown
+      citySelect.innerHTML = '<option value="">Loading cities...</option>';
+      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+      zipCodeInput.value = '';
+      
+      citySelect.disabled = false;
+      barangaySelect.disabled = true;
+      
+      // Fetch cities directly from region
+      fetch(`get_locations.php?action=get_cities&region_code=${encodeURIComponent(regionCode)}`)
+        .then(response => response.json())
+        .then(cities => {
+          citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+          
+          if (cities.length > 0) {
+            cities.forEach(city => {
+              const option = document.createElement('option');
+              option.value = city.code;
+              option.textContent = city.name;
+              option.dataset.name = city.name;
+              citySelect.appendChild(option);
+            });
+          } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No cities available';
+            citySelect.appendChild(option);
+          }
+        })
+        .catch(error => {
+          console.error('Error loading cities:', error);
+          citySelect.innerHTML = '<option value="">Error loading cities</option>';
         });
     }
 
     // Load cities when province is selected
     document.getElementById('state').addEventListener('change', function() {
-      const province = this.value;
+      const provinceCode = this.value;
       const citySelect = document.getElementById('city');
       const barangaySelect = document.getElementById('barangay');
       const zipCodeInput = document.getElementById('zip-code');
       
-      // Clear previous cities, barangays, and zip code
+      // If this is a region without provinces, cities are already loaded
+      if (provinceCode === 'NO_PROVINCE') {
+        return;
+      }
+      
+      // Clear and disable subsequent dropdowns
       citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
       barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
       zipCodeInput.value = '';
       
-      if (province) {
+      barangaySelect.disabled = true;
+      
+      if (provinceCode) {
         // Enable city dropdown
         citySelect.disabled = false;
-        barangaySelect.disabled = true;
+        citySelect.innerHTML = '<option value="">Loading cities...</option>';
         
         // Fetch cities for selected province
-        fetch(`get_locations.php?action=get_cities&province=${encodeURIComponent(province)}`)
+        fetch(`get_locations.php?action=get_cities&province_code=${encodeURIComponent(provinceCode)}`)
           .then(response => response.json())
           .then(cities => {
-            cities.forEach(city => {
+            citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (cities.length > 0) {
+              cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city.code;
+                option.textContent = city.name;
+                option.dataset.name = city.name;
+                citySelect.appendChild(option);
+              });
+            } else {
               const option = document.createElement('option');
-              option.value = city;
-              option.textContent = city;
+              option.value = '';
+              option.textContent = 'No cities available';
               citySelect.appendChild(option);
-            });
+            }
           })
           .catch(error => {
             console.error('Error loading cities:', error);
+            citySelect.innerHTML = '<option value="">Error loading cities</option>';
           });
       } else {
-        // Disable city and barangay dropdowns if no province selected
         citySelect.disabled = true;
-        barangaySelect.disabled = true;
       }
     });
 
     // Load barangays when city is selected
     document.getElementById('city').addEventListener('change', function() {
-      const city = this.value;
+      const cityCode = this.value;
       const barangaySelect = document.getElementById('barangay');
       const zipCodeInput = document.getElementById('zip-code');
       
-      // Clear previous barangays and zip code
+      // Clear barangays and zip code
       barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
       zipCodeInput.value = '';
       
-      if (city) {
-        // Enable barangay dropdown immediately
+      if (cityCode) {
+        // Enable barangay dropdown
         barangaySelect.disabled = false;
+        barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
         
-        // Add loading option
-        const loadingOption = document.createElement('option');
-        loadingOption.value = '';
-        loadingOption.textContent = 'Loading barangays...';
-        barangaySelect.appendChild(loadingOption);
-        
-        // Fetch barangays (will return specific or generic barangays)
-        fetch(`get_locations.php?action=get_barangays&city=${encodeURIComponent(city)}`)
+        // Fetch barangays for selected city
+        fetch(`get_locations.php?action=get_barangays&city_code=${encodeURIComponent(cityCode)}`)
           .then(response => response.json())
           .then(barangays => {
             barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
             
             if (barangays.length > 0) {
-              // Populate dropdown with barangays
               barangays.forEach(barangay => {
                 const option = document.createElement('option');
-                option.value = barangay;
-                option.textContent = barangay;
+                option.value = barangay.code;
+                option.textContent = barangay.name;
+                option.dataset.name = barangay.name;
                 barangaySelect.appendChild(option);
               });
             } else {
-              // Fallback if no barangays returned
               const option = document.createElement('option');
               option.value = '';
               option.textContent = 'No barangays available';
@@ -2143,11 +2322,7 @@
           })
           .catch(error => {
             console.error('Error loading barangays:', error);
-            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'Error loading barangays';
-            barangaySelect.appendChild(option);
+            barangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
           });
       } else {
         barangaySelect.disabled = true;
@@ -2156,19 +2331,30 @@
 
     // Auto-populate zip code when barangay is selected
     document.getElementById('barangay').addEventListener('change', function() {
-      const barangay = this.value;
-      const city = document.getElementById('city').value;
+      const barangaySelect = this;
+      const citySelect = document.getElementById('city');
       const zipCodeInput = document.getElementById('zip-code');
       
-      if (barangay) {
-        // Fetch zip code for selected barangay and city
-        fetch(`get_locations.php?action=get_zipcode&barangay=${encodeURIComponent(barangay)}&city=${encodeURIComponent(city)}`)
+      const barangayCode = barangaySelect.value;
+      const barangayName = barangaySelect.options[barangaySelect.selectedIndex]?.text || '';
+      const cityCode = citySelect.value;
+      const cityName = citySelect.options[citySelect.selectedIndex]?.text || '';
+      
+      if (barangayCode && cityCode) {
+        // Fetch zip code with both code and name for better lookup
+        const params = new URLSearchParams({
+          action: 'get_zipcode',
+          city_code: cityCode,
+          city_name: cityName,
+          barangay_name: barangayName
+        });
+        
+        fetch(`get_locations.php?${params.toString()}`)
           .then(response => response.json())
           .then(data => {
             if (data.zipcode) {
               zipCodeInput.value = data.zipcode;
             } else {
-              // If no zip code found, keep it empty
               zipCodeInput.value = '';
             }
           })
