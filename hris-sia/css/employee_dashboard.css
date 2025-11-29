@@ -1,0 +1,280 @@
+/* ========================================
+   Employee Dashboard Styles
+   ======================================== */
+
+/* Global Scrollbar Styles - Minimal & Sleek */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Body Background Gradient */
+body {
+    background: linear-gradient(135deg, #f0fdfa 0%, #e0f2f1 50%, #f8fafc 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* Header Gradient */
+.header-gradient {
+    background: linear-gradient(135deg, #003631 0%, #004d45 50%, #002b27 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Enhanced Card Styles */
+.card-enhanced {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card-enhanced:hover {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+}
+
+/* Primary Button Styles */
+.btn-primary {
+    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(13, 148, 136, 0.3);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    animation: fadeInModal 0.3s ease;
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 0;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    max-width: 90%;
+    width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Modal Animations */
+@keyframes fadeInModal {
+    from { 
+        opacity: 0; 
+    }
+    to { 
+        opacity: 1; 
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-30px) scale(0.95);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments for zoom levels */
+@media (min-width: 0px) {
+    .modal-content {
+        width: min(90%, 500px);
+        max-width: 90vw;
+    }
+    
+    /* Ensure inputs scale properly at all zoom levels */
+    input[type="text"],
+    input[type="date"],
+    input[type="email"],
+    input[type="tel"],
+    select,
+    textarea {
+        font-size: clamp(0.875rem, 1.5vw, 1rem);
+        min-height: 2.5rem;
+    }
+    
+    /* Ensure buttons remain clickable */
+    button {
+        min-height: 2.75rem;
+        font-size: clamp(0.875rem, 1.5vw, 1rem);
+    }
+    
+    /* Ensure labels don't overlap */
+    label {
+        font-size: clamp(0.875rem, 1.25vw, 1rem);
+        line-height: 1.5;
+    }
+    
+    /* Table responsive adjustments */
+    table {
+        font-size: clamp(0.75rem, 1vw, 0.875rem);
+    }
+    
+    /* Card grid responsive */
+    .card-enhanced {
+        min-height: auto;
+    }
+}
+
+/* Ensure readability at all zoom levels */
+@media (min-resolution: 150dpi) {
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Prevent text overflow at extreme zoom levels */
+@media (min-width: 0px) {
+    input, button, label, p, span, td, th {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+}
+
+/* Stat Cards */
+.stat-card-attendance {
+    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+    transition: all 0.3s ease;
+}
+
+.stat-card-attendance:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(13, 148, 136, 0.3);
+}
+
+.stat-card-leave {
+    background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #0891b2 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+    transition: all 0.3s ease;
+}
+
+.stat-card-leave:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(8, 145, 178, 0.3);
+}
+
+.stat-card-today {
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+    transition: all 0.3s ease;
+}
+
+.stat-card-today:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(5, 150, 105, 0.3);
+}
+
+.stat-card-payslip {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+    transition: all 0.3s ease;
+}
+
+.stat-card-payslip:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(124, 58, 237, 0.3);
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* Quick Action Buttons */
+.quick-action-btn {
+    border: 2px solid;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
+}
+
+.quick-action-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Compact table improvements */
+.card-enhanced table {
+    font-size: 0.875rem;
+}
+
+.card-enhanced th {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.card-enhanced td {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Improve spacing for compact layout */
+.card-enhanced {
+    margin-bottom: 0;
+}
+
+.space-y-6 > * + * {
+    margin-top: 1.5rem;
+}
+
+.space-y-3 > * + * {
+    margin-top: 0.75rem;
+}

@@ -1,0 +1,104 @@
+/* ========================================
+   Employee Calendar Styles
+   ======================================== */
+
+/* Global Scrollbar Styles - Minimal & Sleek */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Body Background Gradient */
+body {
+    background: linear-gradient(135deg, #f0fdfa 0%, #e0f2f1 50%, #f8fafc 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* Header Gradient */
+.header-gradient {
+    background: linear-gradient(135deg, #003631 0%, #004d45 50%, #002b27 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Calendar Day Styles */
+.calendar-day {
+    min-height: 100px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.calendar-day:hover {
+    background-color: #f9fafb;
+}
+
+.calendar-day.today {
+    background-color: #ecfdf5;
+    border: 2px solid #10b981;
+}
+
+/* Event Dot Indicator */
+.event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+/* Responsive adjustments for zoom levels */
+@media (min-width: 0px) {
+    .calendar-day {
+        min-height: clamp(80px, 10vh, 120px);
+        font-size: clamp(0.75rem, 1vw, 0.875rem);
+    }
+    
+    /* Table responsive adjustments */
+    table {
+        font-size: clamp(0.75rem, 1vw, 0.875rem);
+    }
+    
+    /* Ensure labels don't overlap */
+    label, th {
+        font-size: clamp(0.75rem, 1.25vw, 0.875rem);
+        line-height: 1.5;
+    }
+}
+
+/* Ensure readability at all zoom levels */
+@media (min-resolution: 150dpi) {
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Prevent text overflow at extreme zoom levels */
+@media (min-width: 0px) {
+    input, button, label, p, span, td, th {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+}
+

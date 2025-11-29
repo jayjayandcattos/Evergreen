@@ -369,41 +369,37 @@ ON DUPLICATE KEY UPDATE position_title = VALUES(position_title);
 -- Insert employee records linking to departments and positions
 -- This connects HRIS module to the payroll system
 
-INSERT INTO employee (employee_id, first_name, last_name, middle_name, gender, birth_date, contact_number, email, address, hire_date, department_id, position_id, employment_status) VALUES
+INSERT INTO employee (employee_id, first_name, last_name, middle_name, gender, birth_date, contact_number, email, address, house_number, street, barangay, city, province, secondary_email, secondary_contact_number, hire_date, department_id, position_id, employment_status) VALUES
 -- Management (C-Suite & Directors)
-(1, 'Juan', 'Santos', 'Carlos', 'Male', '1980-05-15', '09171234567', 'juan.santos@company.com', 'Makati City, Metro Manila', '2020-01-15', 2, 5, 'Active'),
-(2, 'Maria Elena', 'Rodriguez', NULL, 'Female', '1978-03-20', '09171234568', 'maria.rodriguez@company.com', 'BGC, Taguig City', '2019-06-01', 3, 2, 'Active'),
-(3, 'Jose Miguel', 'Cruz', NULL, 'Male', '1982-08-10', '09171234569', 'jose.cruz@company.com', 'Ortigas, Pasig City', '2021-02-01', 1, 1, 'Active'),
-(4, 'Ana Patricia', 'Lopez', NULL, 'Female', '1985-11-25', '09171234570', 'ana.lopez@company.com', 'Mandaluyong City', '2020-03-15', 4, 4, 'Active'),
-(5, 'Roberto Antonio', 'Garcia', NULL, 'Male', '1981-07-30', '09171234571', 'roberto.garcia@company.com', 'Quezon City', '2019-09-01', 5, 3, 'Active'),
-
+(1, 'Juan', 'Santos', 'Carlos', 'Male', '1980-05-15', '09171234567', 'juan.santos@company.com', 'Makati City, Metro Manila', '123', 'Ayala Avenue', 'Bel-Air', 'Makati City', 'Metro Manila', NULL, NULL, '2020-01-15', 2, 5, 'Active'),
+(2, 'Maria Elena', 'Rodriguez', NULL, 'Female', '1978-03-20', '09171234568', 'maria.rodriguez@company.com', 'BGC, Taguig City', '456', 'Bonifacio High Street', 'Fort Bonifacio', 'Taguig City', 'Metro Manila', NULL, NULL, '2019-06-01', 3, 2, 'Active'),
+(3, 'Jose Miguel', 'Cruz', NULL, 'Male', '1982-08-10', '09171234569', 'jose.cruz@company.com', 'Ortigas, Pasig City', '789', 'Ortigas Avenue', 'Ortigas Center', 'Pasig City', 'Metro Manila', NULL, NULL, '2021-02-01', 1, 1, 'Active'),
+(4, 'Ana Patricia', 'Lopez', NULL, 'Female', '1985-11-25', '09171234570', 'ana.lopez@company.com', 'Mandaluyong City', '321', 'Shaw Boulevard', 'Wack-Wack', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2020-03-15', 4, 4, 'Active'),
+(5, 'Roberto Antonio', 'Garcia', NULL, 'Male', '1981-07-30', '09171234571', 'roberto.garcia@company.com', 'Quezon City', '654', 'EDSA', 'Cubao', 'Quezon City', 'Metro Manila', NULL, NULL, '2019-09-01', 5, 3, 'Active'),
 -- Senior Staff (Managers & Senior Specialists)
-(6, 'Carmen Sofia', 'Martinez', NULL, 'Female', '1987-04-12', '09171234572', 'carmen.martinez@company.com', 'San Juan City', '2021-05-01', 6, 6, 'Active'),
-(7, 'Fernando Luis', 'Torres', NULL, 'Male', '1986-09-18', '09171234573', 'fernando.torres@company.com', 'Pasay City', '2020-07-01', 7, 7, 'Active'),
-(8, 'Isabella Rose', 'Flores', NULL, 'Female', '1989-12-05', '09171234574', 'isabella.flores@company.com', 'Makati City', '2021-01-15', 3, 8, 'Active'),
-(9, 'Miguel Angel', 'Reyes', NULL, 'Male', '1988-06-22', '09171234575', 'miguel.reyes@company.com', 'Taguig City', '2020-08-01', 1, 9, 'Active'),
-(10, 'Sofia Grace', 'Villanueva', NULL, 'Female', '1990-02-14', '09171234576', 'sofia.villanueva@company.com', 'Mandaluyong City', '2021-03-01', 4, 10, 'Active'),
-
+(6, 'Carmen Sofia', 'Martinez', NULL, 'Female', '1987-04-12', '09171234572', 'carmen.martinez@company.com', 'San Juan City', '987', 'Wilson Street', 'Greenhills', 'San Juan City', 'Metro Manila', NULL, NULL, '2021-05-01', 6, 6, 'Active'),
+(7, 'Fernando Luis', 'Torres', NULL, 'Male', '1986-09-18', '09171234573', 'fernando.torres@company.com', 'Pasay City', '147', 'Roxas Boulevard', 'Malate', 'Pasay City', 'Metro Manila', NULL, NULL, '2020-07-01', 7, 7, 'Active'),
+(8, 'Isabella Rose', 'Flores', NULL, 'Female', '1989-12-05', '09171234574', 'isabella.flores@company.com', 'Makati City', '258', 'Paseo de Roxas', 'Legaspi Village', 'Makati City', 'Metro Manila', NULL, NULL, '2021-01-15', 3, 8, 'Active'),
+(9, 'Miguel Angel', 'Reyes', NULL, 'Male', '1988-06-22', '09171234575', 'miguel.reyes@company.com', 'Taguig City', '369', 'C5 Road', 'Bicutan', 'Taguig City', 'Metro Manila', NULL, NULL, '2020-08-01', 1, 9, 'Active'),
+(10, 'Sofia Grace', 'Villanueva', NULL, 'Female', '1990-02-14', '09171234576', 'sofia.villanueva@company.com', 'Mandaluyong City', '741', 'Meralco Avenue', 'San Antonio', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2021-03-01', 4, 10, 'Active'),
 -- Mid-level Staff
-(11, 'Carlos Eduardo', 'Mendoza', NULL, 'Male', '1992-10-08', '09171234577', 'carlos.mendoza@company.com', 'Pasig City', '2022-01-15', 1, 11, 'Active'),
-(12, 'Patricia Isabel', 'Gutierrez', NULL, 'Female', '1991-03-17', '09171234578', 'patricia.gutierrez@company.com', 'Quezon City', '2022-02-01', 3, 12, 'Active'),
-(13, 'Ricardo Manuel', 'Herrera', NULL, 'Male', '1990-07-23', '09171234579', 'ricardo.herrera@company.com', 'Manila City', '2021-06-01', 7, 13, 'Active'),
-(14, 'Gabriela Alejandra', 'Morales', NULL, 'Female', '1993-05-11', '09171234580', 'gabriela.morales@company.com', 'Makati City', '2022-03-01', 6, 14, 'Active'),
-(15, 'Diego Fernando', 'Ramos', NULL, 'Male', '1992-11-29', '09171234581', 'diego.ramos@company.com', 'Taguig City', '2021-09-01', 5, 15, 'Active'),
-
+(11, 'Carlos Eduardo', 'Mendoza', NULL, 'Male', '1992-10-08', '09171234577', 'carlos.mendoza@company.com', 'Pasig City', '852', 'Julia Vargas Avenue', 'Ortigas', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-01-15', 1, 11, 'Active'),
+(12, 'Patricia Isabel', 'Gutierrez', NULL, 'Female', '1991-03-17', '09171234578', 'patricia.gutierrez@company.com', 'Quezon City', '963', 'Quezon Avenue', 'Diliman', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-02-01', 3, 12, 'Active'),
+(13, 'Ricardo Manuel', 'Herrera', NULL, 'Male', '1990-07-23', '09171234579', 'ricardo.herrera@company.com', 'Manila City', '159', 'Taft Avenue', 'Ermita', 'Manila City', 'Metro Manila', NULL, NULL, '2021-06-01', 7, 13, 'Active'),
+(14, 'Gabriela Alejandra', 'Morales', NULL, 'Female', '1993-05-11', '09171234580', 'gabriela.morales@company.com', 'Makati City', '357', 'Buendia Avenue', 'Pio del Pilar', 'Makati City', 'Metro Manila', NULL, NULL, '2022-03-01', 6, 14, 'Active'),
+(15, 'Diego Fernando', 'Ramos', NULL, 'Male', '1992-11-29', '09171234581', 'diego.ramos@company.com', 'Taguig City', '468', 'McKinley Road', 'McKinley Hill', 'Taguig City', 'Metro Manila', NULL, NULL, '2021-09-01', 5, 15, 'Active'),
 -- Junior Staff & Support Roles
-(16, 'Valentina Sofia', 'Castillo', NULL, 'Female', '1994-08-06', '09171234582', 'valentina.castillo@company.com', 'Pasig City', '2022-05-01', 4, 16, 'Active'),
-(17, 'Sebastian Alejandro', 'Vega', NULL, 'Male', '1993-12-19', '09171234583', 'sebastian.vega@company.com', 'Quezon City', '2022-04-15', 1, 17, 'Active'),
-(18, 'Camila Esperanza', 'Ruiz', NULL, 'Female', '1992-01-31', '09171234584', 'camila.ruiz@company.com', 'Makati City', '2021-11-01', 3, 18, 'Active'),
-(19, 'Nicolas Gabriel', 'Silva', NULL, 'Male', '1994-09-14', '09171234585', 'nicolas.silva@company.com', 'Mandaluyong City', '2022-06-01', 7, 19, 'Active'),
-(20, 'Lucia Esperanza', 'Jimenez', NULL, 'Female', '1995-04-27', '09171234586', 'lucia.jimenez@company.com', 'Pasay City', '2022-07-01', 6, 14, 'Active'),
-
+(16, 'Valentina Sofia', 'Castillo', NULL, 'Female', '1994-08-06', '09171234582', 'valentina.castillo@company.com', 'Pasig City', '570', 'C. Raymundo Avenue', 'Maybunga', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-05-01', 4, 16, 'Active'),
+(17, 'Sebastian Alejandro', 'Vega', NULL, 'Male', '1993-12-19', '09171234583', 'sebastian.vega@company.com', 'Quezon City', '681', 'Commonwealth Avenue', 'Batasan Hills', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-04-15', 1, 17, 'Active'),
+(18, 'Camila Esperanza', 'Ruiz', NULL, 'Female', '1992-01-31', '09171234584', 'camila.ruiz@company.com', 'Makati City', '792', 'Chino Roces Avenue', 'San Antonio', 'Makati City', 'Metro Manila', NULL, NULL, '2021-11-01', 3, 18, 'Active'),
+(19, 'Nicolas Gabriel', 'Silva', NULL, 'Male', '1994-09-14', '09171234585', 'nicolas.silva@company.com', 'Mandaluyong City', '803', 'Boni Avenue', 'Barangka', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2022-06-01', 7, 19, 'Active'),
+(20, 'Lucia Esperanza', 'Jimenez', NULL, 'Female', '1995-04-27', '09171234586', 'lucia.jimenez@company.com', 'Pasay City', '914', 'Macapagal Boulevard', 'Mall of Asia', 'Pasay City', 'Metro Manila', NULL, NULL, '2022-07-01', 6, 14, 'Active'),
 -- Additional Staff
-(21, 'Andres Felipe', 'Castro', NULL, 'Male', '1991-10-03', '09171234587', 'andres.castro@company.com', 'Taguig City', '2021-10-01', 5, 20, 'Active'),
-(22, 'Mariana Beatriz', 'Ortega', NULL, 'Female', '1993-06-16', '09171234588', 'mariana.ortega@company.com', 'Quezon City', '2022-01-01', 3, 21, 'Active'),
-(23, 'Santiago Ignacio', 'Pena', NULL, 'Male', '1990-02-28', '09171234589', 'santiago.pena@company.com', 'Makati City', '2021-07-15', 1, 22, 'Active'),
-(24, 'Daniela Fernanda', 'Vargas', NULL, 'Female', '1994-11-09', '09171234590', 'daniela.vargas@company.com', 'Pasig City', '2022-08-01', 4, 23, 'Active'),
-(25, 'Alejandro Jose', 'Medina', NULL, 'Male', '1992-05-22', '09171234591', 'alejandro.medina@company.com', 'Mandaluyong City', '2021-12-01', 7, 24, 'Active')
+(21, 'Andres Felipe', 'Castro', NULL, 'Male', '1991-10-03', '09171234587', 'andres.castro@company.com', 'Taguig City', '025', 'Upper Bicutan Road', 'Upper Bicutan', 'Taguig City', 'Metro Manila', NULL, NULL, '2021-10-01', 5, 20, 'Active'),
+(22, 'Mariana Beatriz', 'Ortega', NULL, 'Female', '1993-06-16', '09171234588', 'mariana.ortega@company.com', 'Quezon City', '136', 'Katipunan Avenue', 'Loyola Heights', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-01-01', 3, 21, 'Active'),
+(23, 'Santiago Ignacio', 'Pena', NULL, 'Male', '1990-02-28', '09171234589', 'santiago.pena@company.com', 'Makati City', '247', 'Senator Gil Puyat Avenue', 'Bel-Air', 'Makati City', 'Metro Manila', NULL, NULL, '2021-07-15', 1, 22, 'Active'),
+(24, 'Daniela Fernanda', 'Vargas', NULL, 'Female', '1994-11-09', '09171234590', 'daniela.vargas@company.com', 'Pasig City', '358', 'Shaw Boulevard', 'Kapitolyo', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-08-01', 4, 23, 'Active'),
+(25, 'Alejandro Jose', 'Medina', NULL, 'Male', '1992-05-22', '09171234591', 'alejandro.medina@company.com', 'Mandaluyong City', '469', 'Maysilo Circle', 'Plainview', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2021-12-01', 7, 24, 'Active')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
 
 -- ========================================
@@ -468,6 +464,33 @@ ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), 
 -- ========================================
 -- Update existing user_account records with NULL role to 'Admin' for backward compatibility
 -- This ensures all existing admin accounts are properly marked
+
+-- ========================================
+-- CREATE ADMIN ACCOUNT
+-- ========================================
+-- This creates the main admin account for system access
+-- Username: admin
+-- Password: password
+-- Role: Admin
+-- IMPORTANT: Change the password in production!
+-- ========================================
+
+-- Create admin account in user_account table
+-- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    1, -- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+    'admin', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'Admin', -- role (must be exactly 'Admin')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role),
+    employee_id = VALUES(employee_id);
+
+
 UPDATE user_account 
 SET role = 'Admin' 
 WHERE role IS NULL 
@@ -1345,12 +1368,12 @@ INSERT INTO recruitment (recruitment_id, job_title, department_id, date_posted, 
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 -- Applicants
-INSERT INTO applicant (applicant_id, recruitment_id, full_name, email, contact_number, resume_file, application_status, archived_at) VALUES
-(1, 1, 'John Michael Dela Cruz', 'john.delacruz@email.com', '09171234999', 'resume_john_delacruz.pdf', 'interview', NULL),
-(2, 1, 'Mary Grace Santos', 'mary.santos@email.com', '09171234998', 'resume_mary_santos.pdf', 'shortlisted', NULL),
-(3, 2, 'Peter James Garcia', 'peter.garcia@email.com', '09171234997', 'resume_peter_garcia.pdf', 'rejected', '2025-11-20'),
-(4, 3, 'Lisa Ann Reyes', 'lisa.reyes@email.com', '09171234996', 'resume_lisa_reyes.pdf', 'hired', NULL),
-(5, 4, 'Robert John Cruz', 'robert.cruz@email.com', '09171234995', 'resume_robert_cruz.pdf', 'pending', NULL)
+INSERT INTO applicant (applicant_id, recruitment_id, full_name, email, contact_number, resume_file, application_status, archived_at, offer_status, offer_token, offer_sent_at, offer_acceptance_timestamp, offer_declined_at) VALUES
+(1, 1, 'John Michael Dela Cruz', 'john.delacruz@email.com', '09171234999', 'resume_john_delacruz.pdf', 'interview', NULL, 'Pending', NULL, NULL, NULL, NULL),
+(2, 1, 'Mary Grace Santos', 'mary.santos@email.com', '09171234998', 'resume_mary_santos.pdf', 'shortlisted', NULL, 'Pending', NULL, NULL, NULL, NULL),
+(3, 2, 'Peter James Garcia', 'peter.garcia@email.com', '09171234997', 'resume_peter_garcia.pdf', 'rejected', '2025-11-20', 'Declined', NULL, NULL, NULL, '2025-11-20'),
+(4, 3, 'Lisa Ann Reyes', 'lisa.reyes@email.com', '09171234996', 'resume_lisa_reyes.pdf', 'hired', NULL, 'Accepted', NULL, NULL, '2025-11-15', NULL),
+(5, 4, 'Robert John Cruz', 'robert.cruz@email.com', '09171234995', 'resume_robert_cruz.pdf', 'pending', NULL, 'Pending', NULL, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE application_status = VALUES(application_status);
 
 -- Interviews
@@ -1461,17 +1484,19 @@ INSERT INTO customer_profiles (profile_id, customer_id, gender_id, date_of_birth
 ON DUPLICATE KEY UPDATE marital_status = VALUES(marital_status);
 
 -- Addresses
-INSERT INTO addresses (address_id, customer_id, address_line, city, province_id, postal_code, address_type, is_primary, created_at) VALUES
-(1, 1, '123 P. Burgos Street, Barangay Poblacion', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 115 DAY),
-(2, 2, '456 Rizal Avenue Extension, Barangay Kamuning', 'Quezon City', 1, '1100', 'home', TRUE, NOW() - INTERVAL 90 DAY),
-(3, 3, '789 EDSA Corner Shaw Boulevard', 'Mandaluyong City', 1, '1550', 'home', TRUE, NOW() - INTERVAL 75 DAY),
-(4, 4, '321 Ortigas Avenue, Barangay San Antonio', 'Pasig City', 1, '1600', 'home', TRUE, NOW() - INTERVAL 60 DAY),
-(5, 5, '654 Ayala Avenue, Barangay Bel-Air', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 45 DAY),
-(6, 6, '987 Taft Avenue, Barangay Malate', 'Manila City', 1, '1004', 'home', TRUE, NOW() - INTERVAL 35 DAY),
-(7, 7, '147 BGC High Street, Barangay Fort Bonifacio', 'Taguig City', 1, '1630', 'home', TRUE, NOW() - INTERVAL 30 DAY),
-(8, 8, '258 Commonwealth Avenue, Barangay Batasan Hills', 'Quezon City', 1, '1126', 'home', TRUE, NOW() - INTERVAL 25 DAY),
-(9, 9, '369 Alabang-Zapote Road, Barangay Alabang', 'Muntinlupa City', 1, '1780', 'home', TRUE, NOW() - INTERVAL 20 DAY),
-(10, 10, '741 Katipunan Avenue, Barangay Loyola Heights', 'Quezon City', 1, '1108', 'home', TRUE, NOW() - INTERVAL 15 DAY)
+-- Note: city_id and barangay_id will be NULL initially since cities/barangays are loaded from location_data.sql separately
+-- They can be updated later after location data is imported using UPDATE statements if needed
+INSERT INTO addresses (address_id, customer_id, address_line, barangay_id, city_id, province_id, postal_code, address_type, is_primary, created_at) VALUES
+(1, 1, '123 P. Burgos Street, Barangay Poblacion', NULL, NULL, 1, '1200', 'home', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, '456 Rizal Avenue Extension, Barangay Kamuning', NULL, NULL, 1, '1100', 'home', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, '789 EDSA Corner Shaw Boulevard', NULL, NULL, 1, '1550', 'home', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, '321 Ortigas Avenue, Barangay San Antonio', NULL, NULL, 1, '1600', 'home', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, '654 Ayala Avenue, Barangay Bel-Air', NULL, NULL, 1, '1200', 'home', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, '987 Taft Avenue, Barangay Malate', NULL, NULL, 1, '1004', 'home', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, '147 BGC High Street, Barangay Fort Bonifacio', NULL, NULL, 1, '1630', 'home', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, '258 Commonwealth Avenue, Barangay Batasan Hills', NULL, NULL, 1, '1126', 'home', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, '369 Alabang-Zapote Road, Barangay Alabang', NULL, NULL, 1, '1780', 'home', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, '741 Katipunan Avenue, Barangay Loyola Heights', NULL, NULL, 1, '1108', 'home', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE address_line = VALUES(address_line);
 
 -- Emails
@@ -1528,7 +1553,9 @@ INSERT INTO transaction_types (transaction_type_id, type_name, description) VALU
 (4, 'Interest Credit', 'Interest payment credited'),
 (5, 'Service Charge', 'Bank service fee charged'),
 (6, 'Loan Disbursement', 'Loan amount disbursed to account'),
-(7, 'Loan Payment', 'Loan payment received')
+(7, 'Loan Payment', 'Loan payment received'),
+(8, 'Transfer out', 'Sending funds to another account'),
+(9, 'Transfer in', 'Receiving funds from another account')
 ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
 
 -- Bank Transactions
@@ -1568,6 +1595,41 @@ ON DUPLICATE KEY UPDATE attendance_summary = VALUES(attendance_summary);
 -- ========================================
 -- 4G. BANKING MODULE - MISSIONS & BANK USERS
 -- ========================================
+
+INSERT INTO `account_applications` (`application_id`, `application_number`, `application_status`, `first_name`, `last_name`, `email`, `phone_number`, `date_of_birth`, `street_address`, `barangay`, `city`, `state`, `zip_code`, `ssn`, `id_type`, `id_number`, `employment_status`, `employer_name`, `job_title`, `annual_income`, `account_type`, `selected_cards`, `additional_services`, `terms_accepted`, `privacy_acknowledged`, `marketing_consent`, `submitted_at`, `reviewed_at`) VALUES
+(1, 'APP-2025-00001', 'pending', 'John', 'Doe', 'john.doe@example.com', '(555) 123-4567', '1990-01-15', '123 Main Street', '', 'New York', 'NY', '10001', '123-45-6789', 'Driver\'s License', 'DL123456', 'Employed', 'Tech Corp', 'Software Engineer', 75000.00, 'acct-both', NULL, 'debit,online,mobile', 1, 1, 0, '2025-11-25 01:23:11', NULL),
+(2, 'APP-2025-00002', 'pending', 'Johsua', 'Nambio', 'nambio.johsua.agustin@gmail.com', '09611021573', '2005-10-10', '#66 Pasong Tamo QC', '', 'Metro Manila', 'asdasd', '123123', '123-45-1234', 'Driver\\\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'acct-checking', NULL, 'online', 1, 1, 1, '2025-11-25 01:24:21', NULL),
+(3, 'APP-2025-00003', 'pending', 'Johsua', 'Nambio', 'karmaajoshh@gmail.com', '09611021573', '2004-10-01', '#66 Pasong Tamo', '', 'Quezon City', 'Metro Manila', '1107', '123-23-2234', 'Driver\\\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'acct-both', 'prepaid', 'mobile', 1, 1, 1, '2025-11-25 01:32:46', NULL),
+(4, 'APP-2025-00004', 'pending', 'Johsua', 'Nambio', 'karmaajoshh@gmail.com', '09611021573', '2000-10-10', '66 Durian Street', 'Tandang Sora', 'Quezon City', 'Metro Manila', '1116', '123-23-2343', 'Driver\\\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'acct-both', 'credit', 'online', 1, 1, 1, '2025-11-25 01:45:01', NULL),
+(5, 'APP-2025-00005', 'pending', 'Johsua', 'Nambio', 'nambio.johsua.agustin@gmail.com', '09611021573', '2004-10-10', '#66 Pasong Tamo QC', 'Paco', 'Manila', 'Metro Manila', '1007', '123-45-1234', 'Driver\\\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'acct-both', 'prepaid', 'mobile', 1, 1, 1, '2025-11-25 16:28:05', NULL)
+ON DUPLICATE KEY UPDATE 
+    application_status = VALUES(application_status),
+    first_name = VALUES(first_name),
+    last_name = VALUES(last_name),
+    email = VALUES(email),
+    phone_number = VALUES(phone_number),
+    date_of_birth = VALUES(date_of_birth),
+    street_address = VALUES(street_address),
+    barangay = VALUES(barangay),
+    city = VALUES(city),
+    state = VALUES(state),
+    zip_code = VALUES(zip_code),
+    ssn = VALUES(ssn),
+    id_type = VALUES(id_type),
+    id_number = VALUES(id_number),
+    employment_status = VALUES(employment_status),
+    employer_name = VALUES(employer_name),
+    job_title = VALUES(job_title),
+    annual_income = VALUES(annual_income),
+    account_type = VALUES(account_type),
+    selected_cards = VALUES(selected_cards),
+    additional_services = VALUES(additional_services),
+    terms_accepted = VALUES(terms_accepted),
+    privacy_acknowledged = VALUES(privacy_acknowledged),
+    marketing_consent = VALUES(marketing_consent),
+    submitted_at = VALUES(submitted_at),
+    reviewed_at = VALUES(reviewed_at);
+
 
 -- Missions (Banking rewards/missions)
 INSERT INTO missions (id, mission_text, points_value, created_at) VALUES
@@ -2236,31 +2298,35 @@ ON DUPLICATE KEY UPDATE principal_amount = VALUES(principal_amount);
 -- ========================================
 
 INSERT IGNORE INTO loan_applications (
-    id, full_name, account_number, contact_number, email, job, monthly_salary, 
+    id, loan_type_id, full_name, account_number, contact_number, email, job, monthly_salary, 
     user_email, loan_type, loan_terms, loan_amount, purpose, monthly_payment, 
     due_date, status, remarks, file_name, created_at, approved_by, approved_at, 
     next_payment_due, rejected_by, rejected_at, rejection_remarks, 
-    proof_of_income, coe_document, pdf_path
+    proof_of_income, coe_document, pdf_path, pdf_approved, pdf_active, pdf_rejected
 ) VALUES
-(24, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', NULL, NULL, 'kurtrealisan@gmail.com', 'Home Loan', '24 Months', 5000.00, '0', NULL, NULL, 'Active', 'sdfsdfsdfsd', 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', '2025-11-01 17:18:39', 'Jerome Malunes', '2025-11-02 17:55:21', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(25, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, 'kurtrealisan@gmail.com', 'Home Loan', '12 Months', 60000.00, 'For house building purposes', 5558.07, '2026-11-02', 'Rejected', 'Invalid ID', 'uploads/download.jpg', '2025-11-02 04:00:24', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-02 17:29:08', 'Invalid ID', NULL, NULL, NULL),
-(26, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Car Loan', '24 Months', 50000.00, 'For personal car purposes ', 2544.79, '2027-11-02', 'Active', 'Thank You!', 'uploads/download.jpg', '2025-11-02 10:44:49', 'Jerome Malunes', '2025-11-02 17:15:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(27, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '24 Months', 7000.00, 'For family house ni Carspeso', 356.27, '2027-11-02', 'Rejected', 'The ID is not valid', 'uploads/images.jpg', '2025-11-02 10:55:26', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(28, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Personal Loan', '6 Months', 6000.00, 'For study purposes ', 1059.14, '2026-05-02', 'Rejected', 'sffsdfsd', 'uploads/Jespic.jpg', '2025-11-02 12:45:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(29, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '30 Months', 6000.00, 'For housing purposes', 255.78, '2028-05-02', 'Active', 'Thank You!', 'uploads/Jespic.jpg', '2025-11-02 12:47:59', 'Jerome Malunes', '2025-11-02 16:44:48', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(30, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 5000.00, 'For multi purpose only', 882.61, '2026-05-02', 'Approved', 'sdfsdfsd', 'uploads/Jespic.jpg', '2025-11-02 13:38:07', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(31, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For purposes only', 1235.66, '2026-05-02', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-02 17:01:28', 'Jerome Malunes', '2025-11-03 01:04:11', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(32, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '6 Months', 10000.00, 'For purposes', 1765.23, '2026-05-02', 'Rejected', 'Invalid ID', 'uploads/Jespic.jpg', '2025-11-02 21:29:52', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-03 05:30:50', 'Invalid ID', NULL, NULL, NULL),
-(33, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '6 Months', 5000.00, 'For buying house parts', 882.61, '2026-05-02', 'Active', 'Thank you!', 'uploads/Jespic.jpg', '2025-11-02 21:47:34', 'Jerome Malunes', '2025-11-03 05:48:14', '2025-12-03', NULL, NULL, NULL, NULL, NULL, NULL),
-(34, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For investment', 1235.66, '2026-05-02', 'Active', 'Thank you for applying loans!! Please pay on the exact time', 'uploads/Jespic.jpg', '2025-11-02 22:24:57', 'Jerome Malunes', '2025-11-03 06:38:36', '2025-12-03', NULL, NULL, NULL, NULL, NULL, 'uploads/loan_approved_34_20251106141556.pdf'),
-(35, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Personal Loan', '12 Months', 30000.00, 'For funds ', 2779.04, '2026-11-06', 'Rejected', 'Please input a clear picture of valid ID', 'uploads/Jespic.jpg', '2025-11-06 10:56:13', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 19:06:39', 'Please input a clear picture of valid ID', 'uploads/Lord, I pray for this (2).png', 'uploads/download.jpg', 'uploads/loan_rejected_35_20251106141541.pdf'),
-(36, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 9000.00, 'Bahay namin maliit lamang', 458.06, '2027-11-06', 'Active', 'Congratulations!!', 'uploads/Jespic.jpg', '2025-11-06 11:20:08', 'Jerome Malunes', '2025-11-06 19:57:54', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD (1).png', 'uploads/loan_approved_36_20251106140535.pdf'),
-(37, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '36 Months', 100000.00, 'For family planning', 3716.36, '2028-11-06', 'Active', 'Please be advised', 'uploads/Jespic.jpg', '2025-11-06 13:52:07', 'Jerome Malunes', '2025-11-06 21:52:50', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD.png', 'uploads/loan_approved_37_20251106145455.pdf'),
-(38, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '24 Months', 7000.00, 'pautang ssob', 356.27, '2027-11-06', 'Rejected', 'Please upload a clear picture of ID', 'uploads/Jespic.jpg', '2025-11-06 14:01:54', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 22:27:53', 'Please upload a clear picture of ID', 'uploads/Lord, I pray for this (3).png', 'uploads/images.jpg', 'uploads/loan_rejected_38_20251106153300.pdf'),
-(39, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '12 Months', 8000.00, 'Bahay Kubo', 741.08, '2026-11-06', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-06 14:39:43', 'Jerome Malunes', '2025-11-06 22:42:16', '2025-12-06', NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', 'uploads/loan_approved_39_20251106155223.pdf'),
-(40, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Multi-Purpose Loan', '12 Months', 6000.00, 'For purpose', 555.81, '2026-11-07', 'Pending', NULL, 'uploads/Jespic.jpg', '2025-11-07 13:48:14', NULL, NULL, NULL, NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', NULL),
-(41, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 40000.00, 'oh when the saints , ipaghiganti mo ang iglesiaaaaaaaaaaaa', 2035.83, '2027-11-07', 'Active', 'Maureene', 'uploads/Jespic.jpg', '2025-11-07 17:11:58', 'Jerome Malunes', '2025-11-08 01:15:36', '2025-12-08', NULL, NULL, NULL, 'uploads/images.jpg', 'uploads/633f1770-3587-4d69-99c3-a9871b0818b9.jpg', 'uploads/loan_approved_41_20251107181558.pdf')
+(24, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', NULL, NULL, 'kurtrealisan@gmail.com', 'Home Loan', '24 Months', 5000.00, '0', NULL, NULL, 'Active', 'sdfsdfsdfsd', 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', '2025-11-01 17:18:39', 'Jerome Malunes', '2025-11-02 17:55:21', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(25, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, 'kurtrealisan@gmail.com', 'Home Loan', '12 Months', 60000.00, 'For house building purposes', 5558.07, '2026-11-02', 'Rejected', 'Invalid ID', 'uploads/download.jpg', '2025-11-02 04:00:24', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-02 17:29:08', 'Invalid ID', NULL, NULL, NULL, NULL, NULL, NULL),
+(26, 2, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Car Loan', '24 Months', 50000.00, 'For personal car purposes ', 2544.79, '2027-11-02', 'Active', 'Thank You!', 'uploads/download.jpg', '2025-11-02 10:44:49', 'Jerome Malunes', '2025-11-02 17:15:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(27, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '24 Months', 7000.00, 'For family house ni Carspeso', 356.27, '2027-11-02', 'Rejected', 'The ID is not valid', 'uploads/images.jpg', '2025-11-02 10:55:26', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(28, 1, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Personal Loan', '6 Months', 6000.00, 'For study purposes ', 1059.14, '2026-05-02', 'Rejected', 'sffsdfsd', 'uploads/Jespic.jpg', '2025-11-02 12:45:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(29, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '30 Months', 6000.00, 'For housing purposes', 255.78, '2028-05-02', 'Active', 'Thank You!', 'uploads/Jespic.jpg', '2025-11-02 12:47:59', 'Jerome Malunes', '2025-11-02 16:44:48', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(30, 4, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 5000.00, 'For multi purpose only', 882.61, '2026-05-02', 'Approved', 'sdfsdfsd', 'uploads/Jespic.jpg', '2025-11-02 13:38:07', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(31, 4, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For purposes only', 1235.66, '2026-05-02', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-02 17:01:28', 'Jerome Malunes', '2025-11-03 01:04:11', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(32, 2, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '6 Months', 10000.00, 'For purposes', 1765.23, '2026-05-02', 'Rejected', 'Invalid ID', 'uploads/Jespic.jpg', '2025-11-02 21:29:52', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-03 05:30:50', 'Invalid ID', NULL, NULL, NULL, NULL, NULL, NULL),
+(33, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '6 Months', 5000.00, 'For buying house parts', 882.61, '2026-05-02', 'Active', 'Thank you!', 'uploads/Jespic.jpg', '2025-11-02 21:47:34', 'Jerome Malunes', '2025-11-03 05:48:14', '2025-12-03', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(34, 4, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For investment', 1235.66, '2026-05-02', 'Active', 'Thank you for applying loans!! Please pay on the exact time', 'uploads/Jespic.jpg', '2025-11-02 22:24:57', 'Jerome Malunes', '2025-11-03 06:38:36', '2025-12-03', NULL, NULL, NULL, NULL, NULL, 'uploads/loan_approved_34_20251106141556.pdf', NULL, NULL, NULL),
+(35, 1, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Personal Loan', '12 Months', 30000.00, 'For funds ', 2779.04, '2026-11-06', 'Rejected', 'Please input a clear picture of valid ID', 'uploads/Jespic.jpg', '2025-11-06 10:56:13', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 19:06:39', 'Please input a clear picture of valid ID', 'uploads/Lord, I pray for this (2).png', 'uploads/download.jpg', 'uploads/loan_rejected_35_20251106141541.pdf', NULL, NULL, NULL),
+(36, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 9000.00, 'Bahay namin maliit lamang', 458.06, '2027-11-06', 'Active', 'Congratulations!!', 'uploads/Jespic.jpg', '2025-11-06 11:20:08', 'Jerome Malunes', '2025-11-06 19:57:54', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD (1).png', 'uploads/loan_approved_36_20251106140535.pdf', NULL, NULL, NULL),
+(37, 4, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '36 Months', 100000.00, 'For family planning', 3716.36, '2028-11-06', 'Active', 'Please be advised', 'uploads/Jespic.jpg', '2025-11-06 13:52:07', 'Jerome Malunes', '2025-11-06 21:52:50', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD.png', 'uploads/loan_approved_37_20251106145455.pdf', NULL, NULL, NULL),
+(38, 2, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '24 Months', 7000.00, 'pautang ssob', 356.27, '2027-11-06', 'Rejected', 'Please upload a clear picture of ID', 'uploads/Jespic.jpg', '2025-11-06 14:01:54', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 22:27:53', 'Please upload a clear picture of ID', 'uploads/Lord, I pray for this (3).png', 'uploads/images.jpg', 'uploads/loan_rejected_38_20251106153300.pdf', NULL, NULL, NULL),
+(39, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '12 Months', 8000.00, 'Bahay Kubo', 741.08, '2026-11-06', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-06 14:39:43', 'Jerome Malunes', '2025-11-06 22:42:16', '2025-12-06', NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', 'uploads/loan_approved_39_20251106155223.pdf', NULL, NULL, NULL),
+(40, 4, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Multi-Purpose Loan', '12 Months', 6000.00, 'For purpose', 555.81, '2026-11-07', 'Pending', NULL, 'uploads/Jespic.jpg', '2025-11-07 13:48:14', NULL, NULL, NULL, NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', NULL, NULL, NULL, NULL),
+(41, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 40000.00, 'oh when the saints , ipaghiganti mo ang iglesiaaaaaaaaaaaa', 2035.83, '2027-11-07', 'Active', 'Maureene', 'uploads/Jespic.jpg', '2025-11-07 17:11:58', 'Jerome Malunes', '2025-11-08 01:15:36', '2025-12-08', NULL, NULL, NULL, 'uploads/images.jpg', 'uploads/633f1770-3587-4d69-99c3-a9871b0818b9.jpg', 'uploads/loan_approved_41_20251107181558.pdf', NULL, NULL, NULL),
+(61, 2, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Car Loan', '12 Months', 7000.00, 'For purposes only', 648.44, '2026-11-29', 'Active', 'Dear Mike Beringuela,\n\nYour loan is now ACTIVE!\n\nPayment Details:\n- Monthly Payment: ₱648.44\n- First Payment Due: December 29, 2025\n- Final Payment: November 29, 2026\n\nActivated by: Jerome Malunes\nDate: 2025-11-29 09:45:59', 'uploads/692a5017799e3_loan_rejected_60_1764379593.pdf', '2025-11-29 01:44:55', 'Jerome Malunes', '2025-11-29 09:45:25', '2025-12-29', NULL, NULL, NULL, 'uploads/692a5017799e7_loan_active_58_1764379377.pdf', 'uploads/692a5017799e8_SIA_DOCU_Final.pdf', NULL, 'uploads/loan_approved_61_1764380731.pdf', 'uploads/loan_active_61_1764380782.pdf', NULL),
+(62, 3, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Home Loan', '12 Months', 9000.00, 'For purposes only', 833.71, '2026-11-29', 'Pending', NULL, 'uploads/692a50d714171_Gemini_Generated_Image_ija02cija02cija0.png', '2025-11-29 01:48:07', NULL, NULL, '2025-12-29', NULL, NULL, NULL, 'uploads/692a50d714176_Gemini_Generated_Image_ija02cija02cija0.png', 'uploads/692a50d714178_loan_notification_approved_53_20251129010635.pdf', NULL, NULL, NULL, NULL),
+(63, 4, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 9000.00, 'For', 1588.71, '2026-05-29', 'Approved', 'Dear Kurt Realisan,\n\nCongratulations! Your loan application for ₱9,000.00 has been APPROVED.\n\nPlease visit our bank within 30 days to claim your loan.\n\nLoan Details:\n- Amount: ₱9,000.00\n- Term: 6 Months\n- Monthly Payment: ₱1,588.71\n\nApproved by: Jerome Malunes\nDate: 2025-11-29 09:50:14', 'uploads/692a51462fa0b_loan_active_61_1764380782.pdf', '2025-11-29 01:49:58', 'Jerome Malunes', '2025-11-29 09:50:14', '2025-12-29', NULL, NULL, NULL, 'uploads/692a51462fa11_loan_approved_61_1764380731.pdf', 'uploads/692a51462fa13_loan_active_58_1764379377.pdf', NULL, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE 
+    loan_type_id = VALUES(loan_type_id),
     full_name = VALUES(full_name),
     account_number = VALUES(account_number),
     contact_number = VALUES(contact_number),
@@ -2285,7 +2351,10 @@ ON DUPLICATE KEY UPDATE
     rejection_remarks = VALUES(rejection_remarks),
     proof_of_income = VALUES(proof_of_income),
     coe_document = VALUES(coe_document),
-    pdf_path = VALUES(pdf_path);
+    pdf_path = VALUES(pdf_path),
+    pdf_approved = VALUES(pdf_approved),
+    pdf_active = VALUES(pdf_active),
+    pdf_rejected = VALUES(pdf_rejected);
 
 -- ========================================
 -- 11. LOAN PAYMENTS DATA

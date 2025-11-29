@@ -98,6 +98,13 @@ CREATE TABLE employee (
     contact_number VARCHAR(20) DEFAULT NULL,
     email VARCHAR(100) DEFAULT NULL,
     address VARCHAR(255) DEFAULT NULL,
+    house_number VARCHAR(50) DEFAULT NULL,
+    street VARCHAR(100) DEFAULT NULL,
+    barangay VARCHAR(100) DEFAULT NULL,
+    city VARCHAR(100) DEFAULT NULL,
+    province VARCHAR(100) DEFAULT NULL,
+    secondary_email VARCHAR(100) DEFAULT NULL,
+    secondary_contact_number VARCHAR(20) DEFAULT NULL,
     hire_date DATE DEFAULT NULL,
     department_id INT DEFAULT NULL,
     position_id INT DEFAULT NULL,
@@ -224,7 +231,13 @@ CREATE TABLE applicant (
     resume_file VARCHAR(255) DEFAULT NULL,
     application_status VARCHAR(20) DEFAULT NULL,
     archived_at DATETIME DEFAULT NULL,
+    offer_status ENUM('Pending', 'Accepted', 'Declined') DEFAULT 'Pending',
+    offer_token VARCHAR(100) UNIQUE DEFAULT NULL,
+    offer_sent_at DATETIME DEFAULT NULL,
+    offer_acceptance_timestamp DATETIME DEFAULT NULL,
+    offer_declined_at DATETIME DEFAULT NULL,
     INDEX idx_recruitment_id (recruitment_id),
+    INDEX idx_offer_token (offer_token),
     FOREIGN KEY (recruitment_id) REFERENCES recruitment(recruitment_id)
 );
 
@@ -954,6 +967,11 @@ UPDATE leave_request
 SET status = 'Approved' 
 WHERE UPPER(TRIM(status)) = 'APPROVED';
 
+-- Normalize 'Rejected' to 'Declined' for consistency
+UPDATE leave_request 
+SET status = 'Declined' 
+WHERE UPPER(TRIM(status)) = 'REJECTED';
+
 -- Step 2: Ensure ALL active employees with leave requests have proper employment_status
 UPDATE employee 
 SET employment_status = 'Active' 
@@ -1171,6 +1189,23 @@ VALUES (
 ON DUPLICATE KEY UPDATE 
     password_hash = VALUES(password_hash),
     role = VALUES(role);
+
+-- ========================================
+-- ADDRESS FIELD MIGRATION
+-- ========================================
+-- Migrate existing address data to new atomic fields
+-- This preserves existing data by attempting to parse or setting defaults
+
+-- For existing records with address data, try to preserve it
+-- If address exists but new fields are NULL, copy to city as fallback
+UPDATE employee 
+SET city = COALESCE(city, address)
+WHERE address IS NOT NULL AND address != '' AND city IS NULL;
+
+-- Set default province if not set
+UPDATE employee 
+SET province = COALESCE(province, 'Metro Manila')
+WHERE province IS NULL;
 
 -- ========================================
 -- NOTES
