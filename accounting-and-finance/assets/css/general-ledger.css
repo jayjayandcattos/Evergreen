@@ -1466,3 +1466,72 @@ body {
         margin: 1cm;
     }
 }
+
+/* ========================================
+   PENDING APPLICATIONS STYLES
+   ======================================== */
+
+#pending-applications {
+    margin-bottom: 3rem;
+}
+
+#pending-applications-table .badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+#pending-applications-table .badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000;
+}
+
+#pending-applications-table .badge.bg-success {
+    background-color: #28a745 !important;
+    color: #fff;
+}
+
+#pending-applications-table .badge.bg-danger {
+    background-color: #dc3545 !important;
+    color: #fff;
+}
+
+#pending-applications-table .badge.bg-info {
+    background-color: #17a2b8 !important;
+    color: #fff;
+}
+
+#pending-applications-table .badge.bg-secondary {
+    background-color: #6c757d !important;
+    color: #fff;
+}
+
+#pending-applications-table .btn {
+    transition: all 0.3s ease;
+}
+
+#pending-applications-table .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#applicationDetailModal .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+#applicationDetailModal .table td {
+    vertical-align: middle;
+}
+
+#declineReasonModal textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+#declineReasonModal .form-label {
+    font-weight: 600;
+    color: #495057;
+}

@@ -2306,6 +2306,507 @@ function changeTrialBalancePerPage() {
     }
 }
 
+// ========================================
+// PENDING APPLICATIONS FUNCTIONS
+// ========================================
+
+let currentApplicationId = null;
+let applicationPaginationState = {
+    currentPage: 1,
+    perPage: 25,
+    total: 0
+};
+
+function loadPendingApplications(statusFilter = 'pending', searchTerm = '') {
+    const tbody = document.querySelector('#pending-applications-table tbody');
+    if (!tbody) return;
+    
+    // Show loading state
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="loading-spinner"></div><p>Loading applications...</p></td></tr>';
+    
+    const params = new URLSearchParams();
+    params.append('action', 'get_pending_applications');
+    params.append('status_filter', statusFilter);
+    if (searchTerm) {
+        params.append('search', searchTerm);
+    }
+    params.append('limit', applicationPaginationState.perPage);
+    params.append('offset', (applicationPaginationState.currentPage - 1) * applicationPaginationState.perPage);
+    
+    fetch(`../modules/api/general-ledger-data.php?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayPendingApplicationsTable(data.data, data);
+            } else {
+                showNotification('Error loading applications: ' + (data.message || 'Unknown error'), 'error');
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No applications found</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading applications:', error);
+            showNotification('Error loading applications. Please check console for details.', 'error');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading applications</td></tr>';
+        });
+}
+
+function displayPendingApplicationsTable(applications, responseData = {}) {
+    const tbody = document.querySelector('#pending-applications-table tbody');
+    if (!tbody) return;
+    
+    if (applications.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No applications found</td></tr>';
+        const hintElement = document.getElementById('applications-hint');
+        if (hintElement) {
+            hintElement.textContent = 'No applications found';
+        }
+        return;
+    }
+    
+    let html = '';
+    applications.forEach((app, index) => {
+        const statusBadge = getStatusBadge(app.status);
+        const submissionDate = new Date(app.submission_date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        html += `
+            <tr style="animation-delay: ${index * 0.1}s">
+                <td><strong class="application-number">${escapeHtml(app.application_number)}</strong></td>
+                <td><span class="applicant-name">${escapeHtml(app.applicant_name)}</span></td>
+                <td><span class="requested-cards">${escapeHtml(app.requested_cards || 'None')}</span></td>
+                <td>${submissionDate}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="viewApplicationDetails(${app.application_id})" title="View Details">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    ${app.status === 'pending' ? `
+                        <button class="btn btn-sm btn-success me-1" onclick="confirmApproveApplication(${app.application_id})" title="Approve">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="showDeclineReasonModal(${app.application_id})" title="Decline">
+                            <i class="fas fa-times"></i> Decline
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Update hint
+    const hintElement = document.getElementById('applications-hint');
+    if (hintElement) {
+        const total = responseData.total || responseData.count || applications.length;
+        const start = (applicationPaginationState.currentPage - 1) * applicationPaginationState.perPage + 1;
+        const end = Math.min(start + applications.length - 1, total);
+        hintElement.textContent = `Showing ${start}-${end} of ${total} application${total !== 1 ? 's' : ''}`;
+    }
+    
+    // Add fade-in animation
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach((row, index) => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(-20px)';
+        setTimeout(() => {
+            row.style.transition = 'all 0.4s ease';
+            row.style.opacity = '1';
+            row.style.transform = 'translateX(0)';
+        }, index * 50);
+    });
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge bg-warning">Pending</span>',
+        'approved': '<span class="badge bg-success">Approved</span>',
+        'rejected': '<span class="badge bg-danger">Declined</span>',
+        'under_review': '<span class="badge bg-info">Under Review</span>',
+        'cancelled': '<span class="badge bg-secondary">Cancelled</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">' + escapeHtml(status) + '</span>';
+}
+
+function viewApplicationDetails(applicationId) {
+    currentApplicationId = applicationId;
+    
+    const modal = new bootstrap.Modal(document.getElementById('applicationDetailModal'));
+    const modalBody = document.getElementById('applicationDetailBody');
+    
+    modalBody.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><p class="mt-2">Loading application details...</p></div>';
+    modal.show();
+    
+    fetch(`../modules/api/general-ledger-data.php?action=get_application_details&application_id=${applicationId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayApplicationDetails(data.data);
+            } else {
+                modalBody.innerHTML = `<div class="alert alert-danger">${escapeHtml(data.message || 'Failed to load application details')}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading application details:', error);
+            modalBody.innerHTML = '<div class="alert alert-danger">Error loading application details. Please try again.</div>';
+        });
+}
+
+function displayApplicationDetails(app) {
+    const modalBody = document.getElementById('applicationDetailBody');
+    
+    // Format selected cards
+    let cardsHtml = '<p class="text-muted">No cards requested</p>';
+    if (app.selected_cards && app.selected_cards.length > 0) {
+        cardsHtml = '<ul class="list-unstyled">';
+        app.selected_cards.forEach(card => {
+            cardsHtml += `<li><i class="fas fa-check text-success me-2"></i>${escapeHtml(card.name)}</li>`;
+        });
+        cardsHtml += '</ul>';
+    }
+    
+    // Format additional services
+    let servicesHtml = '<p class="text-muted">None</p>';
+    if (app.additional_services && app.additional_services.length > 0) {
+        servicesHtml = '<ul class="list-unstyled">';
+        app.additional_services.forEach(service => {
+            const serviceName = service.charAt(0).toUpperCase() + service.slice(1).replace('_', ' ');
+            servicesHtml += `<li><i class="fas fa-check text-success me-2"></i>${escapeHtml(serviceName)}</li>`;
+        });
+        servicesHtml += '</ul>';
+    }
+    
+    const submissionDate = new Date(app.submitted_at).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    modalBody.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Application Information</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Application Number:</th>
+                        <td><strong>${escapeHtml(app.application_number)}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>${getStatusBadge(app.application_status)}</td>
+                    </tr>
+                    <tr>
+                        <th>Submitted:</th>
+                        <td>${submissionDate}</td>
+                    </tr>
+                </table>
+                
+                <h5 class="mb-3 mt-4"><i class="fas fa-user me-2"></i>Personal Information</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Full Name:</th>
+                        <td>${escapeHtml(app.first_name)} ${escapeHtml(app.last_name)}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>${escapeHtml(app.email)}</td>
+                    </tr>
+                    <tr>
+                        <th>Phone:</th>
+                        <td>${escapeHtml(app.phone_number)}</td>
+                    </tr>
+                    <tr>
+                        <th>Date of Birth:</th>
+                        <td>${escapeHtml(app.date_of_birth)}</td>
+                    </tr>
+                </table>
+                
+                <h5 class="mb-3 mt-4"><i class="fas fa-map-marker-alt me-2"></i>Address</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Street:</th>
+                        <td>${escapeHtml(app.street_address)}</td>
+                    </tr>
+                    <tr>
+                        <th>Barangay:</th>
+                        <td>${escapeHtml(app.barangay || 'N/A')}</td>
+                    </tr>
+                    <tr>
+                        <th>City:</th>
+                        <td>${escapeHtml(app.city)}</td>
+                    </tr>
+                    <tr>
+                        <th>Province:</th>
+                        <td>${escapeHtml(app.state)}</td>
+                    </tr>
+                    <tr>
+                        <th>Zip Code:</th>
+                        <td>${escapeHtml(app.zip_code)}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="col-md-6">
+                <h5 class="mb-3"><i class="fas fa-id-card me-2"></i>Identity Verification</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">SSN:</th>
+                        <td>${escapeHtml(app.ssn)}</td>
+                    </tr>
+                    <tr>
+                        <th>ID Type:</th>
+                        <td>${escapeHtml(app.id_type)}</td>
+                    </tr>
+                    <tr>
+                        <th>ID Number:</th>
+                        <td>${escapeHtml(app.id_number)}</td>
+                    </tr>
+                </table>
+                
+                <h5 class="mb-3 mt-4"><i class="fas fa-briefcase me-2"></i>Employment Information</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Status:</th>
+                        <td>${escapeHtml(app.employment_status)}</td>
+                    </tr>
+                    <tr>
+                        <th>Employer:</th>
+                        <td>${escapeHtml(app.employer_name || 'N/A')}</td>
+                    </tr>
+                    <tr>
+                        <th>Job Title:</th>
+                        <td>${escapeHtml(app.job_title || 'N/A')}</td>
+                    </tr>
+                    <tr>
+                        <th>Annual Income:</th>
+                        <td>₱${formatCurrency(app.annual_income)}</td>
+                    </tr>
+                </table>
+                
+                <h5 class="mb-3 mt-4"><i class="fas fa-credit-card me-2"></i>Account Preferences</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Account Type:</th>
+                        <td>${escapeHtml(app.account_type_display)}</td>
+                    </tr>
+                    <tr>
+                        <th>Requested Cards:</th>
+                        <td>${cardsHtml}</td>
+                    </tr>
+                    <tr>
+                        <th>Additional Services:</th>
+                        <td>${servicesHtml}</td>
+                    </tr>
+                </table>
+                
+                <h5 class="mb-3 mt-4"><i class="fas fa-check-circle me-2"></i>Terms & Agreements</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Terms Accepted:</th>
+                        <td>${app.terms_accepted ? '<i class="fas fa-check text-success"></i> Yes' : '<i class="fas fa-times text-danger"></i> No'}</td>
+                    </tr>
+                    <tr>
+                        <th>Privacy Acknowledged:</th>
+                        <td>${app.privacy_acknowledged ? '<i class="fas fa-check text-success"></i> Yes' : '<i class="fas fa-times text-danger"></i> No'}</td>
+                    </tr>
+                    <tr>
+                        <th>Marketing Consent:</th>
+                        <td>${app.marketing_consent ? '<i class="fas fa-check text-success"></i> Yes' : '<i class="fas fa-times text-danger"></i> No'}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // Update approve/decline buttons
+    const approveBtn = document.getElementById('approveApplicationBtn');
+    const declineBtn = document.getElementById('declineApplicationBtn');
+    if (approveBtn) {
+        approveBtn.onclick = () => confirmApproveApplication(app.application_id);
+        approveBtn.style.display = app.application_status === 'pending' ? 'inline-block' : 'none';
+    }
+    if (declineBtn) {
+        declineBtn.onclick = () => showDeclineReasonModal(app.application_id);
+        declineBtn.style.display = app.application_status === 'pending' ? 'inline-block' : 'none';
+    }
+}
+
+function confirmApproveApplication(applicationId = null) {
+    const appId = applicationId || currentApplicationId;
+    if (!appId) return;
+    
+    if (confirm('Are you sure you want to approve this application? This will automatically create a customer account and link the requested cards.')) {
+        approveApplication(appId);
+    }
+}
+
+function approveApplication(applicationId) {
+    const formData = new FormData();
+    formData.append('action', 'approve_application');
+    formData.append('application_id', applicationId);
+    
+    // Show loading state
+    const approveBtn = document.getElementById('approveApplicationBtn');
+    if (approveBtn) {
+        approveBtn.disabled = true;
+        approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+    }
+    
+    fetch('../modules/api/general-ledger-data.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(async response => {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Non-JSON response from approve:', text);
+            throw new Error('Server returned invalid response. Check console for details.');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification('Application approved successfully! Customer account created.', 'success');
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('applicationDetailModal'));
+            if (modal) modal.hide();
+            // Reload applications list
+            loadPendingApplications();
+            // Reload accounts table to show new account
+            loadAccountsTable();
+        } else {
+            showNotification('Error approving application: ' + (data.message || 'Unknown error'), 'error');
+            if (approveBtn) {
+                approveBtn.disabled = false;
+                approveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Approve';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error approving application:', error);
+        showNotification('Error approving application. Please try again.', 'error');
+        if (approveBtn) {
+            approveBtn.disabled = false;
+            approveBtn.innerHTML = '<i class="fas fa-check me-1"></i>Approve';
+        }
+    });
+}
+
+function showDeclineReasonModal(applicationId = null) {
+    const appId = applicationId || currentApplicationId;
+    if (!appId) return;
+    
+    currentApplicationId = appId;
+    document.getElementById('rejectionReason').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('declineReasonModal'));
+    modal.show();
+}
+
+function submitDeclineApplication() {
+    const reason = document.getElementById('rejectionReason').value.trim();
+    
+    if (!reason) {
+        showNotification('Please provide a rejection reason', 'warning');
+        return;
+    }
+    
+    if (!currentApplicationId) {
+        showNotification('Application ID not found', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', 'decline_application');
+    formData.append('application_id', currentApplicationId);
+    formData.append('rejection_reason', reason);
+    
+    const declineBtn = document.querySelector('#declineReasonModal .btn-danger');
+    if (declineBtn) {
+        declineBtn.disabled = true;
+        declineBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+    }
+    
+    fetch('../modules/api/general-ledger-data.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(async response => {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Non-JSON response:', text);
+            throw new Error('Server returned invalid response. Check console for details.');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification('Application declined successfully', 'success');
+            // Close modals
+            const declineModal = bootstrap.Modal.getInstance(document.getElementById('declineReasonModal'));
+            if (declineModal) declineModal.hide();
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('applicationDetailModal'));
+            if (detailModal) detailModal.hide();
+            // Reload applications list
+            loadPendingApplications();
+        } else {
+            showNotification('Error declining application: ' + (data.message || 'Unknown error'), 'error');
+            if (declineBtn) {
+                declineBtn.disabled = false;
+                declineBtn.innerHTML = '<i class="fas fa-times me-1"></i>Decline Application';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error declining application:', error);
+        showNotification('Error declining application. Please try again.', 'error');
+        if (declineBtn) {
+            declineBtn.disabled = false;
+            declineBtn.innerHTML = '<i class="fas fa-times me-1"></i>Decline Application';
+        }
+    });
+}
+
+function applyApplicationFilter() {
+    const searchTerm = document.getElementById('application-search').value.trim();
+    const statusFilter = document.getElementById('application-status-filter').value;
+    applicationPaginationState.currentPage = 1;
+    loadPendingApplications(statusFilter, searchTerm);
+}
+
+function resetApplicationFilter() {
+    document.getElementById('application-search').value = '';
+    document.getElementById('application-status-filter').value = 'pending';
+    applicationPaginationState.currentPage = 1;
+    loadPendingApplications('pending', '');
+}
+
+function changeApplicationsPerPage() {
+    const select = document.getElementById('applications-per-page');
+    if (select) {
+        applicationPaginationState.perPage = parseInt(select.value);
+        applicationPaginationState.currentPage = 1;
+        const statusFilter = document.getElementById('application-status-filter').value;
+        const searchTerm = document.getElementById('application-search').value.trim();
+        loadPendingApplications(statusFilter, searchTerm);
+    }
+}
+
+// Load pending applications on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load pending applications after a short delay to ensure page is ready
+    setTimeout(() => {
+        loadPendingApplications();
+    }, 500);
+});
+
 // Make functions globally available
 window.viewAccountDetails = viewAccountDetails;
 window.viewTransactionDetails = viewTransactionDetails;
@@ -2329,3 +2830,11 @@ window.exportAccounts = exportAccounts;
 window.exportTransactions = exportTransactions;
 window.printTransactions = printTransactions;
 window.exportAccountTransactions = exportAccountTransactions;
+window.loadPendingApplications = loadPendingApplications;
+window.viewApplicationDetails = viewApplicationDetails;
+window.confirmApproveApplication = confirmApproveApplication;
+window.showDeclineReasonModal = showDeclineReasonModal;
+window.submitDeclineApplication = submitDeclineApplication;
+window.applyApplicationFilter = applyApplicationFilter;
+window.resetApplicationFilter = resetApplicationFilter;
+window.changeApplicationsPerPage = changeApplicationsPerPage;
