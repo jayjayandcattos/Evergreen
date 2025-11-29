@@ -931,6 +931,11 @@ CREATE TABLE loan_applications (
     INDEX idx_loan_id (loan_id)
 );
 
+CREATE TABLE `loan_application_types` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 ALTER TABLE loans 
 ADD CONSTRAINT fk_loans_application_id 

@@ -2383,6 +2383,11 @@ ON DUPLICATE KEY UPDATE
     pdf_active = VALUES(pdf_active),
     pdf_rejected = VALUES(pdf_rejected);
 
+INSERT INTO `loan_application_types` (`id`, `name`) VALUES
+(2, 'Car Loan'),
+(3, 'Home Loan'),
+(4, 'Multi-Purpose Loan'),
+(1, 'Personal Loan');
 -- ========================================
 -- 11. LOAN PAYMENTS DATA
 -- ========================================
