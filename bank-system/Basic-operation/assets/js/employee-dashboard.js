@@ -4,11 +4,10 @@
  */
 
 document.addEventListener("DOMContentLoaded", async function () {
-  // Check authentication and update employee display
-  const employee = await checkAuthentication();
-  if (employee) {
-    updateEmployeeDisplay(employee);
+  // Initialize authentication (includes logout button setup)
+  const employee = await initAuthentication();
 
+  if (employee) {
     // Update dashboard welcome message
     const dashboardNameElement = document.getElementById(
       "dashboardEmployeeName"
