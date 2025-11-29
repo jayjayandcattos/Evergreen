@@ -686,7 +686,7 @@
         /* Extra small mobile devices */
         @media (max-width: 480px) {
             nav {
-                padding: 0.8rem 3%;
+                padding: 1rem 3%;
             }
 
             .dropdown-content a {

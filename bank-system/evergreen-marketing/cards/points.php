@@ -938,6 +938,11 @@
         height: 45px;
     }
 
+    .profile-btn img {
+        width: 35px;
+        height: 35px;
+    }
+
     .nav-links {
         order: 3;
         width: 100%;
@@ -1101,7 +1106,11 @@
 /* Mobile Phones (480px - 639px) */
 @media (max-width: 639px) {
     nav {
-        padding: 0.8rem 1rem;
+        padding: 1rem 3%;
+    }
+
+    nav span a {
+        font-size: 24px;
     }
 
     .logo {
@@ -1111,6 +1120,16 @@
     .logo-icon {
         width: 40px;
         height: 40px;
+    }
+
+    .logo-icon img {
+        width: 40px;
+        height: 40px;
+    }
+
+    .profile-btn img {
+        width: 35px;
+        height: 35px;
     }
 
     .dropdown-content a {
