@@ -57,22 +57,19 @@ try {
         throw new Exception('Database connection failed');
     }
     
-    // Query employee by username with HRIS data if available
+    // Query employee by username
     $stmt = $db->prepare("
         SELECT 
             be.employee_id,
             be.username,
             be.password_hash,
             be.email,
-            be.hris_employee_id,
-            COALESCE(e.first_name, be.first_name) as first_name,
-            COALESCE(e.last_name, be.last_name) as last_name,
-            COALESCE(e.email, be.email) as employee_email,
-            COALESCE(e.contact_number, '') as contact_number,
+            be.first_name,
+            be.last_name,
+            be.email as employee_email,
             be.role,
             be.is_active
         FROM bank_employees be
-        LEFT JOIN employee e ON be.hris_employee_id = e.employee_id
         WHERE be.username = :username
         LIMIT 1
     ");
@@ -113,10 +110,9 @@ try {
     $_SESSION['employee_logged_in'] = true;
     $_SESSION['employee_id'] = $employee['employee_id'];
     $_SESSION['employee_username'] = $employee['username'];
-    $_SESSION['employee_name'] = $employee['first_name'] . ' ' . $employee['last_name'];
+    $_SESSION['employee_name'] = ($employee['first_name'] ?? '') . ' ' . ($employee['last_name'] ?? '');
     $_SESSION['employee_role'] = $employee['role'];
-    $_SESSION['employee_email'] = $employee['employee_email']; // Use HRIS email if available
-    $_SESSION['hris_employee_id'] = $employee['hris_employee_id']; // Store HRIS reference
+    $_SESSION['employee_email'] = $employee['employee_email'] ?? $employee['email'];
     $_SESSION['login_time'] = time();
     
     // Set session timeout (8 hours)
@@ -151,20 +147,29 @@ try {
         'employee' => [
             'id' => $employee['employee_id'],
             'username' => $employee['username'],
-            'first_name' => $employee['first_name'],
-            'last_name' => $employee['last_name'],
+            'first_name' => $employee['first_name'] ?? '',
+            'last_name' => $employee['last_name'] ?? '',
             'role' => $employee['role'],
-            'email' => $employee['employee_email'],
-            'hris_employee_id' => $employee['hris_employee_id']
+            'email' => $employee['employee_email'] ?? $employee['email'] ?? ''
         ]
     ]);
     
 } catch (Exception $e) {
     error_log('Login error: ' . $e->getMessage());
+    error_log('Stack trace: ' . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'An error occurred during login. Please try again.'
+        'message' => 'An error occurred during login. Please try again.',
+        'error' => (ini_get('display_errors') ? $e->getMessage() : 'Internal server error')
+    ]);
+} catch (PDOException $e) {
+    error_log('Database error in employee-login.php: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Database connection error. Please check your database configuration.',
+        'error' => (ini_get('display_errors') ? $e->getMessage() : 'Database error')
     ]);
 }
 ?>

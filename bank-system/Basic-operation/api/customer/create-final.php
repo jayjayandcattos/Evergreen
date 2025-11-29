@@ -174,7 +174,8 @@ try {
     // Email uniqueness is already checked above
 
     // Get account type from mapped data (selected in step 1)
-    $accountTypeName = $mappedData['account_type'] ?? 'Savings';
+    $accountTypeBase = $mappedData['account_type'] ?? 'Savings';
+    $accountTypeName = $accountTypeBase . ' Account'; // Append " Account" to match database format
     
     // Generate unique account number based on account type
     $accountNumber = generateAccountNumber($db, $accountTypeName);
@@ -336,7 +337,7 @@ try {
         if (!$accountType) {
             // Insert the account type if it doesn't exist
             $stmt = $db->prepare("INSERT INTO bank_account_types (type_name, description) VALUES (:type_name, :description)");
-            $description = $accountTypeName . ' Account';
+            $description = $accountTypeName; // Already includes " Account" suffix
             $stmt->bindParam(':type_name', $accountTypeName);
             $stmt->bindParam(':description', $description);
             $stmt->execute();
@@ -346,7 +347,7 @@ try {
         }
         
         // Set interest rate: 0.5% (0.50) for Savings accounts, NULL for Checking accounts
-        $interestRate = (strtolower($accountTypeName) === 'savings') ? 0.50 : NULL;
+        $interestRate = (strtolower($accountTypeName) === 'savings account') ? 0.50 : NULL;
         
         $stmt = $db->prepare("
             INSERT INTO customer_accounts (customer_id, account_number, account_type_id, interest_rate, created_at)

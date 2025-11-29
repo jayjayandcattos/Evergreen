@@ -95,7 +95,7 @@ try {
 
     // Get customer ID from session
     $customerId = $_SESSION['customer_id'];
-    $accountTypeName = $input['account_type'];
+    $accountTypeName = $input['account_type'] . ' Account'; // Append " Account" to match database format
 
     // Connect to database
     $db = getDBConnection();
@@ -176,7 +176,7 @@ try {
         // If account type doesn't exist, create it
         if (!$accountType) {
             $stmt = $db->prepare("INSERT INTO bank_account_types (type_name, description) VALUES (:type_name, :description)");
-            $description = $accountTypeName . ' Account';
+            $description = $accountTypeName; // Already includes " Account" suffix
             $stmt->bindParam(':type_name', $accountTypeName);
             $stmt->bindParam(':description', $description);
             $stmt->execute();
@@ -186,7 +186,7 @@ try {
         }
         
         // Set interest rate: 0.5% (0.50) for Savings accounts, NULL for Checking accounts
-        $interestRate = (strtolower($accountTypeName) === 'savings') ? 0.50 : NULL;
+        $interestRate = (strtolower($accountTypeName) === 'savings account') ? 0.50 : NULL;
         
         // Generate unique account number
         $accountNumber = generateAccountNumber($db, $accountTypeName);
