@@ -98,6 +98,13 @@ CREATE TABLE employee (
     contact_number VARCHAR(20) DEFAULT NULL,
     email VARCHAR(100) DEFAULT NULL,
     address VARCHAR(255) DEFAULT NULL,
+    house_number VARCHAR(50) DEFAULT NULL,
+    street VARCHAR(100) DEFAULT NULL,
+    barangay VARCHAR(100) DEFAULT NULL,
+    city VARCHAR(100) DEFAULT NULL,
+    province VARCHAR(100) DEFAULT NULL,
+    secondary_email VARCHAR(100) DEFAULT NULL,
+    secondary_contact_number VARCHAR(20) DEFAULT NULL,
     hire_date DATE DEFAULT NULL,
     department_id INT DEFAULT NULL,
     position_id INT DEFAULT NULL,
@@ -223,7 +230,13 @@ CREATE TABLE applicant (
     resume_file VARCHAR(255) DEFAULT NULL,
     application_status VARCHAR(20) DEFAULT NULL,
     archived_at DATETIME DEFAULT NULL,
+    offer_status ENUM('Pending', 'Accepted', 'Declined') DEFAULT 'Pending',
+    offer_token VARCHAR(100) UNIQUE DEFAULT NULL,
+    offer_sent_at DATETIME DEFAULT NULL,
+    offer_acceptance_timestamp DATETIME DEFAULT NULL,
+    offer_declined_at DATETIME DEFAULT NULL,
     INDEX idx_recruitment_id (recruitment_id),
+     INDEX idx_offer_token (offer_token),
     FOREIGN KEY (recruitment_id) REFERENCES recruitment(recruitment_id)
 );
 
@@ -272,6 +285,41 @@ CREATE TABLE system_logs (
 -- ========================================
 -- BANKING MODULE
 -- ========================================
+CREATE TABLE account_applications (
+    application_id INT AUTO_INCREMENT PRIMARY KEY,
+    application_number VARCHAR(50) NOT NULL,
+    application_status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    street_address VARCHAR(255) NOT NULL,
+    barangay VARCHAR(150) NOT NULL DEFAULT '',
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    zip_code VARCHAR(20) NOT NULL,
+    ssn VARCHAR(50) NOT NULL,
+    id_type VARCHAR(50) NOT NULL,
+    id_number VARCHAR(100) NOT NULL,
+    employment_status VARCHAR(50) NOT NULL,
+    employer_name VARCHAR(150) DEFAULT NULL,
+    job_title VARCHAR(100) DEFAULT NULL,
+    annual_income DECIMAL(15,2) DEFAULT NULL,
+    account_type VARCHAR(50) NOT NULL COMMENT 'acct-checking, acct-savings, acct-both',
+    selected_cards TEXT DEFAULT NULL COMMENT 'Comma-separated: debit, credit, prepaid',
+    additional_services TEXT DEFAULT NULL COMMENT 'Comma-separated: debit, online, mobile, overdraft',
+    terms_accepted TINYINT(1) DEFAULT 0,
+    privacy_acknowledged TINYINT(1) DEFAULT 0,
+    marketing_consent TINYINT(1) DEFAULT 0,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME DEFAULT NULL,
+    UNIQUE KEY application_number (application_number),
+    INDEX idx_application_number (application_number),
+    INDEX idx_email (email),
+    INDEX idx_status (application_status),
+    INDEX idx_submitted_at (submitted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE missions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -302,6 +350,7 @@ CREATE TABLE bank_users (
     password VARCHAR(255) NOT NULL,
     verification_code VARCHAR(100) DEFAULT NULL,
     bank_id VARCHAR(50) DEFAULT NULL,
+    referral_code VARCHAR(50) DEFAULT NULL,
     total_points DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_verified BOOLEAN NOT NULL,
@@ -340,12 +389,26 @@ CREATE TABLE bank_customers (
     last_name VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50) DEFAULT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    city_province VARCHAR(100) DEFAULT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
+    contact_number VARCHAR(20) DEFAULT NULL,
+    birthday DATE DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    verification_code VARCHAR(100) DEFAULT NULL,
+    bank_id VARCHAR(50) DEFAULT NULL,
+    referral_code VARCHAR(20) DEFAULT NULL,
+    total_points DECIMAL(10,2) DEFAULT 0.00,
+    referred_by_customer_id INT NULL,
+    is_verified BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
-    INDEX idx_email (email),
-    INDEX idx_created_by_employee_id (created_by_employee_id)
+    UNIQUE KEY idx_referral_code (referral_code),
+    UNIQUE KEY idx_email (email),
+    INDEX idx_created_by_employee_id (created_by_employee_id),
+    INDEX idx_referred_by (referred_by_customer_id),
+    INDEX idx_bank_id (bank_id),
+    CONSTRAINT fk_referred_by FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL
 );
 
 CREATE TABLE bank_employees (
@@ -893,16 +956,7 @@ CREATE TABLE integration_logs (
     INDEX idx_created_at (created_at)
 );
 
-ALTER TABLE bank_customers 
-ADD COLUMN referral_code VARCHAR(20) UNIQUE NULL,
-ADD COLUMN total_points DECIMAL(10,2) DEFAULT 0.00,
-ADD COLUMN referred_by_customer_id INT NULL,
-ADD INDEX idx_referral_code (referral_code),
-ADD INDEX idx_referred_by (referred_by_customer_id);
 
-ALTER TABLE bank_customers 
-ADD CONSTRAINT fk_referred_by 
-FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL;
 
 -- ========================================
 -- VIEWS
@@ -988,7 +1042,6 @@ GROUP BY tt.type_name;
 
 -- Ensure user_account table has role column with correct type
 -- This is safe to run even if column already exists
-
 SET @db_exists = (SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'BankingDB');
 
 SET @table_exists = (
@@ -1115,8 +1168,8 @@ ON DUPLICATE KEY UPDATE
 -- Step 1: Normalize ALL leave_request status values to 'Approved' (consistent case)
 -- This fixes both 'approved' (lowercase) and 'Approved' (capitalized) to be consistent
 UPDATE leave_request 
-SET status = 'Approved' 
-WHERE UPPER(TRIM(status)) = 'APPROVED';
+SET status = 'Declined' 
+WHERE UPPER(TRIM(status)) = 'REJECTED';
 
 -- Step 2: Ensure employees 22 and 3 are Active
 UPDATE employee 
@@ -1155,6 +1208,22 @@ SET status = 'Approved',
 WHERE leave_request_id = 2 
 AND employee_id = 3;
 
+-- ========================================
+-- ADDRESS FIELD MIGRATION
+-- ========================================
+-- Migrate existing address data to new atomic fields
+-- This preserves existing data by attempting to parse or setting defaults
+
+-- For existing records with address data, try to preserve it
+-- If address exists but new fields are NULL, copy to city as fallback
+UPDATE employee 
+SET city = COALESCE(city, address)
+WHERE address IS NOT NULL AND address != '' AND city IS NULL;
+
+-- Set default province if not set
+UPDATE employee 
+SET province = COALESCE(province, 'Metro Manila')
+WHERE province IS NULL;
 -- Step 6: Add/update index for better query performance on leave_request
 -- Check if index exists before dropping (safer approach)
 SET @index_exists = (
