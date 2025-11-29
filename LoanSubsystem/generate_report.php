@@ -29,11 +29,9 @@ $mockAdmins = [
 $current_admin = $mockAdmins[0];
 
 // Database connection
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "loan_system";
-$conn = new mysqli($host, $user, $pass, $db);
+require_once __DIR__ . '/config/database.php';
+$conn = getDBConnection();
+
 if ($conn->connect_error) {
     echo json_encode(['error' => 'DB error: ' . $conn->connect_error]);
     exit();

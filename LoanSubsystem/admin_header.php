@@ -34,10 +34,12 @@ header {
 }
 
 /* Logo Section */
-.logo-container {
+    .logo-container {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    text-decoration: none;
+    color: white;
 }
 
 .logo {
@@ -199,10 +201,10 @@ nav a.active {
 </style>
 
 <header id="main-header">
-    <div class="logo-container">
+    <a href="adminindex.php" class="logo-container" style="text-decoration: none;">
         <img src="images/banklogo.png" alt="Evergreen Logo" class="logo">
         <span class="logo-text">EVERGREEN</span>
-    </div>
+    </a>
 
     <!-- ✅ CENTERED NAV -->
     <div class="nav-center">
@@ -210,6 +212,8 @@ nav a.active {
             <ul>
                 <li><a href="adminindex.php" class="<?= basename($_SERVER['PHP_SELF']) === 'adminindex.php' ? 'active' : '' ?>">Dashboard</a></li>
                 <li><a href="adminapplications.php" class="<?= basename($_SERVER['PHP_SELF']) === 'adminapplications.php' ? 'active' : '' ?>">Loan Applications</a></li>
+                <li><a href="adminrecords.php" class="<?= basename($_SERVER['PHP_SELF']) === 'adminrecords.php' ? 'active' : '' ?>">Records</a></li>
+                <li><a href="../../accounting-and-finance/modules/general-ledger.php" target="_blank">Accounting</a></li>
             </ul>
         </nav>
     </div>

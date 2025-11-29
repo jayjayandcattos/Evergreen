@@ -3,12 +3,9 @@
 session_start();
 include 'admin_header.php';
 
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "loan_system";
+require_once __DIR__ . '/config/database.php';
+$conn = getDBConnection();
 
-$conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
   die("DB Error: " . $conn->connect_error);
 }

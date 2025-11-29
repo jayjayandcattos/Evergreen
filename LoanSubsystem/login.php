@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// Include database configuration
+require_once 'config/database.php';
+
 // 🔒 If already logged in, redirect to correct dashboard
 if (isset($_SESSION['user_email'])) {
     if ($_SESSION['user_role'] === 'admin') {
@@ -12,29 +15,6 @@ if (isset($_SESSION['user_email'])) {
     }
 }
 
-// Mock client data (from your original)
-$mockClients = [
-    ['full_name' => 'Kurt Realisan', 'email' => 'kurtrealisan@gmail.com', 'password' => password_hash('password123', PASSWORD_DEFAULT), 'role' => 'client'],
-    ['full_name' => 'Jiro Pinto', 'email' => 'jiropinto@gmail.com', 'password' => password_hash('password123', PASSWORD_DEFAULT), 'role' => 'client'],
-    ['full_name' => 'Angelo Gualva', 'email' => 'angelogualva@gmail.com', 'password' => password_hash('password123', PASSWORD_DEFAULT), 'role' => 'client'],
-    ['full_name' => 'Mike Beringuela', 'email' => 'mikeberinguela@gmail.com', 'password' => password_hash('password123', PASSWORD_DEFAULT), 'role' => 'client'],
-    ['full_name' => 'Jestony Malunes', 'email' => 'jestonymalunes@gmail.com', 'password' => password_hash('password123', PASSWORD_DEFAULT), 'role' => 'client'],
-    ['full_name' => 'Clarence Carpeso', 'email' => 'clarencecarpeso@gmail.com', 'password' => password_hash('password123', PASSWORD_DEFAULT), 'role' => 'client'],
-];
-
-// ✅ Admin: Jerome Malunes (as requested)
-$mockAdmins = [
-    [
-        'full_name' => 'Jerome Malunes',
-        'email' => 'jeromemalunes@gmail.com',
-        'password' => password_hash('admin123', PASSWORD_DEFAULT),
-        'role' => 'admin',
-        'loan_officer_id' => 'LO-0123'
-    ]
-];
-
-$allUsers = array_merge($mockClients, $mockAdmins);
-
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -43,33 +23,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selectedRole = $_POST['role'] ?? 'client';
 
     $user = null;
-    foreach ($allUsers as $u) {
-        if ($u['email'] === $email) {
-            $user = $u;
-            break;
-        }
-    }
-
-    if ($user && password_verify($password, $user['password'])) {
-        // 🔑 Role must match
-        if ($user['role'] !== $selectedRole) {
-            $error = "Invalid role selection. Please select the correct role.";
-        } else {
+    
+    // Check based on selected role
+    if ($selectedRole === 'admin') {
+        // Try to authenticate as admin using BankingDB.users table
+        $user = verifyAdminPassword($email, $password);
+        if ($user) {
             $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_name'] = $user['full_name'];
-            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_name'] = $user['full_name'] ?? $user['display_name'];
+            $_SESSION['user_role'] = 'admin';
+            $_SESSION['loan_officer_id'] = $user['loan_officer_id'] ?? ('LO-' . str_pad($user['id'], 4, '0', STR_PAD_LEFT));
+            $_SESSION['customer_id'] = null; // Admin doesn't have customer_id
             
-            if ($user['role'] === 'admin') {
-                $_SESSION['loan_officer_id'] = $user['loan_officer_id'];
-                header('Location: adminindex.php');
-                exit();
-            } else {
-                header('Location: index.php');
-                exit();
-            }
+            header('Location: adminindex.php');
+            exit();
+        } else {
+            $error = "Invalid admin credentials or insufficient permissions.";
         }
     } else {
-        $error = "Invalid email or password.";
+        // Try to authenticate as customer using BankingDB.bank_customers table
+        $user = verifyUserPassword($email, $password);
+        if ($user) {
+            // Get additional customer info (already in $user from verifyUserPassword)
+            if (isset($user['id'])) {
+                $_SESSION['customer_id'] = $user['id'];
+                $_SESSION['account_number'] = $user['account_number'] ?? null;
+                $_SESSION['contact_number'] = $user['contact_number'] ?? null;
+            }
+            
+            $_SESSION['user_email'] = $user['email'];
+            $_SESSION['user_name'] = $user['full_name'] ?? $user['display_name'];
+            $_SESSION['user_role'] = 'client';
+            
+            header('Location: index.php');
+            exit();
+        } else {
+            $error = "Invalid email or password.";
+        }
     }
 }
 ?>

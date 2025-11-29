@@ -43,14 +43,15 @@ function getUserByEmail($email) {
         return null;
     }
     
+    // Use bank_customers.email directly (simplified query since email is in bank_customers)
     $stmt = $conn->prepare("
         SELECT 
             bc.customer_id as id,
             bc.first_name,
             bc.middle_name,
             bc.last_name,
-            e.email,
-            p.phone_number as contact_number,
+            bc.email,
+            bc.contact_number,
             (SELECT ca.account_number 
              FROM customer_accounts ca 
              WHERE ca.customer_id = bc.customer_id 
@@ -59,9 +60,7 @@ function getUserByEmail($email) {
             TRIM(CONCAT(bc.first_name, ' ', IFNULL(bc.middle_name, ''), ' ', bc.last_name)) as full_name,
             CONCAT(bc.first_name, ' ', bc.last_name) as display_name
         FROM bank_customers bc
-        INNER JOIN emails e ON bc.customer_id = e.customer_id
-        LEFT JOIN phones p ON bc.customer_id = p.customer_id AND p.is_primary = 1
-        WHERE e.email = ?
+        WHERE bc.email = ?
         LIMIT 1
     ");
     

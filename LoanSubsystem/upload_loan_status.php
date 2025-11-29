@@ -11,12 +11,9 @@ if (!isset($_SESSION['user_email'])) {
 }
 
 // Database connection
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "loan_system";
+require_once __DIR__ . '/config/database.php';
+$conn = getDBConnection();
 
-$conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
     echo json_encode(['success' => false, 'error' => 'Database connection failed']);
     exit;
@@ -35,7 +32,7 @@ if ($loan_id <= 0) {
 }
 
 // Fetch loan details
-$stmt = $conn->prepare("SELECT full_name, loan_amount, loan_terms, monthly_payment FROM loan_applications WHERE id = ?");
+$stmt = $conn->prepare("SELECT id, loan_type_id, full_name, account_number, loan_amount, loan_terms, monthly_payment, user_email FROM loan_applications WHERE id = ?");
 if (!$stmt) {
     echo json_encode(['success' => false, 'error' => 'Database error']);
     exit;
@@ -82,8 +79,63 @@ switch ($action) {
         
         $remarks = "Dear $full_name,\n\nYour loan is now ACTIVE!\n\nPayment Details:\n- Monthly Payment: ₱$monthly_payment\n- First Payment Due: " . date('F j, Y', strtotime($next_payment)) . "\n- Final Payment: " . date('F j, Y', strtotime($final_due)) . "\n\nActivated by: $admin_name\nDate: $timestamp";
         
-        $stmt = $conn->prepare("UPDATE loan_applications SET status = 'Active', remarks = ?, next_payment_due = ?, due_date = ? WHERE id = ?");
-        $stmt->bind_param("sssi", $remarks, $next_payment, $final_due, $loan_id);
+        // Create loan record in `loans` table
+        $loan_no = 'LN-' . date('Ymd') . '-' . str_pad($loan_id, 4, '0', STR_PAD_LEFT);
+        $interest_rate = 0.20;
+        $term_months = (int)filter_var($term, FILTER_SANITIZE_NUMBER_INT);
+        $admin_email = $_SESSION['user_email'];
+        
+        // Get admin user ID
+        $admin_id = 1; // Default fallback
+        $u_stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        if ($u_stmt) {
+            $u_stmt->bind_param("s", $admin_email);
+            $u_stmt->execute();
+            $u_res = $u_stmt->get_result();
+            if ($u_row = $u_res->fetch_assoc()) {
+                $admin_id = $u_row['id'];
+            }
+            $u_stmt->close();
+        }
+
+        // Insert into loans
+        $ins_stmt = $conn->prepare("
+            INSERT INTO loans (
+                loan_no, loan_type_id, borrower_external_no, principal_amount, 
+                interest_rate, start_date, term_months, monthly_payment, 
+                current_balance, next_payment_due, status, application_id, created_by
+            ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, 'active', ?, ?)
+        ");
+        
+        if ($ins_stmt) {
+            $current_balance = $loan['loan_amount'] * (1 + $interest_rate); // Principal + Interest
+            $ins_stmt->bind_param(
+                "sisddiddsii", 
+                $loan_no, 
+                $loan['loan_type_id'], 
+                $loan['account_number'], 
+                $loan['loan_amount'], 
+                $interest_rate, 
+                $term_months, 
+                $loan['monthly_payment'], 
+                $current_balance, 
+                $next_payment, 
+                $loan_id, 
+                $admin_id
+            );
+            $ins_stmt->execute();
+            $new_loan_id = $ins_stmt->insert_id;
+            $ins_stmt->close();
+            
+            // Update loan_applications with loan_id
+            $stmt = $conn->prepare("UPDATE loan_applications SET status = 'Active', remarks = ?, next_payment_due = ?, due_date = ?, loan_id = ? WHERE id = ?");
+            $stmt->bind_param("sssii", $remarks, $next_payment, $final_due, $new_loan_id, $loan_id);
+        } else {
+             // Fallback if insert fails (should not happen)
+             $stmt = $conn->prepare("UPDATE loan_applications SET status = 'Active', remarks = ?, next_payment_due = ?, due_date = ? WHERE id = ?");
+             $stmt->bind_param("sssi", $remarks, $next_payment, $final_due, $loan_id);
+        }
+        
         $alert_message = "Loan activated successfully!";
         break;
 

@@ -1,27 +1,48 @@
 <?php
+// Include database configuration
+require_once __DIR__ . '/config/database.php';
+
 // Get user initials from session (only if logged in)
 $userInitials = 'U';
 $displayName = 'Guest';
 
 if (isset($_SESSION['user_email'])) {
-    // Find full name from mock data
-    $mockClients = [
-        ['full_name' => 'Kurt Realisan', 'email' => 'kurtrealisan@gmail.com'],
-        ['full_name' => 'Jiro Pinto', 'email' => 'jiropinto@gmail.com'],
-        ['full_name' => 'Angelo Gualva', 'email' => 'angelogualva@gmail.com'],
-        ['full_name' => 'Mike Beringuela', 'email' => 'mikeberinguela@gmail.com'],
-        ['full_name' => 'Jestony Malunes', 'email' => 'jestonymalunes@gmail.com'],
-        ['full_name' => 'Clarence Carpeso', 'email' => 'clarencecarpeso@gmail.com'],
-    ];
-
-    foreach ($mockClients as $client) {
-        if ($client['email'] === $_SESSION['user_email']) {
-            $displayName = $client['full_name'];
-            $nameParts = explode(' ', $client['full_name']);
-            $firstInitial = $nameParts[0][0] ?? '';
-            $lastInitial = end($nameParts)[0] ?? '';
-            $userInitials = strtoupper($firstInitial . $lastInitial);
-            break;
+    // Get user name from BankingDB
+    if (isset($_SESSION['user_name']) && $_SESSION['user_name'] !== 'Guest') {
+        $displayName = $_SESSION['user_name'];
+        $nameParts = explode(' ', $displayName);
+        $firstInitial = $nameParts[0][0] ?? '';
+        $lastInitial = end($nameParts)[0] ?? '';
+        $userInitials = strtoupper($firstInitial . $lastInitial);
+    } else {
+        // Fallback: Query database for user info
+        $conn = getDBConnection();
+        if ($conn) {
+            $email = $_SESSION['user_email'];
+            $sql = "SELECT 
+                        bc.first_name,
+                        bc.middle_name,
+                        bc.last_name
+                    FROM bank_customers bc
+                    WHERE bc.email = ?
+                    LIMIT 1";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($row = $result->fetch_assoc()) {
+                    $displayName = trim($row['first_name'] . ' ' . ($row['middle_name'] ?? '') . ' ' . $row['last_name']);
+                    $nameParts = explode(' ', $displayName);
+                    $firstInitial = $nameParts[0][0] ?? '';
+                    $lastInitial = end($nameParts)[0] ?? '';
+                    $userInitials = strtoupper($firstInitial . $lastInitial);
+                    
+                    // Update session
+                    $_SESSION['user_name'] = $displayName;
+                }
+                $stmt->close();
+            }
         }
     }
 }
@@ -62,6 +83,14 @@ nav {
     color: white;
     font-size: 1.2rem;
     font-weight: bold;
+}
+
+.logo a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    text-decoration: none;
 }
 
 .logo-icon {
@@ -275,26 +304,20 @@ nav {
 <!-- Dynamic Header -->
 <nav>
     <div class="logo">
-        <div class="logo-icon">
-            <img src="logo.png" alt="Evergreen Logo">
-        </div>
-        <span>EVERGREEN</span>
+        <a href="#home" style="display: flex; align-items: center; gap: 0.5rem; color: white; text-decoration: none;">
+            <div class="logo-icon">
+                <img src="logo.png" alt="Evergreen Logo">
+            </div>
+            <span>EVERGREEN</span>
+        </a>
     </div>
 
     <div class="nav-links">
         <a href="#home">Home</a>
-        
-        <div class="dropdown">
-            <button class="dropbtn" onclick="toggleDropdown()">Cards ▼</button>
-            <div class="dropdown-content" id="cardsDropdown">
-                <a href="#credit-cards">Credit Cards</a>
-                <a href="#debit-cards">Debit Cards</a>
-                <a href="#prepaid-cards">Prepaid Cards</a>
-            </div>
-        </div>
-        
-        <a href="index.php">Loans</a>
-        <a href="#about">About Us</a>
+        <a href="#loan-services">Loan Services</a>
+        <a href="#loan-dashboard">Dashboard</a>
+        <a href="../../bank-system/Basic-operation/operations/public/customer/profile">Profile</a>
+        <a href="../../bank-system/evergreen-marketing/viewingpage.php">Banking</a>
     </div>
 
     <div class="profile-actions">
@@ -313,21 +336,6 @@ nav {
 </nav>
 
 <script>
-function toggleDropdown() {
-    const dropdown = document.getElementById("cardsDropdown");
-    dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
-}
-
-// Close dropdown when clicking outside
-window.addEventListener("click", function(e) {
-    if (!e.target.matches('.dropbtn')) {
-        const dropdown = document.getElementById("cardsDropdown");
-        if (dropdown && dropdown.style.display === "block") {
-            dropdown.style.display = "none";
-        }
-    }
-}); 
-
 // Profile dropdown toggle
 function toggleProfileDropdown(e) {
     e.stopPropagation();

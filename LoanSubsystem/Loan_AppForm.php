@@ -1,96 +1,44 @@
-<!---Loan_AppForm.php--->
-
 <?php
 session_start();
+require_once __DIR__ . '/config/database.php';
 
-// Auto-login bridge: Check if user is logged in via marketing system
+// Check if user is logged in
 if (!isset($_SESSION['user_email'])) {
-    // Check for marketing session variables (from evergreen-marketing)
-    if (isset($_SESSION['user_id']) && isset($_SESSION['email'])) {
-        $_SESSION['user_email'] = $_SESSION['email'];
-        $_SESSION['user_name'] = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . ($_SESSION['last_name'] ?? ''));
-        $_SESSION['user_role'] = 'client';
-    } else {
-        header('Location: login.php');
-        exit();
-    }
-}
-
-// Get user data from bank_customers database
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "BankingDB";
-$bankingConn = new mysqli($host, $user, $pass, $db);
-
-$currentUser = null;
-if (!$bankingConn->connect_error) {
-    $email = $_SESSION['user_email'];
-    $sql = "SELECT 
-                bc.customer_id,
-                bc.first_name,
-                bc.middle_name,
-                bc.last_name,
-                bc.email,
-                bc.contact_number,
-                TRIM(CONCAT(bc.first_name, ' ', IFNULL(bc.middle_name, ''), ' ', bc.last_name)) as full_name,
-                (SELECT ca.account_number 
-                 FROM customer_accounts ca 
-                 WHERE ca.customer_id = bc.customer_id 
-                 LIMIT 1) as account_number
-            FROM bank_customers bc
-            WHERE bc.email = ?
-            LIMIT 1";
-    $stmt = $bankingConn->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($row = $result->fetch_assoc()) {
-            $currentUser = [
-                'full_name' => $row['full_name'],
-                'email' => $row['email'],
-                'account_number' => $row['account_number'] ?? 'N/A',
-                'contact_number' => $row['contact_number'] ?? 'N/A',
-                'job' => 'Not Specified', // Can be updated later if stored in database
-                'monthly_salary' => 0 // Can be updated later if stored in database
-            ];
-        }
-        $stmt->close();
-    }
-    $bankingConn->close();
-}
-
-// If user not found in database, redirect to login
-if (!$currentUser) {
-    header('Location: login.php?error=invalid');
+    header("Location: ../login.php");
     exit();
 }
 
-// 🔌 Connect to DB to fetch loan types from `loan_types` table
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "loan_system";
-$conn = new mysqli($host, $user, $pass, $db);
+$conn = getDBConnection();
+$user_email = $_SESSION['user_email'];
 
-if ($conn->connect_error) {
-    die("Database connection failed: " . $conn->connect_error);
+// Fetch user details
+$stmt = $conn->prepare("SELECT full_name, account_number, contact_number, email FROM bank_customers WHERE email = ?");
+$stmt->bind_param("s", $user_email);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentUser = $result->fetch_assoc();
+
+if (!$currentUser) {
+    // Fallback or error handling
+    $currentUser = [
+        'full_name' => '',
+        'account_number' => '',
+        'contact_number' => '',
+        'email' => $user_email
+    ];
 }
+$stmt->close();
 
-// ✅ Fetch loan types from `loan_types` table
-$result = $conn->query("SELECT id, name FROM loan_types ORDER BY name");
+// Fetch loan types
 $loanTypes = [];
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
+$lt_result = $conn->query("SELECT id, name FROM loan_types WHERE is_active = 1");
+if ($lt_result) {
+    while ($row = $lt_result->fetch_assoc()) {
         $loanTypes[] = $row;
     }
-} else {
-    die("No loan types available. Please contact admin.");
 }
 $conn->close();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
