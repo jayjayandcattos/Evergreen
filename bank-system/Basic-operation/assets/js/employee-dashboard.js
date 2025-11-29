@@ -10,9 +10,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Set current date/time
   updateDateTime();
 
-  // Load dashboard stats (placeholder for future implementation)
-  loadDashboardStats();
-
   // Set username from session/localStorage
   loadUserInfo();
 });
@@ -35,27 +32,6 @@ function updateDateTime() {
 }
 
 /**
- * Load dashboard statistics
- * TODO: Connect to actual API endpoints
- */
-function loadDashboardStats() {
-  // Placeholder - will be replaced with actual API calls
-  const stats = {
-    activeCustomers: "--",
-    todayTransactions: "--",
-    pendingApprovals: "--",
-  };
-
-  // Update stat displays
-  const statValues = document.querySelectorAll(".stat-value");
-  if (statValues.length >= 3) {
-    statValues[0].textContent = stats.activeCustomers;
-    statValues[1].textContent = stats.todayTransactions;
-    statValues[2].textContent = stats.pendingApprovals;
-  }
-}
-
-/**
  * Load user information
  */
 function loadUserInfo() {
@@ -69,13 +45,6 @@ function loadUserInfo() {
   usernameElements.forEach((el) => {
     el.textContent = username;
   });
-}
-
-/**
- * Navigate to transaction page with specific type
- */
-function navigateToTransaction(type) {
-  window.location.href = `employee-transaction.html?type=${type}`;
 }
 
 /**

@@ -415,6 +415,45 @@ body {
   }
 }
 
+/* Footer Styles */
+.footer-spacer {
+  height: 50px;
+}
+
+.footer {
+  background-color: var(--primary-green);
+  color: var(--primary-white);
+  padding: 20px 0;
+  margin-top: auto;
+}
+
+.footer-text {
+  font-size: 0.9rem;
+  color: var(--primary-white);
+}
+
+.footer-small {
+  font-size: 0.75rem;
+  color: rgba(250, 247, 247, 0.8);
+  margin-top: 5px;
+}
+
+.footer-link {
+  color: var(--primary-white);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+  color: var(--primary-gold);
+}
+
+.footer-divider {
+  color: rgba(250, 247, 247, 0.5);
+  margin: 0 8px;
+}
+
 @media (max-width: 576px) {
   .dashboard-container {
     padding: 20px 15px;
