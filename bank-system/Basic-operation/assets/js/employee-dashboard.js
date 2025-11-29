@@ -4,14 +4,22 @@
  */
 
 document.addEventListener("DOMContentLoaded", async function () {
-  // Check authentication first
-  await initAuthentication();
+  // Check authentication and update employee display
+  const employee = await checkAuthentication();
+  if (employee) {
+    updateEmployeeDisplay(employee);
+
+    // Update dashboard welcome message
+    const dashboardNameElement = document.getElementById(
+      "dashboardEmployeeName"
+    );
+    if (dashboardNameElement) {
+      dashboardNameElement.textContent = employee.name || "Employee";
+    }
+  }
 
   // Set current date/time
   updateDateTime();
-
-  // Set username from session/localStorage
-  loadUserInfo();
 });
 
 /**
@@ -29,22 +37,6 @@ function updateDateTime() {
   const timeStr = now.toLocaleTimeString("en-US");
 
   console.log(`Dashboard loaded at: ${dateStr} ${timeStr}`);
-}
-
-/**
- * Load user information
- */
-function loadUserInfo() {
-  // Get username from session storage or localStorage
-  const username =
-    sessionStorage.getItem("employee_username") ||
-    localStorage.getItem("employee_username") ||
-    "Employee";
-
-  const usernameElements = document.querySelectorAll(".username-text");
-  usernameElements.forEach((el) => {
-    el.textContent = username;
-  });
 }
 
 /**

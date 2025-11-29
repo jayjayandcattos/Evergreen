@@ -13,6 +13,28 @@
       href="../assets/css/customer-onboarding-details.css"
     />
     <style>
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -20px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+        to {
+          opacity: 0;
+          transform: translate(-50%, -20px);
+        }
+      }
+
       .error-message {
         color: #dc3545;
         font-size: 12px;
@@ -987,6 +1009,46 @@
           .getElementById("accountCreationForm")
           .addEventListener("submit", handleFormSubmit);
 
+        // Real-time duplicate name checking
+        const firstNameInput = document.querySelector('[name="first_name"]');
+        const lastNameInput = document.querySelector('[name="last_name"]');
+
+        if (firstNameInput) {
+          firstNameInput.addEventListener("blur", checkDuplicateName);
+          firstNameInput.addEventListener("input", () => {
+            // Clear error when user starts typing
+            if (window.duplicateNameExists) {
+              firstNameInput.classList.remove("error");
+              lastNameInput.classList.remove("error");
+              hideError(lastNameInput);
+              hideDuplicateNameBanner();
+              window.duplicateNameExists = false;
+            }
+          });
+          // Also check on input after debounce
+          firstNameInput.addEventListener("input", () => {
+            setTimeout(checkDuplicateName, 600);
+          });
+        }
+
+        if (lastNameInput) {
+          lastNameInput.addEventListener("blur", checkDuplicateName);
+          lastNameInput.addEventListener("input", () => {
+            // Clear error when user starts typing
+            if (window.duplicateNameExists) {
+              firstNameInput.classList.remove("error");
+              lastNameInput.classList.remove("error");
+              hideError(lastNameInput);
+              hideDuplicateNameBanner();
+              window.duplicateNameExists = false;
+            }
+          });
+          // Also check on input after debounce
+          lastNameInput.addEventListener("input", () => {
+            setTimeout(checkDuplicateName, 600);
+          });
+        }
+
         // Real-time duplicate checking
         document.addEventListener(
           "blur",
@@ -1079,12 +1141,204 @@
         }
       }
 
+      // Check for duplicate customer name (first name + last name combination)
+      let duplicateNameCheckTimeout = null;
+      async function checkDuplicateName() {
+        const firstNameInput = document.querySelector('[name="first_name"]');
+        const lastNameInput = document.querySelector('[name="last_name"]');
+
+        const firstName = firstNameInput?.value.trim();
+        const lastName = lastNameInput?.value.trim();
+
+        // Only check if both fields have values
+        if (!firstName || !lastName) {
+          window.duplicateNameExists = false;
+          return;
+        }
+
+        // Clear any existing timeout to debounce the check
+        if (duplicateNameCheckTimeout) {
+          clearTimeout(duplicateNameCheckTimeout);
+        }
+
+        // Debounce: wait 500ms after user stops typing
+        duplicateNameCheckTimeout = setTimeout(async () => {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/customer/check-duplicate-name.php`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  first_name: firstName,
+                  last_name: lastName,
+                }),
+              }
+            );
+
+            const result = await response.json();
+
+            if (result.exists) {
+              // Show error on both fields with strong visual feedback
+              firstNameInput.classList.add("error");
+              lastNameInput.classList.add("error");
+
+              // Show error message below last name field
+              showError(
+                lastNameInput,
+                result.message || "A customer with this name already exists"
+              );
+
+              // Show prominent banner at top
+              showDuplicateNameBanner(firstName, lastName);
+
+              // Set a flag to prevent form submission
+              window.duplicateNameExists = true;
+            } else {
+              // Clear errors if name combination is unique
+              firstNameInput.classList.remove("error");
+              lastNameInput.classList.remove("error");
+              hideError(lastNameInput);
+              hideDuplicateNameBanner();
+
+              // Clear the flag
+              window.duplicateNameExists = false;
+            }
+          } catch (error) {
+            console.error("Error checking duplicate name:", error);
+            window.duplicateNameExists = false;
+          }
+        }, 500);
+      }
+
+      // Show prominent duplicate name banner
+      function showDuplicateNameBanner(firstName, lastName) {
+        // Remove existing banner if any
+        hideDuplicateNameBanner();
+
+        const banner = document.createElement("div");
+        banner.id = "duplicate-name-banner";
+        banner.style.cssText = `
+          position: fixed;
+          top: 70px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+          color: white;
+          padding: 18px 35px;
+          border-radius: 10px;
+          box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+          z-index: 9999;
+          max-width: 650px;
+          text-align: center;
+          font-weight: 600;
+          font-size: 15px;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          animation: bounceIn 0.5s ease-out;
+        `;
+
+        banner.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>Cannot proceed: Customer with name "${firstName} ${lastName}" already exists</span>
+          </div>
+        `;
+
+        document.body.appendChild(banner);
+
+        // Add bounce animation
+        const style = document.createElement("style");
+        style.textContent = `
+          @keyframes bounceIn {
+            0% { transform: translateX(-50%) scale(0.3); opacity: 0; }
+            50% { transform: translateX(-50%) scale(1.05); }
+            70% { transform: translateX(-50%) scale(0.9); }
+            100% { transform: translateX(-50%) scale(1); opacity: 1; }
+          }
+        `;
+        if (!document.getElementById("duplicate-banner-animation")) {
+          style.id = "duplicate-banner-animation";
+          document.head.appendChild(style);
+        }
+      }
+
+      // Hide duplicate name banner
+      function hideDuplicateNameBanner() {
+        const banner = document.getElementById("duplicate-name-banner");
+        if (banner) {
+          banner.style.animation = "fadeOut 0.3s ease-out";
+          setTimeout(() => banner.remove(), 300);
+        }
+      }
+
       // Handle form submission
       async function handleFormSubmit(e) {
         e.preventDefault();
 
         // Clear previous errors
         clearAllErrors();
+
+        // CRITICAL: Check for duplicate name before submitting
+        // Re-verify to ensure no bypass
+        const firstNameInput = document.querySelector('[name="first_name"]');
+        const lastNameInput = document.querySelector('[name="last_name"]');
+        const firstName = firstNameInput?.value.trim();
+        const lastName = lastNameInput?.value.trim();
+
+        if (firstName && lastName) {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/customer/check-duplicate-name.php`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  first_name: firstName,
+                  last_name: lastName,
+                }),
+              }
+            );
+
+            const result = await response.json();
+
+            if (result.exists) {
+              // Block submission - show error
+              firstNameInput.classList.add("error");
+              lastNameInput.classList.add("error");
+              showError(
+                lastNameInput,
+                result.message || "A customer with this name already exists"
+              );
+              showDuplicateNameBanner(firstName, lastName);
+              window.duplicateNameExists = true;
+
+              // Scroll to the error
+              firstNameInput.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+              return; // STOP SUBMISSION
+            }
+          } catch (error) {
+            console.error("Error checking duplicate name:", error);
+          }
+        }
+
+        // Secondary check using flag
+        if (window.duplicateNameExists === true) {
+          showTopErrorMessage(
+            "Cannot proceed: A customer with this name already exists."
+          );
+          firstNameInput?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          return; // STOP SUBMISSION
+        }
 
         // Collect form data
         const formData = collectFormData();
@@ -1099,13 +1353,7 @@
             }
           );
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Server error:", errorText);
-            alert("Server error. Please try again.");
-            return;
-          }
-
+          // Parse JSON response regardless of status code
           const result = await response.json();
 
           if (result.success) {
@@ -1116,9 +1364,16 @@
             // Redirect to step 2
             window.location.href = "customer-onboarding-security.html";
           } else {
-            // Show validation errors
-            if (result.errors) {
+            // Show validation errors (handles 422 and other validation errors)
+            if (result.errors && Object.keys(result.errors).length > 0) {
               displayErrors(result.errors);
+              // Also show a summary message
+              const errorCount = Object.keys(result.errors).length;
+              const errorMsg =
+                errorCount === 1
+                  ? "Please correct the error highlighted below."
+                  : `Please correct the ${errorCount} errors highlighted below.`;
+              showTopErrorMessage(errorMsg);
             } else {
               alert(result.message || "An error occurred");
             }
@@ -1177,21 +1432,57 @@
         }
 
         return data;
-      } // Display validation errors
+      }
+
+      // Display validation errors
       function displayErrors(errors) {
         for (let [field, message] of Object.entries(errors)) {
-          const input = document.querySelector(`[name="${field}"]`);
-          if (input) {
-            input.classList.add("error");
-            showError(input, message);
+          // Handle array field errors (email_0, phone_0, etc.)
+          const match = field.match(/^(\w+)_(\d+)$/);
+          if (match) {
+            const fieldType = match[1]; // e.g., 'email' or 'phone'
+            const index = parseInt(match[2]); // e.g., 0, 1, 2
+
+            // Find the specific input field
+            const inputs = document.querySelectorAll(
+              `[name="${fieldType}s[]"]`
+            );
+            if (inputs[index]) {
+              inputs[index].classList.add("error");
+              showError(inputs[index], message);
+            } else {
+              // Fallback: show alert if can't find the field
+              alert(
+                `${
+                  fieldType.charAt(0).toUpperCase() + fieldType.slice(1)
+                }: ${message}`
+              );
+            }
           } else {
-            // Handle array field errors (email_0, phone_0, etc.)
-            const errorElement = document.getElementById(`error-${field}`);
-            if (errorElement) {
-              errorElement.textContent = message;
-              errorElement.classList.add("show");
+            // Handle regular field errors
+            const input = document.querySelector(`[name="${field}"]`);
+            if (input) {
+              input.classList.add("error");
+              showError(input, message);
+            } else {
+              // Check for element with error-{field} id
+              const errorElement = document.getElementById(`error-${field}`);
+              if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.add("show");
+              } else {
+                // Show as alert if no matching element found
+                alert(message);
+              }
             }
           }
+        }
+
+        // Scroll to first error
+        const firstError = document.querySelector(".error");
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          firstError.focus();
         }
       }
 
@@ -1206,6 +1497,42 @@
           wrapper.appendChild(errorDiv);
         }
         errorDiv.textContent = message;
+      }
+
+      // Show top error message banner
+      function showTopErrorMessage(message) {
+        // Check if error banner already exists
+        let errorBanner = document.getElementById("top-error-banner");
+        if (!errorBanner) {
+          errorBanner = document.createElement("div");
+          errorBanner.id = "top-error-banner";
+          errorBanner.style.cssText = `
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 53, 69, 0.95);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            max-width: 600px;
+            text-align: center;
+            font-weight: 500;
+            animation: slideDown 0.3s ease-out;
+          `;
+          document.body.appendChild(errorBanner);
+        }
+        errorBanner.textContent = message;
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          if (errorBanner && errorBanner.parentNode) {
+            errorBanner.style.animation = "slideUp 0.3s ease-out";
+            setTimeout(() => errorBanner.remove(), 300);
+          }
+        }, 5000);
       }
 
       // Hide error message

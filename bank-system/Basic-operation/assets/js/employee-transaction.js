@@ -27,6 +27,18 @@ const API_BASE_URL = getApiBaseUrl();
 let currentTransactionType = "withdraw";
 let accountData = null;
 
+// Initialize page
+document.addEventListener("DOMContentLoaded", async function () {
+  // Check authentication and update employee display
+  const employee = await checkAuthentication();
+  if (employee) {
+    updateEmployeeDisplay(employee);
+  }
+
+  // Initialize the page
+  setCurrentDateTime();
+});
+
 // Set current date and time
 function setCurrentDateTime() {
   const now = new Date();

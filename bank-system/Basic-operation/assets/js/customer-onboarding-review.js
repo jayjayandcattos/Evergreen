@@ -354,10 +354,26 @@ function formatDate(dateString) {
 function formatPhoneNumber(phoneNumber) {
   if (!phoneNumber) return "Not provided";
 
+  // Convert to string if it's not already (handle objects/arrays)
+  let phoneStr = phoneNumber;
+  if (typeof phoneNumber === "object") {
+    // If it's an object with a phone property, use that
+    if (phoneNumber.phone) {
+      phoneStr = phoneNumber.phone;
+    } else if (phoneNumber.number) {
+      phoneStr = phoneNumber.number;
+    } else {
+      // Convert object to string as fallback
+      phoneStr = JSON.stringify(phoneNumber);
+    }
+  } else if (typeof phoneNumber !== "string") {
+    phoneStr = String(phoneNumber);
+  }
+
   // If it starts with +, format it nicely
-  if (phoneNumber.startsWith("+")) {
+  if (phoneStr.startsWith("+")) {
     // Format as +XX XXX XXX XXXX
-    const cleaned = phoneNumber.replace(/\D/g, "");
+    const cleaned = phoneStr.replace(/\D/g, "");
     if (cleaned.length >= 10) {
       return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(
         5,
@@ -366,7 +382,7 @@ function formatPhoneNumber(phoneNumber) {
     }
   }
 
-  return phoneNumber;
+  return phoneStr;
 }
 
 /**
@@ -1226,6 +1242,17 @@ async function submitApplication() {
       credentials: "include",
     });
 
+    // Check if response is ok and content-type is JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // Response is not JSON, likely a PHP error
+      const text = await response.text();
+      console.error("Non-JSON response from server:", text);
+      throw new Error(
+        "Server returned an error. Please check if XAMPP is running and the database is accessible."
+      );
+    }
+
     const result = await response.json();
 
     if (result.success) {
@@ -1281,14 +1308,14 @@ function showSuccessModal(accountNumber) {
 }
 
 /**
- * Go to login page
+ * Go to employee dashboard (after successful account creation)
  */
 function goToLogin() {
   // Clear session storage
   sessionStorage.clear();
 
-  // Redirect to login (update this URL as needed)
-  window.location.href = "../index.html";
+  // Redirect to employee dashboard
+  window.location.href = "employee-dashboard.html";
 }
 
 /**
