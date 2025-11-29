@@ -257,14 +257,27 @@ function getAccounts() {
             $hasTransactionsTable = true;
         }
         
-        // Build balance calculation
+        // Build balance calculation using transaction-type-based logic
+        // All amounts are stored as positive; transaction type determines if credit or debit
         if ($hasTransactionsTable) {
             $balanceCalc = "(SELECT COALESCE(
-                                SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - 
-                                SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END), 
-                                0
+                                SUM(
+                                    CASE tt.type_name
+                                        WHEN 'Deposit' THEN bt.amount
+                                        WHEN 'Transfer In' THEN bt.amount
+                                        WHEN 'Interest Payment' THEN bt.amount
+                                        WHEN 'Loan Disbursement' THEN bt.amount
+                                        -- Debits (subtract from balance)
+                                        WHEN 'Withdrawal' THEN -bt.amount
+                                        WHEN 'Transfer Out' THEN -bt.amount
+                                        WHEN 'Service Charge' THEN -bt.amount
+                                        WHEN 'Loan Payment' THEN -bt.amount
+                                        ELSE 0
+                                    END
+                                ), 0
                             )
-                            FROM bank_transactions bt 
+                            FROM bank_transactions bt
+                            INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
                             WHERE bt.account_id = ca.account_id)";
         } else {
             // Try balance column in accounts table, or default to 0
@@ -1608,13 +1621,28 @@ function getAccountTransactions() {
         }
         
         // Get bank customer account info using ONLY bank-system tables
+        // Use transaction-type-based balance calculation (same as Basic Operation)
         $sql = "SELECT 
                     ca.account_number,
                     CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) as account_name,
                     COALESCE(bat.type_name, 'Unknown') as account_type,
                     COALESCE(
-                        (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
-                         FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
+                        (SELECT SUM(
+                            CASE tt.type_name
+                                WHEN 'Deposit' THEN bt.amount
+                                WHEN 'Transfer In' THEN bt.amount
+                                WHEN 'Interest Payment' THEN bt.amount
+                                WHEN 'Loan Disbursement' THEN bt.amount
+                                WHEN 'Withdrawal' THEN -bt.amount
+                                WHEN 'Transfer Out' THEN -bt.amount
+                                WHEN 'Service Charge' THEN -bt.amount
+                                WHEN 'Loan Payment' THEN -bt.amount
+                                ELSE 0
+                            END
+                        )
+                         FROM bank_transactions bt
+                         INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                         WHERE bt.account_id = ca.account_id), 
                         0
                     ) as available_balance
                 FROM customer_accounts ca
