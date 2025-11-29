@@ -2283,7 +2283,7 @@
           // Gather data
           const provinceSelect = document.getElementById('state');
           const provinceValue = provinceSelect.value;
-          const provinceName = provinceValue === 'NO_PROVINCE' ? 'N/A' : provinceSelect.options[provinceSelect.selectedIndex].text;
+          const provinceName = provinceValue === 'METRO_MANILA' ? 'Metro Manila' : provinceSelect.options[provinceSelect.selectedIndex].text;
           
           let injector = {
             firstName: document.getElementById('f-name').value,
@@ -2349,7 +2349,7 @@
         ...infoData[0],
         // Include location codes for precise database storage
         regionCode: document.getElementById('region').value,
-        provinceCode: provinceCodeValue === 'NO_PROVINCE' ? null : provinceCodeValue,
+        provinceCode: provinceCodeValue === 'METRO_MANILA' ? 'NCR' : provinceCodeValue,
         cityCode: document.getElementById('city').value,
         barangayCode: document.getElementById('barangay').value,
         selectedCards: getSelectedCards(),
@@ -2602,8 +2602,8 @@
             } else {
               // Region has NO provinces (like NCR) - load cities directly from region
               regionHasNoProvinces = true;
-              provinceSelect.innerHTML = '<option value="NO_PROVINCE">N/A (No Province)</option>';
-              provinceSelect.value = 'NO_PROVINCE';
+              provinceSelect.innerHTML = '<option value="METRO_MANILA" data-name="Metro Manila">Metro Manila</option>';
+              provinceSelect.value = 'METRO_MANILA';
               
               // Automatically load cities from region
               loadCitiesFromRegion(regionCode);
@@ -2666,8 +2666,8 @@
       const barangaySelect = document.getElementById('barangay');
       const zipCodeInput = document.getElementById('zip-code');
       
-      // If this is a region without provinces, cities are already loaded
-      if (provinceCode === 'NO_PROVINCE') {
+      // If this is a region without provinces (NCR/Metro Manila), cities are already loaded
+      if (provinceCode === 'METRO_MANILA') {
         return;
       }
       
