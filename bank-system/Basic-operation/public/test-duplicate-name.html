@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Duplicate Name Check</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      input.error {
+        border-color: #dc3545;
+      }
+      .error-message {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .result.success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .result.error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Test Duplicate Name Check</h1>
+    <p>
+      Enter a first name and last name to test the duplicate checking
+      functionality.
+    </p>
+
+    <div class="form-group">
+      <label>First Name</label>
+      <input type="text" id="first_name" placeholder="Juan" />
+      <div class="error-message" id="error-first_name"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Last Name</label>
+      <input type="text" id="last_name" placeholder="Dela Cruz" />
+      <div class="error-message" id="error-last_name"></div>
+    </div>
+
+    <button onclick="testDuplicateCheck()">Check for Duplicate</button>
+
+    <div id="result"></div>
+
+    <script>
+      const API_BASE_URL = "/Evergreen/bank-system/Basic-operation/api";
+
+      async function testDuplicateCheck() {
+        const firstName = document.getElementById("first_name").value.trim();
+        const lastName = document.getElementById("last_name").value.trim();
+        const resultDiv = document.getElementById("result");
+        const firstNameInput = document.getElementById("first_name");
+        const lastNameInput = document.getElementById("last_name");
+        const errorFirstName = document.getElementById("error-first_name");
+        const errorLastName = document.getElementById("error-last_name");
+
+        // Clear previous results
+        resultDiv.innerHTML = "";
+        firstNameInput.classList.remove("error");
+        lastNameInput.classList.remove("error");
+        errorFirstName.textContent = "";
+        errorLastName.textContent = "";
+
+        if (!firstName || !lastName) {
+          resultDiv.className = "result error";
+          resultDiv.textContent = "Please enter both first name and last name";
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/customer/check-duplicate-name.php`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                first_name: firstName,
+                last_name: lastName,
+              }),
+            }
+          );
+
+          const result = await response.json();
+
+          if (result.exists) {
+            // Show error
+            firstNameInput.classList.add("error");
+            lastNameInput.classList.add("error");
+            errorLastName.textContent = result.message;
+
+            resultDiv.className = "result error";
+            resultDiv.innerHTML = `
+                        <strong>Duplicate Found!</strong><br>
+                        ${result.message}<br>
+                        Customer ID: ${result.customer.id}<br>
+                        Name: ${result.customer.name}
+                    `;
+          } else {
+            resultDiv.className = "result success";
+            resultDiv.innerHTML = `
+                        <strong>✓ Name is available</strong><br>
+                        No customer with the name "${firstName} ${lastName}" exists in the database.
+                    `;
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          resultDiv.className = "result error";
+          resultDiv.textContent = "Error checking duplicate: " + error.message;
+        }
+      }
+
+      // Also test on blur
+      document
+        .getElementById("first_name")
+        .addEventListener("blur", testOnBlur);
+      document.getElementById("last_name").addEventListener("blur", testOnBlur);
+
+      async function testOnBlur() {
+        const firstName = document.getElementById("first_name").value.trim();
+        const lastName = document.getElementById("last_name").value.trim();
+
+        if (firstName && lastName) {
+          await testDuplicateCheck();
+        }
+      }
+    </script>
+  </body>
+</html>

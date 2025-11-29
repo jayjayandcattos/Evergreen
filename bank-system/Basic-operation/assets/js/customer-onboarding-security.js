@@ -7,27 +7,27 @@
 function getApiBaseUrl() {
   // Get the current page path
   const currentPath = window.location.pathname;
-  
+
   // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Fallback: construct from known structure
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
-console.log('API Base URL:', API_BASE_URL);
+console.log("API Base URL:", API_BASE_URL);
 
 // State management
 let isCodeSent = false;
@@ -37,11 +37,13 @@ let resendTimer = null;
 let verificationTimer = null;
 let countryCodes = [];
 let verificationSessionId = null; // Store session ID from send-code response
+let currentMfaMethod = "phone"; // Track current MFA method
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", function () {
   loadCountryCodes();
   setupFormHandlers();
+  setupMfaMethodHandlers();
   checkSessionData();
 });
 
@@ -65,7 +67,7 @@ async function loadCountryCodes() {
   try {
     const apiUrl = `${API_BASE_URL}/common/get-country-codes.php`;
     console.log("Loading country codes from:", apiUrl);
-    
+
     const response = await fetch(apiUrl);
 
     console.log("Country codes response status:", response.status);
@@ -139,17 +141,17 @@ async function loadCountryCodes() {
 function populateCountryCodeDropdown() {
   const select = document.querySelector(".phone-country-code");
   console.log("Populating country code dropdown, found select:", !!select);
-  
+
   if (!select) {
     console.error("Country code select element not found!");
     return;
   }
-  
+
   if (countryCodes.length === 0) {
     console.error("No country codes available to populate!");
     return;
   }
-  
+
   const options = countryCodes
     .map(
       (cc) =>
@@ -160,10 +162,10 @@ function populateCountryCodeDropdown() {
     </option>`
     )
     .join("");
-  
+
   select.innerHTML = options;
   console.log("Populated dropdown with", countryCodes.length, "options");
-  
+
   // Verify dropdown is populated
   if (select.options.length === 0) {
     console.error("Dropdown is still empty after population!");
@@ -173,18 +175,93 @@ function populateCountryCodeDropdown() {
 }
 
 /**
+ * Setup MFA method selection handlers
+ */
+function setupMfaMethodHandlers() {
+  const mfaRadios = document.querySelectorAll('input[name="mfa_method"]');
+  const phoneMfaSection = document.getElementById("phoneMfaSection");
+  const emailMfaSection = document.getElementById("emailMfaSection");
+
+  mfaRadios.forEach((radio) => {
+    radio.addEventListener("change", function () {
+      currentMfaMethod = this.value;
+
+      // Reset verification state when switching methods
+      resetVerificationState();
+
+      // Toggle sections
+      if (this.value === "phone") {
+        phoneMfaSection.style.display = "block";
+        emailMfaSection.style.display = "none";
+        // Clear email input
+        const emailInput = document.getElementById("email_verification");
+        if (emailInput) emailInput.value = "";
+      } else {
+        phoneMfaSection.style.display = "none";
+        emailMfaSection.style.display = "block";
+        // Clear phone inputs
+        const mobileInput = document.querySelector(
+          'input[name="mobile_number"]'
+        );
+        if (mobileInput) mobileInput.value = "";
+      }
+
+      console.log("MFA method switched to:", this.value);
+    });
+  });
+}
+
+/**
+ * Reset verification state
+ */
+function resetVerificationState() {
+  isCodeSent = false;
+  isCodeVerified = false;
+  canResend = true;
+
+  // Clear timers
+  if (resendTimer) clearInterval(resendTimer);
+  if (verificationTimer) clearTimeout(verificationTimer);
+
+  // Disable code inputs
+  const codeInputs = document.querySelectorAll(".code-box");
+  codeInputs.forEach((input) => {
+    input.disabled = true;
+    input.value = "";
+  });
+
+  // Hide displays
+  const mockCodeDisplay = document.getElementById("mockCodeDisplay");
+  const bankIdDisplay = document.getElementById("bankIdDisplay");
+  if (mockCodeDisplay) mockCodeDisplay.style.display = "none";
+  if (bankIdDisplay) bankIdDisplay.style.display = "none";
+
+  // Reset button text
+  const sendPhoneBtn = document.getElementById("sendPhoneCode");
+  const sendEmailBtn = document.getElementById("sendEmailCode");
+  if (sendPhoneBtn) sendPhoneBtn.textContent = "Send Code";
+  if (sendEmailBtn) sendEmailBtn.textContent = "Send Code";
+}
+
+/**
  * Setup all form handlers
  */
 function setupFormHandlers() {
   const form = document.getElementById("securityForm");
-  const sendCodeBtn = document.querySelector(".btn-send-code");
+  const sendPhoneCodeBtn = document.getElementById("sendPhoneCode");
+  const sendEmailCodeBtn = document.getElementById("sendEmailCode");
   const resendLink = document.querySelector(".resend-link");
   const backBtn = document.querySelector(".btn-back");
   const codeInputs = document.querySelectorAll(".code-box");
 
-  // Send code button
-  if (sendCodeBtn) {
-    sendCodeBtn.addEventListener("click", handleSendCode);
+  // Send phone code button
+  if (sendPhoneCodeBtn) {
+    sendPhoneCodeBtn.addEventListener("click", () => handleSendCode("phone"));
+  }
+
+  // Send email code button
+  if (sendEmailCodeBtn) {
+    sendEmailCodeBtn.addEventListener("click", () => handleSendCode("email"));
   }
 
   // Resend code link
@@ -192,7 +269,7 @@ function setupFormHandlers() {
     resendLink.addEventListener("click", function (e) {
       e.preventDefault();
       if (canResend) {
-        handleSendCode();
+        handleSendCode(currentMfaMethod);
       }
     });
   }
@@ -243,10 +320,23 @@ function setupFormHandlers() {
 /**
  * Handle send verification code
  */
-async function handleSendCode() {
+async function handleSendCode(method = "phone") {
+  currentMfaMethod = method;
+
+  if (method === "phone") {
+    await handleSendPhoneCode();
+  } else {
+    await handleSendEmailCode();
+  }
+}
+
+/**
+ * Handle send phone verification code
+ */
+async function handleSendPhoneCode() {
   const mobileInput = document.querySelector('input[name="mobile_number"]');
   const countryCodeSelect = document.querySelector(".phone-country-code");
-  const sendCodeBtn = document.querySelector(".btn-send-code");
+  const sendCodeBtn = document.getElementById("sendPhoneCode");
 
   if (!mobileInput || !mobileInput.value) {
     showError(mobileInput, "Please enter your mobile number");
@@ -320,13 +410,11 @@ async function handleSendCode() {
       // Start resend timer
       startResendTimer(30);
 
-      // Always show bank_id if available (for login purposes)
+      // Store bank_id in session (will be shown in Step 3)
       if (result.bank_id) {
         console.log("Bank ID generated:", result.bank_id);
-        // Show bank_id display even if not in dev mode
-        showBankIdDisplay(result.bank_id);
       }
-      
+
       // For development/testing: show code in mock display
       if (result.dev_code) {
         console.log("DEV MODE - Verification code:", result.dev_code);
@@ -346,17 +434,121 @@ async function handleSendCode() {
 }
 
 /**
+ * Handle send email verification code
+ */
+async function handleSendEmailCode() {
+  const emailInput = document.getElementById("email_verification");
+  const sendCodeBtn = document.getElementById("sendEmailCode");
+
+  if (!emailInput || !emailInput.value) {
+    showError(emailInput, "Please enter your email address");
+    return;
+  }
+
+  const email = emailInput.value.trim();
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showError(emailInput, "Please enter a valid email address");
+    return;
+  }
+
+  // Disable button
+  sendCodeBtn.disabled = true;
+  sendCodeBtn.textContent = "Sending...";
+
+  try {
+    console.log("Sending verification code to email:", email);
+
+    const response = await fetch(
+      `${API_BASE_URL}/customer/send-email-verification.php`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Server error response:", errorText);
+      throw new Error(`Server returned ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("Server response:", result);
+
+    if (result.success) {
+      isCodeSent = true;
+      sendCodeBtn.textContent = "Code Sent";
+      sendCodeBtn.classList.add("btn-success");
+
+      // Store session ID for verification
+      if (result.session_id) {
+        verificationSessionId = result.session_id;
+        console.log("Stored session ID:", verificationSessionId);
+      }
+
+      // Show success message
+      showSuccess(
+        emailInput,
+        "Verification code sent! Check your email inbox."
+      );
+
+      // Enable code input boxes
+      enableCodeInputs();
+
+      // Start resend timer
+      startResendTimer(30);
+
+      // Store bank_id in session (will be shown in Step 3)
+      if (result.bank_id) {
+        console.log("Bank ID generated:", result.bank_id);
+      }
+
+      // For development/testing: show code in mock display
+      if (result.dev_code) {
+        console.log("DEV MODE - Verification code:", result.dev_code);
+        showMockCode(result.dev_code, result.bank_id);
+      }
+    } else {
+      showError(emailInput, result.message || "Failed to send code");
+      sendCodeBtn.disabled = false;
+      sendCodeBtn.textContent = "Send Code";
+    }
+  } catch (error) {
+    console.error("Error sending email code:", error);
+    showError(emailInput, "Error: " + error.message);
+    sendCodeBtn.disabled = false;
+    sendCodeBtn.textContent = "Send Code";
+  }
+}
+
+/**
  * Handle verify code
  */
 async function handleVerifyCode() {
-  const mobileInput = document.querySelector('input[name="mobile_number"]');
-  const countryCodeSelect = document.querySelector(".phone-country-code");
   const code = getAllCodeDigits();
 
   if (code.length !== 4) {
     showCodeError("Please enter the complete 4-digit code");
     return;
   }
+
+  if (currentMfaMethod === "phone") {
+    await verifyPhoneCode(code);
+  } else {
+    await verifyEmailCode(code);
+  }
+}
+
+/**
+ * Verify phone code
+ */
+async function verifyPhoneCode(code) {
+  const mobileInput = document.querySelector('input[name="mobile_number"]');
+  const countryCodeSelect = document.querySelector(".phone-country-code");
 
   const mobileNumber = mobileInput.value.trim();
   const countryCode = countryCodes.find(
@@ -406,6 +598,42 @@ async function handleVerifyCode() {
 }
 
 /**
+ * Verify email code
+ */
+async function verifyEmailCode(code) {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/customer/verify-email-code.php`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: code,
+        }),
+      }
+    );
+
+    const result = await response.json();
+    console.log("Email verification result:", result);
+
+    if (result.success) {
+      isCodeVerified = true;
+      showCodeSuccess("Email verified successfully!");
+
+      // Disable code inputs after successful verification
+      disableCodeInputs();
+    } else {
+      isCodeVerified = false;
+      showCodeError(result.message || "Invalid verification code");
+      clearCodeInputs();
+    }
+  } catch (error) {
+    console.error("Error verifying email code:", error);
+    showCodeError("An error occurred. Please try again.");
+  }
+}
+
+/**
  * Handle form submission
  */
 async function handleFormSubmit(e) {
@@ -422,9 +650,11 @@ async function handleFormSubmit(e) {
     return;
   }
 
-  // Check if mobile is verified
+  // Check if verification is completed
   if (!isCodeVerified) {
-    showCodeError("Please verify your mobile number first");
+    const mfaType =
+      currentMfaMethod === "phone" ? "mobile number" : "email address";
+    showCodeError(`Please verify your ${mfaType} first`);
     return;
   }
 
@@ -467,11 +697,12 @@ function collectFormData() {
     'input[name="confirm_password"]'
   );
   const mobileInput = document.querySelector('input[name="mobile_number"]');
+  const emailInput = document.getElementById("email_verification");
   const countryCodeSelect = document.querySelector(".phone-country-code");
 
   // Get full phone number with country code
   let fullPhoneNumber = "";
-  if (mobileInput && countryCodeSelect) {
+  if (mobileInput && countryCodeSelect && currentMfaMethod === "phone") {
     const countryCode = countryCodes.find(
       (cc) => cc.country_code_id == countryCodeSelect.value
     );
@@ -484,6 +715,8 @@ function collectFormData() {
     password: passwordInput?.value || "",
     confirm_password: confirmPasswordInput?.value || "",
     mobile_number: fullPhoneNumber,
+    email_verification: emailInput?.value || "",
+    mfa_method: currentMfaMethod,
   };
 }
 
@@ -505,10 +738,17 @@ function validateForm(data) {
     isValid = false;
   }
 
-  // Validate mobile
-  if (!data.mobile_number) {
-    showFieldError("mobile_number", "Mobile number is required");
-    isValid = false;
+  // Validate based on MFA method
+  if (currentMfaMethod === "phone") {
+    if (!data.mobile_number) {
+      showFieldError("mobile_number", "Mobile number is required");
+      isValid = false;
+    }
+  } else {
+    if (!data.email_verification) {
+      showFieldError("email_verification", "Email address is required");
+      isValid = false;
+    }
   }
 
   return isValid;
@@ -771,7 +1011,7 @@ function showBankIdDisplay(bankId) {
   if (bankIdDisplay && bankIdValue && bankId) {
     bankIdValue.textContent = bankId;
     bankIdDisplay.style.display = "block";
-    
+
     console.log("Displaying Bank ID for login:", bankId);
 
     // Add click to copy functionality for bank ID

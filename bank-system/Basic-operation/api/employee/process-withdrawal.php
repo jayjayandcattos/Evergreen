@@ -2,7 +2,13 @@
 /**
  * Process Withdrawal API
  * Processes a withdrawal transaction for a customer account
+ * Includes maintaining balance logic and service fee handling
  */
+
+// Suppress all output before JSON
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 session_start();
 
@@ -117,6 +123,10 @@ try {
                 ca.account_id,
                 ca.customer_id,
                 ca.is_locked,
+                ca.maintaining_balance_required,
+                ca.monthly_service_fee,
+                ca.account_status,
+                ca.below_maintaining_since,
                 bat.type_name as account_type,
                 bc.first_name,
                 bc.middle_name,
@@ -140,17 +150,73 @@ try {
         if ($account['is_locked']) {
             throw new Exception('Account is locked');
         }
+        
+        // Check if account is closed or flagged for removal
+        if ($account['account_status'] === 'closed') {
+            throw new Exception('Account is closed');
+        }
+        
+        if ($account['account_status'] === 'flagged_for_removal') {
+            throw new Exception('Account is flagged for removal. Please contact customer service.');
+        }
 
         // --- 2. Calculate previous balance from transactions (per schema requirements) ---
         $previousBalance = calculateCurrentBalance($db, $account['account_id']);
         
         // --- 3. Check for sufficient balance ---
         if ($previousBalance < $amount) {
-            throw new Exception('Insufficient balance. Current balance: ' . number_format($previousBalance, 2));
+            throw new Exception('Insufficient balance. Current balance: PHP ' . number_format($previousBalance, 2));
         }
 
-        // --- 4. Determine New Balance ---
+        // --- 4. Determine New Balance after withdrawal ---
         $newBalance = $previousBalance - $amount;
+        
+        // --- 5. Check maintaining balance requirements ---
+        $maintainingBalance = floatval($account['maintaining_balance_required'] ?? 500.00);
+        $serviceFee = floatval($account['monthly_service_fee'] ?? 100.00);
+        $warnings = [];
+        $statusUpdate = null;
+        
+        // Prevent withdrawal that would result in negative balance
+        if ($newBalance < 0) {
+            throw new Exception('Withdrawal would result in negative balance');
+        }
+        
+        // Check if withdrawal would bring balance below maintaining requirement
+        if ($newBalance < $maintainingBalance && $previousBalance >= $maintainingBalance) {
+            $deficit = $maintainingBalance - $newBalance;
+            throw new Exception(
+                'Withdrawal denied. This would bring your balance to PHP ' . number_format($newBalance, 2) . ', ' .
+                'which is PHP ' . number_format($deficit, 2) . ' below the required maintaining balance of PHP ' . 
+                number_format($maintainingBalance, 2) . '. ' .
+                'Maximum withdrawal allowed: PHP ' . number_format($previousBalance - $maintainingBalance, 2)
+            );
+        }
+        
+        // Check if balance is already below maintaining and withdrawal would make it worse
+        if ($previousBalance < $maintainingBalance && $newBalance < $previousBalance) {
+            throw new Exception(
+                'Withdrawal denied. Your current balance (PHP ' . number_format($previousBalance, 2) . ') ' .
+                'is already below the maintaining balance of PHP ' . number_format($maintainingBalance, 2) . '. ' .
+                'Please deposit funds to meet the maintaining balance requirement before making withdrawals.'
+            );
+        }
+        
+        // If already below maintaining, only allow withdrawal if it maintains the same level
+        if ($previousBalance < $maintainingBalance) {
+            $warnings[] = "Warning: Your balance is below the maintaining balance of PHP " . number_format($maintainingBalance, 2);
+            $warnings[] = "Monthly service fees may apply";
+            $statusUpdate = 'below_maintaining';
+        }
+        
+        // Check if balance will reach zero
+        if ($newBalance == 0) {
+            throw new Exception(
+                'Withdrawal denied. This would result in a zero balance. ' .
+                'Minimum balance of PHP ' . number_format($maintainingBalance, 2) . ' must be maintained. ' .
+                'Maximum withdrawal allowed: PHP ' . number_format($previousBalance - $maintainingBalance, 2)
+            );
+        }
         
         // **IMPORTANT FIX:** Removed the `UPDATE accounts SET balance = :new_balance` query,
         // as the `customer_accounts` table does not have a `balance` column.
@@ -203,7 +269,50 @@ try {
         $stmt->bindParam(':employee_id', $employeeId);
         $stmt->execute();
 
-        // --- 8. Get employee information for the response ---
+        // --- 8. Update account status if needed ---
+        if ($statusUpdate) {
+            $stmt = $db->prepare("
+                UPDATE customer_accounts 
+                SET account_status = :status,
+                    below_maintaining_since = CASE 
+                        WHEN :status = 'below_maintaining' AND below_maintaining_since IS NULL THEN CURDATE()
+                        WHEN :status = 'active' THEN NULL
+                        ELSE below_maintaining_since
+                    END,
+                    closure_warning_date = CASE
+                        WHEN :status = 'flagged_for_removal' THEN CURDATE()
+                        ELSE closure_warning_date
+                    END
+                WHERE account_id = :account_id
+            ");
+            $stmt->bindParam(':status', $statusUpdate);
+            $stmt->bindParam(':account_id', $account['account_id']);
+            $stmt->execute();
+            
+            // Log status change in history
+            $stmt = $db->prepare("
+                INSERT INTO account_status_history (
+                    account_id, previous_status, new_status, balance_at_change, 
+                    reason, changed_by
+                ) VALUES (
+                    :account_id, :prev_status, :new_status, :balance, 
+                    :reason, :employee_id
+                )
+            ");
+            $reason = "Withdrawal resulted in balance below maintaining requirement";
+            if ($newBalance == 0) {
+                $reason = "Account balance reached zero - flagged for removal";
+            }
+            $stmt->bindParam(':account_id', $account['account_id']);
+            $stmt->bindParam(':prev_status', $account['account_status']);
+            $stmt->bindParam(':new_status', $statusUpdate);
+            $stmt->bindParam(':balance', $newBalance);
+            $stmt->bindParam(':reason', $reason);
+            $stmt->bindParam(':employee_id', $employeeId);
+            $stmt->execute();
+        }
+
+        // --- 9. Get employee information for the response ---
         // Table: bank_employees
         $stmt = $db->prepare("SELECT employee_name FROM bank_employees WHERE employee_id = :employee_id");
         $stmt->bindParam(':employee_id', $employeeId);
@@ -211,17 +320,17 @@ try {
         $employee = $stmt->fetch(PDO::FETCH_ASSOC);
         $employeeName = $employee ? $employee['employee_name'] : 'System Admin';
 
-        // --- 9. Commit transaction ---
+        // --- 10. Commit transaction ---
         $db->commit();
 
-        // --- 10. Format response ---
+        // --- 11. Format response ---
         // Format customer name
         $customerName = trim($account['first_name'] . ' ' . 
                             ($account['middle_name'] ? $account['middle_name'] . ' ' : '') . 
                             $account['last_name']);
 
         // Return success with transaction details
-        echo json_encode([
+        $response = [
             'success' => true,
             'message' => 'Withdrawal processed successfully',
             'data' => [
@@ -230,7 +339,6 @@ try {
                 'customer_name' => $customerName,
                 'customer_id' => $account['customer_id'],
                 'amount' => number_format($amount, 2),
-                // Use the calculated previous balance for the response
                 'previous_balance' => number_format($previousBalance, 2), 
                 'new_balance' => number_format($newBalance, 2),
                 'transaction_date' => date('F d, Y h:i A'),
@@ -239,9 +347,18 @@ try {
                 'employee_name' => $employeeName,
                 'employee_id' => $employeeId,
                 'branch' => 'Main Branch',
-                'terminal' => 'Teller-01'
+                'terminal' => 'Teller-01',
+                'maintaining_balance' => number_format($maintainingBalance, 2),
+                'account_status' => $statusUpdate ?? $account['account_status']
             ]
-        ]);
+        ];
+        
+        // Add warnings if any
+        if (!empty($warnings)) {
+            $response['warnings'] = $warnings;
+        }
+        
+        echo json_encode($response);
 
     } catch (Exception $e) {
         // Rollback transaction on error

@@ -192,9 +192,55 @@ function validateStep1Data($data, $pdo) {
         $errors['address_line'] = $addressValidation['message'];
     }
     
-    $cityValidation = validateRequired($data['city'], 'City');
-    if (!$cityValidation['valid']) {
-        $errors['city'] = $cityValidation['message'];
+    // Validate province_id
+    if (empty($data['province_id']) || !is_numeric($data['province_id'])) {
+        $errors['province_id'] = 'Province is required';
+    } else {
+        // Check if province exists in database
+        try {
+            $stmt = $pdo->prepare("SELECT province_id FROM provinces WHERE province_id = ?");
+            $stmt->execute([$data['province_id']]);
+            if (!$stmt->fetch()) {
+                $errors['province_id'] = 'Invalid province selected';
+            }
+        } catch (PDOException $e) {
+            error_log("Province validation error: " . $e->getMessage());
+            $errors['province_id'] = 'Error validating province';
+        }
+    }
+    
+    // Validate city_id
+    if (empty($data['city_id']) || !is_numeric($data['city_id'])) {
+        $errors['city_id'] = 'City is required';
+    } else {
+        // Check if city exists and belongs to selected province
+        try {
+            $stmt = $pdo->prepare("SELECT city_id FROM cities WHERE city_id = ? AND province_id = ?");
+            $stmt->execute([$data['city_id'], $data['province_id']]);
+            if (!$stmt->fetch()) {
+                $errors['city_id'] = 'Invalid city selected or city does not belong to selected province';
+            }
+        } catch (PDOException $e) {
+            error_log("City validation error: " . $e->getMessage());
+            $errors['city_id'] = 'Error validating city';
+        }
+    }
+    
+    // Validate barangay_id
+    if (empty($data['barangay_id']) || !is_numeric($data['barangay_id'])) {
+        $errors['barangay_id'] = 'Barangay is required';
+    } else {
+        // Check if barangay exists and belongs to selected city
+        try {
+            $stmt = $pdo->prepare("SELECT barangay_id FROM barangays WHERE barangay_id = ? AND city_id = ?");
+            $stmt->execute([$data['barangay_id'], $data['city_id']]);
+            if (!$stmt->fetch()) {
+                $errors['barangay_id'] = 'Invalid barangay selected or barangay does not belong to selected city';
+            }
+        } catch (PDOException $e) {
+            error_log("Barangay validation error: " . $e->getMessage());
+            $errors['barangay_id'] = 'Error validating barangay';
+        }
     }
     
     // Validate date of birth
@@ -386,13 +432,25 @@ function validateStep2Data($data, $pdo) {
         }
     }
     
-    // Validate mobile number (should be from step 1)
-    if (empty($data['mobile_number'])) {
-        $errors['mobile_number'] = 'Mobile number is required';
+    // Validate based on MFA method
+    $mfaMethod = $data['mfa_method'] ?? 'phone';
+    
+    if ($mfaMethod === 'phone') {
+        // Validate mobile number
+        if (empty($data['mobile_number'])) {
+            $errors['mobile_number'] = 'Mobile number is required';
+        } else {
+            $phoneValidation = validatePhone($data['mobile_number']);
+            if (!$phoneValidation['valid']) {
+                $errors['mobile_number'] = $phoneValidation['message'];
+            }
+        }
     } else {
-        $phoneValidation = validatePhone($data['mobile_number']);
-        if (!$phoneValidation['valid']) {
-            $errors['mobile_number'] = $phoneValidation['message'];
+        // Validate email
+        if (empty($data['email_verification'])) {
+            $errors['email_verification'] = 'Email address is required';
+        } else if (!filter_var($data['email_verification'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email_verification'] = 'Invalid email address format';
         }
     }
     

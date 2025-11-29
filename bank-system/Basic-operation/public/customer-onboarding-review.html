@@ -113,6 +113,12 @@
                         >
                       </div>
                       <div class="detail-item">
+                        <span class="label">Barangay</span>
+                        <span class="value" id="review-barangay"
+                          >Nagkaisang Nayon</span
+                        >
+                      </div>
+                      <div class="detail-item">
                         <span class="label">Postal Code</span>
                         <span class="value" id="review-postal-code">1100</span>
                       </div>
@@ -400,8 +406,8 @@
             const backHomeBtn = document.querySelector(".btn-back-home");
             if (backHomeBtn) {
               backHomeBtn.addEventListener("click", function () {
-                // Redirect to login page
-                window.location.href = "/Evergreen/bank-system/evergreen-marketing/login.php";
+                // Redirect to employee dashboard
+                window.location.href = "employee-dashboard.html";
               });
             }
           });

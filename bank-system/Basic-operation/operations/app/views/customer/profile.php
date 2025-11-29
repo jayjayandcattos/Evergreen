@@ -192,13 +192,71 @@ select.edit-input {
                         <span class="fw-bold" style="color: #003631;"><?= htmlspecialchars($data['full_name']) ?? 'N/A'; ?></span>
                     </div>
                     
-                    <!-- Home Address - EDITABLE -->
-                    <div class="edit-field-group view-mode mb-3" data-field="home_address">
+                    <!-- Home Address - split into Address Line, City, Province, Barangay -->
+                    <div class="edit-field-group view-mode mb-3" data-field="address_line">
                         <div class="d-flex" style="flex: 1;">
-                            <span class="text-muted fw-normal me-5" style="width: 150px;">Home Address</span>
-                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->home_address ?? 'N/A'); ?></span>
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">Address</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars(($data['profile']->address_line ?? '') . (isset($data['profile']->barangay_name) && $data['profile']->barangay_name ? ', ' . $data['profile']->barangay_name : '') . (isset($data['profile']->city_name) && $data['profile']->city_name ? ', ' . $data['profile']->city_name : '') . (isset($data['profile']->province_name) && $data['profile']->province_name ? ', ' . $data['profile']->province_name : '')); ?></span>
                         </div>
-                        <input type="text" name="home_address" class="edit-input form-control" value="<?= htmlspecialchars($data['profile']->home_address ?? ''); ?>" placeholder="Street, City, Province">
+                        <input type="text" name="address_line" class="edit-input form-control" value="<?= htmlspecialchars($data['profile']->address_line ?? ''); ?>" placeholder="Street, Subdivision, House No.">
+                        <button type="button" class="edit-btn" onclick="toggleEdit(this)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </div>
+
+                    <div class="edit-field-group view-mode mb-3" data-field="province_id">
+                        <div class="d-flex" style="flex: 1;">
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">Province</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->province_name ?? 'N/A'); ?></span>
+                        </div>
+                        <select name="province_id" class="edit-input form-control" id="provinceSelect">
+                            <option value="">Select Province</option>
+                            <?php foreach (($data['provinces'] ?? []) as $prov): ?>
+                                <option value="<?= $prov->province_id; ?>" <?= (isset($data['profile']->province_id) && $data['profile']->province_id == $prov->province_id) ? 'selected' : ''; ?>><?= htmlspecialchars($prov->province_name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" class="edit-btn" onclick="toggleEdit(this)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </div>
+
+                    <div class="edit-field-group view-mode mb-3" data-field="city_id">
+                        <div class="d-flex" style="flex: 1;">
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">City/Municipality</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->city_name ?? 'N/A'); ?></span>
+                        </div>
+                        <select name="city_id" class="edit-input form-control" id="citySelect">
+                            <option value="">Select City/Municipality</option>
+                            <?php foreach (($data['cities'] ?? []) as $city): ?>
+                                <option value="<?= $city->city_id; ?>" data-province="<?= $city->province_id; ?>" <?= (isset($data['profile']->city_id) && $data['profile']->city_id == $city->city_id) ? 'selected' : ''; ?>><?= htmlspecialchars($city->city_name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" class="edit-btn" onclick="toggleEdit(this)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </div>
+
+                    <div class="edit-field-group view-mode mb-3" data-field="barangay_id">
+                        <div class="d-flex" style="flex: 1;">
+                            <span class="text-muted fw-normal me-5" style="width: 150px;">Barangay</span>
+                            <span class="field-value fw-bold" style="color: #003631;"><?= htmlspecialchars($data['profile']->barangay_name ?? 'N/A'); ?></span>
+                        </div>
+                        <select name="barangay_id" class="edit-input form-control" id="barangaySelect" data-city-id="<?= isset($data['profile']->city_id) ? $data['profile']->city_id : ''; ?>">
+                            <option value="">Select Barangay</option>
+                            <?php
+                                $foundCurrentBarangay = false;
+                                foreach (($data['barangays'] ?? []) as $brgy):
+                                    if (isset($data['profile']->barangay_id) && $data['profile']->barangay_id == $brgy->barangay_id) {
+                                        $foundCurrentBarangay = true;
+                                    }
+                            ?>
+                                <option value="<?= $brgy->barangay_id; ?>" data-city="<?= $brgy->city_id; ?>" <?= (isset($data['profile']->barangay_id) && $data['profile']->barangay_id == $brgy->barangay_id) ? 'selected' : ''; ?>><?= htmlspecialchars($brgy->barangay_name); ?></option>
+                            <?php endforeach; ?>
+                            <?php if (!empty($data['profile']->barangay_id) && !$foundCurrentBarangay): ?>
+                                <!-- Fallback option when barangay_id referenced by address is not present in barangays table -->
+                                <option value="<?= htmlspecialchars($data['profile']->barangay_id); ?>" selected>Unknown Barangay (ID: <?= htmlspecialchars($data['profile']->barangay_id); ?>)</option>
+                            <?php endif; ?>
+                        </select>
                         <button type="button" class="edit-btn" onclick="toggleEdit(this)">
                             <i class="bi bi-pencil"></i> Edit
                         </button>
@@ -332,24 +390,59 @@ select.edit-input {
 function toggleEdit(button) {
     const fieldGroup = button.closest('.edit-field-group');
     const form = fieldGroup.closest('form');
+    const fieldName = fieldGroup.getAttribute('data-field');
+    
+    // Check if this is an address-related field
+    const addressFields = ['address_line', 'city_id', 'barangay_id', 'province_id'];
+    const isAddressField = addressFields.includes(fieldName);
     
     if (fieldGroup.classList.contains('view-mode')) {
         // Switch to edit mode
         fieldGroup.classList.remove('view-mode');
         fieldGroup.classList.add('edit-mode');
         
-        // Replace Edit button with Save/Cancel buttons
-        const fieldName = fieldGroup.getAttribute('data-field');
-        button.outerHTML = `
-            <button type="button" class="btn-save" onclick="saveField(this, '${fieldName}')">
-                <i class="bi bi-check"></i> Save
-            </button>
-            <button type="button" class="btn-cancel" onclick="cancelEdit(this)">
-                <i class="bi bi-x"></i> Cancel
-            </button>
-        `;
+        // If it's an address field, switch ALL address fields to edit mode
+        if (isAddressField) {
+            const allAddressGroups = form.querySelectorAll('.edit-field-group[data-field="address_line"], .edit-field-group[data-field="city_id"], .edit-field-group[data-field="barangay_id"], .edit-field-group[data-field="province_id"]');
+            allAddressGroups.forEach(group => {
+                if (group !== fieldGroup) {
+                    group.classList.remove('view-mode');
+                    group.classList.add('edit-mode');
+                }
+            });
+            
+            // Replace Edit button with Save/Cancel buttons (only on the clicked one)
+            button.outerHTML = `
+                <button type="button" class="btn-save" onclick="saveField(this, '${fieldName}')">
+                    <i class="bi bi-check"></i> Save All
+                </button>
+                <button type="button" class="btn-cancel" onclick="cancelEditAddress(this)">
+                    <i class="bi bi-x"></i> Cancel
+                </button>
+            `;
+            
+            // Hide other address buttons
+            allAddressGroups.forEach((group) => {
+                if (group !== fieldGroup) {
+                    const otherButton = group.querySelector('.edit-btn');
+                    if (otherButton) {
+                        otherButton.style.visibility = 'hidden';
+                    }
+                }
+            });
+        } else {
+            // For non-address fields, proceed normally
+            button.outerHTML = `
+                <button type="button" class="btn-save" onclick="saveField(this, '${fieldName}')">
+                    <i class="bi bi-check"></i> Save
+                </button>
+                <button type="button" class="btn-cancel" onclick="cancelEdit(this)">
+                    <i class="bi bi-x"></i> Cancel
+                </button>
+            `;
+        }
         
-        // Focus on the input
+        // Focus on the first input
         const input = fieldGroup.querySelector('.edit-input');
         if (input) {
             input.focus();
@@ -369,9 +462,131 @@ function cancelEdit(button) {
     location.reload();
 }
 
+function cancelEditAddress(button) {
+    const fieldGroup = button.closest('.edit-field-group');
+    const form = fieldGroup.closest('form');
+    
+    // Get all address field groups
+    const allAddressGroups = form.querySelectorAll('.edit-field-group[data-field="address_line"], .edit-field-group[data-field="city_id"], .edit-field-group[data-field="barangay_id"], .edit-field-group[data-field="province_id"]');
+    
+    // Revert all address fields to view mode
+    allAddressGroups.forEach(group => {
+        group.classList.remove('edit-mode');
+        group.classList.add('view-mode');
+        
+        // Restore Edit button visibility for all
+        const editBtn = group.querySelector('.edit-btn');
+        if (editBtn) {
+            editBtn.style.visibility = 'visible';
+        }
+    });
+    
+    // Reload to restore original values
+    location.reload();
+}
+
 function saveField(button, fieldName) {
     const fieldGroup = button.closest('.edit-field-group');
     const form = fieldGroup.closest('form');
+    
+    // Check if this is an address-related field
+    const addressFields = ['address_line', 'city_id', 'barangay_id', 'province_id'];
+    const isAddressField = addressFields.includes(fieldName);
+    
+    if (isAddressField) {
+        // Submit ALL address fields together
+        return saveAddressFields(button, form);
+    } else {
+        // Submit individual field
+        return saveSingleField(button, fieldName, form);
+    }
+}
+
+function saveAddressFields(button, form) {
+    // Get all address field values
+    const addressLineInput = form.querySelector('input[name="address_line"]');
+    const cityIdSelect = form.querySelector('select[name="city_id"]');
+    const barangayIdSelect = form.querySelector('select[name="barangay_id"]');
+    const provinceIdSelect = form.querySelector('select[name="province_id"]');
+    
+    const addressLine = addressLineInput ? addressLineInput.value.trim() : '';
+    const cityId = cityIdSelect ? cityIdSelect.value.trim() : '';
+    const barangayId = barangayIdSelect ? barangayIdSelect.value.trim() : '';
+    const provinceId = provinceIdSelect ? provinceIdSelect.value.trim() : '';
+    
+    // Validate that at least something is filled
+    if (!addressLine && !cityId && !barangayId && !provinceId) {
+        alert('Please fill in at least one address field.');
+        return false;
+    }
+    
+    // Get form action URL
+    const actionUrl = form && form.action ? form.action : '<?= URLROOT ?>/customer/profile';
+    
+    // Create hidden form with all address fields
+    const hiddenForm = document.createElement('form');
+    hiddenForm.method = 'POST';
+    hiddenForm.action = actionUrl;
+    hiddenForm.style.display = 'none';
+    hiddenForm.setAttribute('id', 'hiddenForm_address');
+    
+    // Add all address fields
+    if (addressLine) {
+        const input1 = document.createElement('input');
+        input1.type = 'hidden';
+        input1.name = 'address_line';
+        input1.value = addressLine;
+        hiddenForm.appendChild(input1);
+    }
+    
+    if (provinceId) {
+        const input2 = document.createElement('input');
+        input2.type = 'hidden';
+        input2.name = 'province_id';
+        input2.value = provinceId;
+        hiddenForm.appendChild(input2);
+    }
+    
+    if (cityId) {
+        const input3 = document.createElement('input');
+        input3.type = 'hidden';
+        input3.name = 'city_id';
+        input3.value = cityId;
+        hiddenForm.appendChild(input3);
+    }
+    
+    if (barangayId) {
+        const input4 = document.createElement('input');
+        input4.type = 'hidden';
+        input4.name = 'barangay_id';
+        input4.value = barangayId;
+        hiddenForm.appendChild(input4);
+    }
+    
+    document.body.appendChild(hiddenForm);
+    
+    // Show loading state
+    button.disabled = true;
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+    
+    // Submit the form
+    try {
+        hiddenForm.submit();
+    } catch (e) {
+        alert('Error submitting form. Please try again.');
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+        document.body.removeChild(hiddenForm);
+        console.error('Form submission error:', e);
+        return false;
+    }
+    
+    return true;
+}
+
+function saveSingleField(button, fieldName, form) {
+    const fieldGroup = button.closest('.edit-field-group');
     const input = fieldGroup.querySelector('.edit-input');
     
     if (!input) {
@@ -463,6 +678,84 @@ function validateEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
 }
+
+// --- Cascading Dropdown Logic ---
+document.addEventListener('DOMContentLoaded', function() {
+    const provinceSelect = document.getElementById('provinceSelect');
+    const citySelect = document.getElementById('citySelect');
+    const barangaySelect = document.getElementById('barangaySelect');
+    
+    // Store all barangays data from the page for dynamic filtering
+    const allBarangaysData = {};
+    Array.from(barangaySelect.options).forEach(option => {
+        if (option.value !== '') {
+            const cityId = option.getAttribute('data-city');
+            if (!allBarangaysData[cityId]) {
+                allBarangaysData[cityId] = [];
+            }
+            allBarangaysData[cityId].push({
+                id: option.value,
+                name: option.textContent
+            });
+        }
+    });
+    
+    console.log('Pre-loaded barangays data:', allBarangaysData);
+    console.log('Initial city_id:', barangaySelect.getAttribute('data-city-id'));
+    
+    // When province changes, filter cities
+    if (provinceSelect) {
+        provinceSelect.addEventListener('change', function() {
+            const selectedProvince = this.value;
+            
+            // Show/hide cities based on selected province
+            Array.from(citySelect.options).forEach(option => {
+                if (option.value === '') {
+                    option.style.display = 'block';
+                } else {
+                    const optionProvince = option.getAttribute('data-province');
+                    option.style.display = optionProvince === selectedProvince ? 'block' : 'none';
+                }
+            });
+            
+            // Reset city and barangay
+            citySelect.value = '';
+            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        });
+    }
+    
+    // When city changes, update barangays
+    if (citySelect) {
+        citySelect.addEventListener('change', function() {
+            const selectedCity = this.value;
+            
+            if (selectedCity === '') {
+                barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+                return;
+            }
+            
+            // Clear current options except placeholder
+            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+            
+            // Check if we have barangays data for this city
+            if (allBarangaysData[selectedCity]) {
+                // Use pre-loaded barangays
+                allBarangaysData[selectedCity].forEach(brgy => {
+                    const option = document.createElement('option');
+                    option.value = brgy.id;
+                    option.setAttribute('data-city', selectedCity);
+                    option.textContent = brgy.name;
+                    barangaySelect.appendChild(option);
+                });
+                console.log('Loaded barangays for city:', selectedCity, allBarangaysData[selectedCity]);
+            } else {
+                // No pre-loaded barangays - could add AJAX call here for dynamic loading
+                console.log('No pre-loaded barangays for city:', selectedCity);
+            }
+        });
+    }
+});
+
 </script>
 
 <?php require_once ROOT_PATH . '/app/views/layouts/footer.php'; ?>

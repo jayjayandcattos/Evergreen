@@ -7,27 +7,27 @@
 function getApiBaseUrl() {
   // Get the current page path
   const currentPath = window.location.pathname;
-  
+
   // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Fallback: construct from known structure
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
-console.log('API Base URL:', API_BASE_URL);
+console.log("API Base URL:", API_BASE_URL);
 let sessionData = null;
 let editMode = {};
 let originalValues = {};
@@ -55,16 +55,20 @@ function setupEventListeners() {
 
   // Edit buttons for each section
   const editButtons = document.querySelectorAll(".btn-edit-icon");
+  console.log("Found", editButtons.length, "edit buttons");
+
   editButtons.forEach((btn) => {
-    btn.addEventListener("click", function () {
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      console.log("Edit button clicked");
+
       const section = this.closest(".detail-section");
       if (section) {
-        const sectionId = section
-          .querySelector(".section-subtitle")
-          .textContent.trim()
-          .toLowerCase()
-          .replace(/\s+/g, "-");
+        const sectionId = section.id.replace("section-", "");
+        console.log("Editing section:", sectionId);
         editSection(sectionId);
+      } else {
+        console.error("Could not find parent section");
       }
     });
   });
@@ -91,9 +95,9 @@ async function loadSessionData() {
     console.log("Already loading session data, skipping...");
     return;
   }
-  
+
   isLoadingData = true;
-  
+
   try {
     const response = await fetch(
       `${API_BASE_URL}/customer/get-session-data.php`,
@@ -108,15 +112,29 @@ async function loadSessionData() {
     }
 
     const result = await response.json();
-    
+
     console.log("Session data loaded:", result);
 
     if (result.success && result.data) {
+      // Check if we have minimum required data from step 1
+      if (!result.data.first_name || !result.data.last_name) {
+        console.error("Missing required step 1 data");
+        showGlobalError(
+          "Missing required information. Please start from the beginning."
+        );
+        setTimeout(() => {
+          window.location.href = "customer-onboarding-details.html";
+        }, 2000);
+        isLoadingData = false;
+        return;
+      }
+
       sessionData = result.data;
       populateReviewData(sessionData);
       isLoadingData = false;
     } else {
       isLoadingData = false;
+      console.error("Session validation failed:", result);
       showGlobalError("Session expired. Please start from the beginning.");
       setTimeout(() => {
         window.location.href = "customer-onboarding-details.html";
@@ -136,60 +154,177 @@ async function loadSessionData() {
  * Populate review fields with session data
  */
 function populateReviewData(data) {
-  // Personal Information - Full Name
-  const fullName = `${data.first_name || ""} ${data.middle_name || ""} ${
-    data.last_name || ""
-  }`.trim();
-  setFieldValue("review-full-name", fullName);
+  console.log("Populating review with data:", data);
 
-  // Map field names from Step 1 form to review display
-  setFieldValue(
-    "review-birth-date",
-    formatDate(data.date_of_birth || data.birth_date)
-  );
-  setFieldValue("review-birth-place", data.place_of_birth || data.birth_place);
-  setFieldValue("review-gender", data.gender);
-  setFieldValue(
-    "review-civil-status",
-    data.marital_status || data.civil_status
-  );
-  setFieldValue("review-nationality", data.nationality);
+  try {
+    // Personal Information - Full Name
+    const fullName = `${data.first_name || ""} ${data.middle_name || ""} ${
+      data.last_name || ""
+    }`.trim();
+    setFieldValue("review-full-name", fullName);
 
-  // Address fields
-  setFieldValue("review-address", data.address_line || data.street);
-  setFieldValue("review-city", data.city);
-  setFieldValue("review-province", data.province || data.province_name);
-  setFieldValue("review-postal-code", data.postal_code);
+    // Map field names from Step 1 form to review display
+    setFieldValue(
+      "review-birth-date",
+      formatDate(data.date_of_birth || data.birth_date)
+    );
+    setFieldValue(
+      "review-birth-place",
+      data.place_of_birth || data.birth_place
+    );
+    setFieldValue("review-gender", data.gender);
+    setFieldValue(
+      "review-civil-status",
+      data.marital_status || data.civil_status
+    );
+    setFieldValue("review-nationality", data.nationality);
 
-  // Contact Information - handle arrays from Step 1
-  const email =
-    Array.isArray(data.emails) && data.emails.length > 0
-      ? data.emails[0]
-      : data.email || "";
-  const mobile =
-    data.mobile_number ||
-    (Array.isArray(data.phones) && data.phones.length > 0
-      ? data.phones[0]
-      : "");
+    // Address fields - now using IDs from dropdowns
+    setFieldValue("review-address", data.address_line || data.street);
 
-  // Email is shown in both Contact Details and Account Security sections
-  setFieldValue("review-email", email);
-  setFieldValue("review-mobile", formatPhoneNumber(mobile));
+    // Fetch city, province, and barangay names from IDs
+    fetchLocationNames(data.city_id, data.province_id, data.barangay_id);
 
-  // Employment Information - handle different field names
-  const occupation = data.occupation || data.employment_status || "";
-  const employer = data.employer_name || "";
-  const income = data.annual_income || data.source_of_funds || "";
+    setFieldValue("review-postal-code", data.postal_code); // Contact Information - handle arrays from Step 1
+    const email =
+      Array.isArray(data.emails) && data.emails.length > 0
+        ? data.emails[0]
+        : data.email || data.verified_email || data.email_verification || "";
+    const mobile =
+      data.mobile_number ||
+      (Array.isArray(data.phones) && data.phones.length > 0
+        ? data.phones[0]
+        : "");
 
-  setFieldValue("review-occupation", occupation);
-  setFieldValue("review-employer", employer);
-  setFieldValue("review-annual-income", formatCurrency(income));
+    // Email is shown in both Contact Details and Account Security sections
+    setFieldValue("review-email", email);
+    // Only set mobile if it exists (might not exist if email verification was used)
+    if (mobile) {
+      setFieldValue("review-mobile", formatPhoneNumber(mobile));
+    } else {
+      setFieldValue("review-mobile", "N/A");
+    }
 
-  // Account Type
-  const accountType = data.account_type || "Savings";
-  setFieldValue("review-account-type", accountType + " Account");
-  
-  // Note: Email is already set above and will be shown in Account Security section as username
+    // Employment Information - now using IDs from dropdowns
+    fetchEmploymentAndFundsNames(data.employment_status, data.source_of_funds);
+
+    const employer = data.employer_name || "";
+    setFieldValue("review-employer", employer);
+
+    // Account Type
+    const accountType = data.account_type || "Savings";
+    setFieldValue("review-account-type", accountType + " Account");
+
+    // Note: Email is already set above and will be shown in Account Security section as username
+  } catch (error) {
+    console.error("Error populating review data:", error);
+    showGlobalError(
+      "Error displaying your information. Some fields may be missing."
+    );
+  }
+}
+
+/**
+ * Fetch location names from IDs
+ */
+async function fetchLocationNames(cityId, provinceId, barangayId) {
+  try {
+    const API_BASE_URL = getApiBaseUrl();
+
+    // Fetch province name
+    if (provinceId) {
+      const provinceResponse = await fetch(
+        `${API_BASE_URL}/location/get-provinces.php`
+      );
+      const provinceResult = await provinceResponse.json();
+      if (provinceResult.success && provinceResult.data) {
+        const province = provinceResult.data.find(
+          (p) => p.province_id == provinceId
+        );
+        if (province) {
+          setFieldValue("review-province", province.province_name);
+        }
+      }
+    }
+
+    // Fetch city name
+    if (cityId) {
+      const cityResponse = await fetch(
+        `${API_BASE_URL}/location/get-cities.php?province_id=${provinceId}`
+      );
+      const cityResult = await cityResponse.json();
+      if (cityResult.success && cityResult.data) {
+        const city = cityResult.data.find((c) => c.city_id == cityId);
+        if (city) {
+          setFieldValue("review-city", city.city_name);
+        }
+      }
+    }
+
+    // Fetch barangay name
+    if (barangayId && cityId) {
+      const barangayResponse = await fetch(
+        `${API_BASE_URL}/location/get-barangays.php?city_id=${cityId}`
+      );
+      const barangayResult = await barangayResponse.json();
+      if (barangayResult.success && barangayResult.data) {
+        const barangay = barangayResult.data.find(
+          (b) => b.barangay_id == barangayId
+        );
+        if (barangay) {
+          setFieldValue("review-barangay", barangay.barangay_name);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching location names:", error);
+  }
+}
+
+/**
+ * Fetch employment status and source of funds names from IDs
+ */
+async function fetchEmploymentAndFundsNames(
+  employmentStatusId,
+  sourceOfFundsId
+) {
+  try {
+    const API_BASE_URL = getApiBaseUrl();
+
+    // Fetch employment status name
+    if (employmentStatusId) {
+      const employmentResponse = await fetch(
+        `${API_BASE_URL}/common/get-employment-statuses.php`
+      );
+      const employmentResult = await employmentResponse.json();
+      if (employmentResult.success && employmentResult.data) {
+        const employment = employmentResult.data.find(
+          (e) => e.employment_status_id == employmentStatusId
+        );
+        if (employment) {
+          setFieldValue("review-occupation", employment.status_name);
+        }
+      }
+    }
+
+    // Fetch source of funds name
+    if (sourceOfFundsId) {
+      const fundsResponse = await fetch(
+        `${API_BASE_URL}/common/get-source-of-funds.php`
+      );
+      const fundsResult = await fundsResponse.json();
+      if (fundsResult.success && fundsResult.data) {
+        const funds = fundsResult.data.find(
+          (f) => f.source_id == sourceOfFundsId
+        );
+        if (funds) {
+          setFieldValue("review-annual-income", funds.source_name);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching employment/funds names:", error);
+  }
 }
 
 /**
@@ -219,10 +354,26 @@ function formatDate(dateString) {
 function formatPhoneNumber(phoneNumber) {
   if (!phoneNumber) return "Not provided";
 
+  // Convert to string if it's not already (handle objects/arrays)
+  let phoneStr = phoneNumber;
+  if (typeof phoneNumber === "object") {
+    // If it's an object with a phone property, use that
+    if (phoneNumber.phone) {
+      phoneStr = phoneNumber.phone;
+    } else if (phoneNumber.number) {
+      phoneStr = phoneNumber.number;
+    } else {
+      // Convert object to string as fallback
+      phoneStr = JSON.stringify(phoneNumber);
+    }
+  } else if (typeof phoneNumber !== "string") {
+    phoneStr = String(phoneNumber);
+  }
+
   // If it starts with +, format it nicely
-  if (phoneNumber.startsWith("+")) {
+  if (phoneStr.startsWith("+")) {
     // Format as +XX XXX XXX XXXX
-    const cleaned = phoneNumber.replace(/\D/g, "");
+    const cleaned = phoneStr.replace(/\D/g, "");
     if (cleaned.length >= 10) {
       return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(
         5,
@@ -231,7 +382,7 @@ function formatPhoneNumber(phoneNumber) {
     }
   }
 
-  return phoneNumber;
+  return phoneStr;
 }
 
 /**
@@ -348,22 +499,20 @@ function enableEditMode(sectionId, section) {
       // Civil Status dropdown
       inputElement = document.createElement("select");
       inputElement.className = "form-select form-select-sm";
+      const lowerCurrentValue = currentValue.toLowerCase();
       inputElement.innerHTML = `
           <option value="">Select Civil Status</option>
-          <option value="Single" ${
-            currentValue === "Single" ? "selected" : ""
+          <option value="single" ${
+            lowerCurrentValue === "single" ? "selected" : ""
           }>Single</option>
-          <option value="Married" ${
-            currentValue === "Married" ? "selected" : ""
+          <option value="married" ${
+            lowerCurrentValue === "married" ? "selected" : ""
           }>Married</option>
-          <option value="Widowed" ${
-            currentValue === "Widowed" ? "selected" : ""
+          <option value="widowed" ${
+            lowerCurrentValue === "widowed" ? "selected" : ""
           }>Widowed</option>
-          <option value="Separated" ${
-            currentValue === "Separated" ? "selected" : ""
-          }>Separated</option>
-          <option value="Divorced" ${
-            currentValue === "Divorced" ? "selected" : ""
+          <option value="divorced" ${
+            lowerCurrentValue === "divorced" ? "selected" : ""
           }>Divorced</option>
         `;
     } else if (id === "review-nationality") {
@@ -402,27 +551,294 @@ function enableEditMode(sectionId, section) {
           }>Other</option>
         `;
     } else if (id === "review-occupation") {
-      // Occupation/Employment Status dropdown
+      // Occupation/Employment Status dropdown - fetch from API
       inputElement = document.createElement("select");
       inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch employment statuses from API
+      fetch(`${API_BASE_URL}/common/get-employment-statuses.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML =
+              '<option value="">Select Employment Status</option>';
+            result.data.forEach((status) => {
+              const option = document.createElement("option");
+              option.value = status.employment_status_id;
+              option.textContent = status.status_name;
+              if (status.status_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+          }
+        })
+        .catch((error) =>
+          console.error("Error loading employment statuses:", error)
+        );
+    } else if (id === "review-annual-income") {
+      // Source of Funds dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch source of funds from API
+      fetch(`${API_BASE_URL}/common/get-source-of-funds.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML =
+              '<option value="">Select Source of Funds</option>';
+            result.data.forEach((source) => {
+              const option = document.createElement("option");
+              option.value = source.source_id;
+              option.textContent = source.source_name;
+              if (source.source_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+          }
+        })
+        .catch((error) =>
+          console.error("Error loading source of funds:", error)
+        );
+    } else if (id === "review-account-type") {
+      // Account Type dropdown
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      const currentAccountType = currentValue.replace(" Account", "");
       inputElement.innerHTML = `
-          <option value="">Select Employment Status</option>
-          <option value="Employed" ${
-            currentValue === "Employed" ? "selected" : ""
-          }>Employed</option>
-          <option value="Self-Employed" ${
-            currentValue === "Self-Employed" ? "selected" : ""
-          }>Self-Employed</option>
-          <option value="Unemployed" ${
-            currentValue === "Unemployed" ? "selected" : ""
-          }>Unemployed</option>
-          <option value="Student" ${
-            currentValue === "Student" ? "selected" : ""
-          }>Student</option>
-          <option value="Retired" ${
-            currentValue === "Retired" ? "selected" : ""
-          }>Retired</option>
+          <option value="">Select Account Type</option>
+          <option value="Savings" ${
+            currentAccountType === "Savings" ? "selected" : ""
+          }>Savings Account</option>
+          <option value="Checking" ${
+            currentAccountType === "Checking" ? "selected" : ""
+          }>Checking Account</option>
         `;
+    } else if (id === "review-province") {
+      // Province dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch provinces from API
+      fetch(`${API_BASE_URL}/location/get-provinces.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML =
+              '<option value="">Select Province</option>';
+            result.data.forEach((province) => {
+              const option = document.createElement("option");
+              option.value = province.province_id;
+              option.textContent = province.province_name;
+              if (province.province_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+
+            // Add change event listener to update city dropdown
+            inputElement.addEventListener("change", function () {
+              const selectedProvinceId = this.value;
+              const cityDropdown = document.getElementById("edit-review-city");
+              const barangayDropdown = document.getElementById(
+                "edit-review-barangay"
+              );
+
+              if (cityDropdown) {
+                if (selectedProvinceId) {
+                  cityDropdown.innerHTML =
+                    '<option value="">Loading...</option>';
+                  cityDropdown.disabled = false;
+
+                  fetch(
+                    `${API_BASE_URL}/location/get-cities.php?province_id=${selectedProvinceId}`
+                  )
+                    .then((response) => response.json())
+                    .then((result) => {
+                      if (result.success && result.data) {
+                        cityDropdown.innerHTML =
+                          '<option value="">Select City</option>';
+                        result.data.forEach((city) => {
+                          const option = document.createElement("option");
+                          option.value = city.city_id;
+                          option.textContent = city.city_name;
+                          cityDropdown.appendChild(option);
+                        });
+                      }
+                    })
+                    .catch((error) =>
+                      console.error("Error loading cities:", error)
+                    );
+                } else {
+                  cityDropdown.innerHTML =
+                    '<option value="">Select Province First</option>';
+                  cityDropdown.disabled = true;
+                }
+              }
+
+              // Reset barangay dropdown
+              if (barangayDropdown) {
+                barangayDropdown.innerHTML =
+                  '<option value="">Select City First</option>';
+                barangayDropdown.disabled = true;
+              }
+            });
+          }
+        })
+        .catch((error) => console.error("Error loading provinces:", error));
+    } else if (id === "review-city") {
+      // City dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Get province ID from session data or from province dropdown if it exists
+      const provinceDropdown = document.getElementById("edit-review-province");
+      const provinceId = provinceDropdown
+        ? provinceDropdown.value
+        : sessionData.province_id;
+
+      if (provinceId) {
+        fetch(
+          `${API_BASE_URL}/location/get-cities.php?province_id=${provinceId}`
+        )
+          .then((response) => response.json())
+          .then((result) => {
+            if (result.success && result.data) {
+              inputElement.innerHTML = '<option value="">Select City</option>';
+              result.data.forEach((city) => {
+                const option = document.createElement("option");
+                option.value = city.city_id;
+                option.textContent = city.city_name;
+                if (city.city_name === currentValue) {
+                  option.selected = true;
+                }
+                inputElement.appendChild(option);
+              });
+
+              // Add change event listener to update barangay dropdown
+              inputElement.addEventListener("change", function () {
+                const selectedCityId = this.value;
+                const barangayDropdown = document.getElementById(
+                  "edit-review-barangay"
+                );
+
+                if (barangayDropdown) {
+                  if (selectedCityId) {
+                    barangayDropdown.innerHTML =
+                      '<option value="">Loading...</option>';
+                    barangayDropdown.disabled = false;
+
+                    fetch(
+                      `${API_BASE_URL}/location/get-barangays.php?city_id=${selectedCityId}`
+                    )
+                      .then((response) => response.json())
+                      .then((result) => {
+                        if (result.success && result.data) {
+                          barangayDropdown.innerHTML =
+                            '<option value="">Select Barangay</option>';
+                          result.data.forEach((barangay) => {
+                            const option = document.createElement("option");
+                            option.value = barangay.barangay_id;
+                            option.textContent = barangay.barangay_name;
+                            barangayDropdown.appendChild(option);
+                          });
+                        }
+                      })
+                      .catch((error) =>
+                        console.error("Error loading barangays:", error)
+                      );
+                  } else {
+                    barangayDropdown.innerHTML =
+                      '<option value="">Select City First</option>';
+                    barangayDropdown.disabled = true;
+                  }
+                }
+              });
+            }
+          })
+          .catch((error) => console.error("Error loading cities:", error));
+      } else {
+        inputElement.innerHTML =
+          '<option value="">Select Province First</option>';
+        inputElement.disabled = true;
+      }
+    } else if (id === "review-barangay") {
+      // Barangay dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Get city ID from session data or from city dropdown if it exists
+      const cityDropdown = document.getElementById("edit-review-city");
+      const cityId = cityDropdown ? cityDropdown.value : sessionData.city_id;
+
+      if (cityId) {
+        fetch(`${API_BASE_URL}/location/get-barangays.php?city_id=${cityId}`)
+          .then((response) => response.json())
+          .then((result) => {
+            if (result.success && result.data) {
+              inputElement.innerHTML =
+                '<option value="">Select Barangay</option>';
+              result.data.forEach((barangay) => {
+                const option = document.createElement("option");
+                option.value = barangay.barangay_id;
+                option.textContent = barangay.barangay_name;
+                if (barangay.barangay_name === currentValue) {
+                  option.selected = true;
+                }
+                inputElement.appendChild(option);
+              });
+            }
+          })
+          .catch((error) => console.error("Error loading barangays:", error));
+      } else {
+        inputElement.innerHTML = '<option value="">Select City First</option>';
+        inputElement.disabled = true;
+      }
+    } else if (id === "review-birth-place") {
+      // Place of Birth dropdown - fetch all cities
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch all cities for birth place
+      fetch(`${API_BASE_URL}/location/get-all-cities.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML = '<option value="">Select City</option>';
+            result.data.forEach((city) => {
+              const option = document.createElement("option");
+              option.value = city.city_name;
+              option.textContent = city.city_name;
+              if (city.city_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+          }
+        })
+        .catch((error) =>
+          console.error("Error loading cities for birth place:", error)
+        );
     } else if (id === "review-birth-date") {
       // Date input
       inputElement = document.createElement("input");
@@ -605,14 +1021,16 @@ async function saveSection(sectionId) {
       "review-civil-status": "marital_status",
       "review-nationality": "nationality",
       "review-address": "address_line",
-      "review-city": "city",
-      "review-province": "province",
+      "review-city": "city_id",
+      "review-province": "province_id",
+      "review-barangay": "barangay_id",
       "review-postal-code": "postal_code",
       "review-email": "email",
       "review-mobile": "mobile_number",
       "review-occupation": "employment_status",
       "review-employer": "employer_name",
-      "review-annual-income": "annual_income",
+      "review-annual-income": "source_of_funds",
+      "review-account-type": "account_type",
       "review-username": "username",
     };
 
@@ -645,7 +1063,7 @@ async function saveSection(sectionId) {
     if (result.success) {
       // Update the displayed values without reloading all session data
       // (reloading can cause loops if there are issues)
-      
+
       // Reload session data to get latest values (only if needed)
       // await loadSessionData();
 
@@ -653,8 +1071,12 @@ async function saveSection(sectionId) {
       disableEditMode(sectionId, section);
 
       // Show success message instead of alert
-      showSuccessMessage("Changes saved successfully! Refreshing page...", "success", section);
-      
+      showSuccessMessage(
+        "Changes saved successfully! Refreshing page...",
+        "success",
+        section
+      );
+
       // Reload page after a delay to show updated data
       setTimeout(() => {
         window.location.reload();
@@ -804,7 +1226,7 @@ async function submitApplication() {
     console.error("Submit button not found!");
     return;
   }
-  
+
   const btnText = submitBtn.querySelector(".btn-text");
   const spinner = submitBtn.querySelector(".spinner-border");
 
@@ -819,6 +1241,17 @@ async function submitApplication() {
       headers: { "Content-Type": "application/json" },
       credentials: "include",
     });
+
+    // Check if response is ok and content-type is JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // Response is not JSON, likely a PHP error
+      const text = await response.text();
+      console.error("Non-JSON response from server:", text);
+      throw new Error(
+        "Server returned an error. Please check if XAMPP is running and the database is accessible."
+      );
+    }
 
     const result = await response.json();
 
@@ -875,14 +1308,14 @@ function showSuccessModal(accountNumber) {
 }
 
 /**
- * Go to login page
+ * Go to employee dashboard (after successful account creation)
  */
 function goToLogin() {
   // Clear session storage
   sessionStorage.clear();
 
-  // Redirect to login (update this URL as needed)
-  window.location.href = "../index.html";
+  // Redirect to employee dashboard
+  window.location.href = "employee-dashboard.html";
 }
 
 /**

@@ -2,23 +2,23 @@
 function getApiBaseUrl() {
   // Get the current page path
   const currentPath = window.location.pathname;
-  
+
   // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Fallback: construct from known structure
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
@@ -26,6 +26,18 @@ const API_BASE_URL = getApiBaseUrl();
 // Track current transaction type
 let currentTransactionType = "withdraw";
 let accountData = null;
+
+// Initialize page
+document.addEventListener("DOMContentLoaded", async function () {
+  // Check authentication and update employee display
+  const employee = await checkAuthentication();
+  if (employee) {
+    updateEmployeeDisplay(employee);
+  }
+
+  // Initialize the page
+  setCurrentDateTime();
+});
 
 // Set current date and time
 function setCurrentDateTime() {
@@ -111,21 +123,21 @@ async function lookupAccount() {
 
   const allowedPrefixes = ["CHA", "SA"];
   const isValidFormat = (accNum) => {
-      const parts = accNum.split('-');
-      if (parts.length !== 3) return false;
-      if (!allowedPrefixes.includes(parts[0])) return false;
-      if (!/^\d{4}$/.test(parts[1])) return false;
-      if (!/^\d{4}$/.test(parts[2])) return false;
-      return true;
+    const parts = accNum.split("-");
+    if (parts.length !== 3) return false;
+    if (!allowedPrefixes.includes(parts[0])) return false;
+    if (!/^\d{4}$/.test(parts[1])) return false;
+    if (!/^\d{4}$/.test(parts[2])) return false;
+    return true;
   };
 
   if (!isValidFormat(accountNumber)) {
     showError(
-        "Invalid account number format. Use CHA-1234-5678 or SA-1234-5678.",
-        "accountNumber"
+      "Invalid account number format. Use CHA-1234-5678 or SA-1234-5678.",
+      "accountNumber"
     );
     return;
-}
+  }
 
   try {
     const response = await fetch(
@@ -169,20 +181,20 @@ async function validateForm(e) {
 
   const allowedPrefixes = ["CHA", "SA"];
   const isValidFormat = (accNum) => {
-      const parts = accNum.split('-');
-      if (parts.length !== 3) return false;
-      if (!allowedPrefixes.includes(parts[0])) return false;
-      if (!/^\d{4}$/.test(parts[1])) return false;
-      if (!/^\d{4}$/.test(parts[2])) return false;
-      return true;
+    const parts = accNum.split("-");
+    if (parts.length !== 3) return false;
+    if (!allowedPrefixes.includes(parts[0])) return false;
+    if (!/^\d{4}$/.test(parts[1])) return false;
+    if (!/^\d{4}$/.test(parts[2])) return false;
+    return true;
   };
 
   if (!isValidFormat(accountNumber)) {
-      showError(
-          "Please enter a valid account number (e.g., CHA-XXXX-XXXX or SA-XXXX-XXXX).",
-          "accountNumber"
-      );
-      return false;
+    showError(
+      "Please enter a valid account number (e.g., CHA-XXXX-XXXX or SA-XXXX-XXXX).",
+      "accountNumber"
+    );
+    return false;
   }
 
   if (!name || !accountData) {
@@ -280,8 +292,7 @@ function handleCancel() {
   if (
     confirm("Are you sure you want to cancel? All entered data will be lost.")
   ) {
-    document.getElementById("transactionForm").reset();
-    setCurrentDateTime();
+    window.location.href = "employee-dashboard.html";
   }
 }
 
@@ -311,13 +322,23 @@ function switchTransactionType(type) {
 
 // Event listeners
 document.addEventListener("DOMContentLoaded", function () {
+  // Check URL parameter for transaction type
+  const urlParams = new URLSearchParams(window.location.search);
+  const typeParam = urlParams.get("type");
+
+  if (typeParam === "deposit") {
+    switchTransactionType("deposit");
+  } else if (typeParam === "withdraw") {
+    switchTransactionType("withdraw");
+  }
+
   // Set initial date/time
   setCurrentDateTime();
 
   // Account number input
   const accountInput = document.getElementById("accountNumber");
   accountInput.addEventListener("input", function () {
-    let rawValue = this.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); // Only allow alphanumeric
+    let rawValue = this.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); // Only allow alphanumeric
     const allowedPrefixes = ["CHA", "SA"];
     const prefixLength = 3;
     let formattedValue = "";
@@ -357,7 +378,10 @@ document.addEventListener("DOMContentLoaded", function () {
     this.value = formattedValue.slice(0, 13); // Enforce total length including hyphens
 
     // Trigger lookup when the full formatted length is reached and a prefix is present
-    if (this.value.length === 13 && allowedPrefixes.includes(this.value.substring(0, prefixLength))) {
+    if (
+      this.value.length === 13 &&
+      allowedPrefixes.includes(this.value.substring(0, prefixLength))
+    ) {
       lookupAccount();
     } else {
       document.getElementById("name").value = "";
@@ -366,7 +390,6 @@ document.addEventListener("DOMContentLoaded", function () {
       clearErrors();
     }
   });
-
 
   accountInput.addEventListener("blur", lookupAccount);
   accountInput.addEventListener("focus", clearErrors);

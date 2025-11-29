@@ -13,6 +13,28 @@
       href="../assets/css/customer-onboarding-details.css"
     />
     <style>
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -20px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+        to {
+          opacity: 0;
+          transform: translate(-50%, -20px);
+        }
+      }
+
       .error-message {
         color: #dc3545;
         font-size: 12px;
@@ -104,6 +126,42 @@
       .validation-tooltip.show {
         display: block;
       }
+
+      /* Custom Select/Dropdown Arrow */
+      select.form-control {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23003631' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 14px;
+        padding-right: 40px;
+        cursor: pointer;
+      }
+
+      /* Dropdown Scrollbar Styling */
+      select.form-control::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      select.form-control::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+      }
+
+      select.form-control::-webkit-scrollbar-thumb {
+        background: #003631;
+        border-radius: 4px;
+      }
+
+      select.form-control::-webkit-scrollbar-thumb:hover {
+        background: #00524a;
+      }
+
+      /* Firefox scrollbar */
+      select.form-control {
+        scrollbar-width: thin;
+        scrollbar-color: #003631 #f1f1f1;
+      }
     </style>
   </head>
   <body>
@@ -190,49 +248,70 @@
               <div class="form-row">
                 <div class="form-group form-group-large">
                   <label
-                    >Home Address (House No./Street/Bldg/Barangay)
+                    >Home Address (House No./Street/Bldg)
                     <span style="color: red">*</span></label
                   >
                   <input
                     type="text"
                     name="address_line"
                     class="form-control"
-                    placeholder="Blk 1 Lot 1 Sinforosa Street, Brgy. San Bartolome"
+                    placeholder="Blk 1 Lot 1 Sinforosa Street"
                     required
                   />
                   <div class="error-message" id="error-address_line"></div>
                 </div>
                 <div class="form-group">
-                  <label>City <span style="color: red">*</span></label>
-                  <input
-                    type="text"
-                    name="city"
+                  <label>Province <span style="color: red">*</span></label>
+                  <select
+                    name="province_id"
+                    id="province_id"
                     class="form-control"
-                    placeholder="Quezon City"
                     required
-                  />
-                  <div class="error-message" id="error-city"></div>
+                  >
+                    <option value="">Select Province</option>
+                  </select>
+                  <div class="error-message" id="error-province_id"></div>
                 </div>
                 <div class="form-group">
-                  <label>Province <span style="color: red">*</span></label>
-                  <input
-                    type="text"
-                    name="province"
+                  <label
+                    >City/Municipality <span style="color: red">*</span></label
+                  >
+                  <select
+                    name="city_id"
+                    id="city_id"
                     class="form-control"
-                    placeholder="Metro Manila"
                     required
-                  />
-                  <div class="error-message" id="error-province"></div>
+                    disabled
+                  >
+                    <option value="">Select Province First</option>
+                  </select>
+                  <div class="error-message" id="error-city_id"></div>
+                </div>
+                <div class="form-group">
+                  <label>Barangay <span style="color: red">*</span></label>
+                  <select
+                    name="barangay_id"
+                    id="barangay_id"
+                    class="form-control"
+                    required
+                    disabled
+                  >
+                    <option value="">Select City First</option>
+                  </select>
+                  <div class="error-message" id="error-barangay_id"></div>
                 </div>
                 <div class="form-group">
                   <label>Postal Code <span style="color: red">*</span></label>
                   <input
                     type="text"
                     name="postal_code"
+                    id="postal_code"
                     class="form-control"
                     placeholder="1100"
                     required
-                    maxlength="10"
+                    maxlength="4"
+                    pattern="\d{4}"
+                    title="Please enter exactly 4 digits"
                   />
                   <div class="error-message" id="error-postal_code"></div>
                 </div>
@@ -263,12 +342,13 @@
                 </div>
                 <div class="form-group">
                   <label>Place of Birth</label>
-                  <input
-                    type="text"
+                  <select
                     name="place_of_birth"
+                    id="place_of_birth"
                     class="form-control"
-                    placeholder="Quezon City"
-                  />
+                  >
+                    <option value="">Select City</option>
+                  </select>
                   <div class="error-message" id="error-place_of_birth"></div>
                 </div>
                 <div class="form-group">
@@ -364,22 +444,22 @@
                 </div>
                 <div class="form-group">
                   <label>Source of Funds</label>
-                  <select name="source_of_funds" class="form-control">
+                  <select
+                    id="source_of_funds"
+                    name="source_of_funds"
+                    class="form-control"
+                  >
                     <option value="">Select Source</option>
-                    <option value="Employment">Employment</option>
-                    <option value="Business">Business</option>
-                    <option value="Investment">Investment</option>
-                    <option value="Other">Other</option>
                   </select>
                 </div>
                 <div class="form-group">
                   <label>Employment Status</label>
-                  <select name="employment_status" class="form-control">
+                  <select
+                    id="employment_status"
+                    name="employment_status"
+                    class="form-control"
+                  >
                     <option value="">Select Status</option>
-                    <option value="Employed">Employed</option>
-                    <option value="Self-Employed">Self-Employed</option>
-                    <option value="Unemployed">Unemployed</option>
-                    <option value="Retired">Retired</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -408,7 +488,7 @@
                 <button
                   type="button"
                   class="btn btn-cancel"
-                  onclick="window.location.href='/'"
+                  onclick="window.location.href='employee-dashboard.html'"
                 >
                   Cancel
                 </button>
@@ -425,28 +505,33 @@
       function getApiBaseUrl() {
         // Get the current page path
         const currentPath = window.location.pathname;
-        
+
         // If we're in /public/, go up one level to find /api/
-        if (currentPath.includes('/public/')) {
-          const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-          return window.location.origin + basePath + '/api';
+        if (currentPath.includes("/public/")) {
+          const basePath = currentPath.substring(
+            0,
+            currentPath.indexOf("/public/")
+          );
+          return window.location.origin + basePath + "/api";
         }
-        
+
         // Fallback: construct from known structure
-        const pathParts = currentPath.split('/');
-        const basicOpIndex = pathParts.indexOf('Basic-operation');
+        const pathParts = currentPath.split("/");
+        const basicOpIndex = pathParts.indexOf("Basic-operation");
         if (basicOpIndex !== -1) {
-          const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-          return window.location.origin + basePath + '/api';
+          const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+          return window.location.origin + basePath + "/api";
         }
-        
+
         // Final fallback
-        return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+        return (
+          window.location.origin + "/Evergreen/bank-system/Basic-operation/api"
+        );
       }
-      
+
       // API Base URL
       const API_BASE_URL = getApiBaseUrl();
-      console.log('API Base URL:', API_BASE_URL);
+      console.log("API Base URL:", API_BASE_URL);
 
       let countryCodes = [];
       let emailCount = 1;
@@ -455,7 +540,12 @@
       // Load country codes on page load
       document.addEventListener("DOMContentLoaded", async function () {
         await loadCountryCodes();
+        await loadProvinces(); // Load provinces on page load
+        await loadAllCitiesForBirthplace(); // Load all cities for place of birth
+        await loadEmploymentStatuses(); // Load employment statuses from database
+        await loadSourceOfFunds(); // Load source of funds from database
         setupFormHandlers();
+        setupLocationHandlers(); // Setup cascading dropdowns
         restoreFormData(); // Restore data if coming back from step 2
       });
 
@@ -464,7 +554,7 @@
         try {
           const apiUrl = `${API_BASE_URL}/common/get-country-codes.php`;
           console.log("Loading country codes from:", apiUrl);
-          
+
           const response = await fetch(apiUrl);
 
           console.log("Country codes response status:", response.status);
@@ -536,18 +626,18 @@
       function populateCountryCodeDropdowns() {
         const selects = document.querySelectorAll(".phone-country-code");
         console.log("Populating", selects.length, "country code dropdowns");
-        
+
         if (countryCodes.length === 0) {
           console.error("No country codes available to populate!");
           return;
         }
-        
+
         selects.forEach((select, index) => {
           if (!select) {
             console.warn("Select element not found at index", index);
             return;
           }
-          
+
           const options = countryCodes
             .map(
               (cc) =>
@@ -558,18 +648,346 @@
             </option>`
             )
             .join("");
-          
+
           select.innerHTML = options;
-          console.log("Populated dropdown", index, "with", countryCodes.length, "options");
+          console.log(
+            "Populated dropdown",
+            index,
+            "with",
+            countryCodes.length,
+            "options"
+          );
         });
-        
+
         // Verify dropdowns are populated
         const verifySelects = document.querySelectorAll(".phone-country-code");
         verifySelects.forEach((select, index) => {
           if (select.options.length === 0) {
-            console.error("Dropdown", index, "is still empty after population!");
+            console.error(
+              "Dropdown",
+              index,
+              "is still empty after population!"
+            );
           } else {
-            console.log("Dropdown", index, "has", select.options.length, "options");
+            console.log(
+              "Dropdown",
+              index,
+              "has",
+              select.options.length,
+              "options"
+            );
+          }
+        });
+      }
+
+      // Load all cities for place of birth dropdown
+      async function loadAllCitiesForBirthplace() {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-all-cities.php`;
+          console.log("Loading all cities for birthplace from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("All cities result:", result);
+
+          if (result.success && result.data) {
+            const birthplaceSelect = document.getElementById("place_of_birth");
+            const options = result.data
+              .map(
+                (city) =>
+                  `<option value="${city.city_name}">${city.city_name}</option>`
+              )
+              .join("");
+
+            birthplaceSelect.innerHTML =
+              '<option value="">Select City</option>' + options;
+            console.log("Loaded", result.data.length, "cities for birthplace");
+          } else {
+            console.error(
+              "Failed to load cities for birthplace:",
+              result.message
+            );
+          }
+        } catch (error) {
+          console.error("Error loading cities for birthplace:", error);
+        }
+      }
+
+      // ========================================
+      // EMPLOYMENT AND FUNDS DROPDOWN FUNCTIONS
+      // ========================================
+
+      // Load employment statuses from database
+      async function loadEmploymentStatuses() {
+        try {
+          const apiUrl = `${API_BASE_URL}/common/get-employment-statuses.php`;
+          console.log("Loading employment statuses from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("Employment statuses result:", result);
+
+          if (result.success && result.data) {
+            const employmentSelect =
+              document.getElementById("employment_status");
+            const options = result.data
+              .map(
+                (status) =>
+                  `<option value="${status.employment_status_id}" title="${
+                    status.description || ""
+                  }">${status.status_name}</option>`
+              )
+              .join("");
+
+            employmentSelect.innerHTML =
+              '<option value="">Select Status</option>' + options;
+            console.log("Loaded", result.data.length, "employment statuses");
+          } else {
+            console.error(
+              "Failed to load employment statuses:",
+              result.message
+            );
+          }
+        } catch (error) {
+          console.error("Error loading employment statuses:", error);
+        }
+      }
+
+      // Load source of funds from database
+      async function loadSourceOfFunds() {
+        try {
+          const apiUrl = `${API_BASE_URL}/common/get-source-of-funds.php`;
+          console.log("Loading source of funds from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("Source of funds result:", result);
+
+          if (result.success && result.data) {
+            const sourceSelect = document.getElementById("source_of_funds");
+            const options = result.data
+              .map(
+                (source) =>
+                  `<option value="${source.source_id}" title="${
+                    source.description || ""
+                  }" data-requires-proof="${source.requires_proof}">${
+                    source.source_name
+                  }</option>`
+              )
+              .join("");
+
+            sourceSelect.innerHTML =
+              '<option value="">Select Source</option>' + options;
+            console.log("Loaded", result.data.length, "source of funds");
+          } else {
+            console.error("Failed to load source of funds:", result.message);
+          }
+        } catch (error) {
+          console.error("Error loading source of funds:", error);
+        }
+      }
+
+      // ========================================
+      // LOCATION DROPDOWN FUNCTIONS
+      // ========================================
+
+      // Load provinces from database
+      async function loadProvinces() {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-provinces.php`;
+          console.log("Loading provinces from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("Provinces result:", result);
+
+          if (result.success && result.data) {
+            const provinceSelect = document.getElementById("province_id");
+            const options = result.data
+              .map(
+                (province) =>
+                  `<option value="${province.province_id}">${province.province_name}</option>`
+              )
+              .join("");
+
+            provinceSelect.innerHTML =
+              '<option value="">Select Province</option>' + options;
+            console.log("Loaded", result.data.length, "provinces");
+          } else {
+            console.error("Failed to load provinces:", result.message);
+          }
+        } catch (error) {
+          console.error("Error loading provinces:", error);
+          alert("Failed to load provinces. Please refresh the page.");
+        }
+      }
+
+      // Load cities when province is selected
+      async function loadCities(provinceId) {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-cities.php?province_id=${provinceId}`;
+          console.log("Loading cities from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("Cities result:", result);
+
+          const citySelect = document.getElementById("city_id");
+          const barangaySelect = document.getElementById("barangay_id");
+
+          if (result.success && result.data && result.data.length > 0) {
+            const options = result.data
+              .map(
+                (city) =>
+                  `<option value="${city.city_id}" data-zip="${
+                    city.zip_code || ""
+                  }">${city.city_name}</option>`
+              )
+              .join("");
+
+            citySelect.innerHTML =
+              '<option value="">Select City/Municipality</option>' + options;
+            citySelect.disabled = false;
+            console.log("Loaded", result.data.length, "cities");
+
+            // Reset barangay and postal code
+            barangaySelect.innerHTML =
+              '<option value="">Select City First</option>';
+            barangaySelect.disabled = true;
+            document.getElementById("postal_code").value = "";
+          } else {
+            citySelect.innerHTML =
+              '<option value="">No cities available</option>';
+            citySelect.disabled = true;
+            barangaySelect.innerHTML =
+              '<option value="">Select City First</option>';
+            barangaySelect.disabled = true;
+          }
+        } catch (error) {
+          console.error("Error loading cities:", error);
+          alert("Failed to load cities. Please try again.");
+        }
+      }
+
+      // Load barangays when city is selected
+      async function loadBarangays(cityId) {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-barangays.php?city_id=${cityId}`;
+          console.log("Loading barangays from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("Barangays result:", result);
+
+          const barangaySelect = document.getElementById("barangay_id");
+
+          if (result.success && result.data && result.data.length > 0) {
+            const options = result.data
+              .map(
+                (barangay) =>
+                  `<option value="${barangay.barangay_id}" data-zip="${
+                    barangay.zip_code || ""
+                  }">${barangay.barangay_name}</option>`
+              )
+              .join("");
+
+            barangaySelect.innerHTML =
+              '<option value="">Select Barangay</option>' + options;
+            barangaySelect.disabled = false;
+            console.log("Loaded", result.data.length, "barangays");
+          } else {
+            barangaySelect.innerHTML =
+              '<option value="">No barangays available</option>';
+            barangaySelect.disabled = true;
+          }
+        } catch (error) {
+          console.error("Error loading barangays:", error);
+          alert("Failed to load barangays. Please try again.");
+        }
+      }
+
+      // Setup location dropdown handlers
+      function setupLocationHandlers() {
+        const provinceSelect = document.getElementById("province_id");
+        const citySelect = document.getElementById("city_id");
+        const barangaySelect = document.getElementById("barangay_id");
+        const postalCodeInput = document.getElementById("postal_code");
+
+        // Province change handler
+        provinceSelect.addEventListener("change", function () {
+          const provinceId = this.value;
+
+          if (provinceId) {
+            loadCities(provinceId);
+          } else {
+            citySelect.innerHTML =
+              '<option value="">Select Province First</option>';
+            citySelect.disabled = true;
+            barangaySelect.innerHTML =
+              '<option value="">Select City First</option>';
+            barangaySelect.disabled = true;
+            postalCodeInput.value = "";
+          }
+        });
+
+        // City change handler
+        citySelect.addEventListener("change", function () {
+          const cityId = this.value;
+          const selectedOption = this.options[this.selectedIndex];
+          const zipCode = selectedOption.getAttribute("data-zip");
+
+          if (cityId) {
+            loadBarangays(cityId);
+
+            // Auto-fill postal code if available
+            if (zipCode) {
+              postalCodeInput.value = zipCode;
+            }
+          } else {
+            barangaySelect.innerHTML =
+              '<option value="">Select City First</option>';
+            barangaySelect.disabled = true;
+            postalCodeInput.value = "";
+          }
+        });
+
+        // Barangay change handler - update postal code if barangay has specific ZIP
+        barangaySelect.addEventListener("change", function () {
+          const selectedOption = this.options[this.selectedIndex];
+          const zipCode = selectedOption.getAttribute("data-zip");
+
+          if (zipCode && zipCode.trim() !== "") {
+            postalCodeInput.value = zipCode;
           }
         });
       }
@@ -590,6 +1008,46 @@
         document
           .getElementById("accountCreationForm")
           .addEventListener("submit", handleFormSubmit);
+
+        // Real-time duplicate name checking
+        const firstNameInput = document.querySelector('[name="first_name"]');
+        const lastNameInput = document.querySelector('[name="last_name"]');
+
+        if (firstNameInput) {
+          firstNameInput.addEventListener("blur", checkDuplicateName);
+          firstNameInput.addEventListener("input", () => {
+            // Clear error when user starts typing
+            if (window.duplicateNameExists) {
+              firstNameInput.classList.remove("error");
+              lastNameInput.classList.remove("error");
+              hideError(lastNameInput);
+              hideDuplicateNameBanner();
+              window.duplicateNameExists = false;
+            }
+          });
+          // Also check on input after debounce
+          firstNameInput.addEventListener("input", () => {
+            setTimeout(checkDuplicateName, 600);
+          });
+        }
+
+        if (lastNameInput) {
+          lastNameInput.addEventListener("blur", checkDuplicateName);
+          lastNameInput.addEventListener("input", () => {
+            // Clear error when user starts typing
+            if (window.duplicateNameExists) {
+              firstNameInput.classList.remove("error");
+              lastNameInput.classList.remove("error");
+              hideError(lastNameInput);
+              hideDuplicateNameBanner();
+              window.duplicateNameExists = false;
+            }
+          });
+          // Also check on input after debounce
+          lastNameInput.addEventListener("input", () => {
+            setTimeout(checkDuplicateName, 600);
+          });
+        }
 
         // Real-time duplicate checking
         document.addEventListener(
@@ -683,12 +1141,204 @@
         }
       }
 
+      // Check for duplicate customer name (first name + last name combination)
+      let duplicateNameCheckTimeout = null;
+      async function checkDuplicateName() {
+        const firstNameInput = document.querySelector('[name="first_name"]');
+        const lastNameInput = document.querySelector('[name="last_name"]');
+
+        const firstName = firstNameInput?.value.trim();
+        const lastName = lastNameInput?.value.trim();
+
+        // Only check if both fields have values
+        if (!firstName || !lastName) {
+          window.duplicateNameExists = false;
+          return;
+        }
+
+        // Clear any existing timeout to debounce the check
+        if (duplicateNameCheckTimeout) {
+          clearTimeout(duplicateNameCheckTimeout);
+        }
+
+        // Debounce: wait 500ms after user stops typing
+        duplicateNameCheckTimeout = setTimeout(async () => {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/customer/check-duplicate-name.php`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  first_name: firstName,
+                  last_name: lastName,
+                }),
+              }
+            );
+
+            const result = await response.json();
+
+            if (result.exists) {
+              // Show error on both fields with strong visual feedback
+              firstNameInput.classList.add("error");
+              lastNameInput.classList.add("error");
+
+              // Show error message below last name field
+              showError(
+                lastNameInput,
+                result.message || "A customer with this name already exists"
+              );
+
+              // Show prominent banner at top
+              showDuplicateNameBanner(firstName, lastName);
+
+              // Set a flag to prevent form submission
+              window.duplicateNameExists = true;
+            } else {
+              // Clear errors if name combination is unique
+              firstNameInput.classList.remove("error");
+              lastNameInput.classList.remove("error");
+              hideError(lastNameInput);
+              hideDuplicateNameBanner();
+
+              // Clear the flag
+              window.duplicateNameExists = false;
+            }
+          } catch (error) {
+            console.error("Error checking duplicate name:", error);
+            window.duplicateNameExists = false;
+          }
+        }, 500);
+      }
+
+      // Show prominent duplicate name banner
+      function showDuplicateNameBanner(firstName, lastName) {
+        // Remove existing banner if any
+        hideDuplicateNameBanner();
+
+        const banner = document.createElement("div");
+        banner.id = "duplicate-name-banner";
+        banner.style.cssText = `
+          position: fixed;
+          top: 70px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+          color: white;
+          padding: 18px 35px;
+          border-radius: 10px;
+          box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+          z-index: 9999;
+          max-width: 650px;
+          text-align: center;
+          font-weight: 600;
+          font-size: 15px;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          animation: bounceIn 0.5s ease-out;
+        `;
+
+        banner.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>Cannot proceed: Customer with name "${firstName} ${lastName}" already exists</span>
+          </div>
+        `;
+
+        document.body.appendChild(banner);
+
+        // Add bounce animation
+        const style = document.createElement("style");
+        style.textContent = `
+          @keyframes bounceIn {
+            0% { transform: translateX(-50%) scale(0.3); opacity: 0; }
+            50% { transform: translateX(-50%) scale(1.05); }
+            70% { transform: translateX(-50%) scale(0.9); }
+            100% { transform: translateX(-50%) scale(1); opacity: 1; }
+          }
+        `;
+        if (!document.getElementById("duplicate-banner-animation")) {
+          style.id = "duplicate-banner-animation";
+          document.head.appendChild(style);
+        }
+      }
+
+      // Hide duplicate name banner
+      function hideDuplicateNameBanner() {
+        const banner = document.getElementById("duplicate-name-banner");
+        if (banner) {
+          banner.style.animation = "fadeOut 0.3s ease-out";
+          setTimeout(() => banner.remove(), 300);
+        }
+      }
+
       // Handle form submission
       async function handleFormSubmit(e) {
         e.preventDefault();
 
         // Clear previous errors
         clearAllErrors();
+
+        // CRITICAL: Check for duplicate name before submitting
+        // Re-verify to ensure no bypass
+        const firstNameInput = document.querySelector('[name="first_name"]');
+        const lastNameInput = document.querySelector('[name="last_name"]');
+        const firstName = firstNameInput?.value.trim();
+        const lastName = lastNameInput?.value.trim();
+
+        if (firstName && lastName) {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/customer/check-duplicate-name.php`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  first_name: firstName,
+                  last_name: lastName,
+                }),
+              }
+            );
+
+            const result = await response.json();
+
+            if (result.exists) {
+              // Block submission - show error
+              firstNameInput.classList.add("error");
+              lastNameInput.classList.add("error");
+              showError(
+                lastNameInput,
+                result.message || "A customer with this name already exists"
+              );
+              showDuplicateNameBanner(firstName, lastName);
+              window.duplicateNameExists = true;
+
+              // Scroll to the error
+              firstNameInput.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+              return; // STOP SUBMISSION
+            }
+          } catch (error) {
+            console.error("Error checking duplicate name:", error);
+          }
+        }
+
+        // Secondary check using flag
+        if (window.duplicateNameExists === true) {
+          showTopErrorMessage(
+            "Cannot proceed: A customer with this name already exists."
+          );
+          firstNameInput?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          return; // STOP SUBMISSION
+        }
 
         // Collect form data
         const formData = collectFormData();
@@ -703,13 +1353,7 @@
             }
           );
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Server error:", errorText);
-            alert("Server error. Please try again.");
-            return;
-          }
-
+          // Parse JSON response regardless of status code
           const result = await response.json();
 
           if (result.success) {
@@ -720,9 +1364,16 @@
             // Redirect to step 2
             window.location.href = "customer-onboarding-security.html";
           } else {
-            // Show validation errors
-            if (result.errors) {
+            // Show validation errors (handles 422 and other validation errors)
+            if (result.errors && Object.keys(result.errors).length > 0) {
               displayErrors(result.errors);
+              // Also show a summary message
+              const errorCount = Object.keys(result.errors).length;
+              const errorMsg =
+                errorCount === 1
+                  ? "Please correct the error highlighted below."
+                  : `Please correct the ${errorCount} errors highlighted below.`;
+              showTopErrorMessage(errorMsg);
             } else {
               alert(result.message || "An error occurred");
             }
@@ -781,21 +1432,57 @@
         }
 
         return data;
-      } // Display validation errors
+      }
+
+      // Display validation errors
       function displayErrors(errors) {
         for (let [field, message] of Object.entries(errors)) {
-          const input = document.querySelector(`[name="${field}"]`);
-          if (input) {
-            input.classList.add("error");
-            showError(input, message);
+          // Handle array field errors (email_0, phone_0, etc.)
+          const match = field.match(/^(\w+)_(\d+)$/);
+          if (match) {
+            const fieldType = match[1]; // e.g., 'email' or 'phone'
+            const index = parseInt(match[2]); // e.g., 0, 1, 2
+
+            // Find the specific input field
+            const inputs = document.querySelectorAll(
+              `[name="${fieldType}s[]"]`
+            );
+            if (inputs[index]) {
+              inputs[index].classList.add("error");
+              showError(inputs[index], message);
+            } else {
+              // Fallback: show alert if can't find the field
+              alert(
+                `${
+                  fieldType.charAt(0).toUpperCase() + fieldType.slice(1)
+                }: ${message}`
+              );
+            }
           } else {
-            // Handle array field errors (email_0, phone_0, etc.)
-            const errorElement = document.getElementById(`error-${field}`);
-            if (errorElement) {
-              errorElement.textContent = message;
-              errorElement.classList.add("show");
+            // Handle regular field errors
+            const input = document.querySelector(`[name="${field}"]`);
+            if (input) {
+              input.classList.add("error");
+              showError(input, message);
+            } else {
+              // Check for element with error-{field} id
+              const errorElement = document.getElementById(`error-${field}`);
+              if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.add("show");
+              } else {
+                // Show as alert if no matching element found
+                alert(message);
+              }
             }
           }
+        }
+
+        // Scroll to first error
+        const firstError = document.querySelector(".error");
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+          firstError.focus();
         }
       }
 
@@ -810,6 +1497,42 @@
           wrapper.appendChild(errorDiv);
         }
         errorDiv.textContent = message;
+      }
+
+      // Show top error message banner
+      function showTopErrorMessage(message) {
+        // Check if error banner already exists
+        let errorBanner = document.getElementById("top-error-banner");
+        if (!errorBanner) {
+          errorBanner = document.createElement("div");
+          errorBanner.id = "top-error-banner";
+          errorBanner.style.cssText = `
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 53, 69, 0.95);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 9999;
+            max-width: 600px;
+            text-align: center;
+            font-weight: 500;
+            animation: slideDown 0.3s ease-out;
+          `;
+          document.body.appendChild(errorBanner);
+        }
+        errorBanner.textContent = message;
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          if (errorBanner && errorBanner.parentNode) {
+            errorBanner.style.animation = "slideUp 0.3s ease-out";
+            setTimeout(() => errorBanner.remove(), 300);
+          }
+        }, 5000);
       }
 
       // Hide error message
