@@ -332,7 +332,33 @@ CREATE TABLE genders (
 CREATE TABLE provinces (
     province_id INT AUTO_INCREMENT PRIMARY KEY,
     province_name VARCHAR(100) NOT NULL,
-    country VARCHAR(100) DEFAULT 'Philippines'
+    country VARCHAR(100) NOT NULL DEFAULT 'Philippines',
+    region VARCHAR(100) DEFAULT NULL,
+    INDEX idx_province_name (province_name),
+    CHECK (country = 'Philippines')
+);
+
+CREATE TABLE cities (
+    city_id INT AUTO_INCREMENT PRIMARY KEY,
+    city_name VARCHAR(100) NOT NULL,
+    province_id INT NOT NULL,
+    city_type ENUM('city','municipality') DEFAULT 'city',
+    zip_code VARCHAR(10) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_city_name (city_name),
+    INDEX idx_province_id (province_id),
+    FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE CASCADE
+);
+
+CREATE TABLE barangays (
+    barangay_id INT AUTO_INCREMENT PRIMARY KEY,
+    barangay_name VARCHAR(100) NOT NULL,
+    city_id INT NOT NULL,
+    zip_code VARCHAR(10) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_barangay_name (barangay_name),
+    INDEX idx_city_id (city_id),
+    FOREIGN KEY (city_id) REFERENCES cities(city_id) ON DELETE CASCADE
 );
 
 CREATE TABLE bank_customers (
@@ -417,15 +443,20 @@ CREATE TABLE addresses (
     address_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     address_line VARCHAR(200) NOT NULL,
-    city VARCHAR(100) DEFAULT NULL,
+    barangay_id INT DEFAULT NULL,
+    city_id INT DEFAULT NULL,
     province_id INT DEFAULT NULL,
     postal_code VARCHAR(20) DEFAULT NULL,
     address_type VARCHAR(20) DEFAULT 'home',
     is_primary BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_customer_id (customer_id),
+    INDEX idx_barangay_id (barangay_id),
+    INDEX idx_city_id (city_id),
     INDEX idx_province_id (province_id),
     FOREIGN KEY (customer_id) REFERENCES bank_customers(customer_id),
+    FOREIGN KEY (barangay_id) REFERENCES barangays(barangay_id),
+    FOREIGN KEY (city_id) REFERENCES cities(city_id),
     FOREIGN KEY (province_id) REFERENCES provinces(province_id)
 );
 

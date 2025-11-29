@@ -4,8 +4,12 @@
  * Processes a deposit transaction for a customer account
  */
 
-session_start();
+// Suppress all output before JSON
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
+// Set headers BEFORE any other output
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -17,6 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
+
+session_start();
 
 require_once '../../config/database.php';
 
@@ -93,6 +99,24 @@ try {
         echo json_encode([
             'success' => false,
             'message' => 'Invalid deposit amount'
+        ]);
+        exit();
+    }
+    
+    // Minimum deposit restriction: 100 pesos
+    if ($amount < 100) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Minimum deposit amount is PHP 100.00'
+        ]);
+        exit();
+    }
+    
+    // Maximum deposit restriction: 50,000 pesos
+    if ($amount > 50000) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Maximum deposit amount is PHP 50,000.00'
         ]);
         exit();
     }

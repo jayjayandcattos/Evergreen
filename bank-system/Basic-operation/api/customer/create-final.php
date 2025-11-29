@@ -48,8 +48,9 @@ try {
         'email' => is_array($data['emails'] ?? null) ? $data['emails'][0] : ($data['email'] ?? null),
         'mobile_number' => $data['mobile_number'] ?? (is_array($data['phones'] ?? null) ? $data['phones'][0] : null),
         'address_line' => $data['address_line'] ?? $data['street'] ?? null,
-        'city' => $data['city'] ?? null,
-        'province' => $data['province'] ?? $data['province_name'] ?? null,
+        'province_id' => $data['province_id'] ?? null,
+        'city_id' => $data['city_id'] ?? null,
+        'barangay_id' => $data['barangay_id'] ?? null,
         'postal_code' => $data['postal_code'] ?? null,
         'country' => $data['country'] ?? $data['country_name'] ?? 'Philippines',
         'occupation' => $data['employment_status'] ?? $data['occupation'] ?? null,
@@ -64,7 +65,7 @@ try {
     $requiredFields = [
         'first_name', 'last_name', 'birth_date', 'birth_place',
         'gender', 'civil_status', 'nationality', 'email', 'mobile_number',
-        'address_line', 'city', 'province', 'postal_code', 'country',
+        'address_line', 'province_id', 'city_id', 'barangay_id', 'postal_code', 'country',
         'occupation', 'password_hash'
     ];
 
@@ -132,9 +133,6 @@ try {
 
     // Get or create gender ID
     $genderId = getOrCreateGenderId($db, $mappedData['gender']);
-
-    // Get or create province ID
-    $provinceId = getOrCreateProvinceId($db, $mappedData['province']);
 
     // Format birth_date to MySQL date format (YYYY-MM-DD)
     $birthDate = date('Y-m-d', strtotime($mappedData['birth_date']));
@@ -220,21 +218,22 @@ try {
         $stmt->execute();
 
         // Insert into addresses table (unified schema)
-        // Note: addresses table doesn't have 'country' field, only province_id
+        // Note: addresses table uses foreign keys for location hierarchy
         $stmt = $db->prepare("
             INSERT INTO addresses (
-                customer_id, address_line, city, province_id, 
+                customer_id, address_line, barangay_id, city_id, province_id, 
                 postal_code, address_type, is_primary, created_at
             ) VALUES (
-                :customer_id, :address_line, :city, :province_id,
+                :customer_id, :address_line, :barangay_id, :city_id, :province_id,
                 :postal_code, 'home', 1, NOW()
             )
         ");
         
         $stmt->bindParam(':customer_id', $customerId);
         $stmt->bindParam(':address_line', $mappedData['address_line']);
-        $stmt->bindParam(':city', $mappedData['city']);
-        $stmt->bindParam(':province_id', $provinceId);
+        $stmt->bindParam(':barangay_id', $mappedData['barangay_id']);
+        $stmt->bindParam(':city_id', $mappedData['city_id']);
+        $stmt->bindParam(':province_id', $mappedData['province_id']);
         $stmt->bindParam(':postal_code', $mappedData['postal_code']);
         $stmt->execute();
 

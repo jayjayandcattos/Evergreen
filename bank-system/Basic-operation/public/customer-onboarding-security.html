@@ -99,34 +99,295 @@
                     Multi-factor Authentication (MFA)
                   </div>
 
+                  <!-- MFA Method Selection -->
                   <div class="form-group">
                     <label
-                      >Mobile Number <span style="color: red">*</span></label
+                      >Authentication Method
+                      <span style="color: red">*</span></label
                     >
-                    <div class="mobile-input-group">
-                      <select
-                        name="phone_country_code"
-                        class="form-control phone-country-code"
-                        required
-                        style="width: 200px; flex: none"
+                    <div
+                      class="mfa-method-selector"
+                      style="
+                        display: flex;
+                        gap: 15px;
+                        margin-bottom: 15px;
+                        margin-top: 10px;
+                      "
+                    >
+                      <label
+                        class="mfa-option"
+                        style="flex: 1; position: relative"
                       >
-                        <option value="">Loading...</option>
-                      </select>
-                      <input
-                        type="tel"
-                        name="mobile_number"
-                        class="form-control"
-                        placeholder="9123456789"
-                        required
-                        style="flex: 1"
-                      />
-                      <button type="button" class="btn btn-send-code">
-                        Send Code
-                      </button>
+                        <input
+                          type="radio"
+                          name="mfa_method"
+                          value="phone"
+                          checked
+                          style="
+                            position: absolute;
+                            opacity: 0;
+                            pointer-events: none;
+                          "
+                        />
+                        <div
+                          class="mfa-card"
+                          style="
+                            border: 2px solid #ddd;
+                            border-radius: 12px;
+                            padding: 20px;
+                            text-align: center;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            background: white;
+                            position: relative;
+                          "
+                        >
+                          <div class="mfa-icon" style="margin-bottom: 12px">
+                            <svg
+                              width="40"
+                              height="40"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#666"
+                              stroke-width="2"
+                            >
+                              <rect
+                                x="5"
+                                y="2"
+                                width="14"
+                                height="20"
+                                rx="2"
+                                ry="2"
+                              ></rect>
+                              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                            </svg>
+                          </div>
+                          <div
+                            class="mfa-title"
+                            style="
+                              font-weight: 600;
+                              color: #333;
+                              margin-bottom: 5px;
+                            "
+                          >
+                            Phone Number
+                          </div>
+                          <div
+                            class="mfa-description"
+                            style="font-size: 12px; color: #666"
+                          >
+                            Receive code via SMS
+                          </div>
+                          <div
+                            class="mfa-check"
+                            style="
+                              position: absolute;
+                              top: 10px;
+                              right: 10px;
+                              width: 24px;
+                              height: 24px;
+                              border-radius: 50%;
+                              background: #1a6b62;
+                              display: none;
+                              align-items: center;
+                              justify-content: center;
+                            "
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="white"
+                              stroke-width="3"
+                            >
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                        </div>
+                      </label>
+                      <label
+                        class="mfa-option"
+                        style="flex: 1; position: relative"
+                      >
+                        <input
+                          type="radio"
+                          name="mfa_method"
+                          value="email"
+                          style="
+                            position: absolute;
+                            opacity: 0;
+                            pointer-events: none;
+                          "
+                        />
+                        <div
+                          class="mfa-card"
+                          style="
+                            border: 2px solid #ddd;
+                            border-radius: 12px;
+                            padding: 20px;
+                            text-align: center;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            background: white;
+                            position: relative;
+                          "
+                        >
+                          <div class="mfa-icon" style="margin-bottom: 12px">
+                            <svg
+                              width="40"
+                              height="40"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#666"
+                              stroke-width="2"
+                            >
+                              <path
+                                d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                              ></path>
+                              <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                          </div>
+                          <div
+                            class="mfa-title"
+                            style="
+                              font-weight: 600;
+                              color: #333;
+                              margin-bottom: 5px;
+                            "
+                          >
+                            Email Address
+                          </div>
+                          <div
+                            class="mfa-description"
+                            style="font-size: 12px; color: #666"
+                          >
+                            Receive code via email
+                          </div>
+                          <div
+                            class="mfa-check"
+                            style="
+                              position: absolute;
+                              top: 10px;
+                              right: 10px;
+                              width: 24px;
+                              height: 24px;
+                              border-radius: 50%;
+                              background: #1a6b62;
+                              display: none;
+                              align-items: center;
+                              justify-content: center;
+                            "
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="white"
+                              stroke-width="3"
+                            >
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                        </div>
+                      </label>
                     </div>
-                    <small style="color: #666; font-size: 11px">
-                      Select country code and enter your number
-                    </small>
+                  </div>
+
+                  <style>
+                    .mfa-option input:checked + .mfa-card {
+                      border-color: #1a6b62;
+                      background: linear-gradient(
+                        135deg,
+                        #f0f7f5 0%,
+                        #e8f3f0 100%
+                      );
+                      box-shadow: 0 4px 12px rgba(26, 107, 98, 0.15);
+                    }
+
+                    .mfa-option input:checked + .mfa-card .mfa-icon svg {
+                      stroke: #1a6b62;
+                    }
+
+                    .mfa-option input:checked + .mfa-card .mfa-title {
+                      color: #1a6b62;
+                    }
+
+                    .mfa-option input:checked + .mfa-card .mfa-check {
+                      display: flex !important;
+                    }
+
+                    .mfa-card:hover {
+                      border-color: #1a6b62;
+                      transform: translateY(-2px);
+                      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+                    }
+                  </style>
+
+                  <!-- Phone Number MFA (Default) -->
+                  <div id="phoneMfaSection">
+                    <div class="form-group">
+                      <label
+                        >Mobile Number <span style="color: red">*</span></label
+                      >
+                      <div class="mobile-input-group">
+                        <select
+                          name="phone_country_code"
+                          class="form-control phone-country-code"
+                          style="width: 200px; flex: none"
+                        >
+                          <option value="">Loading...</option>
+                        </select>
+                        <input
+                          type="tel"
+                          name="mobile_number"
+                          id="mobile_number"
+                          class="form-control"
+                          placeholder="9123456789"
+                          style="flex: 1"
+                        />
+                        <button
+                          type="button"
+                          class="btn btn-send-code"
+                          id="sendPhoneCode"
+                        >
+                          Send Code
+                        </button>
+                      </div>
+                      <small style="color: #666; font-size: 11px">
+                        Select country code and enter your number
+                      </small>
+                    </div>
+                  </div>
+
+                  <!-- Email MFA (Hidden by default) -->
+                  <div id="emailMfaSection" style="display: none">
+                    <div class="form-group">
+                      <label
+                        >Email Address <span style="color: red">*</span></label
+                      >
+                      <div style="display: flex; gap: 10px">
+                        <input
+                          type="email"
+                          name="email_verification"
+                          id="email_verification"
+                          class="form-control"
+                          placeholder="your.email@example.com"
+                          style="flex: 1"
+                        />
+                        <button
+                          type="button"
+                          class="btn btn-send-code"
+                          id="sendEmailCode"
+                        >
+                          Send Code
+                        </button>
+                      </div>
+                      <small style="color: #666; font-size: 11px">
+                        Enter your email to receive verification code
+                      </small>
+                    </div>
                   </div>
 
                   <div class="form-group">
@@ -161,37 +422,6 @@
                       />
                     </div>
 
-                    <!-- Bank ID Display (Always Visible) -->
-                    <div
-                      class="bank-id-display"
-                      id="bankIdDisplay"
-                      style="display: none; background: linear-gradient(135deg, #f0f7f5 0%, #e8f3f0 100%); border: 2px solid #1a6b62; border-radius: 12px; padding: 20px; margin-top: 20px;"
-                    >
-                      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                        <svg
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#1a6b62"
-                          stroke-width="2"
-                        >
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span style="font-weight: 700; color: #003631; font-size: 16px;">Your Bank ID (Save this for login):</span>
-                      </div>
-                      <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #1a6b62;">
-                        <div class="bank-id-value" id="bankIdValue" style="font-size: 32px; font-weight: bold; color: #1a6b62; letter-spacing: 4px; text-align: center; cursor: pointer; user-select: all;">0000</div>
-                        <div style="text-align: center; margin-top: 8px; font-size: 12px; color: #666;">Click to copy</div>
-                      </div>
-                      <div style="margin-top: 12px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                        <small style="color: #856404; font-size: 12px;">
-                          <strong>Important:</strong> You will need this Bank ID along with your email and password to log in. Please save it securely.
-                        </small>
-                      </div>
-                    </div>
-
                     <!-- Mock Code Display for Testing -->
                     <div
                       class="mock-code-display"
@@ -215,9 +445,28 @@
                         </svg>
                         <span>Test Mode - Verification Code:</span>
                       </div>
-                      <div style="margin: 15px 0;">
-                        <div style="font-weight: 600; color: #003631; margin-bottom: 8px;">Verification Code:</div>
-                        <div class="mock-code-value" id="mockCodeValue" style="font-size: 24px; font-weight: bold; color: #003631; letter-spacing: 5px;">0000</div>
+                      <div style="margin: 15px 0">
+                        <div
+                          style="
+                            font-weight: 600;
+                            color: #003631;
+                            margin-bottom: 8px;
+                          "
+                        >
+                          Verification Code:
+                        </div>
+                        <div
+                          class="mock-code-value"
+                          id="mockCodeValue"
+                          style="
+                            font-size: 24px;
+                            font-weight: bold;
+                            color: #003631;
+                            letter-spacing: 5px;
+                          "
+                        >
+                          0000
+                        </div>
                       </div>
                       <small class="mock-code-note"
                         >This is only visible in test mode. In production, codes
@@ -237,7 +486,13 @@
               <!-- Action Buttons -->
               <div class="button-group">
                 <button type="submit" class="btn btn-continue">Continue</button>
-                <button type="button" class="btn btn-cancel">Cancel</button>
+                <button
+                  type="button"
+                  class="btn btn-cancel"
+                  onclick="window.location.href='employee-dashboard.html'"
+                >
+                  Cancel
+                </button>
                 <button type="button" class="btn btn-back">Back</button>
               </div>
             </form>

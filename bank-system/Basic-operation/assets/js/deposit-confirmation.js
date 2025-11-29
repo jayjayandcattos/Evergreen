@@ -14,9 +14,6 @@ document.addEventListener("DOMContentLoaded", function () {
   // Populate transaction information
   populateTransactionInfo(data);
 
-  // Generate QR code but don't display it yet
-  generateQRCode(data);
-
   // Setup button handlers
   setupButtonHandlers();
 
@@ -70,53 +67,10 @@ function populateTransactionInfo(data) {
     data.employee_name || "System Admin";
   document.getElementById("deposit-branch").textContent =
     data.branch || "Main Branch";
-
-  // Generate QR Code for PDF receipt
-  generateQRCode(data);
 }
 
-function generateQRCode(data) {
-  // Create simplified, scannable receipt data (optimized for QR code readability)
-  // Format: Key-value pairs separated by | for easier scanning
-  const receiptData = [
-    `BANK:Evergreen Bank`,
-    `TYPE:DEPOSIT`,
-    `REF:${data.transaction_reference}`,
-    `DATE:${data.transaction_date}`,
-    `ACCT:${data.account_number}`,
-    `NAME:${data.customer_name}`,
-    `AMT:PHP ${data.amount}`,
-    `PREV:PHP ${data.previous_balance}`,
-    `NEW:PHP ${data.new_balance}`,
-    `BRANCH:${data.branch || "Main Branch"}`,
-    `TELLER:${data.employee_name || "System Admin"}`,
-    `STATUS:COMPLETED`,
-  ].join("|");
-
-  // Get QR code container
-  const qrCodeBox = document.querySelector(".qr-code-box");
-
-  if (qrCodeBox) {
-    // Clear any existing content
-    qrCodeBox.innerHTML = "";
-
-    // Create QR code image
-    const qrImg = document.createElement("img");
-    qrImg.src =
-      "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-      encodeURIComponent(receiptData) +
-      "&margin=10";
-    qrImg.alt = "Transaction Receipt QR Code";
-    qrImg.style.width = "100%";
-    qrImg.style.height = "100%";
-    qrImg.style.objectFit = "contain";
-    qrImg.onerror = function () {
-      qrCodeBox.innerHTML =
-        '<div style="text-align: center; padding: 20px; font-size: 12px;">QR Code<br/>Generation<br/>Error</div>';
-    };
-
-    qrCodeBox.appendChild(qrImg);
-  }
+function printReceipt() {
+  window.print();
 }
 
 function showSuccessModal() {

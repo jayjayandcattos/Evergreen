@@ -39,6 +39,7 @@ class Customer extends Database{
     $this->db->bind(':accountIdentifier', $account_number);
     return $this->db->single();
   }
+}
 
   // REST OF THE FILE CONTINUES BELOW...
   // Copy the rest from the original file starting from loginCustomer method
