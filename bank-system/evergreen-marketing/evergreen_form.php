@@ -4,6 +4,12 @@
        'cookie_secure' => isset($_SERVER['HTTPS']),
        'use_strict_mode' => true
     ]);
+    
+    // Get user data from session if logged in
+    $user_first_name = isset($_SESSION['first_name']) ? htmlspecialchars($_SESSION['first_name']) : '';
+    $user_last_name = isset($_SESSION['last_name']) ? htmlspecialchars($_SESSION['last_name']) : '';
+    $user_email = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : '';
+    $is_logged_in = isset($_SESSION['user_id']) && isset($_SESSION['email']);
 ?>
 
 <html>
@@ -209,6 +215,18 @@
         padding: 5px 10px;
         font-size: 14px;
         margin-top: -10px;
+      }
+
+      .readonly-field {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+        border-color: #d0d0d0;
+        color: #666;
+      }
+
+      .readonly-field:focus {
+        outline: none;
+        border-color: #d0d0d0;
       }
 
       /* Verification section (Identity & Employment) */
@@ -1709,18 +1727,18 @@
             <div class="upper-input-wrap">
               <div class="input-wrap">
                 <label for="f-name">First Name<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="f-name">
+                <input type="text" class="inp-credentials <?php echo $is_logged_in ? 'readonly-field' : ''; ?>" id="f-name" value="<?php echo $user_first_name; ?>" <?php echo $is_logged_in ? 'readonly' : ''; ?>>
               </div>
               <div class="input-wrap">
                 <label for="l-name">Last Name<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="l-name">
+                <input type="text" class="inp-credentials <?php echo $is_logged_in ? 'readonly-field' : ''; ?>" id="l-name" value="<?php echo $user_last_name; ?>" <?php echo $is_logged_in ? 'readonly' : ''; ?>>
               </div>
             </div>
 
             <div class="lower-input-wrap">
               <div class="input-wrap">
                 <label for="e-mail">Email Address<span style="color: red;">*</span></label>
-                <input type="email" class="inp-credentials" id="e-mail">
+                <input type="email" class="inp-credentials <?php echo $is_logged_in ? 'readonly-field' : ''; ?>" id="e-mail" value="<?php echo $user_email; ?>" <?php echo $is_logged_in ? 'readonly' : ''; ?>>
               </div>
               <div class="input-wrap">
                 <label for="phone-number">Phone Number<span style="color: red;">*</span></label>

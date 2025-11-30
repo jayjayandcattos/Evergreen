@@ -28,7 +28,20 @@ class PointsSystem {
         pointsElements.forEach(el => {
             const currentValue = parseFloat(el.textContent) || 0;
             const targetValue = this.totalPoints;
-            this.animateValue(el, currentValue, targetValue, 600);
+            
+            // For immediate feedback, update the display right away
+            // The animation will still run but user sees the new value immediately
+            el.textContent = targetValue.toFixed(2);
+            
+            // Optional: Add a subtle animation effect
+            if (Math.abs(currentValue - targetValue) > 0.01) {
+                // Add a brief highlight effect to show the change
+                el.style.transition = 'all 0.3s ease';
+                el.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    el.style.transform = 'scale(1)';
+                }, 300);
+            }
         });
     }
 
@@ -122,8 +135,12 @@ class PointsSystem {
             const data = await response.json();
             
             if (data.success) {
+                // Update points immediately from API response
                 this.totalPoints = parseFloat(data.total_points);
                 this.updatePointsDisplay();
+                
+                // Also refresh from server to ensure consistency
+                await this.loadUserPoints();
                 
                 const missionCard = buttonElement.closest('.mission-card');
                 this.showSuccessMessage(data.points_earned);
