@@ -207,6 +207,10 @@ try {
         
         error_log("Using Bank ID for customer: " . $bank_id);
         
+        // Generate unique referral code
+        $referral_code = generateUniqueReferralCode($db);
+        error_log("Generated referral code: " . $referral_code);
+        
         // Insert into bank_customers table (unified schema)
         // Note: email is optional (can be NULL if only phone verification was used)
         $customerEmail = $hasEmail ? $mappedData['email'] : null;
@@ -239,10 +243,10 @@ try {
         $stmt = $db->prepare("
             INSERT INTO bank_customers (
                 first_name, middle_name, last_name, email, password_hash, 
-                address, city_province, contact_number, birthday, created_at
+                address, city_province, contact_number, birthday, bank_id, referral_code, created_at
             ) VALUES (
                 :first_name, :middle_name, :last_name, :email, :password_hash,
-                :address, :city_province, :contact_number, :birthday, NOW()
+                :address, :city_province, :contact_number, :birthday, :bank_id, :referral_code, NOW()
             )
         ");
         
@@ -255,6 +259,8 @@ try {
         $stmt->bindParam(':city_province', $cityProvince);
         $stmt->bindParam(':contact_number', $customerPhone);
         $stmt->bindParam(':birthday', $mappedData['birth_date']);
+        $stmt->bindParam(':bank_id', $bank_id);
+        $stmt->bindParam(':referral_code', $referral_code);
         $stmt->execute();
 
         $customerId = $db->lastInsertId();
@@ -421,6 +427,34 @@ try {
             'line' => $e->getLine()
         ]
     ]);
+}
+
+/**
+ * Generate unique referral code
+ * @param PDO $db Database connection
+ * @return string Unique referral code
+ */
+function generateUniqueReferralCode($db) {
+    do {
+        // Generate a 6-character code (3 letters + 3 numbers)
+        $code = '';
+        for ($i = 0; $i < 3; $i++) {
+            $code .= chr(rand(65, 90)); // A-Z
+        }
+        for ($i = 0; $i < 3; $i++) {
+            $code .= rand(0, 9); // 0-9
+        }
+        
+        // Check if code already exists
+        $stmt = $db->prepare("SELECT customer_id FROM bank_customers WHERE referral_code = :code LIMIT 1");
+        $stmt->bindParam(':code', $code);
+        $stmt->execute();
+        $exists = $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+        $stmt->closeCursor();
+        
+    } while ($exists);
+    
+    return $code;
 }
 
 /**

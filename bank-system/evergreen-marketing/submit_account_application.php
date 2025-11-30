@@ -41,7 +41,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Extract and sanitize data
         $firstName = $conn->real_escape_string(trim($data['firstName']));
         $lastName = $conn->real_escape_string(trim($data['lastName']));
-        $email = $conn->real_escape_string(trim($data['email']));
+        
+        // Use logged-in customer's email if available, otherwise use form email
+        $email = null;
+        if (isset($_SESSION['customer_email']) && !empty($_SESSION['customer_email'])) {
+            // Customer is logged in - use their account email
+            $email = $conn->real_escape_string(trim($_SESSION['customer_email']));
+            error_log("Using logged-in customer email for application: " . $email);
+        } elseif (isset($data['email']) && !empty($data['email'])) {
+            // Use email from form (for non-logged-in users)
+            $email = $conn->real_escape_string(trim($data['email']));
+            error_log("Using form email for application: " . $email);
+        } else {
+            throw new Exception("Email is required for application submission");
+        }
         $phoneNumber = $conn->real_escape_string(trim($data['phoneNumber']));
         $dateOfBirth = $conn->real_escape_string(trim($data['dateOfBirth']));
         $streetAddress = $conn->real_escape_string(trim($data['streetAddress']));

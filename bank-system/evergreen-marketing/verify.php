@@ -108,6 +108,97 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     // Get the newly created customer_id
                     $customer_id = $conn->insert_id;
                     
+                    // Start transaction for data integrity
+                    $conn->begin_transaction();
+                    
+                    try {
+                        // Insert into customer_profiles
+                        $profile_sql = "INSERT INTO customer_profiles (customer_id, date_of_birth, marital_status, profile_created_at) VALUES (?, ?, 'single', NOW())";
+                        $profile_stmt = $conn->prepare($profile_sql);
+                        if ($profile_stmt) {
+                            $profile_stmt->bind_param("is", $customer_id, $registration_data['birthday']);
+                            if (!$profile_stmt->execute()) {
+                                throw new Exception("Failed to insert customer profile: " . $profile_stmt->error);
+                            }
+                            $profile_stmt->close();
+                            error_log("Customer profile created for customer ID {$customer_id}");
+                        } else {
+                            throw new Exception("Failed to prepare customer profile statement: " . $conn->error);
+                        }
+                        
+                        // Get postal code from barangays table if available
+                        $postal_code = '';
+                        if (isset($registration_data['barangay_id']) && $registration_data['barangay_id'] > 0) {
+                            $zip_sql = "SELECT zip_code FROM barangays WHERE barangay_id = ? LIMIT 1";
+                            $zip_stmt = $conn->prepare($zip_sql);
+                            if ($zip_stmt) {
+                                $zip_stmt->bind_param("i", $registration_data['barangay_id']);
+                                $zip_stmt->execute();
+                                $zip_result = $zip_stmt->get_result();
+                                if ($zip_row = $zip_result->fetch_assoc()) {
+                                    $postal_code = $zip_row['zip_code'] ?? '';
+                                }
+                                $zip_stmt->close();
+                            }
+                        }
+                        
+                        // Insert into addresses
+                        $province_id = isset($registration_data['province_id']) ? (int)$registration_data['province_id'] : null;
+                        $city_id = isset($registration_data['city_id']) ? (int)$registration_data['city_id'] : null;
+                        $barangay_id = isset($registration_data['barangay_id']) ? (int)$registration_data['barangay_id'] : null;
+                        
+                        $address_sql = "INSERT INTO addresses (customer_id, address_line, province_id, city_id, barangay_id, postal_code, address_type, is_primary, created_at) VALUES (?, ?, ?, ?, ?, ?, 'home', 1, NOW())";
+                        $address_stmt = $conn->prepare($address_sql);
+                        if ($address_stmt) {
+                            $address_stmt->bind_param("isiiis", $customer_id, $registration_data['address'], $province_id, $city_id, $barangay_id, $postal_code);
+                            if (!$address_stmt->execute()) {
+                                throw new Exception("Failed to insert address: " . $address_stmt->error);
+                            }
+                            $address_stmt->close();
+                            error_log("Address created for customer ID {$customer_id}");
+                        } else {
+                            throw new Exception("Failed to prepare address statement: " . $conn->error);
+                        }
+                        
+                        // Insert into emails
+                        $email_sql = "INSERT INTO emails (customer_id, email, is_primary, created_at) VALUES (?, ?, 1, NOW())";
+                        $email_stmt = $conn->prepare($email_sql);
+                        if ($email_stmt) {
+                            $email_stmt->bind_param("is", $customer_id, $registration_data['email']);
+                            if (!$email_stmt->execute()) {
+                                throw new Exception("Failed to insert email: " . $email_stmt->error);
+                            }
+                            $email_stmt->close();
+                            error_log("Email created for customer ID {$customer_id}");
+                        } else {
+                            throw new Exception("Failed to prepare email statement: " . $conn->error);
+                        }
+                        
+                        // Insert into phones
+                        $phone_sql = "INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at) VALUES (?, ?, 'mobile', 1, NOW())";
+                        $phone_stmt = $conn->prepare($phone_sql);
+                        if ($phone_stmt) {
+                            $phone_stmt->bind_param("is", $customer_id, $registration_data['contact_number']);
+                            if (!$phone_stmt->execute()) {
+                                throw new Exception("Failed to insert phone: " . $phone_stmt->error);
+                            }
+                            $phone_stmt->close();
+                            error_log("Phone created for customer ID {$customer_id}");
+                        } else {
+                            throw new Exception("Failed to prepare phone statement: " . $conn->error);
+                        }
+                        
+                        // Commit transaction if all inserts succeeded
+                        $conn->commit();
+                        error_log("All related records inserted successfully for customer ID {$customer_id}");
+                        
+                    } catch (Exception $e) {
+                        // Rollback transaction on error
+                        $conn->rollback();
+                        error_log("Error inserting related records: " . $e->getMessage());
+                        throw $e;
+                    }
+                    
                     // Automatically create a Savings Account for the new customer
                     try {
                         // Generate unique account number for Savings Account

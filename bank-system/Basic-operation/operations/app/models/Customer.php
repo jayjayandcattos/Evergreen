@@ -935,18 +935,18 @@ class Customer extends Database{
         )
         VALUES (
             :transaction_ref,
-            :sender,
+            :receiver,
             :transaction_type,
             :amount,
-            :receiver,
+            :sender,
             :message
         );
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
-        $this->db->bind(':sender', $receiver);
-        $this->db->bind(':transaction_type', 3);
+        $this->db->bind(':receiver', $receiver);
+        $this->db->bind(':transaction_type', 9); // Transfer In (ID 9)
         $this->db->bind(':amount', $amount);
-        $this->db->bind(':receiver', $sender);
+        $this->db->bind(':sender', $sender);
         $this->db->bind(':message', $message);
         $this->db->execute();
     }
