@@ -687,6 +687,11 @@ class CustomerController extends Controller {
 
     // -- FOR EXPORT --
     public function export_transactions() {
+        // Clear any output buffers to prevent header issues
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         if (!isset($_SESSION['customer_id'])) {
             header('Location: ' . URLROOT . '/customer/login');
             exit();
@@ -729,9 +734,15 @@ class CustomerController extends Controller {
     }
     
     protected function generateCSV($transactions) {
+        // Clear any output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         // Set headers for download
         $filename = 'transactions_' . date('Ymd_His') . '.csv';
         
+        // Set headers before any output
         header('Content-Type: text/csv; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Transfer-Encoding: binary');
@@ -772,6 +783,11 @@ class CustomerController extends Controller {
     }
 
     protected function generatePDF($transactions) {
+        // Clear any output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         require_once ROOT_PATH . '/vendor/autoload.php';
 
         // --- Compute Date Range ---

@@ -122,8 +122,8 @@ $queryBase = buildFilterQuery($filters);
             </a>
 
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=csv&<?php echo $queryBase; ?>" download>CSV (.csv)</a></li>
-                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=pdf&<?php echo $queryBase; ?>" download>PDF (.pdf)</a></li>
+                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=csv&<?php echo $queryBase; ?>">CSV (.csv)</a></li>
+                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=pdf&<?php echo $queryBase; ?>">PDF (.pdf)</a></li>
             </ul>
         </div>
     </div>
