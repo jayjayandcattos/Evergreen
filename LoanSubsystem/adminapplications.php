@@ -10,9 +10,9 @@ if ($conn->connect_error) {
   die("DB Error: " . $conn->connect_error);
 }
 
-// Count statuses
+// Count statuses (exclude deleted)
 $counts = ['Active' => 0, 'Pending' => 0, 'Approved' => 0, 'Rejected' => 0, 'Closed' => 0];
-$statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications GROUP BY status");
+$statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications WHERE (deleted_at IS NULL OR deleted_at = '') GROUP BY status");
 if ($statusResult) {
   while ($row = $statusResult->fetch_assoc()) {
     $status = ucfirst(strtolower(trim($row['status'])));
@@ -72,7 +72,7 @@ if ($statusResult) {
         </thead>
         <tbody id="pendingTableBody">
           <?php
-          $result = $conn->query("SELECT la.*, lt.name AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Pending' ORDER BY la.id DESC");
+          $result = $conn->query("SELECT la.*, COALESCE(lt.name, la.loan_type, 'N/A') AS loan_type_display FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Pending' AND (la.deleted_at IS NULL OR la.deleted_at = '') ORDER BY la.id DESC");
           if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
               $applied_date = date("m/d/Y", strtotime($row['created_at'] ?? 'now'));
@@ -81,7 +81,7 @@ if ($statusResult) {
               <tr data-loan-id="<?= (int)$row['id'] ?>">
                 <td><?= htmlspecialchars($row['id']) ?></td>
                 <td><?= htmlspecialchars($row['full_name']) ?></td>
-                <td><?= htmlspecialchars($row['loan_type_name'] ?? 'N/A') ?></td>
+                <td><?= htmlspecialchars($row['loan_type_display']) ?></td>
                 <td>₱<?= number_format($row['loan_amount'], 2) ?></td>
                 <td><?= htmlspecialchars($_SESSION['loan_officer_id'] ?? 'LO-0123') ?></td>
                 <td><?= $applied_date ?> <?= $applied_time ?></td>
@@ -116,7 +116,7 @@ if ($statusResult) {
         </thead>
         <tbody id="approvedTableBody">
           <?php
-          $result = $conn->query("SELECT la.*, lt.name AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Approved' ORDER BY la.approved_at DESC");
+          $result = $conn->query("SELECT la.*, COALESCE(lt.name, la.loan_type, 'N/A') AS loan_type_display FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Approved' AND (la.deleted_at IS NULL OR la.deleted_at = '') ORDER BY la.approved_at DESC");
           if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
               $approved_date = date("m/d/Y", strtotime($row['approved_at'] ?? 'now'));
@@ -125,7 +125,7 @@ if ($statusResult) {
               <tr data-loan-id="<?= (int)$row['id'] ?>">
                 <td><?= htmlspecialchars($row['id']) ?></td>
                 <td><?= htmlspecialchars($row['full_name']) ?></td>
-                <td><?= htmlspecialchars($row['loan_type_name'] ?? 'N/A') ?></td>
+                <td><?= htmlspecialchars($row['loan_type_display']) ?></td>
                 <td>₱<?= number_format($row['loan_amount'], 2) ?></td>
                 <td><?= htmlspecialchars($_SESSION['loan_officer_id'] ?? 'LO-0123') ?></td>
                 <td><?= $approved_date ?> <?= $approved_time ?></td>
@@ -233,8 +233,16 @@ if ($statusResult) {
     function checkSalaryValidation() {
       const alertDiv = document.getElementById('salary-alert');
       const approveBtn = document.getElementById('approve-btn');
-      const fiftyPercentSalary = currentMonthlySalary * 0.5;
       
+      // DISABLED: Salary validation temporarily disabled
+      // To re-enable, uncomment the validation logic below
+      alertDiv.style.display = 'none';
+      approveBtn.disabled = false;
+      approveBtn.style.opacity = '1';
+      approveBtn.style.cursor = 'pointer';
+      
+      /* ORIGINAL VALIDATION (disabled):
+      const fiftyPercentSalary = currentMonthlySalary * 0.5;
       if (currentMonthlyPayment > fiftyPercentSalary) {
         alertDiv.style.display = 'block';
         approveBtn.disabled = true;
@@ -246,6 +254,7 @@ if ($statusResult) {
         approveBtn.style.opacity = '1';
         approveBtn.style.cursor = 'pointer';
       }
+      */
     }
 
     function viewLoanApplication(loanId, stage) {
@@ -302,11 +311,14 @@ if ($statusResult) {
     function confirmAndApproveLoan() {
       if (!currentLoanId) return;
       
+      // DISABLED: Salary validation temporarily disabled
+      /* ORIGINAL VALIDATION:
       const fiftyPercentSalary = currentMonthlySalary * 0.5;
       if (currentMonthlyPayment > fiftyPercentSalary) {
         alert('Cannot approve: Monthly payment exceeds 50% of salary.');
         return;
       }
+      */
       
       if (currentLoanStage === 'pending') {
         if (confirm('Approve this loan for ' + currentClientName + '? Client must claim within 30 days.')) {

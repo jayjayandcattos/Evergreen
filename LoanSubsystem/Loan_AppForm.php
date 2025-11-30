@@ -11,27 +11,54 @@ if (!isset($_SESSION['user_email'])) {
 $conn = getDBConnection();
 $user_email = $_SESSION['user_email'];
 
-// Fetch user details
-$stmt = $conn->prepare("SELECT full_name, account_number, contact_number, email FROM bank_customers WHERE email = ?");
+// Fetch user details from bank_customers - construct full_name from first, middle, last
+$stmt = $conn->prepare("SELECT 
+    CONCAT(first_name, ' ', IFNULL(CONCAT(middle_name, ' '), ''), last_name) as full_name,
+    contact_number,
+    email,
+    customer_id
+FROM bank_customers 
+WHERE email = ?");
+
+if (!$stmt) {
+    die("Database error: " . $conn->error);
+}
+
 $stmt->bind_param("s", $user_email);
 $stmt->execute();
 $result = $stmt->get_result();
 $currentUser = $result->fetch_assoc();
 
+// Get account number from customer_accounts if it exists
+$account_number = '';
+if ($currentUser) {
+    $acc_stmt = $conn->prepare("SELECT account_number FROM customer_accounts WHERE customer_id = ? LIMIT 1");
+    if ($acc_stmt) {
+        $acc_stmt->bind_param("i", $currentUser['customer_id']);
+        $acc_stmt->execute();
+        $acc_result = $acc_stmt->get_result();
+        if ($acc_row = $acc_result->fetch_assoc()) {
+            $account_number = $acc_row['account_number'];
+        }
+        $acc_stmt->close();
+    }
+}
+
 if (!$currentUser) {
     // Fallback or error handling
     $currentUser = [
         'full_name' => '',
-        'account_number' => '',
         'contact_number' => '',
         'email' => $user_email
     ];
 }
+
+$currentUser['account_number'] = $account_number;
 $stmt->close();
 
-// Fetch loan types
+// Fetch loan types - show all active loan types
 $loanTypes = [];
-$lt_result = $conn->query("SELECT id, name FROM loan_types WHERE is_active = 1");
+$lt_result = $conn->query("SELECT id, name FROM loan_types WHERE is_active = 1 ORDER BY name");
 if ($lt_result) {
     while ($row = $lt_result->fetch_assoc()) {
         $loanTypes[] = $row;
@@ -94,13 +121,12 @@ $conn->close();
           <div class="input-group">
             <div class="input-container">
               <label for="loan_type">Loan Type <span class="required">*</span></label>
-              <!-- ✅ FIXED: Now uses dynamic loan types from DB and sends loan_type_id -->
               <select name="loan_type_id" id="loan_type" required>
-  <option value="">Select Loan Type</option>
-  <?php foreach ($loanTypes as $type): ?>
-    <option value="<?= (int)$type['id'] ?>"><?= htmlspecialchars($type['name']) ?></option>
-  <?php endforeach; ?>
-</select>
+                <option value="">Select Loan Type</option>
+                <?php foreach ($loanTypes as $type): ?>
+                  <option value="<?= (int)$type['id'] ?>"><?= htmlspecialchars($type['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
               <span class="validation-message" id="loan-type-error"></span>
             </div>
 
@@ -132,7 +158,6 @@ $conn->close();
             </div>
           </div>
 
-          <!-- ✅ DOCUMENT UPLOADS WITH FULL LABELS -->
           <div class="input-container">
             <label for="attachment">Upload Valid ID <span class="required">*</span></label>
             <small>Accepted: JPG, JPEG, PNG, PDF, DOC, DOCX</small>
@@ -172,7 +197,7 @@ $conn->close();
   </section>
 </div>
 
-<!-- Modal (unchanged) -->
+<!-- Modal -->
 <div id="combined-modal" class="modal hidden">
   <div class="modal-content">
     <div id="terms-view">
@@ -231,14 +256,13 @@ $conn->close();
 <script src="loan_appform.js"></script>
 
 <script>
-// Auto-select loan type from URL — now matches by NAME (not ID) to support ?loanType=Personal%20Loan
+// Auto-select loan type from URL
 document.addEventListener('DOMContentLoaded', function () {
     const urlParams = new URLSearchParams(window.location.search);
     const loanTypeName = urlParams.get('loanType');
     if (loanTypeName) {
         const loanSelect = document.getElementById('loan_type');
         for (let option of loanSelect.options) {
-            // Compare option TEXT (not value) to URL parameter
             if (option.text.trim() === decodeURIComponent(loanTypeName).trim()) {
                 option.selected = true;
                 break;
@@ -246,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ✅ File type validation
+    // File type validation
     const validIdInput = document.getElementById('attachment');
     const proofInput = document.getElementById('proof_of_income');
     const coeInput = document.getElementById('coe_document');

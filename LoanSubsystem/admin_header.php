@@ -34,7 +34,7 @@ header {
 }
 
 /* Logo Section */
-    .logo-container {
+.logo-container {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -212,8 +212,6 @@ nav a.active {
             <ul>
                 <li><a href="adminindex.php" class="<?= basename($_SERVER['PHP_SELF']) === 'adminindex.php' ? 'active' : '' ?>">Dashboard</a></li>
                 <li><a href="adminapplications.php" class="<?= basename($_SERVER['PHP_SELF']) === 'adminapplications.php' ? 'active' : '' ?>">Loan Applications</a></li>
-                <li><a href="adminrecords.php" class="<?= basename($_SERVER['PHP_SELF']) === 'adminrecords.php' ? 'active' : '' ?>">Records</a></li>
-                <li><a href="../../accounting-and-finance/modules/general-ledger.php" target="_blank">Accounting</a></li>
             </ul>
         </nav>
     </div>

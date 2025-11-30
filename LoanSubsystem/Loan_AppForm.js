@@ -207,19 +207,52 @@ window.acceptTerms = function() {
 
     const now = new Date();
     document.getElementById("ref-date").innerText = now.toLocaleString();
-    document.getElementById("ref-number").innerText = "EVG-" + Math.floor(Math.random() * 900000 + 100000);
 
     const formData = new FormData(loanForm);
+    
+    // Show loading state
+    const dashboardBtn = document.querySelector('.btn-dashboard');
+    if (dashboardBtn) {
+        dashboardBtn.textContent = 'Submitting...';
+        dashboardBtn.disabled = true;
+    }
+
     fetch("submit_loan.php", {
         method: "POST",
         body: formData
     })
-    .then(response => response.text())
+    .then(response => response.json())
     .then(result => {
         console.log("Server Response:", result);
+        
+        if (result.success) {
+            // Update reference number with actual loan ID
+            document.getElementById("ref-number").innerText = "LOAN-" + result.loan_id;
+            
+            if (dashboardBtn) {
+                dashboardBtn.textContent = 'Go To Dashboard';
+                dashboardBtn.disabled = false;
+            }
+        } else {
+            // Show error
+            alert("Error: " + (result.error || "Failed to submit loan application"));
+            console.error("Submission error:", result.error);
+            
+            // Allow retry
+            if (dashboardBtn) {
+                dashboardBtn.textContent = 'Go To Dashboard (Check Error)';
+                dashboardBtn.disabled = false;
+            }
+        }
     })
     .catch(error => {
         console.error("Error submitting form:", error);
+        alert("Network error. Please check your connection and try again.");
+        
+        if (dashboardBtn) {
+            dashboardBtn.textContent = 'Go To Dashboard';
+            dashboardBtn.disabled = false;
+        }
     });
 }
 
