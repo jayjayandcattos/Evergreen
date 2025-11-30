@@ -702,18 +702,27 @@ class CustomerController extends Controller {
         ];
         $exportType = strtolower($_GET['type'] ?? 'csv');
 
-        // 2. Call a model method to fetch ALL transactions matching the filters
-        // Pass customer_id and filters
-        $transactions = $this->customerModel->getAllFilteredTransactions($customer_id, $filters); 
+        try {
+            // 2. Call a model method to fetch ALL transactions matching the filters
+            // Pass customer_id and filters
+            $transactions = $this->customerModel->getAllFilteredTransactions($customer_id, $filters); 
 
-        // 3. Generate and output the file based on $exportType
-        if ($exportType === 'csv') {
-            $this->generateCSV($transactions);
-        } elseif ($exportType === 'pdf') {
-            // You would need a PDF library integrated for this (TCPDF seems to be set up)
-            $this->generatePDF($transactions);
-        } else {
-            // Handle invalid type
+            // 3. Generate and output the file based on $exportType
+            if ($exportType === 'csv') {
+                $this->generateCSV($transactions);
+            } elseif ($exportType === 'pdf') {
+                // You would need a PDF library integrated for this (TCPDF seems to be set up)
+                $this->generatePDF($transactions);
+            } else {
+                // Handle invalid type
+                $_SESSION['export_error'] = 'Invalid export type. Please select CSV or PDF.';
+                header('Location: ' . URLROOT . '/customer/transaction_history');
+                exit;
+            }
+        } catch (Exception $e) {
+            // Log error and redirect with error message
+            error_log("Export Error: " . $e->getMessage());
+            $_SESSION['export_error'] = 'Failed to export transactions. Please try again.';
             header('Location: ' . URLROOT . '/customer/transaction_history');
             exit;
         }
@@ -721,15 +730,22 @@ class CustomerController extends Controller {
     
     protected function generateCSV($transactions) {
         // Set headers for download
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="transactions_' . date('Ymd_His') . '.csv"');
+        $filename = 'transactions_' . date('Ymd_His') . '.csv';
+        
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Transfer-Encoding: binary');
         header('Pragma: no-cache');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
         header('Expires: 0');
 
-        // Open a temporary stream for output
+        // Open output stream
         $output = fopen('php://output', 'w');
+        
+        // Add UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-        // Define CSV Column Headers (adjust these to match your data structure)
+        // Define CSV Column Headers
         $headers = ['Date', 'Time', 'Description', 'Reference', 'Account Number', 'Type', 'Amount (PHP)'];
         fputcsv($output, $headers);
 
@@ -853,7 +869,12 @@ class CustomerController extends Controller {
 
         $pdf->writeHTML($html, true, false, true, false, '');
 
-        $pdf->Output('statement_' . date('Ymd') . '.pdf', 'D');
+        // Generate filename with timestamp
+        $filename = 'statement_' . date('Ymd_His') . '.pdf';
+        
+        // Output PDF with 'D' flag to force download
+        // 'D' = send to browser and force download with the given name
+        $pdf->Output($filename, 'D');
         exit;
     }
 
@@ -931,12 +952,20 @@ class CustomerController extends Controller {
         $customerId = $_SESSION['customer_id'];
         $activeLoans = $this->customerModel->getActiveLoanApplications($customerId); // Fetching applications now
         $primaryAccount = $this->customerModel->getPrimaryAccountNumber($customerId);
+        
+        // Get account balance for the primary account
+        $accountBalance = 0.00;
+        if ($primaryAccount) {
+            $balanceData = $this->customerModel->validateAmount($primaryAccount);
+            $accountBalance = $balanceData ? (float)$balanceData->balance : 0.00;
+        }
 
         $data = [
             'title' => "Pay Loan",
             'first_name' => $_SESSION['customer_first_name'] ?? 'Customer',
             'active_loans' => $activeLoans,
             'source_account' => $primaryAccount,
+            'account_balance' => $accountBalance,
             'message' => ''
         ];
 
@@ -964,6 +993,12 @@ class CustomerController extends Controller {
         $data['message'] = '<div class="alert alert-danger">Please select a loan and enter a valid payment amount.</div>';
         // Need to reload data before viewing again
         $data['active_loans'] = $this->customerModel->getActiveLoanApplications($customerId);
+        // Reload account balance
+        $primaryAccount = $this->customerModel->getPrimaryAccountNumber($customerId);
+        if ($primaryAccount) {
+            $balanceData = $this->customerModel->validateAmount($primaryAccount);
+            $data['account_balance'] = $balanceData ? (float)$balanceData->balance : 0.00;
+        }
         return $this->view('customer/pay_loan', $data);
     }
 
@@ -974,6 +1009,15 @@ class CustomerController extends Controller {
         $sourceAccount,
         $customerId
     );
+
+    // Reload account balance after payment processing
+    $primaryAccount = $this->customerModel->getPrimaryAccountNumber($customerId);
+    $accountBalance = 0.00;
+    if ($primaryAccount) {
+        $balanceData = $this->customerModel->validateAmount($primaryAccount);
+        $accountBalance = $balanceData ? (float)$balanceData->balance : 0.00;
+    }
+    $data['account_balance'] = $accountBalance;
 
     if ($result['status'] === true) {
         $data['message'] = '<div class="alert alert-success">Loan payment processed successfully! Your balance has been updated and a transaction recorded.</div>';

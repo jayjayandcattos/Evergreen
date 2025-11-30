@@ -29,6 +29,15 @@ $queryBase = buildFilterQuery($filters);
     
     <!--------------------------- PAGE TITLE --------------------------------------------------------------------------------------->
     <h2 class="fw-bold mb-4" style="color: #003631;">Transaction History</h2>
+    
+    <!--------------------------- EXPORT ERROR MESSAGE --------------------------------------------------------------------------->
+    <?php if (isset($_SESSION['export_error'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?php echo htmlspecialchars($_SESSION['export_error']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php unset($_SESSION['export_error']); ?>
+    <?php endif; ?>
 
     <!--------------------------- FILTERS SECTION (Wrapped in a form for submission) ------------------------------------------------->
     <form method="GET" action="<?php echo URLROOT; ?>/customer/transaction_history">
@@ -113,8 +122,8 @@ $queryBase = buildFilterQuery($filters);
             </a>
 
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=csv&<?php echo $queryBase; ?>">CSV (.csv)</a></li>
-                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=pdf&<?php echo $queryBase; ?>">PDF (.pdf)</a></li>
+                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=csv&<?php echo $queryBase; ?>" download>CSV (.csv)</a></li>
+                <li><a class="dropdown-item" href="<?php echo URLROOT; ?>/customer/export_transactions?type=pdf&<?php echo $queryBase; ?>" download>PDF (.pdf)</a></li>
             </ul>
         </div>
     </div>

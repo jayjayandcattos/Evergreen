@@ -71,9 +71,17 @@
                         </div>
 
                         <input type="hidden" name="source_account" value="<?= htmlspecialchars($data['source_account'] ?? ''); ?>">
-                        <div class="mb-5 p-3 rounded-3" style="background-color: #f0f8ff; border: 1px solid #0036311A;">
-                            <small class="fw-semibold text-muted d-block mb-1">Payment will be debited from:</small>
-                            <p class="mb-0 fw-bold" style="color: #003631;"><?= htmlspecialchars($data['source_account'] ?? 'Account Missing'); ?></p>
+                        <div class="mb-5 p-4 rounded-3" style="background-color: #f0f8ff; border: 1px solid #0036311A;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <small class="fw-semibold text-muted d-block mb-1">Payment will be debited from:</small>
+                                    <p class="mb-0 fw-bold" style="color: #003631; font-size: 1.1rem;"><?= htmlspecialchars($data['source_account'] ?? 'Account Missing'); ?></p>
+                                </div>
+                                <div class="col-md-6 text-md-end">
+                                    <small class="fw-semibold text-muted d-block mb-1">Available Balance:</small>
+                                    <p class="mb-0 fw-bold" style="color: #28a745; font-size: 1.3rem;">₱<?= number_format($data['account_balance'] ?? 0.00, 2); ?></p>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="d-grid">

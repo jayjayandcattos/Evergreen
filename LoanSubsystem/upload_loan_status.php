@@ -121,37 +121,126 @@ if (!$stmt) {
 }
 
 if ($stmt->execute()) {
+    $credit_error = null;
+    $credit_success = false;
+    
     // If loan was activated (second_approve), credit the account
-    if ($action === 'second_approve' && $customer_email) {
-        // Get customer's account_id from email
-        // Prefer Savings account (account_type_id = 1), then any active, unlocked account
-        $account_stmt = $conn->prepare("
-            SELECT ca.account_id, ca.account_number
-            FROM customer_accounts ca
-            INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
-            WHERE bc.email = ?
-            AND ca.is_locked = 0
-            AND (ca.account_status = 'active' OR ca.account_status IS NULL)
-            ORDER BY 
-                CASE WHEN ca.account_type_id = 1 THEN 1 ELSE 2 END,
-                ca.created_at ASC
-            LIMIT 1
-        ");
-        
-        if ($account_stmt) {
-            $account_stmt->bind_param("s", $customer_email);
-            $account_stmt->execute();
-            $account_result = $account_stmt->get_result();
+    if ($action === 'second_approve') {
+        if (!$customer_email) {
+            $credit_error = "No email found in loan application (loan_id: {$loan_id})";
+            error_log("Loan Credit Error [Loan {$loan_id}]: {$credit_error}");
+        } else {
+            // Log email being used for lookup
+            error_log("Loan Credit Debug [Loan {$loan_id}]: Looking up account for email: {$customer_email}");
             
-            if ($account_result->num_rows > 0) {
-                $account = $account_result->fetch_assoc();
-                $account_id = $account['account_id'];
-                $account_number = $account['account_number'];
+            // Try to find account - first attempt: prefer Savings account, active status
+            $account_stmt = $conn->prepare("
+                SELECT ca.account_id, ca.account_number, ca.account_status, ca.is_locked
+                FROM customer_accounts ca
+                INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+                WHERE bc.email = ?
+                AND ca.is_locked = 0
+                AND (ca.account_status = 'active' OR ca.account_status IS NULL OR ca.account_status != 'closed')
+                ORDER BY 
+                    CASE WHEN ca.account_type_id = 1 THEN 1 ELSE 2 END,
+                    ca.created_at ASC
+                LIMIT 1
+            ");
+            
+            $account = null;
+            $account_id = null;
+            $account_number = null;
+            
+            if ($account_stmt) {
+                $account_stmt->bind_param("s", $customer_email);
+                $account_stmt->execute();
+                $account_result = $account_stmt->get_result();
                 
+                if ($account_result->num_rows > 0) {
+                    $account = $account_result->fetch_assoc();
+                    $account_id = $account['account_id'];
+                    $account_number = $account['account_number'];
+                    error_log("Loan Credit Debug [Loan {$loan_id}]: Found account_id: {$account_id}, account_number: {$account_number}");
+                } else {
+                    // Fallback: try any unlocked account (even if status is not 'active')
+                    error_log("Loan Credit Debug [Loan {$loan_id}]: No active account found, trying fallback query");
+                    $account_stmt->close();
+                    
+                    $fallback_stmt = $conn->prepare("
+                        SELECT ca.account_id, ca.account_number
+                        FROM customer_accounts ca
+                        INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+                        WHERE bc.email = ?
+                        AND ca.is_locked = 0
+                        AND ca.account_status != 'closed'
+                        ORDER BY ca.created_at ASC
+                        LIMIT 1
+                    ");
+                    
+                    if ($fallback_stmt) {
+                        $fallback_stmt->bind_param("s", $customer_email);
+                        $fallback_stmt->execute();
+                        $fallback_result = $fallback_stmt->get_result();
+                        
+                        if ($fallback_result->num_rows > 0) {
+                            $account = $fallback_result->fetch_assoc();
+                            $account_id = $account['account_id'];
+                            $account_number = $account['account_number'];
+                            error_log("Loan Credit Debug [Loan {$loan_id}]: Fallback found account_id: {$account_id}, account_number: {$account_number}");
+                        } else {
+                            // Last attempt: try with user_email field if different
+                            $fallback_stmt->close();
+                            if (!empty($loan['user_email']) && $loan['user_email'] !== $customer_email) {
+                                error_log("Loan Credit Debug [Loan {$loan_id}]: Trying user_email field: {$loan['user_email']}");
+                                $email_fallback_stmt = $conn->prepare("
+                                    SELECT ca.account_id, ca.account_number
+                                    FROM customer_accounts ca
+                                    INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+                                    WHERE bc.email = ?
+                                    AND ca.is_locked = 0
+                                    ORDER BY ca.created_at ASC
+                                    LIMIT 1
+                                ");
+                                
+                                if ($email_fallback_stmt) {
+                                    $email_fallback_stmt->bind_param("s", $loan['user_email']);
+                                    $email_fallback_stmt->execute();
+                                    $email_fallback_result = $email_fallback_stmt->get_result();
+                                    
+                                    if ($email_fallback_result->num_rows > 0) {
+                                        $account = $email_fallback_result->fetch_assoc();
+                                        $account_id = $account['account_id'];
+                                        $account_number = $account['account_number'];
+                                        error_log("Loan Credit Debug [Loan {$loan_id}]: Found account using user_email: {$account_id}");
+                                    }
+                                    $email_fallback_stmt->close();
+                                }
+                            }
+                        }
+                        
+                        if (!$account_id) {
+                            $credit_error = "No unlocked account found for customer email: {$customer_email}";
+                            error_log("Loan Credit Error [Loan {$loan_id}]: {$credit_error}");
+                        }
+                    }
+                }
+                
+                if ($account_stmt && !$account_stmt->closed) {
+                    $account_stmt->close();
+                }
+            } else {
+                $credit_error = "Failed to prepare account lookup query: " . $conn->error;
+                error_log("Loan Credit Error [Loan {$loan_id}]: {$credit_error}");
+            }
+            
+            // If account found, insert transaction
+            if ($account_id && $account_number) {
                 // Transaction type ID 6 = Loan Disbursement
                 $transaction_ref = 'LOAN-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
                 $loan_amount_raw = (float)$loan['loan_amount']; // Use raw amount, not formatted
                 $description = "Loan Disbursement - Loan ID: {$loan_id}, Account: {$account_number}";
+                
+                error_log("Loan Credit Debug [Loan {$loan_id}]: Inserting transaction - ref: {$transaction_ref}, account_id: {$account_id}, amount: {$loan_amount_raw}");
                 
                 // Insert transaction into bank_transactions
                 $transaction_stmt = $conn->prepare("
@@ -169,26 +258,49 @@ if ($stmt->execute()) {
                     $transaction_stmt->bind_param("sids", $transaction_ref, $account_id, $loan_amount_raw, $description);
                     
                     if ($transaction_stmt->execute()) {
-                        $alert_message .= " Account credited with ₱" . number_format($loan_amount_raw, 2) . ".";
+                        $transaction_id = $transaction_stmt->insert_id;
+                        if ($transaction_id > 0) {
+                            $credit_success = true;
+                            $alert_message .= " Account credited with ₱" . number_format($loan_amount_raw, 2) . ".";
+                            error_log("Loan Credit Success [Loan {$loan_id}]: Transaction inserted successfully - transaction_id: {$transaction_id}, ref: {$transaction_ref}");
+                        } else {
+                            $credit_error = "Transaction executed but no transaction_id returned";
+                            error_log("Loan Credit Error [Loan {$loan_id}]: {$credit_error}");
+                        }
                     } else {
-                        error_log("Failed to credit account for loan {$loan_id}: " . $transaction_stmt->error);
+                        $credit_error = "Failed to execute transaction insert: " . $transaction_stmt->error;
+                        error_log("Loan Credit Error [Loan {$loan_id}]: {$credit_error}");
                     }
                     
                     $transaction_stmt->close();
+                } else {
+                    $credit_error = "Failed to prepare transaction insert query: " . $conn->error;
+                    error_log("Loan Credit Error [Loan {$loan_id}]: {$credit_error}");
                 }
-            } else {
-                error_log("No account found for customer email: {$customer_email}");
             }
-            
-            $account_stmt->close();
         }
     }
     
-    echo json_encode([
+    // Build response
+    $response = [
         'success' => true,
         'message' => $alert_message,
         'new_status' => $status
-    ]);
+    ];
+    
+    // Include credit status in response for debugging
+    if ($action === 'second_approve') {
+        if ($credit_success) {
+            $response['credit_status'] = 'success';
+        } else if ($credit_error) {
+            $response['credit_status'] = 'error';
+            $response['credit_error'] = $credit_error;
+            // Append error to message so admin sees it
+            $response['message'] .= " Warning: Account credit failed - " . $credit_error;
+        }
+    }
+    
+    echo json_encode($response);
 } else {
     echo json_encode(['success' => false, 'error' => 'Update failed: ' . $stmt->error]);
 }
