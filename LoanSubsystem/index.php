@@ -12,11 +12,19 @@ if (!isset($_SESSION['user_email'])) {
         $_SESSION['user_name'] = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . ($_SESSION['last_name'] ?? ''));
         $_SESSION['user_role'] = 'client'; // Default role for customers from marketing
         
-        // Get additional user info from bank_customers if needed
         $host = "localhost";
-        $user = "root";
-        $pass = "";
-        $db = "BankingDB"; // Using the main banking database
+$user = "root";
+$pass = "";
+$db = "BankingDB";
+
+// CREATE CONNECTION
+$conn = new mysqli($host, $user, $pass, $db);
+
+// CHECK CONNECTION
+if ($conn->connect_error) {
+    exit(json_encode(['error' => 'Database connection failed: ' . $conn->connect_error]));
+}
+
         
         $conn = new mysqli($host, $user, $pass, $db);
         if (!$conn->connect_error) {
@@ -351,17 +359,6 @@ if (!isset($_SESSION['user_email'])) {
       background: #005a4d;
     }
 
-    /* Ensure anchor tags with loan-card class are clickable */
-    a.loan-card {
-      text-decoration: none;
-      color: inherit;
-      cursor: pointer;
-    }
-
-    a.loan-card:hover {
-      text-decoration: none;
-    }
-
     .loan-card.disabled {
       opacity: 0.5;
       cursor: not-allowed !important;
@@ -492,37 +489,37 @@ if (!isset($_SESSION['user_email'])) {
 <section id="loan-services" class="loan-services-wrapper">
   <h2 class="loan-services-title">LOAN SERVICES WE OFFER</h2>
   <div class="loan-cards">
-    <a href="Loan_AppForm.php?loanType=Personal%20Loan" class="loan-card">
+    <div class="loan-card" onclick="window.location.href='Loan_AppForm.php?loanType=Personal%20Loan'">
       <img src="personalloan.png" alt="Personal Loan">
       <div class="loan-card-content">
         <h3 class="loan-card-title">Personal Loan</h3>
         <p class="loan-card-desc">Stop worrying and bring your plans to life.</p>
       </div>
-    </a>
+    </div>
     
-    <a href="Loan_AppForm.php?loanType=Car%20Loan" class="loan-card">
+    <div class="loan-card" onclick="window.location.href='Loan_AppForm.php?loanType=Car%20Loan'">
       <img src="carloan.png" alt="Auto Loan">
       <div class="loan-card-content">
         <h3 class="loan-card-title">Car Loan</h3>
         <p class="loan-card-desc">Drive your new car with low rates and fast approval.</p>
       </div>
-    </a>
+    </div>
   
-    <a href="Loan_AppForm.php?loanType=Home%20Loan" class="loan-card">
+    <div class="loan-card" onclick="window.location.href='Loan_AppForm.php?loanType=Home%20Loan'">
       <img src="housingloan.png" alt="Home Loan">
       <div class="loan-card-content">
         <h3 class="loan-card-title">Home Loan</h3>
         <p class="loan-card-desc">Take the first step to your new home.</p>
       </div>
-    </a>
+    </div>
 
-    <a href="Loan_AppForm.php?loanType=Multi-Purpose%20Loan" class="loan-card">
+    <div class="loan-card" onclick="window.location.href='Loan_AppForm.php?loanType=Multi-Purpose%20Loan'">
       <img src="mpl.png" alt="Multipurpose Loan">
       <div class="loan-card-content">
         <h3 class="loan-card-title">Multi-Purpose Loan</h3>
         <p class="loan-card-desc">Carry on with your plans, use your property to fund your various needs.</p>
       </div>
-    </a>
+    </div>
   </div>
 </section>
 
@@ -569,7 +566,7 @@ if (!isset($_SESSION['user_email'])) {
 
         <div class="loan-footer">
           <p>Your next payment is due on <b id="nextPaymentDate">-</b></p>
-          <button class="pay-btn">Pay Now</button>
+          <!--<button class="pay-btn">Pay Now</button>-->
         </div>
       </div>
 
@@ -670,57 +667,7 @@ if (!isset($_SESSION['user_email'])) {
 let allLoans = [];
 let allNotifications = [];
 
-// Helper function to ensure loan cards are always clickable
-function ensureLoanCardsClickable() {
-  const loanCards = document.querySelectorAll('.loan-card');
-  loanCards.forEach(card => {
-    // Remove disabled class and ensure clicks work
-    card.classList.remove('disabled');
-    card.style.pointerEvents = 'auto';
-    card.style.cursor = 'pointer';
-    
-    // For anchor tags, ensure href is set correctly if missing
-    if (card.tagName === 'A') {
-      if (!card.getAttribute('href') || card.getAttribute('href') === '#' || card.getAttribute('href') === '') {
-        const loanType = card.querySelector('.loan-card-title')?.textContent;
-        if (loanType) {
-          let urlLoanType;
-          if (loanType === 'Housing Loan') {
-            urlLoanType = 'Home Loan';
-          } else if (loanType === 'Multipurpose Loan') {
-            urlLoanType = 'Multi-Purpose Loan';
-          } else {
-            urlLoanType = loanType;
-          }
-          card.setAttribute('href', `Loan_AppForm.php?loanType=${encodeURIComponent(urlLoanType)}`);
-        }
-      }
-    }
-  });
-}
-
-// Make cards clickable immediately, even before DOMContentLoaded
-// This ensures they work even if JavaScript fails later
-(function() {
-  function initCards() {
-    ensureLoanCardsClickable();
-  }
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCards);
-  } else {
-    // DOM already loaded, run immediately
-    initCards();
-  }
-  
-  // Also run after a small delay to catch any dynamic changes
-  setTimeout(initCards, 100);
-})();
-
 document.addEventListener("DOMContentLoaded", async function () {
-  // Ensure cards are clickable immediately
-  ensureLoanCardsClickable();
-  
   const tbody = document.getElementById('loanTableBody');
   const activeLoansCount = document.getElementById('activeLoansCount');
   const pendingLoansCount = document.getElementById('pendingLoansCount');
@@ -744,14 +691,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       if (loans.error) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">${loans.error}</td></tr>`;
-        // Even if there's an error, ensure loan cards are clickable
-        ensureLoanCardsClickable();
         return;
-      }
-
-      // If loans is not an array, treat as empty
-      if (!Array.isArray(loans)) {
-        loans = [];
       }
 
       allLoans = loans;
@@ -816,34 +756,23 @@ document.addEventListener("DOMContentLoaded", async function () {
         loanCards.forEach(card => {
           card.classList.add('disabled');
           card.style.position = 'relative';
-          // Prevent navigation on anchor tags
-          if (card.tagName === 'A') {
-            const originalHref = card.getAttribute('href');
-            card.setAttribute('data-original-href', originalHref || '');
-            card.setAttribute('href', '#');
-            card.addEventListener('click', function(e) {
-              e.preventDefault();
-              e.stopPropagation();
-              return false;
-            });
-          }
-          card.style.pointerEvents = 'none';
-          card.style.cursor = 'not-allowed';
+          card.onclick = null;
         });
       } else {
         loanCards.forEach(card => {
           card.classList.remove('disabled');
-          card.style.pointerEvents = 'auto';
-          card.style.cursor = 'pointer';
-          
-          // Restore original href if it was saved (for anchor tags)
-          if (card.tagName === 'A') {
-            const originalHref = card.getAttribute('data-original-href');
-            if (originalHref) {
-              card.setAttribute('href', originalHref);
-              card.removeAttribute('data-original-href');
-            }
+          const loanType = card.querySelector('.loan-card-title').textContent;
+          let urlLoanType;
+          if (loanType === 'Housing Loan') {
+            urlLoanType = 'Home Loan';
+          } else if (loanType === 'Multipurpose Loan') {
+            urlLoanType = 'Multi-Purpose Loan';
+          } else {
+            urlLoanType = loanType;
           }
+          card.onclick = function() {
+            window.location.href = `Loan_AppForm.php?loanType=${encodeURIComponent(urlLoanType)}`;
+          };
         });
       }
 
@@ -1013,15 +942,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (error) {
       console.error('Error loading loans:', error);
       tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">Error loading loan data. Please refresh the page.</td></tr>';
-      // Ensure cards are still clickable even on error
-      ensureLoanCardsClickable();
     }
   }
 
   loadLoans();
 });
 
-// ✅ FIXED NOTIFICATION MODAL
+// ✅ FIXED: Update the notification modal to use download_pdf.php
 function openNotificationModal() {
   const modal = document.getElementById('notificationModal');
   const modalBody = document.getElementById('notificationModalBody');
@@ -1094,10 +1021,12 @@ function openNotificationModal() {
         remarksText = notif.remarks;
       }
       
-      // ✅ FIXED: Show correct PDF button for each notification type
+      // ✅ CRITICAL FIX: Use download_pdf.php with proper filename
       let pdfButton = '';
       if (notif.pdf_path) {
-        pdfButton = `<a href="${notif.pdf_path}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
+        // Extract just the filename from the path
+        const filename = notif.pdf_path.replace('uploads/', '');
+        pdfButton = `<a href="download_pdf.php?file=${encodeURIComponent(filename)}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
       } else {
         pdfButton = `<button class="generate-pdf-btn" onclick="generatePDF(${notif.id}, '${notif.type}', this)"><i class="fas fa-file-pdf"></i> Generate PDF</button>`;
       }
@@ -1141,7 +1070,17 @@ window.onclick = function(event) {
   }
 }
 
-// ✅ FIXED: Generate PDF with proper type tracking
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    const modal = document.getElementById('notificationModal');
+    if (modal.style.display === 'block') {
+      closeNotificationModal();
+    }
+  }
+});
+
+
+// ✅ FIXED: generatePDF function to update download link correctly
 function generatePDF(loanId, type, buttonElement) {
   const originalText = buttonElement.innerHTML;
   buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
@@ -1164,26 +1103,32 @@ function generatePDF(loanId, type, buttonElement) {
     })
     .then(data => {
       if (data.success) {
-        // ✅ Update database with correct PDF path and type
+        // Update database with PDF filename
         return fetch('update_loan_pdf.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             loan_id: loanId, 
             pdf_path: data.filename,
-            type: type // ✅ Pass the type (approved/active/rejected)
+            type: type
           })
         }).then(res => res.json()).then(updateData => {
           if (updateData.success) {
+            // ✅ Extract just the filename for the download URL
+            const filename = data.filename;
+            const downloadUrl = `download_pdf.php?file=${encodeURIComponent(filename)}`;
+            
             // ✅ Update button to download link
-            buttonElement.outerHTML = `<a href="${data.filename}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
+            buttonElement.outerHTML = `<a href="${downloadUrl}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
             
             // ✅ Update notification feed in memory
             allNotifications.forEach(notif => {
               if (notif.id === loanId && notif.type === type) {
-                notif.pdf_path = data.filename;
+                notif.pdf_path = updateData.pdf_path; // Store full path from database
               }
             });
+            
+            alert('PDF generated successfully! Click to download.');
           } else {
             throw new Error('Update failed: ' + (updateData.error || 'Unknown'));
           }
@@ -1199,7 +1144,6 @@ function generatePDF(loanId, type, buttonElement) {
       buttonElement.disabled = false;
     });
 }
-
 // Auto-scroll to dashboard after loan submission
 const urlParams = new URLSearchParams(window.location.search);
 const scrollTo = urlParams.get('scrollTo');

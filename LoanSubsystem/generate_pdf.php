@@ -1,75 +1,104 @@
-<?php
-// ✅ CRITICAL: Start output buffering and suppress all errors BEFORE any output
-ob_start();
-error_reporting(0);
-ini_set('display_errors', 0);
 
-// ✅ Clear any accidental output
+<?php
+// ✅ CRITICAL: Start output buffering FIRST
+ob_start();
+// Enable error logging to file instead of output
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/pdf_errors.log');
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+// Clear any accidental output
 if (ob_get_length()) ob_clean();
 
 try {
     // ✅ Set JSON header FIRST
     header('Content-Type: application/json; charset=utf-8');
-    
-    if (!file_exists('fpdf/fpdf.php')) {
-        echo json_encode(['success' => false, 'error' => 'FPDF library not found. Please install FPDF in fpdf/ folder']);
-        exit;
-    }
 
+    // Check if FPDF exists
+    if (!file_exists('fpdf/fpdf.php')) {
+        throw new Exception('FPDF library not found in fpdf/ folder');
+    }
     require_once('fpdf/fpdf.php');
 
-    if (!isset($_GET['loan_id']) || !isset($_GET['type'])) {
-        echo json_encode(['success' => false, 'error' => 'Missing loan_id or type parameter']);
-        exit;
+    // Validate inputs
+    if (!isset($_GET['loan_id'])) {
+        throw new Exception('Missing loan_id parameter');
+    }
+    if (!isset($_GET['type'])) {
+        throw new Exception('Missing type parameter');
     }
 
     $loan_id = intval($_GET['loan_id']);
-    $notif_type = trim($_GET['type']); // 'approved', 'active', or 'rejected'
-    
+    $notif_type = trim($_GET['type']);
+
     if ($loan_id <= 0) {
-        echo json_encode(['success' => false, 'error' => 'Invalid loan_id']);
-        exit;
+        throw new Exception('Invalid loan_id: must be greater than 0');
     }
 
     if (!in_array($notif_type, ['approved', 'active', 'rejected'])) {
-        echo json_encode(['success' => false, 'error' => 'Invalid type. Must be: approved, active, or rejected']);
-        exit;
+        throw new Exception('Invalid type. Must be: approved, active, or rejected');
     }
 
-    $conn = new mysqli("localhost", "root", "", "loan_system");
+    // Database connection
+    $host = "localhost";
+    $user = "root";
+    $pass = "";
+    $db = "BankingDB";
+    
+    $conn = new mysqli($host, $user, $pass, $db);
     if ($conn->connect_error) {
-        echo json_encode(['success' => false, 'error' => 'Database connection failed']);
-        exit;
+        throw new Exception('Database connection failed: ' . $conn->connect_error);
     }
 
-    $stmt = $conn->prepare("SELECT la.*, COALESCE(lt.name, 'Unknown') AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.id = ?");
+    // Fetch loan with JOIN
+    $sql = "SELECT 
+                la.*,
+                COALESCE(lt.name, 'Unknown') AS loan_type_name
+            FROM loan_applications la
+            LEFT JOIN loan_types lt ON la.loan_type_id = lt.id
+            WHERE la.id = ?";
+    
+    $stmt = $conn->prepare($sql);
     if (!$stmt) {
-        echo json_encode(['success' => false, 'error' => 'Database query failed']);
-        exit;
+        throw new Exception('Database query preparation failed: ' . $conn->error);
     }
     
     $stmt->bind_param("i", $loan_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if (!$result || $result->num_rows === 0) {
-        echo json_encode(['success' => false, 'error' => 'Loan not found']);
-        exit;
+    if (!$stmt->execute()) {
+        throw new Exception('Database query execution failed: ' . $stmt->error);
     }
-
+    
+    $result = $stmt->get_result();
+    if (!$result || $result->num_rows === 0) {
+        throw new Exception('Loan not found with ID: ' . $loan_id);
+    }
+    
     $loan = $result->fetch_assoc();
     $stmt->close();
     $conn->close();
 
+    // Validate loan data
+    if (empty($loan['full_name'])) {
+        throw new Exception('Loan data incomplete: missing full_name');
+    }
+    if (empty($loan['loan_amount'])) {
+        throw new Exception('Loan data incomplete: missing loan_amount');
+    }
+
+    // Create uploads directory
     $uploadDir = 'uploads/';
     if (!is_dir($uploadDir)) {
         if (!mkdir($uploadDir, 0777, true)) {
-            echo json_encode(['success' => false, 'error' => 'Failed to create uploads directory']);
-            exit;
+            throw new Exception('Failed to create uploads directory. Check folder permissions.');
         }
     }
 
-    // ✅ Create PDF in memory
+    // Check if directory is writable
+    if (!is_writable($uploadDir)) {
+        throw new Exception('uploads/ directory is not writable. Run: chmod 777 uploads/');
+    }
+
+    // Create PDF
     $pdf = new FPDF('P', 'mm', 'A4');
     $pdf->AddPage();
     $pdf->SetAutoPageBreak(true, 25);
@@ -141,9 +170,9 @@ try {
         'Loan ID' => $loan['id'],
         'Loan Type' => $loan['loan_type_name'],
         'Loan Amount' => 'PHP ' . number_format($loan['loan_amount'], 2),
-        'Loan Term' => $loan['loan_terms'],
+        'Loan Term' => $loan['loan_terms'] ?? 'N/A',
         'Interest Rate' => '20% per annum',
-        'Monthly Payment' => 'PHP ' . number_format($loan['monthly_payment'], 2),
+        'Monthly Payment' => 'PHP ' . number_format($loan['monthly_payment'] ?? 0, 2),
         'Total Amount Payable' => 'PHP ' . number_format($loan['loan_amount'] * 1.20, 2)
     ];
 
@@ -198,36 +227,57 @@ try {
     $pdf->SetFont('Arial', 'I', 8);
     $pdf->Cell(0, 10, 'Generated by Evergreen Trust and Savings - ' . date('Y-m-d H:i:s'), 0, 0, 'C');
 
-    // ✅ FIXED: Unique filename for each notification type
+    // ✅ Generate unique filename with .pdf extension
     $filename = "loan_{$notif_type}_{$loan_id}_" . time() . ".pdf";
     $fullPath = $uploadDir . $filename;
 
-    // ✅ Save PDF to file (not output to browser)
+    // ✅ Save PDF to file
     $pdf->Output('F', $fullPath);
-    
+
+    // Verify file was created
     if (!file_exists($fullPath)) {
-        echo json_encode(['success' => false, 'error' => 'PDF file was not created. Check uploads/ folder permissions.']);
-        exit;
+        throw new Exception('PDF file was not created. Check uploads/ folder permissions (chmod 777 uploads/)');
     }
 
-    // ✅ Clear output buffer before sending JSON
+    // ✅ Verify it's actually a PDF file
+    $filesize = filesize($fullPath);
+    if ($filesize === 0) {
+        throw new Exception('PDF file is empty (0 bytes)');
+    }
+
+    // Clear output buffer before sending JSON
     ob_end_clean();
-    
-    // ✅ Output ONLY clean JSON
+
+    // ✅ Output clean JSON with full path included
     echo json_encode([
         'success' => true, 
-        'filename' => $fullPath,
+        'filename' => $filename,
+        'full_path' => $uploadDir . $filename, // Include full path
+        'filesize' => $filesize,
         'type' => $notif_type,
         'loan_id' => $loan_id,
         'message' => 'PDF generated successfully'
     ]);
 
 } catch (Exception $e) {
+    // Log error to file
+    error_log('PDF Generation Error: ' . $e->getMessage());
+    // Clear buffer
     if (ob_get_length()) ob_clean();
-    echo json_encode(['success' => false, 'error' => 'Exception: ' . $e->getMessage()]);
+    // Return error as JSON
+    echo json_encode([
+        'success' => false, 
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+    ]);
 } catch (Error $e) {
+    error_log('PDF Generation Fatal Error: ' . $e->getMessage());
     if (ob_get_length()) ob_clean();
-    echo json_encode(['success' => false, 'error' => 'Fatal error: ' . $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Fatal error: ' . $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+    ]);
 }
 
 exit;

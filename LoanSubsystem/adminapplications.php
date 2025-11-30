@@ -3,16 +3,19 @@
 session_start();
 include 'admin_header.php';
 
-require_once __DIR__ . '/config/database.php';
-$conn = getDBConnection();
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db = "BankingDB";
 
+$conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
   die("DB Error: " . $conn->connect_error);
 }
 
-// Count statuses (exclude deleted)
+// Count statuses
 $counts = ['Active' => 0, 'Pending' => 0, 'Approved' => 0, 'Rejected' => 0, 'Closed' => 0];
-$statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications WHERE (deleted_at IS NULL OR deleted_at = '') GROUP BY status");
+$statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications GROUP BY status");
 if ($statusResult) {
   while ($row = $statusResult->fetch_assoc()) {
     $status = ucfirst(strtolower(trim($row['status'])));
@@ -72,7 +75,7 @@ if ($statusResult) {
         </thead>
         <tbody id="pendingTableBody">
           <?php
-          $result = $conn->query("SELECT la.*, COALESCE(lt.name, la.loan_type, 'N/A') AS loan_type_display FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Pending' AND (la.deleted_at IS NULL OR la.deleted_at = '') ORDER BY la.id DESC");
+          $result = $conn->query("SELECT la.*, lt.name AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Pending' ORDER BY la.id DESC");
           if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
               $applied_date = date("m/d/Y", strtotime($row['created_at'] ?? 'now'));
@@ -81,7 +84,7 @@ if ($statusResult) {
               <tr data-loan-id="<?= (int)$row['id'] ?>">
                 <td><?= htmlspecialchars($row['id']) ?></td>
                 <td><?= htmlspecialchars($row['full_name']) ?></td>
-                <td><?= htmlspecialchars($row['loan_type_display']) ?></td>
+                <td><?= htmlspecialchars($row['loan_type_name'] ?? 'N/A') ?></td>
                 <td>₱<?= number_format($row['loan_amount'], 2) ?></td>
                 <td><?= htmlspecialchars($_SESSION['loan_officer_id'] ?? 'LO-0123') ?></td>
                 <td><?= $applied_date ?> <?= $applied_time ?></td>
@@ -116,7 +119,7 @@ if ($statusResult) {
         </thead>
         <tbody id="approvedTableBody">
           <?php
-          $result = $conn->query("SELECT la.*, COALESCE(lt.name, la.loan_type, 'N/A') AS loan_type_display FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Approved' AND (la.deleted_at IS NULL OR la.deleted_at = '') ORDER BY la.approved_at DESC");
+          $result = $conn->query("SELECT la.*, lt.name AS loan_type_name FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE la.status = 'Approved' ORDER BY la.approved_at DESC");
           if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
               $approved_date = date("m/d/Y", strtotime($row['approved_at'] ?? 'now'));
@@ -125,7 +128,7 @@ if ($statusResult) {
               <tr data-loan-id="<?= (int)$row['id'] ?>">
                 <td><?= htmlspecialchars($row['id']) ?></td>
                 <td><?= htmlspecialchars($row['full_name']) ?></td>
-                <td><?= htmlspecialchars($row['loan_type_display']) ?></td>
+                <td><?= htmlspecialchars($row['loan_type_name'] ?? 'N/A') ?></td>
                 <td>₱<?= number_format($row['loan_amount'], 2) ?></td>
                 <td><?= htmlspecialchars($_SESSION['loan_officer_id'] ?? 'LO-0123') ?></td>
                 <td><?= $approved_date ?> <?= $approved_time ?></td>
@@ -164,11 +167,6 @@ if ($statusResult) {
           <div class="field"><label>Date Applied</label><input type="text" id="modal-date-applied" readonly></div>
         </div>
         <br>
-        
-        <!-- Salary Validation Alert -->
-        <div id="salary-alert" class="salary-alert" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: 4px; background: #ffebee; color: #c62828; font-weight: 500;">
-          Monthly payment exceeds 50% of client's salary. Approval is disabled.
-        </div>
         
         <!-- Loan Details -->
         <h3>Loan Details</h3>
@@ -213,8 +211,6 @@ if ($statusResult) {
     let currentValidId = '';
     let currentProofIncome = '';
     let currentCoeDocument = '';
-    let currentMonthlySalary = 0;
-    let currentMonthlyPayment = 0;
     let currentClientName = '';
 
     function viewDocument(docType) {
@@ -228,33 +224,6 @@ if ($statusResult) {
       }
       if (!filePath) { alert(`No ${docName} uploaded`); return; }
       window.open(filePath, '_blank');
-    }
-
-    function checkSalaryValidation() {
-      const alertDiv = document.getElementById('salary-alert');
-      const approveBtn = document.getElementById('approve-btn');
-      
-      // DISABLED: Salary validation temporarily disabled
-      // To re-enable, uncomment the validation logic below
-      alertDiv.style.display = 'none';
-      approveBtn.disabled = false;
-      approveBtn.style.opacity = '1';
-      approveBtn.style.cursor = 'pointer';
-      
-      /* ORIGINAL VALIDATION (disabled):
-      const fiftyPercentSalary = currentMonthlySalary * 0.5;
-      if (currentMonthlyPayment > fiftyPercentSalary) {
-        alertDiv.style.display = 'block';
-        approveBtn.disabled = true;
-        approveBtn.style.opacity = '0.5';
-        approveBtn.style.cursor = 'not-allowed';
-      } else {
-        alertDiv.style.display = 'none';
-        approveBtn.disabled = false;
-        approveBtn.style.opacity = '1';
-        approveBtn.style.cursor = 'pointer';
-      }
-      */
     }
 
     function viewLoanApplication(loanId, stage) {
@@ -274,10 +243,8 @@ if ($statusResult) {
           document.getElementById('modal-email').value = data.email || '';
           document.getElementById('modal-job').value = data.job || '';
           
-          currentMonthlySalary = parseFloat(data.monthly_salary) || 0;
-          currentMonthlyPayment = parseFloat(data.monthly_payment) || 0;
-          
-          document.getElementById('modal-monthly-salary').value = '₱' + currentMonthlySalary.toLocaleString(undefined, {minimumFractionDigits: 2});
+          const monthlySalary = parseFloat(data.monthly_salary) || 0;
+          document.getElementById('modal-monthly-salary').value = '₱' + monthlySalary.toLocaleString(undefined, {minimumFractionDigits: 2});
           
           const appliedDate = data.created_at ? new Date(data.created_at) : null;
           document.getElementById('modal-date-applied').value = appliedDate ? appliedDate.toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
@@ -286,7 +253,9 @@ if ($statusResult) {
           document.getElementById('modal-loan-term').value = data.loan_terms || '';
           document.getElementById('modal-loan-amount').value = '₱' + parseFloat(data.loan_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
           document.getElementById('modal-purpose').value = data.purpose || '';
-          document.getElementById('modal-monthly-payment').value = '₱' + currentMonthlyPayment.toLocaleString(undefined, {minimumFractionDigits: 2});
+          
+          const monthlyPayment = parseFloat(data.monthly_payment) || 0;
+          document.getElementById('modal-monthly-payment').value = '₱' + monthlyPayment.toLocaleString(undefined, {minimumFractionDigits: 2});
           document.getElementById('modal-total-payable').value = '₱' + (parseFloat(data.loan_amount || 0) * 1.20).toLocaleString(undefined, {minimumFractionDigits: 2});
           
           const dueDate = data.due_date ? new Date(data.due_date) : null;
@@ -301,7 +270,6 @@ if ($statusResult) {
           document.getElementById('view-proof-income-btn').disabled = !currentProofIncome;
           document.getElementById('view-coe-btn').disabled = !currentCoeDocument;
 
-          checkSalaryValidation();
           document.getElementById('statusModal').style.display = 'flex';
           document.getElementById('statusModal').classList.add('show');
         })
@@ -310,15 +278,6 @@ if ($statusResult) {
 
     function confirmAndApproveLoan() {
       if (!currentLoanId) return;
-      
-      // DISABLED: Salary validation temporarily disabled
-      /* ORIGINAL VALIDATION:
-      const fiftyPercentSalary = currentMonthlySalary * 0.5;
-      if (currentMonthlyPayment > fiftyPercentSalary) {
-        alert('Cannot approve: Monthly payment exceeds 50% of salary.');
-        return;
-      }
-      */
       
       if (currentLoanStage === 'pending') {
         if (confirm('Approve this loan for ' + currentClientName + '? Client must claim within 30 days.')) {
@@ -351,65 +310,65 @@ if ($statusResult) {
       }
     }
 
-function updateLoanStatus(loanId, status, action, remarks) {
-  remarks = remarks || '';
-  
-  console.log('Sending update:', {loanId, status, action, remarks});
-  
-  // FIXED: Use relative path from current directory
-  fetch('./upload_loan_status.php', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({
-      loan_id: loanId,
-      status: status,
-      action: action,
-      remarks: remarks
-    })
-  })
-  .then(function(res) {
-    console.log('Response status:', res.status);
-    console.log('Response URL:', res.url);
-    
-    if (res.status === 404) {
-      throw new Error('update_loan_status.php not found! Make sure it is in: C:/xampp/htdocs/LoanSubsystem/');
-    }
-    
-    if (!res.ok) {
-      throw new Error('HTTP error! status: ' + res.status);
-    }
-    
-    const contentType = res.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      return res.text().then(text => {
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned non-JSON response. This usually means a PHP error.');
+    function updateLoanStatus(loanId, status, action, remarks) {
+      remarks = remarks || '';
+      
+      console.log('Sending update:', {loanId, status, action, remarks});
+      
+      fetch('./upload_loan_status.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          loan_id: loanId,
+          status: status,
+          action: action,
+          remarks: remarks
+        })
+      })
+      .then(function(res) {
+        console.log('Response status:', res.status);
+        console.log('Response URL:', res.url);
+        
+        if (res.status === 404) {
+          throw new Error('update_loan_status.php not found! Make sure it is in the correct directory.');
+        }
+        
+        if (!res.ok) {
+          throw new Error('HTTP error! status: ' + res.status);
+        }
+        
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          return res.text().then(text => {
+            console.error('Non-JSON response:', text);
+            throw new Error('Server returned non-JSON response. This usually means a PHP error.');
+          });
+        }
+        
+        return res.json();
+      })
+      .then(function(data) {
+        console.log('Parsed data:', data);
+        
+        if (data.success) {
+          alert(data.message);
+          var row = document.querySelector('tr[data-loan-id="' + loanId + '"]');
+          if (row) row.remove();
+          closeApplicationModal();
+          location.reload();
+        } else {
+          alert('Update failed: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(function(err) {
+        console.error('Full error:', err);
+        alert('Error: ' + err.message + '\n\nCheck console (F12) for details.');
       });
     }
-    
-    return res.json();
-  })
-  .then(function(data) {
-    console.log('Parsed data:', data);
-    
-    if (data.success) {
-      alert(data.message);
-      var row = document.querySelector('tr[data-loan-id="' + loanId + '"]');
-      if (row) row.remove();
-      closeApplicationModal();
-      location.reload();
-    } else {
-      alert('Update failed: ' + (data.error || 'Unknown error'));
-    }
-  })
-  .catch(function(err) {
-    console.error('Full error:', err);
-    alert('Error: ' + err.message + '\n\nCheck console (F12) for details.');
-  });
-}
+
     function closeApplicationModal() {
       const modal = document.getElementById('statusModal');
       modal.classList.remove('show');
@@ -420,16 +379,5 @@ function updateLoanStatus(loanId, status, action, remarks) {
       if (e.target.id === 'statusModal') closeApplicationModal();
     }
   </script>
-
-  <style>
-    .salary-alert {
-      background: #ffebee;
-      color: #c62828;
-      padding: 10px;
-      border-radius: 4px;
-      font-weight: 500;
-      border-left: 4px solid #f44336;
-    }
-  </style>
 </body>
 </html>

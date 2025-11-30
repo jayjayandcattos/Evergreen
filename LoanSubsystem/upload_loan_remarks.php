@@ -1,4 +1,4 @@
-<!---upload_loan_remarks--->
+
 <?php
 session_start();
 date_default_timezone_set('Asia/Manila'); // <- ONLY THIS LINE ADDED
@@ -16,7 +16,7 @@ if (!isset($_SESSION['user_email']) || ($_SESSION['user_role'] ?? '') !== 'admin
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db = "loan_system";
+$db = "BankingDB";
 
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {

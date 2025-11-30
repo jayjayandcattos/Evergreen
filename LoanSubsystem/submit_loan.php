@@ -1,3 +1,4 @@
+
 <?php
 session_start();
 header('Content-Type: application/json');
@@ -10,41 +11,46 @@ ini_set('log_errors', 1);
 $response = ['success' => false, 'error' => '', 'loan_id' => null];
 
 try {
-// Auto-login bridge: Check if user is logged in via marketing system
-if (!isset($_SESSION['user_email'])) {
-    // Check for marketing session variables (from evergreen-marketing)
-    if (isset($_SESSION['user_id']) && isset($_SESSION['email'])) {
-        $_SESSION['user_email'] = $_SESSION['email'];
-        $_SESSION['user_name'] = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . ($_SESSION['last_name'] ?? ''));
-        $_SESSION['user_role'] = 'client';
-    } else {
+    // Auto-login bridge: Check if user is logged in via marketing system
+    if (!isset($_SESSION['user_email'])) {
+        // Check for marketing session variables (from evergreen-marketing)
+        if (isset($_SESSION['user_id']) && isset($_SESSION['email'])) {
+            $_SESSION['user_email'] = $_SESSION['email'];
+            $_SESSION['user_name'] = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . ($_SESSION['last_name'] ?? ''));
+            $_SESSION['user_role'] = 'client';
+        } else {
             throw new Exception("Not authenticated. Please log in.");
         }
     }
 
-    require_once __DIR__ . '/config/database.php';
-    $conn = getDBConnection();
+    // Database connection
+    $host = "localhost";
+    $user = "root";
+    $pass = "";
+    $db = "BankingDB";
 
-    if (!$conn || $conn->connect_error) {
-        throw new Exception("Database connection failed: " . ($conn ? $conn->connect_error : 'Connection is null'));
+    $conn = new mysqli($host, $user, $pass, $db);
+
+    if ($conn->connect_error) {
+        throw new Exception("Database connection failed: " . $conn->connect_error);
     }
 
-// Get user data from bank_customers database
+    // Get user data from bank_customers database
     $email = $_SESSION['user_email'];
     $user_stmt = $conn->prepare("SELECT 
-                bc.customer_id,
-                bc.first_name,
-                bc.middle_name,
-                bc.last_name,
-                bc.email,
-                bc.contact_number,
+        bc.customer_id,
+        bc.first_name,
+        bc.middle_name,
+        bc.last_name,
+        bc.email,
+        bc.contact_number,
         TRIM(CONCAT(bc.first_name, ' ', IFNULL(CONCAT(bc.middle_name, ' '), ''), bc.last_name)) as full_name,
-                (SELECT ca.account_number 
-                 FROM customer_accounts ca 
-                 WHERE ca.customer_id = bc.customer_id 
-                 LIMIT 1) as account_number
-            FROM bank_customers bc
-            WHERE bc.email = ?
+        (SELECT ca.account_number 
+         FROM customer_accounts ca 
+         WHERE ca.customer_id = bc.customer_id 
+         LIMIT 1) as account_number
+    FROM bank_customers bc
+    WHERE bc.email = ?
     LIMIT 1");
 
     if (!$user_stmt) {
@@ -81,19 +87,6 @@ if (!isset($_SESSION['user_email'])) {
     
     if (empty($purpose)) {
         throw new Exception("Please provide the purpose of the loan.");
-    }
-
-    // Get loan type name
-    $loan_type_name = '';
-    $lt_stmt = $conn->prepare("SELECT name FROM loan_types WHERE id = ?");
-    if ($lt_stmt) {
-        $lt_stmt->bind_param("i", $loan_type_id);
-        $lt_stmt->execute();
-        $lt_result = $lt_stmt->get_result();
-        if ($lt_row = $lt_result->fetch_assoc()) {
-            $loan_type_name = $lt_row['name'];
-        }
-        $lt_stmt->close();
     }
 
     // Calculate monthly payment (20% annual interest rate)
@@ -167,10 +160,9 @@ if (!isset($_SESSION['user_email'])) {
     $contact_number = $currentUser['contact_number'] ?? '';
     $user_email_db = $currentUser['email'] ?? $email;
 
-    // Insert loan application - using existing table structure
+    // ✅ FIXED: Removed loan_type column from INSERT
     $insert_stmt = $conn->prepare("INSERT INTO loan_applications (
         loan_type_id,
-        loan_type,
         full_name,
         account_number,
         contact_number,
@@ -185,16 +177,16 @@ if (!isset($_SESSION['user_email'])) {
         proof_of_income,
         coe_document,
         created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, NOW())");
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, NOW())");
 
     if (!$insert_stmt) {
         throw new Exception("Database prepare error: " . $conn->error);
     }
 
+    // ✅ FIXED: Removed loan_type_name from bind_param (changed from "isssssssdsssss" to "isssssssdssss")
     $insert_stmt->bind_param(
-        "isssssssdsssss",
+        "isssssssdssss",
         $loan_type_id,
-        $loan_type_name,
         $full_name,
         $account_number,
         $contact_number,
@@ -217,9 +209,12 @@ if (!isset($_SESSION['user_email'])) {
     $insert_stmt->close();
     $conn->close();
 
-    $response['success'] = true;
-    $response['loan_id'] = $loan_id;
-    $response['message'] = 'Loan application submitted successfully!';
+// At the end of submit_loan.php, replace the response with:
+
+$response['success'] = true;
+$response['loan_id'] = $loan_id;
+$response['message'] = 'Loan application submitted successfully!';
+$response['redirect'] = 'index.php?scrollTo=dashboard'; // ✅ Add redirect URL
 
 } catch (Exception $e) {
     $response['success'] = false;

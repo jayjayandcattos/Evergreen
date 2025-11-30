@@ -1,17 +1,23 @@
+<!---adminindex.php (with Report Generation)-->
 <?php
 session_start();
 include 'admin_header.php';
 
-require_once __DIR__ . '/config/database.php';
-$conn = getDBConnection();
+// ✅ Direct database connection
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db = "BankingDB";
+
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
   die("DB Error: " . $conn->connect_error);
 }
 
-// Count loan statuses (exclude deleted)
+// ✅ FIXED: Removed deleted_at check (column doesn't exist in your DB)
 $counts = ['Active' => 0, 'Pending' => 0, 'Approved' => 0, 'Rejected' => 0, 'Closed' => 0];
-$statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications WHERE (deleted_at IS NULL OR deleted_at = '') GROUP BY status");
+$statusResult = $conn->query("SELECT status, COUNT(*) as total FROM loan_applications GROUP BY status");
 if ($statusResult) {
   while ($row = $statusResult->fetch_assoc()) {
     $status = ucfirst(strtolower(trim($row['status'])));
@@ -21,7 +27,6 @@ if ($statusResult) {
   }
 }
 
-// Total loans count
 $totalLoans = array_sum($counts);
 ?>
 
@@ -40,7 +45,6 @@ $totalLoans = array_sum($counts);
     .active { color: #2e7d32; font-weight: bold; }
     .rejected { color: #f44336; font-weight: bold; }
 
-    /* Analytics Section */
     .analytics-section {
       margin: 30px 0;
       background: white;
@@ -57,14 +61,8 @@ $totalLoans = array_sum($counts);
       color: #003631;
     }
 
-    .analytics-header i {
-      font-size: 28px;
-    }
-
-    .analytics-header h2 {
-      margin: 0;
-      font-size: 24px;
-    }
+    .analytics-header i { font-size: 28px; }
+    .analytics-header h2 { margin: 0; font-size: 24px; }
 
     .chart-container {
       display: grid;
@@ -117,13 +115,10 @@ $totalLoans = array_sum($counts);
 
     .stat-item.active-stat { border-left-color: #2e7d32; }
     .stat-item.active-stat p { color: #2e7d32; }
-
     .stat-item.approved-stat { border-left-color: #4CAF50; }
     .stat-item.approved-stat p { color: #4CAF50; }
-
     .stat-item.pending-stat { border-left-color: #FF9800; }
     .stat-item.pending-stat p { color: #FF9800; }
-
     .stat-item.rejected-stat { border-left-color: #f44336; }
     .stat-item.rejected-stat p { color: #f44336; }
 
@@ -225,13 +220,8 @@ $totalLoans = array_sum($counts);
     }
 
     @media (max-width: 968px) {
-      .chart-container {
-        grid-template-columns: 1fr;
-      }
-
-      .button-grid {
-        grid-template-columns: 1fr;
-      }
+      .chart-container { grid-template-columns: 1fr; }
+      .button-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -358,7 +348,19 @@ $totalLoans = array_sum($counts);
         </thead>
         <tbody id="loansTableBody">
           <?php
-          $result = $conn->query("SELECT la.*, COALESCE(lt.name, la.loan_type, 'N/A') AS loan_type_display FROM loan_applications la LEFT JOIN loan_types lt ON la.loan_type_id = lt.id WHERE (la.deleted_at IS NULL OR la.deleted_at = '') ORDER BY la.id DESC");
+          $result = $conn->query("
+            SELECT 
+              la.id,
+              la.full_name,
+              la.loan_amount,
+              la.created_at,
+              la.status,
+              COALESCE(lt.name, 'Unknown Type') AS loan_type_display
+            FROM loan_applications la
+            LEFT JOIN loan_types lt ON la.loan_type_id = lt.id
+            ORDER BY la.id DESC
+          ");
+          
           if ($result && $result->num_rows > 0):
             while ($row = $result->fetch_assoc()):
               $date = date("m/d/Y", strtotime($row['created_at'] ?? 'now'));
@@ -386,7 +388,7 @@ $totalLoans = array_sum($counts);
     </div>
   </main>
 
-  <!-- View Details Modal (Read-Only) -->
+  <!-- View Details Modal -->
   <div id="viewLoanModal" class="modal">
     <div class="modal-content">
       <h2>Client Loan Details (View Only)</h2>
@@ -456,7 +458,6 @@ $totalLoans = array_sum($counts);
   </div>
 
   <script>
-    // Chart.js Data
     const chartData = {
       active: <?= $counts['Active'] ?>,
       approved: <?= $counts['Approved'] ?>,
@@ -464,62 +465,53 @@ $totalLoans = array_sum($counts);
       rejected: <?= $counts['Rejected'] ?>
     };
 
-    // Create Pie Chart
-    const ctx = document.getElementById('loanPieChart').getContext('2d');
-    const loanPieChart = new Chart(ctx, {
-      type: 'pie',
-      data: {
-        labels: ['Active Loans', 'Awaiting Claim', 'Pending Review', 'Rejected'],
-        datasets: [{
-          data: [chartData.active, chartData.approved, chartData.pending, chartData.rejected],
-          backgroundColor: [
-            '#2e7d32',
-            '#4CAF50',
-            '#FF9800',
-            '#f44336'
-          ],
-          borderWidth: 3,
-          borderColor: '#ffffff'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 20,
-              font: {
-                size: 13,
-                weight: 'bold'
-              },
-              usePointStyle: true,
-              pointStyle: 'circle'
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+      const ctx = document.getElementById('loanPieChart');
+      if (ctx) {
+        const loanPieChart = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ['Active Loans', 'Awaiting Claim', 'Pending Review', 'Rejected'],
+            datasets: [{
+              data: [chartData.active, chartData.approved, chartData.pending, chartData.rejected],
+              backgroundColor: ['#2e7d32', '#4CAF50', '#FF9800', '#f44336'],
+              borderWidth: 3,
+              borderColor: '#ffffff'
+            }]
           },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const value = context.parsed;
-                const percentage = ((value / total) * 100).toFixed(1);
-                return `${context.label}: ${value} (${percentage}%)`;
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 20,
+                  font: { size: 13, weight: 'bold' },
+                  usePointStyle: true,
+                  pointStyle: 'circle'
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const value = context.parsed;
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                    return `${context.label}: ${value} (${percentage}%)`;
+                  }
+                },
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                titleFont: { size: 14, weight: 'bold' },
+                bodyFont: { size: 13 }
               }
-            },
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: 12,
-            titleFont: { size: 14, weight: 'bold' },
-            bodyFont: { size: 13 }
+            }
           }
-        }
+        });
+        window.loanPieChart = loanPieChart;
       }
     });
-
-    // Export chart as image for PDF
-    window.getChartImage = function() {
-      return loanPieChart.toBase64Image();
-    };
 
     let currentValidId = '';
     let currentProofIncome = '';
@@ -602,7 +594,7 @@ $totalLoans = array_sum($counts);
           document.getElementById('viewLoanModal').style.display = 'flex';
           document.getElementById('viewLoanModal').classList.add('show');
         })
-        .catch(err => console.error(err));
+        .catch(err => console.error('Error:', err));
     }
 
     function closeViewModal() {
@@ -615,8 +607,9 @@ $totalLoans = array_sum($counts);
       if (e.target === document.getElementById('viewLoanModal')) closeViewModal();
     }
 
+    // Generate Report Function
     function generateReport(type) {
-      const chartImage = loanPieChart.toBase64Image();
+      const chartImage = window.loanPieChart ? window.loanPieChart.toBase64Image() : '';
       
       fetch(`generate_report.php?type=${type}`, {
         method: 'POST',

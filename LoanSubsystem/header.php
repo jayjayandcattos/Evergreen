@@ -316,8 +316,8 @@ nav {
         <a href="#home">Home</a>
         <a href="#loan-services">Loan Services</a>
         <a href="#loan-dashboard">Dashboard</a>
-        <a href="../../bank-system/Basic-operation/operations/public/customer/profile">Profile</a>
-        <a href="../../bank-system/evergreen-marketing/viewingpage.php">Banking</a>
+        <a href="/Evergreen-Finance/bank-system/Basic-operation/operations/public/customer/profile.php">Profile</a>
+        <!--<a href="../../bank-system/evergreen-marketing/viewingpage.php">Banking</a>-->
     </div>
 
     <div class="profile-actions">

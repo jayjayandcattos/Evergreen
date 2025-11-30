@@ -10,9 +10,12 @@ if (!isset($_SESSION['user_email']) || ($_SESSION['user_role'] ?? '') !== 'admin
     exit;
 }
 
-require_once __DIR__ . '/config/database.php';
-$conn = getDBConnection();
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db = "BankingDB";
 
+$conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
     ob_clean();
     http_response_code(500);

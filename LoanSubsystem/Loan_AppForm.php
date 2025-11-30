@@ -1,3 +1,4 @@
+<!---Loan_AppForm.php-->
 <?php
 session_start();
 require_once __DIR__ . '/config/database.php';
@@ -58,7 +59,7 @@ $stmt->close();
 
 // Fetch loan types - show all active loan types
 $loanTypes = [];
-$lt_result = $conn->query("SELECT id, name FROM loan_types WHERE is_active = 1 ORDER BY name");
+$lt_result = $conn->query("SELECT id, name FROM loan_types ORDER BY name");
 if ($lt_result) {
     while ($row = $lt_result->fetch_assoc()) {
         $loanTypes[] = $row;
@@ -270,6 +271,45 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // loan_appform.js
+document.getElementById('loanForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = document.querySelector('.btn-submit');
+    const originalText = submitBtn.textContent;
+    
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    
+    try {
+        const response = await fetch('submit_loan.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            alert('✅ ' + result.message + '\n\nRedirecting to dashboard...');
+            
+            // Redirect to dashboard
+            window.location.href = result.redirect || 'index.php?scrollTo=dashboard';
+        } else {
+            // Show error message
+            alert('❌ Error: ' + result.error);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    } catch (error) {
+        console.error('Submission error:', error);
+        alert('❌ An error occurred while submitting your application. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+});
     // File type validation
     const validIdInput = document.getElementById('attachment');
     const proofInput = document.getElementById('proof_of_income');
