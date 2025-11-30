@@ -1491,12 +1491,22 @@ $stmt->execute();
           .then(response => response.json())
           .then(provinces => {
             const provinceSelect = document.getElementById('province');
-            provinces.forEach(province => {
-              const option = document.createElement('option');
-              option.value = province;
-              option.textContent = province;
-              provinceSelect.appendChild(option);
-            });
+            if (provinces && provinces.length > 0) {
+              provinces.forEach(province => {
+                const option = document.createElement('option');
+                // Handle both object format {code, name} and string format
+                if (typeof province === 'object' && province.code && province.name) {
+                  option.value = province.code;
+                  option.textContent = province.name;
+                } else {
+                  option.value = province;
+                  option.textContent = province;
+                }
+                provinceSelect.appendChild(option);
+              });
+            } else {
+              console.warn('No provinces returned from API');
+            }
           })
           .catch(error => {
             console.error('Error loading provinces:', error);
@@ -1505,29 +1515,45 @@ $stmt->execute();
 
       // Load cities when province is selected
       document.getElementById('province').addEventListener('change', function() {
-        const province = this.value;
+        const provinceCode = this.value;
         const citySelect = document.getElementById('city_province');
         
         // Clear previous cities
         citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
         
-        if (province) {
+        if (provinceCode) {
           // Enable city dropdown
           citySelect.disabled = false;
+          citySelect.innerHTML = '<option value="">Loading cities...</option>';
           
-          // Fetch cities for selected province
-          fetch(`get_locations.php?action=get_cities&province=${encodeURIComponent(province)}`)
+          // Fetch cities for selected province using province_code parameter
+          fetch(`get_locations.php?action=get_cities&province_code=${encodeURIComponent(provinceCode)}`)
             .then(response => response.json())
             .then(cities => {
-              cities.forEach(city => {
+              citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+              if (cities && cities.length > 0) {
+                cities.forEach(city => {
+                  const option = document.createElement('option');
+                  // Handle both object format {code, name} and string format
+                  if (typeof city === 'object' && city.code && city.name) {
+                    option.value = city.code;
+                    option.textContent = city.name;
+                  } else {
+                    option.value = city;
+                    option.textContent = city;
+                  }
+                  citySelect.appendChild(option);
+                });
+              } else {
                 const option = document.createElement('option');
-                option.value = city;
-                option.textContent = city;
+                option.value = '';
+                option.textContent = 'No cities available';
                 citySelect.appendChild(option);
-              });
+              }
             })
             .catch(error => {
               console.error('Error loading cities:', error);
+              citySelect.innerHTML = '<option value="">Error loading cities</option>';
             });
         } else {
           // Disable city dropdown if no province selected

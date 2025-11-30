@@ -163,9 +163,15 @@
         flex-direction: column;
       }
 
-      .upper-input-wrap, .lower-input-wrap, .city-input-wrap{
+      .upper-input-wrap, .lower-input-wrap{
         display: flex;
         gap: 20px;
+      }
+
+      .city-input-wrap {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
       }
 
       .input-wrap {
@@ -408,97 +414,430 @@
         border-color: #D43F3A;
       }
 
-      /* Review Modal */
+      /* Review Modal - Modern Design */
       .modal-container {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 54, 49, 0.6);
+        backdrop-filter: blur(8px);
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 1000;
+        padding: 20px;
       }
 
       .details-review {
-        background-color: white;
-        border-radius: 10px;
-        padding: 20px;
-        width: 50%;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafa 100%);
+        border-radius: 24px;
+        padding: 0;
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 54, 49, 0.25),
+                    0 0 0 1px rgba(0, 54, 49, 0.05);
         display: flex;
-        justify-content: center;
         flex-direction: column;
+      }
+
+      .modal-header {
+        background: linear-gradient(135deg, #003631 0%, #005a50 100%);
+        padding: 28px 32px;
+        border-radius: 24px 24px 0 0;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .modal-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        border-radius: 50%;
+      }
+
+      .modal-header h2 {
+        color: white;
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .modal-header p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        margin: 0;
+        position: relative;
+        z-index: 1;
       }
 
       .details-contains {
-        display: flex;
-        gap: 40px;
-        padding: 20px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        padding: 0;
       }
 
-      .content-group {
-        display: flex;
-        gap: 15px;
+      .review-section {
+        padding: 24px 28px;
+        border-bottom: 1px solid #e8eeee;
       }
 
-      .left, .right {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+      .review-section:nth-child(odd) {
+        border-right: 1px solid #e8eeee;
       }
 
-      .btn-container {
+      .review-section:last-child,
+      .review-section:nth-last-child(2):nth-child(odd) {
+        border-bottom: none;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      .section-icon.personal {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        color: #2e7d32;
+      }
+
+      .section-icon.address {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        color: #1565c0;
+      }
+
+      .section-icon.identity {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        color: #ef6c00;
+      }
+
+      .section-icon.employment {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        color: #7b1fa2;
+      }
+
+      .section-header h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #003631;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .review-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .review-grid.single-col {
+        grid-template-columns: 1fr;
+      }
+
+      .review-item {
+        background: white;
+        border-radius: 12px;
+        padding: 14px 16px;
+        border: 1px solid #e8eeee;
+        transition: all 0.2s ease;
+      }
+
+      .review-item:hover {
+        border-color: #003631;
+        box-shadow: 0 4px 12px rgba(0, 54, 49, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .review-item.full-width {
+        grid-column: span 2;
+      }
+
+      .review-item label {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: #6b7f7d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+
+      .review-item .value {
+        font-size: 15px;
+        font-weight: 600;
+        color: #003631;
+        margin: 0;
+        word-break: break-word;
+      }
+
+      .review-item .value.highlight {
+        color: #005a50;
+      }
+
+      .modal-footer {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        padding: 20px 28px;
+        background: #f8fafa;
+        border-radius: 0 0 24px 24px;
+        border-top: 1px solid #e8eeee;
       }
 
-      #ok {
-        background-color: #003631;
-        color: white;
-        padding: 10px;
-        border-radius: 15px;
-        width: 80px;
-        border: none;
+      .modal-footer .disclaimer {
+        font-size: 12px;
+        color: #6b7f7d;
+        max-width: 400px;
+      }
+
+      .modal-footer .btn-group {
+        display: flex;
+        gap: 12px;
       }
 
       #cancel {
-        color: black;
-        padding: 10px;
-        border-radius: 15px;
-        width: 80px;
-        border: none;
+        background: white;
+        color: #003631;
+        padding: 12px 28px;
+        border-radius: 12px;
+        border: 2px solid #e8eeee;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
-      /* Success modal */
+      #cancel:hover {
+        background: #f8fafa;
+        border-color: #003631;
+      }
+
+      #ok {
+        background: linear-gradient(135deg, #003631 0%, #005a50 100%);
+        color: white;
+        padding: 12px 32px;
+        border-radius: 12px;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(0, 54, 49, 0.3);
+      }
+
+      #ok:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 54, 49, 0.4);
+      }
+
+      #ok:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Location badge styling */
+      .location-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .location-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f7f6;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        color: #003631;
+      }
+
+      .location-badge .badge-label {
+        font-weight: 400;
+        color: #6b7f7d;
+      }
+
+      .location-badge .badge-value {
+        font-weight: 600;
+      }
+
+      /* Responsive modal */
+      @media (max-width: 768px) {
+        .details-review {
+          width: 95%;
+          max-height: 95vh;
+        }
+
+        .details-contains {
+          grid-template-columns: 1fr;
+        }
+
+        .review-section:nth-child(odd) {
+          border-right: none;
+        }
+
+        .review-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .review-item.full-width {
+          grid-column: span 1;
+        }
+
+        .modal-footer {
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .modal-footer .disclaimer {
+          text-align: center;
+          max-width: none;
+        }
+
+        .modal-footer .btn-group {
+          width: 100%;
+        }
+
+        #cancel, #ok {
+          flex: 1;
+        }
+      }
+
+      /* Success modal - Modern Design */
       .successful-modal {
-        background-color: white;
-        border-radius: 10px;
-        padding: 30px;
-        width: 40%;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafa 100%);
+        border-radius: 24px;
+        padding: 48px 40px;
+        width: 90%;
+        max-width: 480px;
+        box-shadow: 0 25px 50px -12px rgba(0, 54, 49, 0.25);
         display: flex;
         justify-content: center;
         flex-direction: column;
         align-items: center;
-        gap: 15px;
+        gap: 24px;
+        text-align: center;
+      }
+
+      .success-icon-wrap {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .success-icon-wrap::before {
+        content: '';
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(46, 125, 50, 0.1) 0%, rgba(46, 125, 50, 0.05) 100%);
+        animation: pulse-ring 2s ease-out infinite;
+      }
+
+      @keyframes pulse-ring {
+        0% { transform: scale(0.9); opacity: 1; }
+        100% { transform: scale(1.2); opacity: 0; }
+      }
+
+      .check {
+        width: 50px;
+        height: 50px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .success-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .head-text {
+        font-size: 28px;
+        font-weight: 700;
+        color: #003631;
+        margin: 0;
+      }
+
+      .sub-text {
+        font-size: 16px;
+        color: #6b7f7d;
+        margin: 0;
+        max-width: 320px;
+        line-height: 1.5;
       }
 
       .s-wrap {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
         align-items: center;
+        background: #f0f7f6;
+        padding: 16px 24px;
+        border-radius: 12px;
+        width: 100%;
+      }
+
+      .s-wrap .grey-text {
+        font-size: 13px;
+        color: #6b7f7d;
+        margin: 0;
+      }
+
+      .s-wrap .grey-text strong {
+        color: #003631;
+        font-weight: 600;
       }
 
       #confirm-btn {
-        background-color: #003631;
+        background: linear-gradient(135deg, #003631 0%, #005a50 100%);
         color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
+        padding: 16px 48px;
+        border-radius: 12px;
         border: none;
+        font-size: 16px;
+        font-weight: 600;
         cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px rgba(0, 54, 49, 0.3);
+        width: 100%;
+        max-width: 280px;
+      }
+
+      #confirm-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 54, 49, 0.4);
       }
 
       /* Back button */
@@ -779,10 +1118,14 @@
         }
 
         .upper-input-wrap,
-        .lower-input-wrap,
-        .city-input-wrap {
+        .lower-input-wrap {
           flex-direction: column;
           gap: 15px;
+        }
+
+        .city-input-wrap {
+          grid-template-columns: 1fr;
+          gap: 12px;
         }
 
         .inp-credentials {
@@ -907,8 +1250,12 @@
         }
 
         .upper-input-wrap,
-        .lower-input-wrap,
+        .lower-input-wrap {
+          gap: 12px;
+        }
+
         .city-input-wrap {
+          grid-template-columns: 1fr;
           gap: 12px;
         }
 
@@ -1391,8 +1738,14 @@
 
             <div class="city-input-wrap">
               <div class="input-wrap">
+                <label for="region">Region<span style="color: red;">*</span></label>
+                <select class="inp-credentials" id="region">
+                  <option value="">Select Region</option>
+                </select>
+              </div>
+              <div class="input-wrap">
                 <label for="state">Province<span style="color: red;">*</span></label>
-                <select class="inp-credentials" id="state">
+                <select class="inp-credentials" id="state" disabled>
                   <option value="">Select Province</option>
                 </select>
               </div>
@@ -1552,96 +1905,167 @@
       </div>
     </main>
 
-    <!-- Review Modal -->
+    <!-- Review Modal - Modern Design -->
     <div class="modal-container" style="display: none;">
       <div class="details-review">
-        <h2 class="confirm-title">Please confirm the details below</h2>
-        <div class="details-contains">
-          <div class="left">
-            <div class="content-wrap">
-              <label for="rev-f-name">First Name</label>
-              <h4 class="rev-f-name">None</h4>          <!-- Content will be dynamically injected here -->
-            </div>
-            <div class="content-wrap">
-              <label for="rev-l-name">Last Name</label>
-              <h4 class="rev-l-name">None</h4>           <!-- Content will be dynamically injected here -->
-            </div>
-            <div class="content-wrap">
-              <label for="rev-birth">Birthday</label>
-              <h4 class="rev-birth">0/00/0000</h4>           <!-- Content will be dynamically injected here -->
-            </div>
-            <div class="content-wrap">
-              <label for="rev-street">Street Address</label>
-              <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
-            </div>
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h2>📋 Review Your Application</h2>
+          <p>Please verify all information is correct before submitting</p>
+        </div>
 
-            <div class="content-group">
-              <div class="content-wrap">
-                <label for="rev-city">City</label>
-                <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
+        <div class="details-contains">
+          <!-- Personal Information Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon personal">👤</div>
+              <h3>Personal Information</h3>
+            </div>
+            <div class="review-grid">
+              <div class="review-item">
+                <label>First Name</label>
+                <p class="value rev-f-name">—</p>
               </div>
-              <div class="content-wrap">
-                <label for="rev-state">State</label>
-                <h4 class="rev-state">None</h4>           <!-- Content will be dynamically injected here -->
+              <div class="review-item">
+                <label>Last Name</label>
+                <p class="value rev-l-name">—</p>
               </div>
-              <div class="content-wrap">
-                <label for="rev-zip">Zip Code</label>
-                <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
+              <div class="review-item">
+                <label>Date of Birth</label>
+                <p class="value rev-birth">—</p>
               </div>
-          </div>       
+              <div class="review-item">
+                <label>Email Address</label>
+                <p class="value rev-email">—</p>
+              </div>
+              <div class="review-item full-width">
+                <label>Phone Number</label>
+                <p class="value rev-phone">—</p>
+              </div>
+            </div>
           </div>
-          <div class="right">
-          <div class="content-wrap">
-            <label for="rev-ssn">Social Security Number</label>
-            <h4 class="rev-ssn">000-00-0000</h4>           <!-- Content will be dynamically injected here -->
+
+          <!-- Address Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon address">📍</div>
+              <h3>Address Details</h3>
+            </div>
+            <div class="review-grid single-col">
+              <div class="review-item">
+                <label>Street Address</label>
+                <p class="value rev-street">—</p>
+              </div>
+              <div class="review-item">
+                <label>Location</label>
+                <div class="location-badges">
+                  <span class="location-badge">
+                    <span class="badge-label">Brgy:</span>
+                    <span class="badge-value rev-barangay">—</span>
+                  </span>
+                  <span class="location-badge">
+                    <span class="badge-label">City:</span>
+                    <span class="badge-value rev-city">—</span>
+                  </span>
+                </div>
+              </div>
+              <div class="review-item">
+                <label>Region & Province</label>
+                <div class="location-badges">
+                  <span class="location-badge">
+                    <span class="badge-value rev-region">—</span>
+                  </span>
+                  <span class="location-badge">
+                    <span class="badge-value rev-state">—</span>
+                  </span>
+                  <span class="location-badge">
+                    <span class="badge-label">ZIP:</span>
+                    <span class="badge-value rev-zip">—</span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="content-wrap">
-            <label for="rev-id-type">ID Type</label>
-            <h4 class="rev-id-type">None</h4>           <!-- Content will be dynamically injected here -->
+
+          <!-- Identity Verification Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon identity">🔐</div>
+              <h3>Identity Verification</h3>
+            </div>
+            <div class="review-grid">
+              <div class="review-item full-width">
+                <label>Social Security Number</label>
+                <p class="value highlight rev-ssn">•••-••-••••</p>
+              </div>
+              <div class="review-item">
+                <label>ID Type</label>
+                <p class="value rev-id-type">—</p>
+              </div>
+              <div class="review-item">
+                <label>ID Number</label>
+                <p class="value rev-id-number">—</p>
+              </div>
+            </div>
           </div>
-          <div class="content-wrap">
-            <label for="rev-id-number">ID Number</label>
-            <h4 class="rev-id-number">0000</h4>           <!-- Content will be dynamically injected here -->
+
+          <!-- Employment Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon employment">💼</div>
+              <h3>Employment Details</h3>
+            </div>
+            <div class="review-grid">
+              <div class="review-item full-width">
+                <label>Employment Status</label>
+                <p class="value rev-employment-status">—</p>
+              </div>
+              <div class="review-item">
+                <label>Employer Name</label>
+                <p class="value rev-employer-name">—</p>
+              </div>
+              <div class="review-item">
+                <label>Job Title</label>
+                <p class="value rev-job-title">—</p>
+              </div>
+              <div class="review-item full-width">
+                <label>Annual Income</label>
+                <p class="value highlight rev-annual-income">—</p>
+              </div>
+            </div>
           </div>
-          <div class="content-wrap">
-            <label for="rev-employment-status">Employment Status</label>
-            <h4 class="rev-employment-status">None</h4> <!-- Content will be dynamically injected here -->
-          </div>
-          <div class="content-wrap">
-            <label for="rev-employer-name">Employer Name</label>
-            <h4 class="rev-employer-name">None</h4><!-- Content will be dynamically injected here -->
-          </div>
-          <div class="content-wrap">
-            <label for="rev-job-title">Job Title</label>
-            <h4 class="rev-job-title">None</h4>  <!-- Content will be dynamically injected here -->
-          </div>
-          <div class="content-wrap">
-            <label for="rev-annual-income">Annual Income</label>
-            <h4 class="rev-annual-income">$00,000</h4> <!-- Content will be dynamically injected here -->
         </div>
-      
+
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <p class="disclaimer">By clicking "Submit Application", you confirm that all information provided is accurate and complete.</p>
+          <div class="btn-group">
+            <button id="cancel">← Go Back</button>
+            <button id="ok">Submit Application ✓</button>
           </div>
-        </div>
-        <div class="btn-container">
-          <button id="cancel" class="action-button">Cancel</button>
-          <button id="ok" class="action-button">Ok</button>
         </div>
       </div>
     </div>
 
-    <!-- Successful Modal -->
-     <div class="modal-container" id="success-modal=container" style="display: none;">
+    <!-- Successful Modal - Modern Design -->
+    <div class="modal-container" id="success-modal=container" style="display: none;">
       <div class="successful-modal">
-        <img src="images/circle-check-filled.png" alt="success" class="check">
-        <h2 class="head-text">Success!</h2>
-        <h3 class="sub-text">Your application has been successfully submitted.</h3>
-        <div class="s-wrap">
-          <p class="grey-text" id="ref-id">0000</p><!-- make this dynamic/random -->
-          <p class="grey-text" id="date-submitted">0/00/0000</p>
+        <div class="success-icon-wrap">
+          <svg class="check" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-        <button class="action-button" id="confirm-btn">CONFIRM</button>
+        <div class="success-content">
+          <h2 class="head-text">Application Submitted!</h2>
+          <p class="sub-text">Your bank account application has been received. We'll review your information and contact you within 2-3 business days.</p>
+        </div>
+        <div class="s-wrap">
+          <p class="grey-text"><strong>Reference Number:</strong> <span id="ref-id">EG-000000</span></p>
+          <p class="grey-text"><strong>Submitted:</strong> <span id="date-submitted">—</span></p>
+        </div>
+        <button id="confirm-btn">Done</button>
       </div>
-     </div>
+    </div>
   </body>
     <script>
     // panels
@@ -1720,7 +2144,7 @@
     // Per-step validation
     function validatePersonal() {
       let valid = true;
-      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','barangay','city','state','zip-code'];
+      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','region','barangay','city','zip-code'];
       required.forEach(id => {
         const el = document.getElementById(id);
         if (!isNotEmpty(el.value)) {
@@ -1730,6 +2154,15 @@
           clearFieldError(el);
         }
       });
+      
+      // Special validation for province (can be "NO_PROVINCE" for NCR)
+      const provinceEl = document.getElementById('state');
+      if (!isNotEmpty(provinceEl.value)) {
+        showFieldError(provinceEl, 'This field is required');
+        valid = false;
+      } else {
+        clearFieldError(provinceEl);
+      }
 
       const emailEl = document.getElementById('e-mail');
       if (isNotEmpty(emailEl.value) && !isEmail(emailEl.value)) {
@@ -1848,6 +2281,10 @@
         // Simulate processing time
         setTimeout(() => {
           // Gather data
+          const provinceSelect = document.getElementById('state');
+          const provinceValue = provinceSelect.value;
+          const provinceName = provinceValue === 'METRO_MANILA' ? 'Metro Manila' : provinceSelect.options[provinceSelect.selectedIndex].text;
+          
           let injector = {
             firstName: document.getElementById('f-name').value,
             lastName: document.getElementById('l-name').value,
@@ -1855,9 +2292,10 @@
             phoneNumber: document.getElementById('phone-number').value,
             dateOfBirth: document.getElementById('date-of-birth').value,
             streetAddress: document.getElementById('street-address').value,
-            barangay: document.getElementById('barangay').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
+            region: document.getElementById('region').options[document.getElementById('region').selectedIndex].text,
+            barangay: document.getElementById('barangay').options[document.getElementById('barangay').selectedIndex].text,
+            city: document.getElementById('city').options[document.getElementById('city').selectedIndex].text,
+            state: provinceName,
             zipCode: document.getElementById('zip-code').value,
             socialSecurityNumber: document.getElementById('ssn').value,
             idType: document.getElementById('id-type').value,
@@ -1873,18 +2311,22 @@
           // Populate review modal
           displayCred('rev-f-name', injector.firstName);
           displayCred('rev-l-name', injector.lastName);
-          displayCred('rev-birth', injector.dateOfBirth);
+          displayCred('rev-birth', formatDate(injector.dateOfBirth));
+          displayCred('rev-email', injector.email);
+          displayCred('rev-phone', injector.phoneNumber);
           displayCred('rev-street', injector.streetAddress);
-          displayCred('rev-city', injector.city);
+          displayCred('rev-region', injector.region);
           displayCred('rev-state', injector.state);
+          displayCred('rev-city', injector.city);
+          displayCred('rev-barangay', injector.barangay);
           displayCred('rev-zip', injector.zipCode);
-          displayCred('rev-ssn', injector.socialSecurityNumber);
+          displayCred('rev-ssn', maskSSN(injector.socialSecurityNumber));
           displayCred('rev-id-type', injector.idType);
           displayCred('rev-id-number', injector.idNumber);
           displayCred('rev-employment-status', injector.employmentStatus);
           displayCred('rev-employer-name', injector.employerName);
           displayCred('rev-job-title', injector.jobTitle);
-          displayCred('rev-annual-income', '$' + injector.annualIncome);
+          displayCred('rev-annual-income', formatCurrency(injector.annualIncome));
 
           // Remove loading state
           nextBtn.classList.remove('submitting');
@@ -1901,9 +2343,15 @@
       okBtn.disabled = true;
       okBtn.textContent = 'Processing...';
       
-      // Prepare data for submission
+      // Prepare data for submission - include codes for database storage
+      const provinceCodeValue = document.getElementById('state').value;
       const applicationData = {
         ...infoData[0],
+        // Include location codes for precise database storage
+        regionCode: document.getElementById('region').value,
+        provinceCode: provinceCodeValue === 'METRO_MANILA' ? 'NCR' : provinceCodeValue,
+        cityCode: document.getElementById('city').value,
+        barangayCode: document.getElementById('barangay').value,
         selectedCards: getSelectedCards(),
         additionalServices: getSelectedServices(),
         termsAccepted: document.getElementById('term-tnc').checked,
@@ -1923,7 +2371,7 @@
       .then(data => {
         if (data.success) {
           // Update reference ID with actual application number
-          document.getElementById('ref-id').textContent = 'Reference ID: ' + data.application_number;
+          document.getElementById('ref-id').textContent = data.application_number;
           
           // Close review modal with animation
           modalContainer.classList.add('closing');
@@ -1968,10 +2416,11 @@
       }, 300);
     });
 
-    // Display date submitted
+    // Display date submitted with better formatting
     let currentDate = new Date();
-    let formattedDate = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear();
-    document.getElementById('date-submitted').textContent = 'Date Submitted: ' + formattedDate;
+    let dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    let formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
+    document.getElementById('date-submitted').textContent = formattedDate;
     
     // Helper function to get selected services
     function getSelectedServices() {
@@ -1982,10 +2431,40 @@
       return services;
     }
 
+    // Format date to readable format
+    function formatDate(dateString) {
+      if (!dateString) return '—';
+      const date = new Date(dateString);
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    }
+
+    // Mask SSN for display (show only last 4 digits)
+    function maskSSN(ssn) {
+      if (!ssn) return '•••-••-••••';
+      const cleaned = ssn.replace(/\D/g, '');
+      if (cleaned.length >= 4) {
+        return '•••-••-' + cleaned.slice(-4);
+      }
+      return '•••-••-••••';
+    }
+
+    // Format currency
+    function formatCurrency(amount) {
+      if (!amount) return '—';
+      const num = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(num);
+    }
+
     // Display credentials in review modal
     function displayCred(name, value) {
       let elements = document.getElementsByClassName(name);
-      for (let i = 0; i < elements.length; i++) { elements[i].textContent = value; }
+      for (let i = 0; i < elements.length; i++) { elements[i].textContent = value || '—'; }
     }
 
     function updateStepUI() {
@@ -2027,12 +2506,16 @@
     updateStepUI();
 
     // ========================================
-    // PROVINCE AND CITY DROPDOWN
+    // PHILIPPINE LOCATION DROPDOWNS (Using PSGC Cloud API)
     // ========================================
     
-    // Load provinces on page load
+    // Store current region code for later use
+    let currentRegionCode = '';
+    let regionHasNoProvinces = false;
+    
+    // Load regions on page load
     document.addEventListener('DOMContentLoaded', function() {
-      loadProvinces();
+      loadRegions();
       setMaxBirthDate();
     });
 
@@ -2044,97 +2527,222 @@
       document.getElementById('date-of-birth').setAttribute('max', maxDateString);
     }
 
-    function loadProvinces() {
-      fetch('get_locations.php?action=get_provinces')
+    // Load all regions
+    function loadRegions() {
+      const regionSelect = document.getElementById('region');
+      
+      // Add loading indicator
+      regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+      
+      fetch('get_locations.php?action=get_regions')
         .then(response => response.json())
-        .then(provinces => {
-          const provinceSelect = document.getElementById('state');
-          provinces.forEach(province => {
+        .then(regions => {
+          regionSelect.innerHTML = '<option value="">Select Region</option>';
+          
+          if (regions.length > 0) {
+            regions.forEach(region => {
+              const option = document.createElement('option');
+              option.value = region.code;
+              option.textContent = region.name;
+              option.dataset.name = region.name;
+              regionSelect.appendChild(option);
+            });
+          } else {
             const option = document.createElement('option');
-            option.value = province;
-            option.textContent = province;
-            provinceSelect.appendChild(option);
-          });
+            option.value = '';
+            option.textContent = 'No regions available';
+            regionSelect.appendChild(option);
+          }
         })
         .catch(error => {
-          console.error('Error loading provinces:', error);
+          console.error('Error loading regions:', error);
+          regionSelect.innerHTML = '<option value="">Error loading regions</option>';
+        });
+    }
+
+    // Load provinces when region is selected
+    document.getElementById('region').addEventListener('change', function() {
+      const regionCode = this.value;
+      currentRegionCode = regionCode;
+      const provinceSelect = document.getElementById('state');
+      const citySelect = document.getElementById('city');
+      const barangaySelect = document.getElementById('barangay');
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      // Clear and disable subsequent dropdowns
+      provinceSelect.innerHTML = '<option value="">Select Province</option>';
+      citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+      zipCodeInput.value = '';
+      
+      citySelect.disabled = true;
+      barangaySelect.disabled = true;
+      regionHasNoProvinces = false;
+      
+      if (regionCode) {
+        // Enable province dropdown and show loading
+        provinceSelect.disabled = false;
+        provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+        
+        // Fetch provinces for selected region
+        fetch(`get_locations.php?action=get_provinces&region_code=${encodeURIComponent(regionCode)}`)
+          .then(response => response.json())
+          .then(provinces => {
+            if (provinces.length > 0) {
+              // Region has provinces - normal flow
+              regionHasNoProvinces = false;
+              provinceSelect.innerHTML = '<option value="">Select Province</option>';
+              provinces.forEach(province => {
+                const option = document.createElement('option');
+                option.value = province.code;
+                option.textContent = province.name;
+                option.dataset.name = province.name;
+                provinceSelect.appendChild(option);
+              });
+            } else {
+              // Region has NO provinces (like NCR) - load cities directly from region
+              regionHasNoProvinces = true;
+              provinceSelect.innerHTML = '<option value="METRO_MANILA" data-name="Metro Manila">Metro Manila</option>';
+              provinceSelect.value = 'METRO_MANILA';
+              
+              // Automatically load cities from region
+              loadCitiesFromRegion(regionCode);
+            }
+          })
+          .catch(error => {
+            console.error('Error loading provinces:', error);
+            provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
+          });
+      } else {
+        provinceSelect.disabled = true;
+      }
+    });
+    
+    // Function to load cities directly from region (for regions without provinces)
+    function loadCitiesFromRegion(regionCode) {
+      const citySelect = document.getElementById('city');
+      const barangaySelect = document.getElementById('barangay');
+      const zipCodeInput = document.getElementById('zip-code');
+      
+      // Clear and enable city dropdown
+      citySelect.innerHTML = '<option value="">Loading cities...</option>';
+      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+      zipCodeInput.value = '';
+      
+      citySelect.disabled = false;
+      barangaySelect.disabled = true;
+      
+      // Fetch cities directly from region
+      fetch(`get_locations.php?action=get_cities&region_code=${encodeURIComponent(regionCode)}`)
+        .then(response => response.json())
+        .then(cities => {
+          citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+          
+          if (cities.length > 0) {
+            cities.forEach(city => {
+              const option = document.createElement('option');
+              option.value = city.code;
+              option.textContent = city.name;
+              option.dataset.name = city.name;
+              citySelect.appendChild(option);
+            });
+          } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No cities available';
+            citySelect.appendChild(option);
+          }
+        })
+        .catch(error => {
+          console.error('Error loading cities:', error);
+          citySelect.innerHTML = '<option value="">Error loading cities</option>';
         });
     }
 
     // Load cities when province is selected
     document.getElementById('state').addEventListener('change', function() {
-      const province = this.value;
+      const provinceCode = this.value;
       const citySelect = document.getElementById('city');
       const barangaySelect = document.getElementById('barangay');
       const zipCodeInput = document.getElementById('zip-code');
       
-      // Clear previous cities, barangays, and zip code
+      // If this is a region without provinces (NCR/Metro Manila), cities are already loaded
+      if (provinceCode === 'METRO_MANILA') {
+        return;
+      }
+      
+      // Clear and disable subsequent dropdowns
       citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
       barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
       zipCodeInput.value = '';
       
-      if (province) {
+      barangaySelect.disabled = true;
+      
+      if (provinceCode) {
         // Enable city dropdown
         citySelect.disabled = false;
-        barangaySelect.disabled = true;
+        citySelect.innerHTML = '<option value="">Loading cities...</option>';
         
         // Fetch cities for selected province
-        fetch(`get_locations.php?action=get_cities&province=${encodeURIComponent(province)}`)
+        fetch(`get_locations.php?action=get_cities&province_code=${encodeURIComponent(provinceCode)}`)
           .then(response => response.json())
           .then(cities => {
-            cities.forEach(city => {
+            citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (cities.length > 0) {
+              cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city.code;
+                option.textContent = city.name;
+                option.dataset.name = city.name;
+                citySelect.appendChild(option);
+              });
+            } else {
               const option = document.createElement('option');
-              option.value = city;
-              option.textContent = city;
+              option.value = '';
+              option.textContent = 'No cities available';
               citySelect.appendChild(option);
-            });
+            }
           })
           .catch(error => {
             console.error('Error loading cities:', error);
+            citySelect.innerHTML = '<option value="">Error loading cities</option>';
           });
       } else {
-        // Disable city and barangay dropdowns if no province selected
         citySelect.disabled = true;
-        barangaySelect.disabled = true;
       }
     });
 
     // Load barangays when city is selected
     document.getElementById('city').addEventListener('change', function() {
-      const city = this.value;
+      const cityCode = this.value;
       const barangaySelect = document.getElementById('barangay');
       const zipCodeInput = document.getElementById('zip-code');
       
-      // Clear previous barangays and zip code
+      // Clear barangays and zip code
       barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
       zipCodeInput.value = '';
       
-      if (city) {
-        // Enable barangay dropdown immediately
+      if (cityCode) {
+        // Enable barangay dropdown
         barangaySelect.disabled = false;
+        barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
         
-        // Add loading option
-        const loadingOption = document.createElement('option');
-        loadingOption.value = '';
-        loadingOption.textContent = 'Loading barangays...';
-        barangaySelect.appendChild(loadingOption);
-        
-        // Fetch barangays (will return specific or generic barangays)
-        fetch(`get_locations.php?action=get_barangays&city=${encodeURIComponent(city)}`)
+        // Fetch barangays for selected city
+        fetch(`get_locations.php?action=get_barangays&city_code=${encodeURIComponent(cityCode)}`)
           .then(response => response.json())
           .then(barangays => {
             barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
             
             if (barangays.length > 0) {
-              // Populate dropdown with barangays
               barangays.forEach(barangay => {
                 const option = document.createElement('option');
-                option.value = barangay;
-                option.textContent = barangay;
+                option.value = barangay.code;
+                option.textContent = barangay.name;
+                option.dataset.name = barangay.name;
                 barangaySelect.appendChild(option);
               });
             } else {
-              // Fallback if no barangays returned
               const option = document.createElement('option');
               option.value = '';
               option.textContent = 'No barangays available';
@@ -2143,11 +2751,7 @@
           })
           .catch(error => {
             console.error('Error loading barangays:', error);
-            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'Error loading barangays';
-            barangaySelect.appendChild(option);
+            barangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
           });
       } else {
         barangaySelect.disabled = true;
@@ -2156,19 +2760,30 @@
 
     // Auto-populate zip code when barangay is selected
     document.getElementById('barangay').addEventListener('change', function() {
-      const barangay = this.value;
-      const city = document.getElementById('city').value;
+      const barangaySelect = this;
+      const citySelect = document.getElementById('city');
       const zipCodeInput = document.getElementById('zip-code');
       
-      if (barangay) {
-        // Fetch zip code for selected barangay and city
-        fetch(`get_locations.php?action=get_zipcode&barangay=${encodeURIComponent(barangay)}&city=${encodeURIComponent(city)}`)
+      const barangayCode = barangaySelect.value;
+      const barangayName = barangaySelect.options[barangaySelect.selectedIndex]?.text || '';
+      const cityCode = citySelect.value;
+      const cityName = citySelect.options[citySelect.selectedIndex]?.text || '';
+      
+      if (barangayCode && cityCode) {
+        // Fetch zip code with both code and name for better lookup
+        const params = new URLSearchParams({
+          action: 'get_zipcode',
+          city_code: cityCode,
+          city_name: cityName,
+          barangay_name: barangayName
+        });
+        
+        fetch(`get_locations.php?${params.toString()}`)
           .then(response => response.json())
           .then(data => {
             if (data.zipcode) {
               zipCodeInput.value = data.zipcode;
             } else {
-              // If no zip code found, keep it empty
               zipCodeInput.value = '';
             }
           })

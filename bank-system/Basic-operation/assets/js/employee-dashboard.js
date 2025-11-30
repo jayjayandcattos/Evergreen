@@ -16,6 +16,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (dashboardNameElement) {
       dashboardNameElement.textContent = employee.name || "Employee";
     }
+
+    // Setup logout button
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", handleLogout);
+    }
   }
 
   // Set current date/time
