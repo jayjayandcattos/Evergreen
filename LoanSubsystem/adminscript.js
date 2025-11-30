@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+
+  
   // Update time
   function updateTime() {
     const now = new Date();
