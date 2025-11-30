@@ -231,6 +231,8 @@ nav a.active {
     </div>
 </header>
 
+
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const icon = document.getElementById('adminIcon');
