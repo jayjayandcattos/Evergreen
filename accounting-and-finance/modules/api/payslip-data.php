@@ -1,66 +1,153 @@
 <?php
 /**
  * Payslip Data API
- * Provides payslip data for employees from HRIS system
+ * Handles database queries for employee payslip information
  * 
- * This API allows HRIS employees to view their payslips from the accounting system
+ * Database Tables Used:
+ * - payslips: Main payslip records with detailed JSON data
+ * - payroll_runs: Payroll run information
+ * - payroll_periods: Pay period information
  */
 
-require_once '../../config/database.php';
-require_once 'payroll-calculation.php';
+// Start output buffering to prevent any HTML output
+ob_start();
 
+// Disable error display to prevent HTML error pages
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Set error handler to catch any errors
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+try {
+    require_once dirname(__DIR__, 2) . '/config/database.php';
+} catch (Exception $e) {
+    // Clear any output and return JSON error
+    ob_clean();
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'System error: ' . $e->getMessage()
+    ]);
+    exit();
+}
+
+// Start session if not already started (for HRIS session check)
+// Configure session to match HRIS settings
+if (session_status() == PHP_SESSION_NONE) {
+    // Match HRIS session configuration
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    ini_set('session.cookie_secure', 0);
+    
+    session_set_cookie_params([
+        'lifetime' => 3600,
+        'path' => '/',
+        'domain' => '',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    
+    session_start();
+}
+
+// Set CORS headers to allow requests from HRIS
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Credentials: true');
 
-// Get action parameter
-$action = $_GET['action'] ?? '';
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+$action = $_GET['action'] ?? $_POST['action'] ?? 'get_payslips';
 
 try {
     switch ($action) {
         case 'get_payslips':
             getPayslips();
             break;
+        
+        case 'get_payslip_details':
+            getPayslipDetails();
+            break;
+        
         default:
-            throw new Exception('Invalid action. Use action=get_payslips');
+            throw new Exception('Invalid action');
     }
 } catch (Exception $e) {
+    // Clear any output and return JSON error
+    ob_clean();
     http_response_code(400);
+    header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
     ]);
-    exit;
+    ob_end_flush();
+    exit();
 }
 
 /**
  * Get payslips for an employee
- * Accepts employee_id from HRIS and converts to external_employee_no
+ * Accepts employee_id from HRIS and converts to employee_external_no
  */
 function getPayslips() {
     global $conn;
     
-    // Get employee_id from query parameter
-    $employee_id = $_GET['employee_id'] ?? '';
+    // Get employee_id from request (from HRIS)
+    $requested_employee_id = $_GET['employee_id'] ?? $_POST['employee_id'] ?? '';
     
+    // Get employee_id from session (HRIS session)
+    $session_employee_id = $_SESSION['employee_id'] ?? '';
+    
+    // Determine which employee_id to use
+    $employee_id = '';
+    if (!empty($requested_employee_id)) {
+        $employee_id = $requested_employee_id;
+    } elseif (!empty($session_employee_id)) {
+        $employee_id = $session_employee_id;
+    }
+    
+    // Validate and convert to integer
     if (empty($employee_id)) {
         throw new Exception('Employee ID is required');
     }
     
-    // Validate employee_id is numeric
-    if (!is_numeric($employee_id)) {
-        throw new Exception('Invalid employee ID format');
+    // Convert to integer (handles both string and numeric)
+    $employee_id = intval($employee_id);
+    if ($employee_id <= 0 || $employee_id > 99999) {
+        throw new Exception('Invalid employee ID format. Employee ID must be between 1 and 99999.');
     }
     
-    $employee_id = intval($employee_id);
+    // Validate that employee can only access their own payslip
+    // Convert both to integers for proper comparison
+    $session_employee_id_int = !empty($session_employee_id) ? intval($session_employee_id) : 0;
+    $requested_employee_id_int = !empty($requested_employee_id) ? intval($requested_employee_id) : 0;
     
-    // Convert employee_id to external_employee_no format (EMP001, EMP002, etc.)
-    $external_employee_no = 'EMP' . str_pad($employee_id, 3, '0', STR_PAD_LEFT);
+    if ($session_employee_id_int > 0 && $requested_employee_id_int > 0 && $session_employee_id_int != $requested_employee_id_int) {
+        throw new Exception('Unauthorized: You can only access your own payslip');
+    }
     
-    // Query payslips from accounting system
-    // Join with payroll_runs and payroll_periods to get period information
-    $query = "SELECT 
+    // If no session employee_id but request has one, use the requested one
+    // (This allows the API to work when called from HRIS with employee_id parameter)
+    
+    // Convert employee_id to employee_external_no (e.g., 26 -> 'EMP026')
+    $employee_external_no = 'EMP' . str_pad($employee_id, 3, '0', STR_PAD_LEFT);
+    
+    // Log for debugging (remove in production)
+    error_log("Payslip API: Fetching payslips for employee_id: $employee_id, external_no: $employee_external_no");
+    
+    // Query payslips table joined with payroll_runs and payroll_periods
+    $sql = "SELECT 
                 ps.id,
                 ps.employee_external_no,
                 ps.gross_pay,
@@ -68,499 +155,376 @@ function getPayslips() {
                 ps.net_pay,
                 ps.payslip_json,
                 ps.created_at,
+                pr.id as payroll_run_id,
                 pr.run_at,
                 pr.status as payroll_status,
+                pp.id as payroll_period_id,
                 pp.period_start,
-                pp.period_end
-              FROM payslips ps
-              INNER JOIN payroll_runs pr ON ps.payroll_run_id = pr.id
-              INNER JOIN payroll_periods pp ON pr.payroll_period_id = pp.id
-              WHERE ps.employee_external_no = ?
-              ORDER BY pr.run_at DESC, ps.created_at DESC
-              LIMIT 20";
+                pp.period_end,
+                pp.frequency
+            FROM payslips ps
+            JOIN payroll_runs pr ON ps.payroll_run_id = pr.id
+            LEFT JOIN payroll_periods pp ON pr.payroll_period_id = pp.id
+            WHERE ps.employee_external_no = ?
+            ORDER BY pr.run_at DESC, ps.created_at DESC
+            LIMIT 10";
     
-    $stmt = $conn->prepare($query);
+    $stmt = $conn->prepare($sql);
     if (!$stmt) {
         throw new Exception('Database query preparation failed: ' . $conn->error);
     }
     
-    $stmt->bind_param('s', $external_employee_no);
-    
-    if (!$stmt->execute()) {
-        throw new Exception('Database query execution failed: ' . $stmt->error);
-    }
-    
+    $stmt->bind_param("s", $employee_external_no);
+    $stmt->execute();
     $result = $stmt->get_result();
-    $payslips = [];
     
+    // Log result count
+    $row_count = $result->num_rows;
+    error_log("Payslip API: Found $row_count payslips for $employee_external_no");
+    
+    $payslips = [];
     while ($row = $result->fetch_assoc()) {
         // Parse payslip_json if available
-        $breakdown = [
-            'earnings' => [],
-            'deductions' => []
-        ];
-        
+        $payslip_json = null;
         if (!empty($row['payslip_json'])) {
-            $json_data = json_decode($row['payslip_json'], true);
-            
-            if ($json_data && is_array($json_data)) {
-                // Extract earnings from JSON - check multiple possible structures
-                if (isset($json_data['earnings']) && is_array($json_data['earnings'])) {
-                    // Direct earnings array
-                    foreach ($json_data['earnings'] as $earning) {
-                        if (is_array($earning) && isset($earning['name']) && isset($earning['amount'])) {
-                            $breakdown['earnings'][] = [
-                                'name' => $earning['name'],
-                                'amount' => floatval($earning['amount'])
-                            ];
-                        }
-                    }
-                } else {
-                    // Try to reconstruct from individual fields
-                    if (isset($json_data['basic_salary']) && floatval($json_data['basic_salary']) > 0) {
-                        $breakdown['earnings'][] = [
-                            'name' => 'Basic Salary',
-                            'amount' => floatval($json_data['basic_salary'])
-                        ];
-                    }
-                    if (isset($json_data['overtime_pay']) && floatval($json_data['overtime_pay']) > 0) {
-                        $breakdown['earnings'][] = [
-                            'name' => 'Overtime Pay',
-                            'amount' => floatval($json_data['overtime_pay'])
-                        ];
-                    }
-                    if (isset($json_data['allowances']) && floatval($json_data['allowances']) > 0) {
-                        $breakdown['earnings'][] = [
-                            'name' => 'Allowances',
-                            'amount' => floatval($json_data['allowances'])
-                        ];
-                    }
-                    if (isset($json_data['bonus']) && floatval($json_data['bonus']) > 0) {
-                        $breakdown['earnings'][] = [
-                            'name' => 'Bonus',
-                            'amount' => floatval($json_data['bonus'])
-                        ];
-                    }
-                }
-                
-                // Extract deductions from JSON - check multiple possible structures
-                // MATCHING ACCOUNTING SYSTEM: Saved payslips should only show mandatory deductions
-                // Attendance-based deductions are only shown when calculating from attendance (no saved payslip)
-                $attendance_deduction_names = [
-                    'Absent Days Deduction',
-                    'Unpaid Leave Days Deduction', 
-                    'Half Day Deduction',
-                    'Late Arrival Penalty',
-                    'Absent Days',
-                    'Unpaid Leave',
-                    'Half Day',
-                    'Late Penalty',
-                    'Late Arrival'
-                ];
-                
-                if (isset($json_data['deductions']) && is_array($json_data['deductions'])) {
-                    // Direct deductions array - filter out attendance-based deductions for saved payslips
-                    foreach ($json_data['deductions'] as $deduction) {
-                        if (is_array($deduction) && isset($deduction['name']) && isset($deduction['amount'])) {
-                            $deduction_name = $deduction['name'];
-                            // Skip attendance-based deductions (matching accounting system logic for saved payslips)
-                            $is_attendance_deduction = false;
-                            foreach ($attendance_deduction_names as $att_name) {
-                                if (stripos($deduction_name, $att_name) !== false) {
-                                    $is_attendance_deduction = true;
-                                    break;
-                                }
-                            }
-                            
-                            if (!$is_attendance_deduction) {
-                                $breakdown['deductions'][] = [
-                                    'name' => $deduction_name,
-                                    'amount' => floatval($deduction['amount'])
-                                ];
-                            }
-                        }
-                    }
-                } else {
-                    // Try to reconstruct from individual fields - ONLY mandatory deductions for saved payslips
-                    if (isset($json_data['sss_employee']) && floatval($json_data['sss_employee']) > 0) {
-                        $breakdown['deductions'][] = [
-                            'name' => 'SSS Employee Contribution',
-                            'amount' => floatval($json_data['sss_employee'])
-                        ];
-                    }
-                    if (isset($json_data['philhealth_employee']) && floatval($json_data['philhealth_employee']) > 0) {
-                        $breakdown['deductions'][] = [
-                            'name' => 'PhilHealth Employee Contribution',
-                            'amount' => floatval($json_data['philhealth_employee'])
-                        ];
-                    }
-                    if (isset($json_data['pagibig_employee']) && floatval($json_data['pagibig_employee']) > 0) {
-                        $breakdown['deductions'][] = [
-                            'name' => 'Pag-IBIG Employee Contribution',
-                            'amount' => floatval($json_data['pagibig_employee'])
-                        ];
-                    }
-                    if (isset($json_data['withholding_tax']) && floatval($json_data['withholding_tax']) > 0) {
-                        $breakdown['deductions'][] = [
-                            'name' => 'Withholding Tax (BIR)',
-                            'amount' => floatval($json_data['withholding_tax'])
-                        ];
-                    }
-                    // NOTE: Do NOT include attendance-based deductions (absent, late, half_day, unpaid_leave)
-                    // from saved payslips - matching accounting system logic
-                }
-            }
+            $payslip_json = json_decode($row['payslip_json'], true);
         }
         
-        // If no earnings found, use gross_pay as fallback
-        if (empty($breakdown['earnings']) && $row['gross_pay'] > 0) {
-            $breakdown['earnings'][] = [
-                'name' => 'Gross Pay',
-                'amount' => floatval($row['gross_pay'])
-            ];
-        }
-        
-        // If no deductions found but total_deductions exists, show it
-        if (empty($breakdown['deductions']) && $row['total_deductions'] > 0) {
-            $breakdown['deductions'][] = [
-                'name' => 'Total Deductions',
-                'amount' => floatval($row['total_deductions'])
-            ];
-        }
-        
-        $payslips[] = [
-            'id' => intval($row['id']),
+        // Structure the response with proper NULL handling
+        $payslip_data = [
+            'id' => $row['id'],
             'employee_external_no' => $row['employee_external_no'],
-            'employee_id' => $employee_id,
-            'period_start' => $row['period_start'],
-            'period_end' => $row['period_end'],
-            'run_at' => $row['run_at'],
-            'payroll_status' => $row['payroll_status'],
-            'gross_pay' => floatval($row['gross_pay']),
-            'total_deductions' => floatval($row['total_deductions']),
-            'net_pay' => floatval($row['net_pay']),
-            'breakdown' => $breakdown,
-            'created_at' => $row['created_at']
+            'gross_pay' => floatval($row['gross_pay'] ?? 0),
+            'total_deductions' => floatval($row['total_deductions'] ?? 0),
+            'net_pay' => floatval($row['net_pay'] ?? 0),
+            'payroll_run_id' => $row['payroll_run_id'] ?? null,
+            'run_at' => $row['run_at'] ?? null,
+            'payroll_status' => $row['payroll_status'] ?? 'unknown',
+            'period_start' => $row['period_start'] ?? null,
+            'period_end' => $row['period_end'] ?? null,
+            'frequency' => $row['frequency'] ?? null,
+            'created_at' => $row['created_at'] ?? null,
+            'breakdown' => []
         ];
+        
+        // Add detailed breakdown from payslip_json
+        if ($payslip_json && is_array($payslip_json)) {
+            // Earnings breakdown
+            $earnings = [];
+            if (isset($payslip_json['basic_salary'])) {
+                $earnings[] = ['name' => 'Basic Salary', 'amount' => floatval($payslip_json['basic_salary'])];
+            }
+            if (isset($payslip_json['cola'])) {
+                $earnings[] = ['name' => 'Cost of Living Allowance', 'amount' => floatval($payslip_json['cola'])];
+            }
+            if (isset($payslip_json['meal_allowance'])) {
+                $earnings[] = ['name' => 'Meal Allowance', 'amount' => floatval($payslip_json['meal_allowance'])];
+            }
+            if (isset($payslip_json['comm_allowance'])) {
+                $earnings[] = ['name' => 'Communication Allowance', 'amount' => floatval($payslip_json['comm_allowance'])];
+            }
+            if (isset($payslip_json['rice_subsidy'])) {
+                $earnings[] = ['name' => 'Rice Subsidy', 'amount' => floatval($payslip_json['rice_subsidy'])];
+            }
+            if (isset($payslip_json['transport_allowance'])) {
+                $earnings[] = ['name' => 'Transport Allowance', 'amount' => floatval($payslip_json['transport_allowance'])];
+            }
+            if (isset($payslip_json['bonus'])) {
+                $earnings[] = ['name' => 'Bonus', 'amount' => floatval($payslip_json['bonus'])];
+            }
+            
+            // Deductions breakdown
+            $deductions = [];
+            if (isset($payslip_json['sss_emp'])) {
+                $deductions[] = ['name' => 'SSS', 'amount' => floatval($payslip_json['sss_emp'])];
+            }
+            if (isset($payslip_json['pagibig_emp'])) {
+                $deductions[] = ['name' => 'Pag-IBIG', 'amount' => floatval($payslip_json['pagibig_emp'])];
+            }
+            if (isset($payslip_json['philhealth_emp'])) {
+                $deductions[] = ['name' => 'PhilHealth', 'amount' => floatval($payslip_json['philhealth_emp'])];
+            }
+            if (isset($payslip_json['withholding_tax'])) {
+                $deductions[] = ['name' => 'Withholding Tax', 'amount' => floatval($payslip_json['withholding_tax'])];
+            }
+            if (isset($payslip_json['loan_deduction'])) {
+                $deductions[] = ['name' => 'Loan Deduction', 'amount' => floatval($payslip_json['loan_deduction'])];
+            }
+            if (isset($payslip_json['uniform_deduction'])) {
+                $deductions[] = ['name' => 'Uniform Deduction', 'amount' => floatval($payslip_json['uniform_deduction'])];
+            }
+            
+            $payslip_data['breakdown'] = [
+                'earnings' => $earnings,
+                'deductions' => $deductions
+            ];
+        }
+        
+        $payslips[] = $payslip_data;
     }
     
     $stmt->close();
     
-    // MATCHING ACCOUNTING SYSTEM LOGIC EXACTLY:
-    // The Overall tab ALWAYS uses calculated payroll from attendance ($attendance_payroll_adjustments)
-    // It shows attendance-based deductions ONLY when !$payslip_data (no saved payslip for that period)
-    // 
-    // KEY INSIGHT: The accounting system's Overall tab ALWAYS calculates from attendance,
-    // regardless of whether there's a saved payslip. It only hides attendance-based deductions
-    // when there's a saved payslip.
-    
-    // Check which periods have saved payslips (to know when to hide attendance-based deductions)
-    $saved_periods = [];
-    foreach ($payslips as $saved) {
-        $period_key = $saved['period_start'] . '_' . $saved['period_end'];
-        $saved_periods[$period_key] = $saved;
+    // If no payslips found in payslips table, try payroll_payslips table as fallback
+    if (count($payslips) == 0) {
+        error_log("Payslip API: No payslips found in payslips table, checking payroll_payslips table");
+        
+        // Query payroll_payslips table (HRIS table) as fallback
+        $fallback_sql = "SELECT 
+                            payslip_id as id,
+                            employee_id,
+                            pay_period_start as period_start,
+                            pay_period_end as period_end,
+                            gross_salary as gross_pay,
+                            deduction as total_deductions,
+                            net_pay,
+                            release_date,
+                            NULL as payslip_json,
+                            NULL as created_at,
+                            NULL as payroll_run_id,
+                            release_date as run_at,
+                            'completed' as payroll_status,
+                            NULL as payroll_period_id,
+                            NULL as frequency
+                        FROM payroll_payslips
+                        WHERE employee_id = ?
+                        ORDER BY pay_period_end DESC, payslip_id DESC
+                        LIMIT 10";
+        
+        $fallback_stmt = $conn->prepare($fallback_sql);
+        if ($fallback_stmt) {
+            $fallback_stmt->bind_param("i", $employee_id);
+            if (!$fallback_stmt->execute()) {
+                error_log("Payslip API: Fallback query execution failed: " . $fallback_stmt->error);
+                $fallback_stmt->close();
+            } else {
+                $fallback_result = $fallback_stmt->get_result();
+                
+                $fallback_count = $fallback_result->num_rows;
+                error_log("Payslip API: Found $fallback_count payslips in payroll_payslips table for employee_id: $employee_id");
+                
+                while ($row = $fallback_result->fetch_assoc()) {
+                $payslip_data = [
+                    'id' => $row['id'],
+                    'employee_external_no' => $employee_external_no,
+                    'gross_pay' => floatval($row['gross_pay'] ?? 0),
+                    'total_deductions' => floatval($row['total_deductions'] ?? 0),
+                    'net_pay' => floatval($row['net_pay'] ?? 0),
+                    'payroll_run_id' => $row['payroll_run_id'] ?? null,
+                    'run_at' => $row['run_at'] ?? null,
+                    'payroll_status' => $row['payroll_status'] ?? 'completed',
+                    'period_start' => $row['period_start'] ?? null,
+                    'period_end' => $row['period_end'] ?? null,
+                    'frequency' => $row['frequency'] ?? null,
+                    'created_at' => $row['created_at'] ?? null,
+                    'breakdown' => [
+                        'earnings' => [
+                            ['name' => 'Basic Salary', 'amount' => floatval($row['gross_pay'] ?? 0)]
+                        ],
+                        'deductions' => [
+                            ['name' => 'Total Deductions', 'amount' => floatval($row['total_deductions'] ?? 0)]
+                        ]
+                    ]
+                ];
+                $payslips[] = $payslip_data;
+                }
+                $fallback_stmt->close();
+                error_log("Payslip API: Processed " . count($payslips) . " payslips from payroll_payslips table");
+            }
+        } else {
+            error_log("Payslip API: Failed to prepare fallback query: " . $conn->error);
+        }
     }
     
-    // ALWAYS calculate payroll from attendance for recent periods (matching accounting system's Overall tab)
-    // This is what the accounting system shows - calculated payroll, not saved payslip data
-    $calculated_payslips = calculatePayslipsFromAttendance($conn, $external_employee_no, $employee_id, $saved_periods);
-    
-    // Use calculated payslips as primary source (matching accounting system's Overall tab)
-    // The accounting system always shows calculated payroll from attendance
-    $all_payslips = $calculated_payslips;
-    
-    // Add saved payslips only for older periods we haven't calculated (beyond 3 months)
-    // But these should also be recalculated from attendance to match Overall tab behavior
-    $calculated_period_keys = [];
-    foreach ($calculated_payslips as $calc) {
-        $period_key = $calc['period_start'] . '_' . $calc['period_end'];
-        $calculated_period_keys[$period_key] = true;
+    // Additional debugging: Check if employee exists
+    $employee_check = null;
+    if (count($payslips) == 0) {
+        // Check if employee table exists
+        $table_check = $conn->query("SHOW TABLES LIKE 'employee'");
+        if ($table_check && $table_check->num_rows > 0) {
+            $check_employee_sql = "SELECT employee_id, first_name, last_name FROM employee WHERE employee_id = ? LIMIT 1";
+            $check_stmt = $conn->prepare($check_employee_sql);
+            if ($check_stmt) {
+                $check_stmt->bind_param("i", $employee_id);
+                if ($check_stmt->execute()) {
+                    $employee_check = $check_stmt->get_result()->fetch_assoc();
+                    if ($employee_check) {
+                        error_log("Payslip API: Employee exists (ID: $employee_id, Name: " . ($employee_check['first_name'] ?? '') . " " . ($employee_check['last_name'] ?? '') . ") but has no payslips");
+                    } else {
+                        error_log("Payslip API: Employee ID $employee_id not found in employee table");
+                    }
+                } else {
+                    error_log("Payslip API: Error checking employee existence: " . $check_stmt->error);
+                }
+                $check_stmt->close();
+            } else {
+                error_log("Payslip API: Failed to prepare employee check query: " . $conn->error);
+            }
+        } else {
+            error_log("Payslip API: Employee table does not exist in database");
+        }
     }
     
-    // For saved payslips in periods we haven't calculated, we could add them
-    // but the accounting system's Overall tab always uses calculated payroll, so we'll skip them
-    // to maintain consistency
-    
-    // Sort by period_end descending (most recent first)
-    usort($all_payslips, function($a, $b) {
-        return strtotime($b['period_end']) - strtotime($a['period_end']);
-    });
-    
-    // Return success response
-    echo json_encode([
+    // Prepare response with metadata
+    $response = [
         'success' => true,
-        'data' => $all_payslips,
+        'data' => $payslips,
+        'count' => count($payslips),
         'employee_id' => $employee_id,
-        'employee_external_no' => $external_employee_no,
-        'count' => count($all_payslips)
-    ]);
+        'employee_external_no' => $employee_external_no,
+        'searched_tables' => ['payslips', 'payroll_payslips']
+    ];
+    
+    // Add employee existence info if checked
+    if (isset($employee_check)) {
+        $response['employee_exists'] = !empty($employee_check);
+        if (!empty($employee_check)) {
+            $response['employee_name'] = trim(($employee_check['first_name'] ?? '') . ' ' . ($employee_check['last_name'] ?? ''));
+        }
+    }
+    
+    echo json_encode($response);
+    
+    ob_end_flush();
+    exit();
 }
 
 /**
- * Calculate payslips from attendance data when no saved payslips exist
- * This generates payslip data from calculated payroll for recent periods
- * Only calculates for periods that don't have saved payslips (matching accounting system)
+ * Get detailed information for a specific payslip
  */
-function calculatePayslipsFromAttendance($conn, $external_employee_no, $employee_id, $saved_periods = []) {
-    $payslips = [];
+function getPayslipDetails() {
+    global $conn;
     
-    // Get employee's base salary from employee_refs or contract
-    $salary_query = "SELECT 
-                        COALESCE(er.base_monthly_salary, c.salary, 0) as base_salary
-                    FROM employee e
-                    LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
-                    LEFT JOIN contract c ON e.contract_id = c.contract_id
-                    WHERE e.employee_id = ?
-                    LIMIT 1";
+    $payslip_id = $_GET['payslip_id'] ?? $_POST['payslip_id'] ?? '';
+    $employee_id = $_GET['employee_id'] ?? $_POST['employee_id'] ?? '';
     
-    $salary_stmt = $conn->prepare($salary_query);
-    if (!$salary_stmt) {
-        return $payslips; // Return empty if query fails
+    if (empty($payslip_id)) {
+        throw new Exception('Payslip ID is required');
     }
     
-    $salary_stmt->bind_param('i', $employee_id);
-    $salary_stmt->execute();
-    $salary_result = $salary_stmt->get_result();
-    $salary_row = $salary_result->fetch_assoc();
-    $base_salary = $salary_row ? floatval($salary_row['base_salary']) : 0;
-    $salary_stmt->close();
-    
-    if ($base_salary <= 0) {
-        return $payslips; // No salary data available
+    if (empty($employee_id)) {
+        $employee_id = $_SESSION['employee_id'] ?? '';
     }
     
-    // Get salary components for earnings
-    $earnings_query = "SELECT * FROM salary_components WHERE type = 'earning' AND is_active = 1 ORDER BY name";
-    $earnings_result = $conn->query($earnings_query);
-    $base_components = [];
-    if ($earnings_result) {
-        while($earning = $earnings_result->fetch_assoc()) {
-            $base_components[] = $earning;
+    if (empty($employee_id)) {
+        throw new Exception('Employee ID is required');
+    }
+    
+    // Convert employee_id to employee_external_no
+    $employee_external_no = 'EMP' . str_pad($employee_id, 3, '0', STR_PAD_LEFT);
+    
+    // Get payslip details
+    $sql = "SELECT 
+                ps.*,
+                pr.id as payroll_run_id,
+                pr.run_at,
+                pr.status as payroll_status,
+                pp.id as payroll_period_id,
+                pp.period_start,
+                pp.period_end,
+                pp.frequency
+            FROM payslips ps
+            JOIN payroll_runs pr ON ps.payroll_run_id = pr.id
+            LEFT JOIN payroll_periods pp ON pr.payroll_period_id = pp.id
+            WHERE ps.id = ? AND ps.employee_external_no = ?";
+    
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception('Database query preparation failed: ' . $conn->error);
+    }
+    
+    $stmt->bind_param("is", $payslip_id, $employee_external_no);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $payslip = $result->fetch_assoc();
+    
+    if (!$payslip) {
+        throw new Exception('Payslip not found');
+    }
+    
+    // Parse payslip_json
+    $payslip_json = null;
+    if (!empty($payslip['payslip_json'])) {
+        $payslip_json = json_decode($payslip['payslip_json'], true);
+    }
+    
+    // Structure the response similar to getPayslips
+    $payslip_data = [
+        'id' => $payslip['id'],
+        'employee_external_no' => $payslip['employee_external_no'],
+        'gross_pay' => floatval($payslip['gross_pay']),
+        'total_deductions' => floatval($payslip['total_deductions']),
+        'net_pay' => floatval($payslip['net_pay']),
+        'payroll_run_id' => $payslip['payroll_run_id'],
+        'run_at' => $payslip['run_at'],
+        'payroll_status' => $payslip['payroll_status'],
+        'period_start' => $payslip['period_start'],
+        'period_end' => $payslip['period_end'],
+        'frequency' => $payslip['frequency'],
+        'created_at' => $payslip['created_at'],
+        'breakdown' => []
+    ];
+    
+    // Add detailed breakdown from payslip_json
+    if ($payslip_json && is_array($payslip_json)) {
+        $earnings = [];
+        $deductions = [];
+        
+        // Earnings
+        if (isset($payslip_json['basic_salary'])) {
+            $earnings[] = ['name' => 'Basic Salary', 'amount' => floatval($payslip_json['basic_salary'])];
         }
-    }
-    
-    // Calculate payroll for current month and recent months (matching accounting system)
-    // Start with current month, then go back 2 more months
-    // Only calculate for periods that DON'T have saved payslips
-    $months_to_check = 3;
-    for ($i = 0; $i < $months_to_check; $i++) {
-        $check_month = date('Y-m', strtotime("-$i months"));
-        $period_start = $check_month . '-01';
-        $period_end = date('Y-m-t', strtotime($period_start));
-        
-        // Skip if this period has a saved payslip (matching accounting system logic)
-        $period_key = $period_start . '_' . $period_end;
-        if (isset($saved_periods[$period_key])) {
-            continue; // Use saved payslip instead
+        if (isset($payslip_json['cola'])) {
+            $earnings[] = ['name' => 'Cost of Living Allowance', 'amount' => floatval($payslip_json['cola'])];
+        }
+        if (isset($payslip_json['meal_allowance'])) {
+            $earnings[] = ['name' => 'Meal Allowance', 'amount' => floatval($payslip_json['meal_allowance'])];
+        }
+        if (isset($payslip_json['comm_allowance'])) {
+            $earnings[] = ['name' => 'Communication Allowance', 'amount' => floatval($payslip_json['comm_allowance'])];
+        }
+        if (isset($payslip_json['rice_subsidy'])) {
+            $earnings[] = ['name' => 'Rice Subsidy', 'amount' => floatval($payslip_json['rice_subsidy'])];
+        }
+        if (isset($payslip_json['transport_allowance'])) {
+            $earnings[] = ['name' => 'Transport Allowance', 'amount' => floatval($payslip_json['transport_allowance'])];
+        }
+        if (isset($payslip_json['bonus'])) {
+            $earnings[] = ['name' => 'Bonus', 'amount' => floatval($payslip_json['bonus'])];
         }
         
-        // Calculate for FULL MONTH (matching accounting system default)
-        
-        // Calculate payroll for this period
-        $payroll_data = calculatePayrollFromAttendance(
-            $conn,
-            $external_employee_no,
-            $period_start,
-            $period_end,
-            $base_components
-        );
-        
-        if ($payroll_data && isset($payroll_data['salary_adjustments'])) {
-            $adj = $payroll_data['salary_adjustments'];
-            
-            // Only include if there's actual payroll data
-            $gross_pay = isset($adj['gross_salary']) ? $adj['gross_salary'] : ($adj['basic_salary'] + ($adj['overtime_pay'] ?? 0));
-            if ($gross_pay > 0 || isset($adj['basic_salary'])) {
-                // Build earnings breakdown
-                $earnings = [];
-                if (isset($adj['basic_salary']) && $adj['basic_salary'] > 0) {
-                    $earnings[] = [
-                        'name' => 'Basic Salary',
-                        'amount' => floatval($adj['basic_salary'])
-                    ];
-                }
-                if (isset($adj['overtime_pay']) && $adj['overtime_pay'] > 0) {
-                    $earnings[] = [
-                        'name' => 'Overtime Pay',
-                        'amount' => floatval($adj['overtime_pay'])
-                    ];
-                }
-                
-                // Build deductions breakdown - EXACT ORDER matching accounting system
-                $deductions = [];
-                
-                // STEP 1: Calculate unpaid leave deduction FIRST (needed to separate from absent deduction)
-                $unpaid_leave_deduction = 0;
-                $unpaid_leave_days = 0;
-                $daily_rate_for_deduction = isset($adj['daily_rate']) && $adj['daily_rate'] > 0 ? $adj['daily_rate'] : ($base_salary / 22);
-                
-                if ($daily_rate_for_deduction > 0 && $employee_id) {
-                    // Query unpaid leave days for the period (matching accounting system query)
-                    $month_end = date('Y-m-t', strtotime($period_start));
-                    $unpaid_leave_query = "SELECT 
-                                                lr.start_date,
-                                                lr.end_date,
-                                                lt.paid_unpaid
-                                            FROM leave_request lr
-                                            LEFT JOIN leave_type lt ON lr.leave_type_id = lt.leave_type_id
-                                            WHERE lr.employee_id = ?
-                                            AND (UPPER(TRIM(lr.status)) = 'APPROVED' OR LOWER(TRIM(lr.status)) = 'approved')
-                                            AND LOWER(TRIM(COALESCE(lt.paid_unpaid, 'unpaid'))) = 'unpaid'
-                                            AND (lr.start_date <= ? AND lr.end_date >= ?)";
-                    
-                    $unpaid_leave_stmt = $conn->prepare($unpaid_leave_query);
-                    if ($unpaid_leave_stmt) {
-                        $unpaid_leave_stmt->bind_param("iss", $employee_id, $month_end, $period_start);
-                        if ($unpaid_leave_stmt->execute()) {
-                            $unpaid_leave_result = $unpaid_leave_stmt->get_result();
-                            if ($unpaid_leave_result) {
-                                while ($unpaid_leave = $unpaid_leave_result->fetch_assoc()) {
-                                    $leave_start = new DateTime($unpaid_leave['start_date']);
-                                    $leave_end = new DateTime($unpaid_leave['end_date']);
-                                    
-                                    // Count days within the payroll period
-                                    $current_date = clone $leave_start;
-                                    while ($current_date <= $leave_end) {
-                                        $date_str = $current_date->format('Y-m-d');
-                                        if ($date_str >= $period_start && $date_str <= $period_end) {
-                                            $unpaid_leave_days++;
-                                        }
-                                        $current_date->modify('+1 day');
-                                    }
-                                }
-                                $unpaid_leave_stmt->close();
-                            }
-                        }
-                    }
-                    
-                    // Calculate unpaid leave deduction
-                    $unpaid_leave_deduction = $unpaid_leave_days * $daily_rate_for_deduction;
-                }
-                
-                // STEP 2: Add attendance-based deductions in EXACT order (matching accounting system)
-                // CRITICAL: Only show attendance-based deductions when there's NO saved payslip for this period
-                // This matches accounting system logic: if ($attendance_payroll_adjustments && !$payslip_data && $employee_id_from_external)
-                $has_saved_payslip = isset($saved_periods[$period_key]);
-                
-                if (!$has_saved_payslip) {
-                    // 1. Absent Days Deduction (actual absences, excluding unpaid leaves)
-                    $actual_absent_deduction = isset($adj['absent_deduction']) ? max(0, $adj['absent_deduction'] - $unpaid_leave_deduction) : 0;
-                    if ($actual_absent_deduction > 0) {
-                        $deductions[] = [
-                            'name' => 'Absent Days Deduction',
-                            'amount' => floatval($actual_absent_deduction)
-                        ];
-                    }
-                    
-                    // 2. Unpaid Leave Days Deduction
-                    if ($unpaid_leave_deduction > 0) {
-                        $deductions[] = [
-                            'name' => 'Unpaid Leave Days Deduction',
-                            'amount' => floatval($unpaid_leave_deduction)
-                        ];
-                    }
-                    
-                    // 3. Half Day Deduction
-                    if (isset($adj['half_day_deduction']) && $adj['half_day_deduction'] > 0) {
-                        $deductions[] = [
-                            'name' => 'Half Day Deduction',
-                            'amount' => floatval($adj['half_day_deduction'])
-                        ];
-                    }
-                    
-                    // 4. Late Arrival Penalty
-                    if (isset($adj['late_penalty']) && $adj['late_penalty'] > 0) {
-                        $deductions[] = [
-                            'name' => 'Late Arrival Penalty',
-                            'amount' => floatval($adj['late_penalty'])
-                        ];
-                    }
-                }
-                
-                // STEP 3: Calculate mandatory contributions using prorated_base_salary (matching accounting system)
-                $basic_for_contrib = isset($adj['prorated_base_salary']) ? $adj['prorated_base_salary'] : $base_salary;
-                
-                // Calculate mandatory contributions using 2025 rates (based on BASE salary, not gross)
-                $sss = calculateSSSContribution($basic_for_contrib);
-                $philhealth = calculatePhilHealthContribution($basic_for_contrib);
-                $pagibig = calculatePagIBIGContribution($basic_for_contrib);
-                
-                // 5. SSS Employee Contribution
-                if ($sss['employee'] > 0) {
-                    $deductions[] = [
-                        'name' => 'SSS Employee Contribution',
-                        'amount' => floatval($sss['employee'])
-                    ];
-                }
-                
-                // 6. PhilHealth Employee Contribution
-                if ($philhealth['employee'] > 0) {
-                    $deductions[] = [
-                        'name' => 'PhilHealth Employee Contribution',
-                        'amount' => floatval($philhealth['employee'])
-                    ];
-                }
-                
-                // 7. Pag-IBIG Employee Contribution
-                if ($pagibig['employee'] > 0) {
-                    $deductions[] = [
-                        'name' => 'Pag-IBIG Employee Contribution',
-                        'amount' => floatval($pagibig['employee'])
-                    ];
-                }
-                
-                // STEP 4: Calculate withholding tax using gross_salary (matching accounting system)
-                // Taxable income = gross_salary - contributions
-                $taxable_income = $gross_pay - $sss['employee'] - $philhealth['employee'] - $pagibig['employee'];
-                $withholding_tax = calculateBIRWithholdingTax($taxable_income);
-                
-                // 8. Withholding Tax (BIR)
-                if ($withholding_tax > 0) {
-                    $deductions[] = [
-                        'name' => 'Withholding Tax (BIR)',
-                        'amount' => floatval($withholding_tax)
-                    ];
-                }
-                
-                // Calculate total deductions
-                $total_deductions = 0;
-                foreach ($deductions as $ded) {
-                    $total_deductions += $ded['amount'];
-                }
-                
-                // Calculate net pay
-                $net_pay = $gross_pay - $total_deductions;
-                
-                // Only add if there's meaningful data
-                if ($gross_pay > 0 || $total_deductions > 0) {
-                    $payslips[] = [
-                        'id' => 0, // Temporary ID for calculated payslips
-                        'employee_external_no' => $external_employee_no,
-                        'employee_id' => $employee_id,
-                        'period_start' => $period_start,
-                        'period_end' => $period_end,
-                        'run_at' => date('Y-m-d H:i:s'), // Current time for calculated payslips
-                        'payroll_status' => 'calculated', // Indicates this is calculated, not finalized
-                        'gross_pay' => floatval($gross_pay),
-                        'total_deductions' => floatval($total_deductions),
-                        'net_pay' => floatval($net_pay),
-                        'breakdown' => [
-                            'earnings' => $earnings,
-                            'deductions' => $deductions
-                        ],
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'is_calculated' => true // Flag to indicate this is calculated data
-                    ];
-                }
-            }
+        // Deductions
+        if (isset($payslip_json['sss_emp'])) {
+            $deductions[] = ['name' => 'SSS', 'amount' => floatval($payslip_json['sss_emp'])];
         }
+        if (isset($payslip_json['pagibig_emp'])) {
+            $deductions[] = ['name' => 'Pag-IBIG', 'amount' => floatval($payslip_json['pagibig_emp'])];
+        }
+        if (isset($payslip_json['philhealth_emp'])) {
+            $deductions[] = ['name' => 'PhilHealth', 'amount' => floatval($payslip_json['philhealth_emp'])];
+        }
+        if (isset($payslip_json['withholding_tax'])) {
+            $deductions[] = ['name' => 'Withholding Tax', 'amount' => floatval($payslip_json['withholding_tax'])];
+        }
+        if (isset($payslip_json['loan_deduction'])) {
+            $deductions[] = ['name' => 'Loan Deduction', 'amount' => floatval($payslip_json['loan_deduction'])];
+        }
+        if (isset($payslip_json['uniform_deduction'])) {
+            $deductions[] = ['name' => 'Uniform Deduction', 'amount' => floatval($payslip_json['uniform_deduction'])];
+        }
+        
+        $payslip_data['breakdown'] = [
+            'earnings' => $earnings,
+            'deductions' => $deductions
+        ];
     }
     
-    // Sort by period_end descending (most recent first)
-    usort($payslips, function($a, $b) {
-        return strtotime($b['period_end']) - strtotime($a['period_end']);
-    });
+    echo json_encode([
+        'success' => true,
+        'data' => $payslip_data
+    ]);
     
-    return $payslips;
+    ob_end_flush();
+    exit();
 }
 
