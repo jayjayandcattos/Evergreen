@@ -34,8 +34,8 @@ if ($loan_id <= 0) {
     exit;
 }
 
-// Fetch loan details
-$stmt = $conn->prepare("SELECT full_name, loan_amount, loan_terms, monthly_payment FROM loan_applications WHERE id = ?");
+// Fetch loan details including email
+$stmt = $conn->prepare("SELECT full_name, loan_amount, loan_terms, monthly_payment, email, user_email FROM loan_applications WHERE id = ?");
 if (!$stmt) {
     echo json_encode(['success' => false, 'error' => 'Database error']);
     exit;
@@ -52,6 +52,9 @@ if ($result->num_rows === 0) {
 
 $loan = $result->fetch_assoc();
 $stmt->close();
+
+// Get customer email (prefer email, fallback to user_email)
+$customer_email = !empty($loan['email']) ? $loan['email'] : (!empty($loan['user_email']) ? $loan['user_email'] : null);
 
 $admin_name = $_SESSION['user_name'] ?? $_SESSION['user_email'] ?? 'Admin';
 $timestamp = date('Y-m-d H:i:s');
@@ -118,6 +121,69 @@ if (!$stmt) {
 }
 
 if ($stmt->execute()) {
+    // If loan was activated (second_approve), credit the account
+    if ($action === 'second_approve' && $customer_email) {
+        // Get customer's account_id from email
+        // Prefer Savings account (account_type_id = 1), then any active, unlocked account
+        $account_stmt = $conn->prepare("
+            SELECT ca.account_id, ca.account_number
+            FROM customer_accounts ca
+            INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+            WHERE bc.email = ?
+            AND ca.is_locked = 0
+            AND (ca.account_status = 'active' OR ca.account_status IS NULL)
+            ORDER BY 
+                CASE WHEN ca.account_type_id = 1 THEN 1 ELSE 2 END,
+                ca.created_at ASC
+            LIMIT 1
+        ");
+        
+        if ($account_stmt) {
+            $account_stmt->bind_param("s", $customer_email);
+            $account_stmt->execute();
+            $account_result = $account_stmt->get_result();
+            
+            if ($account_result->num_rows > 0) {
+                $account = $account_result->fetch_assoc();
+                $account_id = $account['account_id'];
+                $account_number = $account['account_number'];
+                
+                // Transaction type ID 6 = Loan Disbursement
+                $transaction_ref = 'LOAN-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
+                $loan_amount_raw = (float)$loan['loan_amount']; // Use raw amount, not formatted
+                $description = "Loan Disbursement - Loan ID: {$loan_id}, Account: {$account_number}";
+                
+                // Insert transaction into bank_transactions
+                $transaction_stmt = $conn->prepare("
+                    INSERT INTO bank_transactions (
+                        transaction_ref,
+                        account_id,
+                        transaction_type_id,
+                        amount,
+                        description,
+                        created_at
+                    ) VALUES (?, ?, 6, ?, ?, NOW())
+                ");
+                
+                if ($transaction_stmt) {
+                    $transaction_stmt->bind_param("sids", $transaction_ref, $account_id, $loan_amount_raw, $description);
+                    
+                    if ($transaction_stmt->execute()) {
+                        $alert_message .= " Account credited with ₱" . number_format($loan_amount_raw, 2) . ".";
+                    } else {
+                        error_log("Failed to credit account for loan {$loan_id}: " . $transaction_stmt->error);
+                    }
+                    
+                    $transaction_stmt->close();
+                }
+            } else {
+                error_log("No account found for customer email: {$customer_email}");
+            }
+            
+            $account_stmt->close();
+        }
+    }
+    
     echo json_encode([
         'success' => true,
         'message' => $alert_message,
