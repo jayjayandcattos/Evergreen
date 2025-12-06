@@ -702,6 +702,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="signup-text">
       Don't have an account? <a href="signup.php">Sign Up</a>
     </div>
+    
+    <div class="text-center mt-3">
+      <p class="text-muted small mb-2" style="font-size: 12px;">Already have an account but no online access?</p>
+      <a href="../Basic-operation/operations/app/views/auth/activate.php" 
+         style="color: #0d3d38; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(13, 61, 56, 0.05); border-radius: 8px; transition: all 0.3s;"
+         onmouseover="this.style.background='rgba(13, 61, 56, 0.1)'"
+         onmouseout="this.style.background='rgba(13, 61, 56, 0.05)'">
+        <i class="fa-solid fa-shield-halved"></i>Activate Online Banking
+      </a>
+    </div>
   </div>
 
   <div class="right">

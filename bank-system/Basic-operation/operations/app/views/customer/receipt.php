@@ -6,7 +6,13 @@
         <div class="d-flex justify-content-between align-items-start mb-4 border-bottom pb-3">
             <div>
                 <small class="text-muted d-block">Reviewing Transfer To:</small>
-                <h4 class="fw-bold" style="color: #003631;"><?= htmlspecialchars($data['recipient_name']); ?></h4>
+                <h4 class="fw-bold" style="color: #003631;">
+                    <?php if (($data['transfer_type'] ?? 'another_account') === 'own_account'): ?>
+                        Own Account
+                    <?php else: ?>
+                        <?= htmlspecialchars($data['recipient_name']); ?>
+                    <?php endif; ?>
+                </h4>
             </div>
             <div class="text-end">
                 <small class="text-muted d-block">Status: 
@@ -50,15 +56,22 @@
             <div class="d-flex justify-content-between mb-3">
                 <small class="text-muted">Transferred To (Account):</small>
                 <div class="text-end">
-                    <small class="fs-6 d-block fw-semibold" style="color: #003631;"><?= htmlspecialchars($data['recipient_name']); ?></small>
-                    <small class="text-muted"><?= htmlspecialchars($data['recipient_number']); ?></small>
+                    <?php if (($data['transfer_type'] ?? 'another_account') === 'own_account'): ?>
+                        <small class="fs-6 d-block fw-semibold" style="color: #003631;">Own Account</small>
+                        <small class="text-muted"><?= htmlspecialchars($data['to_account'] ?? $data['recipient_number']); ?></small>
+                    <?php else: ?>
+                        <small class="fs-6 d-block fw-semibold" style="color: #003631;"><?= htmlspecialchars($data['recipient_name']); ?></small>
+                        <small class="text-muted"><?= htmlspecialchars($data['recipient_number']); ?></small>
+                    <?php endif; ?>
                 </div>
             </div>
 
+            <?php if (($data['transfer_type'] ?? 'another_account') === 'another_account'): ?>
             <div class="d-flex justify-content-between mb-4">
                 <small class="text-muted">Message:</small>
                 <small class="text-muted fst-italic"><?= empty($data['message']) ? 'None' : htmlspecialchars($data['message']); ?></small>
             </div>
+            <?php endif; ?>
 
             <div class="d-flex justify-content-between mt-3 border-top pt-2">
                 <small class="text-muted">Review Date and Time:</small>
@@ -74,11 +87,13 @@
 
             <form action="<?= URLROOT ."/customer/receipt"?>" method="POST" class="d-inline">
     
+                <input type="hidden" name="transfer_type" value="<?= htmlspecialchars($data['transfer_type'] ?? 'another_account'); ?>">
                 <input type="hidden" name="from_account" value="<?= htmlspecialchars($data['from_account']); ?>">
+                <input type="hidden" name="to_account" value="<?= htmlspecialchars($data['to_account'] ?? ''); ?>">
                 <input type="hidden" name="recipient_number" value="<?= htmlspecialchars($data['recipient_number']); ?>">
-                <input type="hidden" name="recipient_name" value="<?= htmlspecialchars($data['recipient_name']); ?>"> 
+                <input type="hidden" name="recipient_name" value="<?= htmlspecialchars($data['recipient_name'] ?? ''); ?>"> 
                 <input type="hidden" name="amount" value="<?= htmlspecialchars($data['amount']); ?>">
-                <input type="hidden" name="message" value="<?= htmlspecialchars($data['message']); ?>">
+                <input type="hidden" name="message" value="<?= htmlspecialchars($data['message'] ?? ''); ?>">
 
                 <button type="submit" class="btn px-4 py-2 fw-bold shadow-lg" 
                         style="background-color: #003631; color: white; border-radius: 8px; transition: background-color 0.3s ease, transform 0.1s ease;">
