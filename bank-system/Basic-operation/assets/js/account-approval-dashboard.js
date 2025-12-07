@@ -591,7 +591,14 @@ async function handleApprove() {
     if (result.success) {
       applicationModal.hide();
 
-      // Show success message with account number
+      console.log("Approval result:", result); // Debug log
+      console.log("Account number:", result.account_number); // Debug log
+
+      // Set success message
+      document.getElementById("successMessage").textContent =
+        "Application approved successfully!";
+
+      // Show account number if available
       const successDetailsDiv = document.getElementById("successDetails");
       const successAccountNumber = document.getElementById(
         "successAccountNumber"
@@ -600,11 +607,14 @@ async function handleApprove() {
       if (result.account_number) {
         successAccountNumber.textContent = result.account_number;
         successDetailsDiv.style.display = "block";
-        showSuccessMessage("Application approved successfully!");
+        console.log("Showing account number:", result.account_number); // Debug log
       } else {
+        console.log("No account number in response"); // Debug log
         successDetailsDiv.style.display = "none";
-        showSuccessMessage("Application approved successfully!");
       }
+
+      // Show the modal
+      successModal.show();
 
       loadApplications(); // Reload applications
     } else {

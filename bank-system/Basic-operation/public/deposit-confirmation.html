@@ -69,7 +69,7 @@
 
         /* Print Header */
         .receipt-card::before {
-          content: '';
+          content: "";
           display: block;
           width: calc(100% + 40mm);
           height: 60px;
@@ -79,7 +79,7 @@
         }
 
         .receipt-title::before {
-          content: 'EVERGREEN BANK';
+          content: "EVERGREEN BANK";
           display: block;
           font-size: 20px;
           font-weight: 700;
@@ -89,7 +89,7 @@
         }
 
         .receipt-title::after {
-          content: 'Main Branch • Manila, Philippines';
+          content: "Main Branch • Manila, Philippines";
           display: block;
           font-size: 11px;
           color: #666;
@@ -112,7 +112,7 @@
 
         /* Print Footer */
         .receipt-card::after {
-          content: 'This is an official receipt from Evergreen Bank. For verification, contact (02) 8800-1234 or visit www.evergreenbank.ph • Member PDIC - Max coverage: PHP 500,000 per depositor';
+          content: "This is an official receipt from Evergreen Bank. For verification, contact (02) 8800-1234 or visit www.evergreenbank.ph • Member PDIC - Max coverage: PHP 500,000 per depositor";
           display: block;
           margin-top: 15px;
           padding-top: 10px;
@@ -124,7 +124,8 @@
         }
 
         /* Transaction Details Enhancement */
-        .info-section, .details-box {
+        .info-section,
+        .details-box {
           page-break-inside: avoid;
           margin-bottom: 10px;
         }
@@ -138,18 +139,21 @@
           margin-bottom: 8px;
         }
 
-        .info-row, .detail-item {
+        .info-row,
+        .detail-item {
           font-size: 10px;
           line-height: 1.6;
           margin-bottom: 2px;
         }
 
-        .info-label, .detail-label {
+        .info-label,
+        .detail-label {
           font-weight: 600;
           color: #333;
         }
 
-        .info-value, .detail-value {
+        .info-value,
+        .detail-value {
           color: #000;
         }
 
@@ -165,13 +169,13 @@
         }
 
         .status-completed {
-          color: #4CAF50 !important;
+          color: #4caf50 !important;
           font-weight: 700 !important;
         }
 
         /* Print timestamp */
         .confirmation-layout::before {
-          content: 'OFFICIAL BANK RECEIPT';
+          content: "OFFICIAL BANK RECEIPT";
           display: block;
           text-align: center;
           font-size: 9px;
@@ -207,9 +211,8 @@
           display: block !important;
         }
       }
-        .receipt-back-btn {
-          display: none !important;
-        }
+      .receipt-back-btn {
+        display: none !important;
       }
     </style>
   </head>
