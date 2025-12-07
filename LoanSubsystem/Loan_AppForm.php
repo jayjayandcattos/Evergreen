@@ -1,72 +1,34 @@
-<!---Loan_AppForm.php-->
+<!---Loan_AppForm.php--->
+
 <?php
 session_start();
-require_once __DIR__ . '/config/database.php';
+require_once 'config/database.php';
 
-// Check if user is logged in
+// Redirect to login if not authenticated
 if (!isset($_SESSION['user_email'])) {
-    header("Location: ../login.php");
+    header('Location: login.php');
     exit();
 }
 
-$conn = getDBConnection();
-$user_email = $_SESSION['user_email'];
-
-// Fetch user details from bank_customers - construct full_name from first, middle, last
-$stmt = $conn->prepare("SELECT 
-    CONCAT(first_name, ' ', IFNULL(CONCAT(middle_name, ' '), ''), last_name) as full_name,
-    contact_number,
-    email,
-    customer_id
-FROM bank_customers 
-WHERE email = ?");
-
-if (!$stmt) {
-    die("Database error: " . $conn->error);
-}
-
-$stmt->bind_param("s", $user_email);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentUser = $result->fetch_assoc();
-
-// Get account number from customer_accounts if it exists
-$account_number = '';
-if ($currentUser) {
-    $acc_stmt = $conn->prepare("SELECT account_number FROM customer_accounts WHERE customer_id = ? LIMIT 1");
-    if ($acc_stmt) {
-        $acc_stmt->bind_param("i", $currentUser['customer_id']);
-        $acc_stmt->execute();
-        $acc_result = $acc_stmt->get_result();
-        if ($acc_row = $acc_result->fetch_assoc()) {
-            $account_number = $acc_row['account_number'];
-        }
-        $acc_stmt->close();
-    }
-}
+// Get current user from database
+$currentUser = getUserByEmail($_SESSION['user_email']);
 
 if (!$currentUser) {
-    // Fallback or error handling
-    $currentUser = [
-        'full_name' => '',
-        'contact_number' => '',
-        'email' => $user_email
-    ];
+    session_destroy();
+    header('Location: login.php?error=invalid');
+    exit();
 }
 
-$currentUser['account_number'] = $account_number;
-$stmt->close();
-
-// Fetch loan types - show all active loan types
-$loanTypes = [];
-$lt_result = $conn->query("SELECT id, name FROM loan_types ORDER BY name");
-if ($lt_result) {
-    while ($row = $lt_result->fetch_assoc()) {
-        $loanTypes[] = $row;
-    }
-}
-$conn->close();
+// Map database fields to expected format
+$currentUser['full_name'] = $currentUser['display_name'] ?? $currentUser['full_name'];
+$currentUser['account_number'] = $currentUser['account_number'] ?? '';
+$currentUser['contact_number'] = $currentUser['contact_number'] ?? '';
+// Note: job and monthly_salary are not in bank_users table
+// You may need to add these fields to the database or use defaults
+$currentUser['job'] = 'Not Specified'; // Default value
+$currentUser['monthly_salary'] = 0; // Default value
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,18 +83,17 @@ $conn->close();
           <h2>Loan Details</h2>
           <div class="input-group">
             <div class="input-container">
-              <label for="loan_type">Loan Type <span class="required">*</span></label>
-              <select name="loan_type_id" id="loan_type" required>
+              <select name="loan_type" id="loan_type" required>
                 <option value="">Select Loan Type</option>
-                <?php foreach ($loanTypes as $type): ?>
-                  <option value="<?= (int)$type['id'] ?>"><?= htmlspecialchars($type['name']) ?></option>
-                <?php endforeach; ?>
+                <option value="Personal Loan">Personal Loan</option>
+                <option value="Car Loan">Car Loan</option>
+                <option value="Home Loan">Home Loan</option>
+                <option value="Multi-Purpose Loan">Multi-Purpose Loan</option>
               </select>
               <span class="validation-message" id="loan-type-error"></span>
             </div>
 
             <div class="input-container">
-              <label for="loan_terms">Loan Term <span class="required">*</span></label>
               <select name="loan_terms" id="loan_terms" required>
                 <option value="">Select Loan Terms</option>
                 <option value="6 Months">6 Months</option>
@@ -146,35 +107,29 @@ $conn->close();
             </div>
 
             <div class="input-container">
-              <label for="loan_amount">Loan Amount <span class="required">*</span></label>
               <input type="number" name="loan_amount" id="loan_amount" 
                      placeholder="Loan Amount (Min ₱5,000)" min="5000" required />
               <span class="validation-message" id="amount-error"></span>
             </div>
 
             <div class="input-container">
-              <label for="purpose">Purpose of Loan <span class="required">*</span></label>
-              <textarea name="purpose" id="purpose" placeholder="Describe the purpose of your loan" required></textarea>
+              <textarea name="purpose" id="purpose" placeholder="Purpose / Description" required></textarea>
               <span class="validation-message" id="purpose-error"></span>
             </div>
           </div>
-
           <div class="input-container">
             <label for="attachment">Upload Valid ID <span class="required">*</span></label>
-            <small>Accepted: JPG, JPEG, PNG, PDF, DOC, DOCX</small>
-            <input type="file" name="attachment" id="attachment" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required />
+            <input type="file" name="attachment" id="attachment" accept=".pdf,.jpg,.jpeg,.png" required />
             <span class="validation-message" id="attachment-error"></span>
           </div>
           <div class="input-container">
             <label for="proof_of_income">Upload Proof of Income / Payslip <span class="required">*</span></label>
-            <small>Accepted: JPG, JPEG, PNG, PDF, DOC, DOCX</small>
-            <input type="file" name="proof_of_income" id="proof_of_income" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required />
+            <input type="file" name="proof_of_income" id="proof_of_income" accept=".pdf,.jpg,.jpeg,.png" required />
             <span class="validation-message" id="proof-income-error"></span>
           </div>
           <div class="input-container">
             <label for="coe_document">Upload Certificate of Employment (COE) <span class="required">*</span></label>
-            <small>Accepted: PDF, DOC, DOCX only (no images)</small>
-            <input type="file" name="coe_document" id="coe_document" accept=".pdf,.doc,.docx" required />
+            <input type="file" name="coe_document" id="coe_document" accept=".pdf,.jpg,.jpeg,.png" required />
             <span class="validation-message" id="coe-error"></span>
           </div>
         </section>
@@ -260,82 +215,19 @@ $conn->close();
 // Auto-select loan type from URL
 document.addEventListener('DOMContentLoaded', function () {
     const urlParams = new URLSearchParams(window.location.search);
-    const loanTypeName = urlParams.get('loanType');
-    if (loanTypeName) {
+    const loanType = urlParams.get('loanType');
+    if (loanType) {
         const loanSelect = document.getElementById('loan_type');
         for (let option of loanSelect.options) {
-            if (option.text.trim() === decodeURIComponent(loanTypeName).trim()) {
+            if (option.value === loanType) {
                 option.selected = true;
                 break;
             }
         }
     }
-
-    // loan_appform.js
-document.getElementById('loanForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const submitBtn = document.querySelector('.btn-submit');
-    const originalText = submitBtn.textContent;
-    
-    // Disable button and show loading
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting...';
-    
-    try {
-        const response = await fetch('submit_loan.php', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Show success message
-            alert('✅ ' + result.message + '\n\nRedirecting to dashboard...');
-            
-            // Redirect to dashboard
-            window.location.href = result.redirect || 'index.php?scrollTo=dashboard';
-        } else {
-            // Show error message
-            alert('❌ Error: ' + result.error);
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
-    } catch (error) {
-        console.error('Submission error:', error);
-        alert('❌ An error occurred while submitting your application. Please try again.');
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-    }
-});
-    // File type validation
-    const validIdInput = document.getElementById('attachment');
-    const proofInput = document.getElementById('proof_of_income');
-    const coeInput = document.getElementById('coe_document');
-
-    const validIdTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    const coeTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-
-    function validateFile(input, allowedTypes, errorId) {
-        const file = input.files[0];
-        const errorSpan = document.getElementById(errorId);
-        if (file) {
-            if (!allowedTypes.includes(file.type)) {
-                errorSpan.textContent = 'Invalid file type. Please upload an allowed format.';
-                input.value = '';
-            } else {
-                errorSpan.textContent = '';
-            }
-        }
-    }
-
-    validIdInput.addEventListener('change', () => validateFile(validIdInput, validIdTypes, 'attachment-error'));
-    proofInput.addEventListener('change', () => validateFile(proofInput, validIdTypes, 'proof-income-error'));
-    coeInput.addEventListener('change', () => validateFile(coeInput, coeTypes, 'coe-error'));
 });
 
+// Modal close function
 function closeModal() {
     const combinedModal = document.getElementById('combined-modal');
     const applicationContent = document.querySelector('.page-content');

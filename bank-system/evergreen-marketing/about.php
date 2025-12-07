@@ -686,7 +686,7 @@
         /* Extra small mobile devices */
         @media (max-width: 480px) {
             nav {
-                padding: 1rem 3%;
+                padding: 0.8rem 3%;
             }
 
             .dropdown-content a {
@@ -756,7 +756,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
-                    <img src="images/Logo.png.png">
+                    <img src="images/Logo.svg">
                 </a>
             </div>
             <span>
@@ -777,7 +777,7 @@
                 </div>
             </div>
 
-            <a href="/Evergreen/LoanSubsystem/index.php">Loans</a>
+            <a href="/Evergreen/LoanSubsystem/">Loans</a>
             <a href="about.php">About Us</a>
         </div>
 
@@ -793,6 +793,7 @@
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
                     <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
+                    <a href="refer.php" role="menuitem">Refer to a friend</a>
                     <a href="cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -902,10 +903,10 @@
         <div class="footer-bottom">
             <p>© 2023 Evergreen Bank. All rights reserved.<br>Member FDIC. Equal Housing Lender. Evergreen Bank, N.A.</p>
             <div class="footer-links">
-                <a href="policy.php">Privacy Policy</a>
-                <a href="terms.php">Terms and Agreements</a>
-                <a href="faq.php">FAQS</a>
-                <a href="about.php">About Us</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms and Agreements</a>
+                <a href="#">FAQS</a>
+                <a href="#">About Us</a>
             </div>
         </div>
     </footer>

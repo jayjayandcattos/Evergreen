@@ -938,11 +938,14 @@
         height: 45px;
     }
 
+<<<<<<< HEAD
     .profile-btn img {
         width: 35px;
         height: 35px;
     }
 
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     .nav-links {
         order: 3;
         width: 100%;
@@ -1106,11 +1109,15 @@
 /* Mobile Phones (480px - 639px) */
 @media (max-width: 639px) {
     nav {
+<<<<<<< HEAD
         padding: 1rem 3%;
     }
 
     nav span a {
         font-size: 24px;
+=======
+        padding: 0.8rem 1rem;
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     }
 
     .logo {
@@ -1122,6 +1129,7 @@
         height: 40px;
     }
 
+<<<<<<< HEAD
     .logo-icon img {
         width: 40px;
         height: 40px;
@@ -1132,6 +1140,8 @@
         height: 35px;
     }
 
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     .dropdown-content a {
         display: inline-block;
         margin: 0.2rem 0.3rem;
@@ -1465,7 +1475,11 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
+<<<<<<< HEAD
                     <img src="../images/Logo.png.png">
+=======
+                    <img src="../images/Logo.svg">
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                 </a>
             </div>
             <span>
@@ -1486,7 +1500,11 @@
                 </div>
             </div>
 
+<<<<<<< HEAD
             <a href="/Evergreen/LoanSubsystem/index.php">Loans</a>
+=======
+            <a href="/Evergreen/LoanSubsystem/">Loans</a>
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
             <a href="../about.php">About Us</a>
         </div>
 
@@ -1502,6 +1520,10 @@
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
                     <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
+<<<<<<< HEAD
+=======
+                    <a href="../refer.php" role="menuitem">Refer to a friend</a>
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                     <a href="../cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -1635,9 +1657,28 @@
 
     <script src="../js/points_system.js"></script>
     <script>
+<<<<<<< HEAD
 
         pointsSystem.apiUrl = '../points_api.php';
         
+=======
+        // Set correct API path
+        pointsSystem.apiUrl = '../points_api.php';
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Points page loaded, initializing...');
+            
+            // Load user points
+            await pointsSystem.loadUserPoints();
+            
+            // Load missions in the mission tab
+            await pointsSystem.renderMissions('mission');
+            
+            console.log('Points page initialization complete');
+        });
+        
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
         // Dropdown functionality
         function toggleDropdown() {
             const dropdown = document.getElementById("cardsDropdown");

@@ -399,20 +399,34 @@ class CustomerController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST'){
             
+            $transfer_type = trim($_POST['transfer_type'] ?? 'another_account');
             $from_account = trim($_POST['from_account']);
-            $recipient_number = trim($_POST['recipient_number']);
-            $recipient_name = trim($_POST['recipient_name']);
             $amount = (float) trim($_POST['amount']);
-            $message = trim($_POST['message']);
+            
+            // Initialize based on transfer type
+            if ($transfer_type === 'own_account') {
+                $to_account = trim($_POST['to_account'] ?? '');
+                $recipient_number = $to_account; // For own account, recipient is the to_account
+                $recipient_name = ''; // Not needed for own account
+                $message = ''; // No message for own account transfers
+            } else {
+                $to_account = '';
+                $recipient_number = trim($_POST['recipient_number'] ?? '');
+                $recipient_name = trim($_POST['recipient_name'] ?? '');
+                $message = trim($_POST['message'] ?? '');
+            }
 
             $data = [
                 'customer_id' => $_SESSION['customer_id'],
+                'transfer_type' => $transfer_type,
                 'from_account' => $from_account,
+                'to_account' => $to_account,
                 'recipient_number' => $recipient_number,
                 'recipient_name' => $recipient_name,
                 'amount' => $amount,
                 'message' => $message,
                 'from_account_error' => '',
+                'to_account_error' => '',
                 'recipient_number_error' => '',
                 'recipient_name_error' => '',
                 'amount_error' => '',
@@ -430,44 +444,72 @@ class CustomerController extends Controller {
                 $data['from_account_error'] = 'Please select your own account number.';
             }
 
-            if(empty($recipient_number)){
-                $data['recipient_number_error'] = 'Please enter recipient account number.';
-            }
+            // Validation based on transfer type
+            if ($transfer_type === 'own_account') {
+                // Own account transfer validation
+                if(empty($to_account)){
+                    $data['to_account_error'] = 'Please select destination account.';
+                }
+                
+                if($data['from_account'] == $to_account){
+                    $data['other_error'] = 'You cannot transfer money to the same account.';
+                }
+                
+                // Verify both accounts belong to the customer
+                $receiver = $this->customerModel->getAccountByNumber($to_account);
+                if ($receiver) {
+                    // Check if to_account belongs to the same customer
+                    $accounts = $this->customerModel->getAccountsByCustomerId($_SESSION['customer_id']);
+                    $owns_receiver = false;
+                    foreach($accounts as $acc) {
+                        if($acc->account_number == $to_account) {
+                            $owns_receiver = true;
+                            break;
+                        }
+                    }
+                    if (!$owns_receiver) {
+                        $data['to_account_error'] = 'Invalid destination account.';
+                    }
+                } else {
+                    $data['to_account_error'] = 'Destination account not found.';
+                }
+            } else {
+                // Another account transfer validation
+                if(empty($recipient_number)){
+                    $data['recipient_number_error'] = 'Please enter recipient account number.';
+                }
 
-            $recipient_validation = $this->customerModel->validateRecipient($data['recipient_number'], $data['recipient_name']);
+                $recipient_validation = $this->customerModel->validateRecipient($data['recipient_number'], $data['recipient_name']);
 
-            if(!$recipient_validation['status']){
-                $data = array_merge($data, [
-                    'recipient_number_error' => 'Invalid recipient account number or account name',
-                    'recipient_name_error' => 'Invalid recipient account number or account name'
-                ]);
-            }
+                if(!$recipient_validation['status']){
+                    $data = array_merge($data, [
+                        'recipient_number_error' => 'Invalid recipient account number or account name',
+                        'recipient_name_error' => 'Invalid recipient account number or account name'
+                    ]);
+                }
 
-            $receiver = $this->customerModel->getAccountByNumber($data['recipient_number']);
+                $receiver = $this->customerModel->getAccountByNumber($data['recipient_number']);
 
-            if(empty($recipient_name)){
-                $data['recipient_name_error'] = 'Please enter recipient name.';
+                if(empty($recipient_name)){
+                    $data['recipient_name_error'] = 'Please enter recipient name.';
+                }
+                
+                if($data['from_account'] == $data['recipient_number']){
+                    $data['other_error'] = 'You cannot transfer money to the same account.';
+                }
             }
 
             if(empty($amount)){
                 $data['amount_error'] = 'Please enter an amount.';
             }
             $amount_validation = $this->customerModel->validateAmount($data['from_account']);
-            $fee = 15.00;
+            
+            // Fee only applies to another_account transfers
+            $fee = ($transfer_type === 'own_account') ? 0.00 : 15.00;
             $total = $data['amount'] + $fee;
 
             if((float)$amount_validation->balance < $total){
                 $data['amount_error'] = 'Insufficient Funds';
-            }
-
-            // Enforce maintaining balance confirmation on final submit as well
-            $senderAccount = $this->customerModel->getAccountByNumber($data['from_account']);
-            $maintaining_required = isset($senderAccount->maintaining_balance_required) ? (float)$senderAccount->maintaining_balance_required : 500.00;
-            $remaining_after = (float)$amount_validation->balance - $total;
-            if ($remaining_after < $maintaining_required && $remaining_after >= 0) {
-                if (empty($_POST['confirm_low_balance'])) {
-                    $data['other_error'] = 'Transfer requires confirmation: resulting balance will be below PHP ' . number_format($maintaining_required,2) . '.';
-                }
             }
 
             // Check maintaining balance rule and require confirmation flag if this transfer will leave balance below minimum
@@ -481,15 +523,12 @@ class CustomerController extends Controller {
                 }
             }
 
-            if(strlen($message) >= 100){
-                $data['message_error'] = 'Pleaser enter 100 characters only';
+            // Message validation only for another_account transfers
+            if ($transfer_type === 'another_account' && strlen($message) >= 100){
+                $data['message_error'] = 'Please enter 100 characters only';
             }
 
-            if($data['from_account'] == $data['recipient_number']){
-                $data['other_error'] = 'You cannot transfer money to the same account fool.';
-            }
-
-            if(empty($data['from_account_error']) && empty($data['recipient_number_error']) && empty($data['recipient_name_error']) && empty($data['amount_error']) && empty($data['message_error']) && empty($data['other_error'])){
+            if(empty($data['from_account_error']) && empty($data['to_account_error']) && empty($data['recipient_number_error']) && empty($data['recipient_name_error']) && empty($data['amount_error']) && empty($data['message_error']) && empty($data['other_error'])){
                 $temp_transaction_ref = 'TXN-PREVIEW-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
                 $remaining_balance = (float)$amount_validation->balance - $total;
                 $sender_name = $_SESSION['customer_first_name'] . ' ' . $_SESSION['customer_last_name'] ?? 'Sender Name Unknown';
@@ -500,6 +539,7 @@ class CustomerController extends Controller {
                     'total_payment' => $total,
                     'remaining_balance' => $remaining_balance,
                     'sender_name' => $sender_name,
+                    'transfer_type' => $transfer_type,
                 ]);
 
                 // If remaining is below maintaining and confirmation not provided, re-render transfer page with warning
@@ -535,20 +575,34 @@ class CustomerController extends Controller {
 
     public function receipt(){
         if($_SERVER['REQUEST_METHOD'] == 'POST'){
-         $from_account = trim($_POST['from_account']);
-            $recipient_number = trim($_POST['recipient_number']);
-            $recipient_name = trim($_POST['recipient_name']);
+            $transfer_type = trim($_POST['transfer_type'] ?? 'another_account');
+            $from_account = trim($_POST['from_account']);
             $amount = (float) trim($_POST['amount']);
-            $message = trim($_POST['message']);
+            
+            // Initialize based on transfer type
+            if ($transfer_type === 'own_account') {
+                $to_account = trim($_POST['to_account'] ?? '');
+                $recipient_number = $to_account;
+                $recipient_name = '';
+                $message = '';
+            } else {
+                $to_account = '';
+                $recipient_number = trim($_POST['recipient_number'] ?? '');
+                $recipient_name = trim($_POST['recipient_name'] ?? '');
+                $message = trim($_POST['message'] ?? '');
+            }
 
             $data = [
                 'customer_id' => $_SESSION['customer_id'],
+                'transfer_type' => $transfer_type,
                 'from_account' => $from_account,
+                'to_account' => $to_account,
                 'recipient_number' => $recipient_number,
                 'recipient_name' => $recipient_name,
                 'amount' => $amount,
                 'message' => $message,
                 'from_account_error' => '',
+                'to_account_error' => '',
                 'recipient_number_error' => '',
                 'recipient_name_error' => '',
                 'amount_error' => '',
@@ -566,49 +620,74 @@ class CustomerController extends Controller {
                 $data['from_account_error'] = 'Please select your own account number.';
             }
 
-            if(empty($recipient_number)){
-                $data['recipient_number_error'] = 'Please enter recipient account number.';
-            }
+            // Validation based on transfer type
+            if ($transfer_type === 'own_account') {
+                if(empty($to_account)){
+                    $data['to_account_error'] = 'Please select destination account.';
+                }
+                
+                if($data['from_account'] == $to_account){
+                    $data['other_error'] = 'You cannot transfer money to the same account.';
+                }
+                
+                $receiver = $this->customerModel->getAccountByNumber($to_account);
+                if (!$receiver) {
+                    $data['to_account_error'] = 'Destination account not found.';
+                }
+            } else {
+                if(empty($recipient_number)){
+                    $data['recipient_number_error'] = 'Please enter recipient account number.';
+                }
 
-            $recipient_validation = $this->customerModel->validateRecipient($data['recipient_number'], $data['recipient_name']);
+                $recipient_validation = $this->customerModel->validateRecipient($data['recipient_number'], $data['recipient_name']);
 
-            if(!$recipient_validation['status']){
-                $data = array_merge($data, [
-                    'recipient_number_error' => 'Invalid recipient account number or account name',
-                    'recipient_name_error' => 'Invalid recipient account number or account name'
-                ]);
-            }
+                if(!$recipient_validation['status']){
+                    $data = array_merge($data, [
+                        'recipient_number_error' => 'Invalid recipient account number or account name',
+                        'recipient_name_error' => 'Invalid recipient account number or account name'
+                    ]);
+                }
 
-            $receiver = $this->customerModel->getAccountByNumber($data['recipient_number']);
+                $receiver = $this->customerModel->getAccountByNumber($data['recipient_number']);
 
-            if(empty($recipient_name)){
-                $data['recipient_name_error'] = 'Please enter recipient name.';
+                if(empty($recipient_name)){
+                    $data['recipient_name_error'] = 'Please enter recipient name.';
+                }
+                
+                if($data['from_account'] == $data['recipient_number']){
+                    $data['other_error'] = 'You cannot transfer money to the same account.';
+                }
             }
 
             if(empty($amount)){
                 $data['amount_error'] = 'Please enter an amount.';
             }
             $amount_validation = $this->customerModel->validateAmount($data['from_account']);
-            $fee = 15.00;
+            
+            // Fee only for another_account transfers
+            $fee = ($transfer_type === 'own_account') ? 0.00 : 15.00;
             $total = $data['amount'] + $fee;
 
             if((float)$amount_validation->balance < $total){
                 $data['amount_error'] = 'Insufficient Funds';
             }
 
-            if(strlen($message) >= 100){
-                $data['message_error'] = 'Pleaser enter 100 characters only';
+            // Message validation only for another_account transfers
+            if ($transfer_type === 'another_account' && strlen($message) >= 100){
+                $data['message_error'] = 'Please enter 100 characters only';
+            }
+            
+            // Build transaction message
+            if ($transfer_type === 'own_account') {
+                $message = 'Transfer to own account ' . $to_account;
+            } else {
+                $message = 'Sent to ' . $data['recipient_name'] . ' (' . $data['recipient_number'] . ')';
+                if (!empty($data['message'])) {
+                    $message .= ' - ' . $data['message'];
+                }
             }
 
-            if($data['from_account'] == $data['recipient_number']){
-                $data['other_error'] = 'You cannot transfer money to the same account fool.';
-            }
-            $message = 'Sent to ' . $data['recipient_name'] . ' (' . $data['recipient_number'] . ')';
-            if (!empty($data['message'])) {
-                $message .= ' - ' . $data['message'];
-            }
-
-            if(empty($data['from_account_error']) && empty($data['recipient_number_error']) && empty($data['recipient_name_error']) && empty($data['amount_error']) && empty($data['message_error']) && empty($data['other_error'])){
+            if(empty($data['from_account_error']) && empty($data['to_account_error']) && empty($data['recipient_number_error']) && empty($data['recipient_name_error']) && empty($data['amount_error']) && empty($data['message_error']) && empty($data['other_error'])){
                 $transaction_ref = 'TXN-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
 
                 $result = $this->customerModel->recordTransaction($transaction_ref, $sender->account_id, $receiver->account_id, $data['amount'], $fee, $message);
@@ -687,11 +766,6 @@ class CustomerController extends Controller {
 
     // -- FOR EXPORT --
     public function export_transactions() {
-        // Clear any output buffers to prevent header issues
-        if (ob_get_level()) {
-            ob_end_clean();
-        }
-        
         if (!isset($_SESSION['customer_id'])) {
             header('Location: ' . URLROOT . '/customer/login');
             exit();
@@ -707,56 +781,43 @@ class CustomerController extends Controller {
         ];
         $exportType = strtolower($_GET['type'] ?? 'csv');
 
-        try {
-            // 2. Call a model method to fetch ALL transactions matching the filters
-            // Pass customer_id and filters
-            $transactions = $this->customerModel->getAllFilteredTransactions($customer_id, $filters); 
+        // 2. Call a model method to fetch ALL transactions matching the filters
+        // Pass customer_id and filters
+        $transactions = $this->customerModel->getAllFilteredTransactions($customer_id, $filters); 
 
-            // 3. Generate and output the file based on $exportType
-            if ($exportType === 'csv') {
-                $this->generateCSV($transactions);
-            } elseif ($exportType === 'pdf') {
-                // You would need a PDF library integrated for this (TCPDF seems to be set up)
-                $this->generatePDF($transactions);
-            } else {
-                // Handle invalid type
-                $_SESSION['export_error'] = 'Invalid export type. Please select CSV or PDF.';
-                header('Location: ' . URLROOT . '/customer/transaction_history');
-                exit;
-            }
-        } catch (Exception $e) {
-            // Log error and redirect with error message
-            error_log("Export Error: " . $e->getMessage());
-            $_SESSION['export_error'] = 'Failed to export transactions. Please try again.';
+        // 3. Generate and output the file based on $exportType
+        if ($exportType === 'csv') {
+            $this->generateCSV($transactions);
+        } elseif ($exportType === 'pdf') {
+            // You would need a PDF library integrated for this (TCPDF seems to be set up)
+            $this->generatePDF($transactions);
+        } else {
+            // Handle invalid type
             header('Location: ' . URLROOT . '/customer/transaction_history');
             exit;
         }
     }
     
     protected function generateCSV($transactions) {
-        // Clear any output buffers
-        while (ob_get_level()) {
+        // Clean any output buffers
+        if (ob_get_level()) {
             ob_end_clean();
         }
         
         // Set headers for download
-        $filename = 'transactions_' . date('Ymd_His') . '.csv';
-        
-        // Set headers before any output
-        header('Content-Type: text/csv; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Content-Transfer-Encoding: binary');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="transactions_' . date('Ymd_His') . '.csv"');
         header('Pragma: no-cache');
-        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Cache-Control: no-cache, must-revalidate');
         header('Expires: 0');
 
-        // Open output stream
+        // Open a temporary stream for output
         $output = fopen('php://output', 'w');
         
         // Add UTF-8 BOM for Excel compatibility
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-        // Define CSV Column Headers
+        // Define CSV Column Headers (adjust these to match your data structure)
         $headers = ['Date', 'Time', 'Description', 'Reference', 'Account Number', 'Type', 'Amount (PHP)'];
         fputcsv($output, $headers);
 
@@ -783,8 +844,8 @@ class CustomerController extends Controller {
     }
 
     protected function generatePDF($transactions) {
-        // Clear any output buffers
-        while (ob_get_level()) {
+        // Clean any output buffers
+        if (ob_get_level()) {
             ob_end_clean();
         }
         
@@ -806,7 +867,7 @@ class CustomerController extends Controller {
         $pdf->setPrintFooter(false);
 
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('Your Bank');
+        $pdf->SetAuthor('Evergreen Bank');
         $pdf->SetTitle('Statement of Account');
         $pdf->SetSubject('Customer Statement');
 
@@ -814,15 +875,22 @@ class CustomerController extends Controller {
         $pdf->SetFont('helvetica', '', 10);
         $pdf->AddPage();
 
+        // Check if logo exists, use absolute path
         $logo = ROOT_PATH . '/public/img/logo.jpg';
+        $logoExists = file_exists($logo);
+        $logo = ROOT_PATH . '/public/img/logo.jpg';
+        $logoExists = file_exists($logo);
         $customer_name = $_SESSION['customer_first_name'] . ' ' . $_SESSION['customer_last_name'];
 
+        // Build logo HTML conditionally
+        $logoHTML = $logoExists ? '<img src="' . $logo . '" height="40" />' : '';
+        
         $headerHTML = '
             <table width="100%">
                 <tr>
                     <!-- Logo -->
                     <td width="50%">
-                        <img src="' . $logo . '" height="40" />
+                        ' . $logoHTML . '
                         <span style="font-size:16px; font-weight:bold;">EVERGREEN</span>
                     </td>
 
@@ -885,12 +953,7 @@ class CustomerController extends Controller {
 
         $pdf->writeHTML($html, true, false, true, false, '');
 
-        // Generate filename with timestamp
-        $filename = 'statement_' . date('Ymd_His') . '.pdf';
-        
-        // Output PDF with 'D' flag to force download
-        // 'D' = send to browser and force download with the given name
-        $pdf->Output($filename, 'D');
+        $pdf->Output('statement_' . date('Ymd') . '.pdf', 'D');
         exit;
     }
 
@@ -966,86 +1029,133 @@ class CustomerController extends Controller {
     public function pay_loan()
     {
         $customerId = $_SESSION['customer_id'];
-        $activeLoans = $this->customerModel->getActiveLoanApplications($customerId); // Fetching applications now
-        $primaryAccount = $this->customerModel->getPrimaryAccountNumber($customerId);
-        
-        // Get account balance for the primary account
-        $accountBalance = 0.00;
-        if ($primaryAccount) {
-            $balanceData = $this->customerModel->validateAmount($primaryAccount);
-            $accountBalance = $balanceData ? (float)$balanceData->balance : 0.00;
-        }
+        $activeLoans = $this->customerModel->getActiveLoanApplications($customerId);
+        // Get Savings and Checking accounts only for payment
+        $accounts = $this->customerModel->getAccountsByCustomerId($customerId);
+        $paymentAccounts = array_filter($accounts, function($account) {
+            return in_array($account->account_type_id, [1, 2]); // Only Savings and Checking
+        });
 
         $data = [
             'title' => "Pay Loan",
             'first_name' => $_SESSION['customer_first_name'] ?? 'Customer',
             'active_loans' => $activeLoans,
-            'source_account' => $primaryAccount,
-            'account_balance' => $accountBalance,
+            'accounts' => $paymentAccounts,
             'message' => ''
         ];
 
         // Process form submission
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $this->processPayment($data);
+            $this->processLoanPayment($data);
         } else {
             $this->view('customer/pay_loan', $data);
         }
     }
 
-    private function processPayment(&$data)
-{
-    $customerId = $_SESSION['customer_id'];
+    private function processLoanPayment(&$data)
+    {
+        $customerId = $_SESSION['customer_id'];
 
-    // Sanitize and validate POST data
-    $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+        $applicationId = trim($_POST['loan_id'] ?? '');
+        $paymentAmount = (float)trim($_POST['payment_amount'] ?? 0);
+        $sourceAccount = trim($_POST['source_account'] ?? '');
 
-    $applicationId = trim($_POST['loan_id']); // Renamed to applicationId logically
-    $paymentAmount = (float)trim($_POST['payment_amount']);
-    $sourceAccount = trim($_POST['source_account']);
+        $data['loan_id'] = $applicationId;
+        $data['payment_amount'] = $paymentAmount;
+        $data['source_account'] = $sourceAccount;
+        $data['loan_id_error'] = '';
+        $data['payment_amount_error'] = '';
+        $data['source_account_error'] = '';
 
-    // Basic validation
-    if (empty($applicationId) || $paymentAmount <= 0 || empty($sourceAccount)) {
-        $data['message'] = '<div class="alert alert-danger">Please select a loan and enter a valid payment amount.</div>';
-        // Need to reload data before viewing again
-        $data['active_loans'] = $this->customerModel->getActiveLoanApplications($customerId);
-        // Reload account balance
-        $primaryAccount = $this->customerModel->getPrimaryAccountNumber($customerId);
-        if ($primaryAccount) {
-            $balanceData = $this->customerModel->validateAmount($primaryAccount);
-            $data['account_balance'] = $balanceData ? (float)$balanceData->balance : 0.00;
+        // Validation
+        if (empty($applicationId)) {
+            $data['loan_id_error'] = 'Please select a loan application.';
         }
-        return $this->view('customer/pay_loan', $data);
+
+        if (empty($sourceAccount)) {
+            $data['source_account_error'] = 'Please select a payment account.';
+        }
+
+        if ($paymentAmount <= 0) {
+            $data['payment_amount_error'] = 'Please enter a valid payment amount.';
+        }
+
+        // Get loan details
+        $loanDetails = null;
+        if (!empty($applicationId)) {
+            foreach ($data['active_loans'] as $loan) {
+                if ($loan->application_id == $applicationId) {
+                    $loanDetails = $loan;
+                    break;
+                }
+            }
+            if (!$loanDetails) {
+                $data['loan_id_error'] = 'Invalid loan application selected.';
+            } elseif ($paymentAmount > $loanDetails->remaining_balance) {
+                $data['payment_amount_error'] = 'Payment amount cannot exceed remaining balance of ₱' . number_format($loanDetails->remaining_balance, 2);
+            }
+        }
+
+        // Check source account balance
+        if (!empty($sourceAccount)) {
+            $accountBalance = $this->customerModel->validateAmount($sourceAccount);
+            if ($accountBalance && $paymentAmount > (float)$accountBalance->balance) {
+                $data['source_account_error'] = 'Insufficient funds in selected account.';
+            }
+        }
+
+        // If no errors, show receipt confirmation
+        if (empty($data['loan_id_error']) && empty($data['payment_amount_error']) && empty($data['source_account_error'])) {
+            $data['loan_details'] = $loanDetails;
+            $data['customer_name'] = $_SESSION['customer_first_name'] . ' ' . $_SESSION['customer_last_name'];
+            $data['temp_transaction_ref'] = 'LP-PREVIEW-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
+            
+            $this->view('customer/loan_receipt', $data);
+        } else {
+            $data['active_loans'] = $this->customerModel->getActiveLoanApplications($customerId);
+            $accounts = $this->customerModel->getAccountsByCustomerId($customerId);
+            $data['accounts'] = array_filter($accounts, function($account) {
+                return in_array($account->account_type_id, [1, 2]);
+            });
+            $this->view('customer/pay_loan', $data);
+        }
     }
 
-    // 1. Process the payment using the simplified logic
-    $result = $this->customerModel->processApplicationPayment(
-        $applicationId,
-        $paymentAmount,
-        $sourceAccount,
-        $customerId
-    );
+    public function confirm_loan_payment()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . URLROOT . '/customer/pay_loan');
+            exit();
+        }
 
-    // Reload account balance after payment processing
-    $primaryAccount = $this->customerModel->getPrimaryAccountNumber($customerId);
-    $accountBalance = 0.00;
-    if ($primaryAccount) {
-        $balanceData = $this->customerModel->validateAmount($primaryAccount);
-        $accountBalance = $balanceData ? (float)$balanceData->balance : 0.00;
+        $customerId = $_SESSION['customer_id'];
+        $applicationId = trim($_POST['loan_id'] ?? '');
+        $paymentAmount = (float)trim($_POST['payment_amount'] ?? 0);
+        $sourceAccount = trim($_POST['source_account'] ?? '');
+
+        // Re-validate before processing
+        if (empty($applicationId) || $paymentAmount <= 0 || empty($sourceAccount)) {
+            header('Location: ' . URLROOT . '/customer/pay_loan');
+            exit();
+        }
+
+        // Process the payment
+        $result = $this->customerModel->processApplicationPayment(
+            $applicationId,
+            $paymentAmount,
+            $sourceAccount,
+            $customerId
+        );
+
+        if ($result['status'] === true) {
+            $_SESSION['payment_success'] = 'Loan payment of ₱' . number_format($paymentAmount, 2) . ' processed successfully!';
+        } else {
+            $_SESSION['payment_error'] = $result['error'] ?? 'Payment failed. Please try again.';
+        }
+
+        header('Location: ' . URLROOT . '/customer/pay_loan');
+        exit();
     }
-    $data['account_balance'] = $accountBalance;
-
-    if ($result['status'] === true) {
-        $data['message'] = '<div class="alert alert-success">Loan payment processed successfully! Your balance has been updated and a transaction recorded.</div>';
-        $data['active_loans'] = $this->customerModel->getActiveLoanApplications($customerId);
-    } else {
-        $errorMessage = $result['error'] ?? 'Payment failed. Please check the amount and try again.';
-        $data['message'] = '<div class="alert alert-danger">Payment failed: ' . htmlspecialchars($errorMessage) . '</div>';
-        $data['active_loans'] = $this->customerModel->getActiveLoanApplications($customerId);
-    }
-
-    $this->view('customer/pay_loan', $data);
-}
 
     /**
      * Apply interest to all Savings accounts (Admin/System function)

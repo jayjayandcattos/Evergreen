@@ -836,11 +836,14 @@
                 height: 40px;
             }
 
+<<<<<<< HEAD
             .profile-btn img {
                 width: 35px;
                 height: 35px;
             }
 
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
             .nav-links {
                 order: 3;
                 width: 100%;
@@ -908,7 +911,11 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
+<<<<<<< HEAD
                     <img src="../images/Logo.png.png">
+=======
+                    <img src="../images/Logo.svg">
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                 </a>
             </div>
             <span>
@@ -929,7 +936,11 @@
                 </div>
         </div>
 
+<<<<<<< HEAD
                      <a href="/Evergreen/LoanSubsystem/index.php">Loans</a>
+=======
+                     <a href="/Evergreen/LoanSubsystem/">Loans</a>
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                      <a href="../about.php">About Us</a>
         </div>
 
@@ -945,6 +956,10 @@
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
                     <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
+<<<<<<< HEAD
+=======
+                    <a href="../refer.php" role="menuitem">Refer to a friend</a>
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                     <a href="../cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>
@@ -1103,7 +1118,11 @@
             <div class="footer-brand">
                 <div class="logo">
                     <div class="logo-icon">
+<<<<<<< HEAD
                         <img src="../images/icon.png" alt="Evergreen Logo">
+=======
+                        <img src="../images/Logo.svg" alt="Evergreen Logo">
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                     </div>
                 </div>
                 <p>Secure. Invest. Achieve. Your trusted financial partner for a prosperous future.</p>

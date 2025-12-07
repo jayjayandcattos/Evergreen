@@ -22,33 +22,7 @@ if ($apply_filters) {
                   !empty($filter_type) || !empty($filter_status) || !empty($filter_account);
 }
 
-// Check if deleted_at column exists in journal_entries
-$hasDeletedAtColumn = false;
-try {
-    $checkResult = $conn->query("SHOW COLUMNS FROM journal_entries LIKE 'deleted_at'");
-    $hasDeletedAtColumn = $checkResult && $checkResult->num_rows > 0;
-} catch (Exception $e) {
-    // Column doesn't exist, use status filter only
-    $hasDeletedAtColumn = false;
-}
-
-// Check if deleted_at column exists in bank_transactions
-$hasBankDeletedAtColumn = false;
-try {
-    $checkBankResult = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
-    $hasBankDeletedAtColumn = $checkBankResult && $checkBankResult->num_rows > 0;
-} catch (Exception $e) {
-    $hasBankDeletedAtColumn = false;
-}
-
 // Build query to fetch transactions from BOTH journal entries AND bank transactions
-// Filter out deleted items: check both status and deleted_at column if it exists
-// IMPORTANT: Always exclude voided status and items with deleted_at set
-$deletedFilter = "je.status != 'voided' AND je.status != 'deleted'";
-if ($hasDeletedAtColumn) {
-    $deletedFilter .= " AND (je.deleted_at IS NULL OR je.deleted_at = '' OR je.deleted_at = '0000-00-00 00:00:00')";
-}
-
 $sql = "SELECT * FROM (
             -- Journal Entries from Accounting System
             SELECT 
@@ -72,7 +46,7 @@ $sql = "SELECT * FROM (
             INNER JOIN journal_types jt ON je.journal_type_id = jt.id
             INNER JOIN users u ON je.created_by = u.id
             LEFT JOIN fiscal_periods fp ON je.fiscal_period_id = fp.id
-            WHERE $deletedFilter
+            WHERE je.status NOT IN ('deleted', 'voided')
             
             UNION ALL
             
@@ -98,7 +72,6 @@ $sql = "SELECT * FROM (
             INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
             LEFT JOIN bank_employees be ON bt.employee_id = be.employee_id
             INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
-            " . ($hasBankDeletedAtColumn ? "WHERE bt.deleted_at IS NULL" : "") . "
         ) combined_transactions
         WHERE 1=1";
 
@@ -143,18 +116,11 @@ $sql .= " ORDER BY entry_date DESC, created_at DESC";
 try {
     $stmt = $conn->prepare($sql);
     
-    if ($stmt === false) {
-        throw new Exception("Query preparation failed: " . $conn->error);
-    }
-    
     if (!empty($params)) {
         $stmt->bind_param($types, ...$params);
     }
     
-    if (!$stmt->execute()) {
-        throw new Exception("Query execution failed: " . $stmt->error);
-    }
-    
+    $stmt->execute();
     $result = $stmt->get_result();
     
     while ($row = $result->fetch_assoc()) {
@@ -165,7 +131,6 @@ try {
 } catch (Exception $e) {
     // If database error, transactions will remain empty array
     error_log("Transaction query error: " . $e->getMessage());
-    // Don't throw - just log and continue with empty array
 }
 
 // Get statistics
@@ -512,7 +477,7 @@ try {
                                     $total_debit += $trans['total_debit'];
                                     $total_credit += $trans['total_credit'];
                                 ?>
-                                <tr data-transaction-id="<?php echo htmlspecialchars($trans['id'], ENT_QUOTES); ?>">
+                                <tr>
                                     <td><strong><?php echo htmlspecialchars($trans['journal_no']); ?></strong></td>
                                     <td><?php echo date('M d, Y', strtotime($trans['entry_date'])); ?></td>
                                     <td>
@@ -537,10 +502,13 @@ try {
                                     </td>
                                     <td><?php echo htmlspecialchars($trans['created_by_name']); ?></td>
                                     <td>
-                                        <button class="btn btn-sm btn-info btn-action" onclick="viewTransactionDetails('<?php echo htmlspecialchars($trans['id'], ENT_QUOTES); ?>')" title="View Details">
+                                        <button class="btn btn-sm btn-info btn-action" onclick="viewTransactionDetails(<?php echo $trans['id']; ?>)" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger btn-action" onclick="deleteTransaction('<?php echo htmlspecialchars($trans['id'], ENT_QUOTES); ?>')" title="Delete Transaction">
+                                        <button class="btn btn-sm btn-primary btn-action" onclick="viewAuditTrail(<?php echo $trans['id']; ?>)" title="Audit Trail">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger btn-action" onclick="deleteTransaction(<?php echo $trans['id']; ?>)" title="Delete Transaction">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -669,6 +637,9 @@ try {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-info" onclick="viewAuditTrail(currentTransactionId)">
+                        <i class="fas fa-history me-1"></i>View Audit Trail
+                    </button>
                 </div>
             </div>
         </div>

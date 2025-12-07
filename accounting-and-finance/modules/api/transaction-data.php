@@ -90,16 +90,20 @@ try {
             permanentDeleteTransaction();
             break;
         
-        case 'permanent_delete_bank_transaction':
-            permanentDeleteBankTransaction();
-            break;
-        
         case 'restore_all_transactions':
             restoreAllTransactions();
             break;
         
         case 'empty_bin_transactions':
             emptyBinTransactions();
+            break;
+        
+        case 'test_api':
+            testAPI();
+            break;
+        
+        case 'test_delete_simple':
+            testDeleteSimple();
             break;
         
         case 'sync_bank_transactions':
@@ -233,7 +237,6 @@ function getTransactions() {
 /**
  * Get detailed information for a specific transaction
  * Including all journal lines
- * Handles both journal entries (JE- prefix) and bank transactions (BT- prefix)
  */
 function getTransactionDetails() {
     global $conn;
@@ -244,115 +247,53 @@ function getTransactionDetails() {
         throw new Exception('Transaction ID is required');
     }
     
-    // Extract numeric ID and determine source from prefix
-    $numericId = $transactionId;
-    $source = 'journal'; // default
+    // Get main transaction data
+    $sql = "SELECT 
+                je.*,
+                jt.code as type_code,
+                jt.name as type_name,
+                u.username as created_by,
+                u.full_name as created_by_name,
+                fp.period_name as fiscal_period,
+                pu.username as posted_by,
+                pu.full_name as posted_by_name
+            FROM journal_entries je
+            INNER JOIN journal_types jt ON je.journal_type_id = jt.id
+            INNER JOIN users u ON je.created_by = u.id
+            LEFT JOIN fiscal_periods fp ON je.fiscal_period_id = fp.id
+            LEFT JOIN users pu ON je.posted_by = pu.id
+            WHERE je.id = ?";
     
-    if (is_string($transactionId) && strpos($transactionId, '-') !== false) {
-        $parts = explode('-', $transactionId);
-        if (count($parts) > 1) {
-            $prefix = strtoupper($parts[0]);
-            $numericId = $parts[1];
-            
-            if ($prefix === 'BT') {
-                $source = 'bank';
-            } elseif ($prefix === 'JE') {
-                $source = 'journal';
-            }
-        }
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $transactionId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $transaction = $result->fetch_assoc();
+    
+    if (!$transaction) {
+        throw new Exception('Transaction not found');
     }
     
-    $numericId = (int)$numericId;
-    if ($numericId <= 0) {
-        throw new Exception('Invalid transaction ID');
-    }
+    // Get journal lines
+    $sql = "SELECT 
+                jl.*,
+                a.code as account_code,
+                a.name as account_name,
+                at.category as account_category
+            FROM journal_lines jl
+            INNER JOIN accounts a ON jl.account_id = a.id
+            INNER JOIN account_types at ON a.type_id = at.id
+            WHERE jl.journal_entry_id = ?
+            ORDER BY jl.id";
     
-    $transaction = null;
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $transactionId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
     $lines = [];
-    
-    if ($source === 'bank') {
-        // Get bank transaction details
-        $sql = "SELECT 
-                    bt.transaction_id as id,
-                    bt.transaction_ref as journal_no,
-                    DATE(bt.created_at) as entry_date,
-                    COALESCE(bt.description, 'Bank Transaction') as description,
-                    bt.transaction_ref as reference_no,
-                    CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END as total_debit,
-                    CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END as total_credit,
-                    'posted' as status,
-                    COALESCE(be.employee_name, 'System') as created_by,
-                    COALESCE(be.employee_name, 'System') as created_by_name,
-                    bt.created_at,
-                    bt.created_at as posted_at,
-                    DATE_FORMAT(bt.created_at, '%Y-%m') as fiscal_period,
-                    tt.type_name as type_code,
-                    tt.type_name as type_name,
-                    'bank' as source
-                FROM bank_transactions bt
-                INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
-                LEFT JOIN bank_employees be ON bt.employee_id = be.employee_id
-                WHERE bt.transaction_id = ?";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $numericId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $transaction = $result->fetch_assoc();
-        
-        if (!$transaction) {
-            throw new Exception('Bank transaction not found');
-        }
-        
-        // Bank transactions don't have journal lines, so lines array stays empty
-    } else {
-        // Get journal entry details
-        $sql = "SELECT 
-                    je.*,
-                    jt.code as type_code,
-                    jt.name as type_name,
-                    u.username as created_by,
-                    u.full_name as created_by_name,
-                    fp.period_name as fiscal_period,
-                    pu.username as posted_by,
-                    pu.full_name as posted_by_name
-                FROM journal_entries je
-                INNER JOIN journal_types jt ON je.journal_type_id = jt.id
-                INNER JOIN users u ON je.created_by = u.id
-                LEFT JOIN fiscal_periods fp ON je.fiscal_period_id = fp.id
-                LEFT JOIN users pu ON je.posted_by = pu.id
-                WHERE je.id = ?";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $numericId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $transaction = $result->fetch_assoc();
-        
-        if (!$transaction) {
-            throw new Exception('Journal entry not found');
-        }
-        
-        // Get journal lines
-        $sql = "SELECT 
-                    jl.*,
-                    a.code as account_code,
-                    a.name as account_name,
-                    at.category as account_category
-                FROM journal_lines jl
-                INNER JOIN accounts a ON jl.account_id = a.id
-                INNER JOIN account_types at ON a.type_id = at.id
-                WHERE jl.journal_entry_id = ?
-                ORDER BY jl.id";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $numericId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        while ($row = $result->fetch_assoc()) {
-            $lines[] = $row;
-        }
+    while ($row = $result->fetch_assoc()) {
+        $lines[] = $row;
     }
     
     $transaction['lines'] = $lines;
@@ -369,30 +310,11 @@ function getTransactionDetails() {
 /**
  * Get audit trail for transactions
  * Uses audit_logs table from schema
- * Handles both journal entries (JE- prefix) and bank transactions (BT- prefix)
  */
 function getAuditTrail() {
     global $conn;
     
     $transactionId = $_GET['id'] ?? '';
-    
-    // Extract numeric ID from prefixed ID if present
-    $numericId = $transactionId;
-    $objectType = 'journal_entry'; // default
-    
-    if (is_string($transactionId) && strpos($transactionId, '-') !== false) {
-        $parts = explode('-', $transactionId);
-        if (count($parts) > 1) {
-            $prefix = strtoupper($parts[0]);
-            $numericId = $parts[1];
-            
-            if ($prefix === 'BT') {
-                $objectType = 'bank_transaction';
-            } elseif ($prefix === 'JE') {
-                $objectType = 'journal_entry';
-            }
-        }
-    }
     
     $sql = "SELECT 
                 al.*,
@@ -400,15 +322,15 @@ function getAuditTrail() {
                 u.full_name
             FROM audit_logs al
             LEFT JOIN users u ON al.user_id = u.id
-            WHERE al.object_type = ?";
+            WHERE al.object_type = 'journal_entry'";
     
-    $params = [$objectType];
-    $types = 's';
+    $params = [];
+    $types = '';
     
-    if (!empty($numericId) && $numericId !== '') {
+    if (!empty($transactionId)) {
         $sql .= " AND al.object_id = ?";
-        $params[] = (int)$numericId;
-        $types .= 'i';
+        $params[] = $transactionId;
+        $types .= 's';
     }
     
     $sql .= " ORDER BY al.created_at DESC LIMIT 100";
@@ -512,94 +434,14 @@ function exportToExcel() {
 function softDeleteTransaction() {
     global $conn;
     
-    $originalTransactionId = $_POST['transaction_id'] ?? '';
+    $transactionId = $_POST['transaction_id'] ?? '';
     $currentUser = getCurrentUser();
     
-    if (empty($originalTransactionId)) {
+    if (empty($transactionId)) {
         throw new Exception('Transaction ID is required');
     }
     
-    // Extract numeric ID and determine source from prefix
-    $numericId = $originalTransactionId;
-    $source = 'journal'; // default
-    
-    if (is_string($originalTransactionId) && strpos($originalTransactionId, '-') !== false) {
-        $parts = explode('-', $originalTransactionId);
-        if (count($parts) > 1) {
-            $prefix = strtoupper($parts[0]);
-            $numericId = $parts[1];
-            
-            if ($prefix === 'BT') {
-                $source = 'bank';
-            } elseif ($prefix === 'JE') {
-                $source = 'journal';
-            }
-        }
-    }
-    
-    $numericId = (int)$numericId;
-    if ($numericId <= 0) {
-        throw new Exception('Invalid transaction ID');
-    }
-    
-    // Handle bank transactions - soft delete to bin station
-    if ($source === 'bank') {
-        $conn->begin_transaction();
-        try {
-            // Check if deleted_at column exists in bank_transactions, if not add it
-            $checkCol = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
-            if ($checkCol && $checkCol->num_rows === 0) {
-                $conn->query("ALTER TABLE bank_transactions ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-                $conn->query("ALTER TABLE bank_transactions ADD COLUMN deleted_by INT NULL DEFAULT NULL");
-            }
-            
-            // Log the deletion in audit trail (if audit_logs table exists)
-            if (tableExists('audit_logs')) {
-                $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
-                             VALUES (?, 'DELETE', 'bank_transaction', ?, 'Bank transaction moved to bin', ?, NOW())";
-                $auditStmt = $conn->prepare($auditSql);
-                $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                $auditStmt->bind_param('iis', $currentUser['id'], $numericId, $ipAddress);
-                $auditStmt->execute();
-            }
-            
-            // Soft delete - set deleted_at timestamp
-            $sql = "UPDATE bank_transactions SET deleted_at = NOW(), deleted_by = ? WHERE transaction_id = ? AND deleted_at IS NULL";
-            $stmt = $conn->prepare($sql);
-            if ($stmt === false) {
-                throw new Exception("Failed to prepare statement: " . $conn->error);
-            }
-            $stmt->bind_param('ii', $currentUser['id'], $numericId);
-            if (!$stmt->execute()) {
-                throw new Exception("Failed to execute statement: " . $stmt->error);
-            }
-            
-            if ($stmt->affected_rows === 0) {
-                throw new Exception('Bank transaction not found or already deleted');
-            }
-            
-            logActivity('delete', 'transaction_reading', "Deleted bank transaction #$numericId", $conn);
-            
-            $conn->commit();
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Bank transaction moved to bin successfully',
-                'soft_delete_available' => true,
-                'transaction_id' => $originalTransactionId,
-                'numeric_id' => $numericId
-            ]);
-            
-            ob_end_flush();
-            exit();
-            
-        } catch (Exception $e) {
-            $conn->rollback();
-            throw $e;
-        }
-    }
-    
-    // Check if soft delete columns exist for journal entries
+    // Check if soft delete columns exist
     $columnsExist = checkSoftDeleteColumnsExist();
     $deletedStatusExists = checkDeletedStatusExists();
     
@@ -616,13 +458,8 @@ function softDeleteTransaction() {
                     WHERE id = ? AND status NOT IN ('voided', 'deleted')";
             
             $stmt = $conn->prepare($sql);
-            if ($stmt === false) {
-                throw new Exception("Failed to prepare statement: " . $conn->error);
-            }
-            $stmt->bind_param('ii', $currentUser['id'], $numericId);
-            if (!$stmt->execute()) {
-                throw new Exception("Failed to execute statement: " . $stmt->error);
-            }
+            $stmt->bind_param('ii', $currentUser['id'], $transactionId);
+            $stmt->execute();
         } else if ($columnsExist && !$deletedStatusExists) {
             // Has deleted_at column but status ENUM doesn't have 'deleted'
             // Use 'voided' status but still track deletion metadata
@@ -630,30 +467,20 @@ function softDeleteTransaction() {
                     SET status = 'voided',
                         deleted_at = NOW(), 
                         deleted_by = ?
-                    WHERE id = ? AND status NOT IN ('voided', 'deleted')";
+                    WHERE id = ? AND status != 'voided'";
             
             $stmt = $conn->prepare($sql);
-            if ($stmt === false) {
-                throw new Exception("Failed to prepare statement: " . $conn->error);
-            }
-            $stmt->bind_param('ii', $currentUser['id'], $numericId);
-            if (!$stmt->execute()) {
-                throw new Exception("Failed to execute statement: " . $stmt->error);
-            }
+            $stmt->bind_param('ii', $currentUser['id'], $transactionId);
+            $stmt->execute();
         } else {
             // Fallback: just update status to 'voided' (no soft delete metadata)
             $sql = "UPDATE journal_entries 
                     SET status = 'voided'
-                    WHERE id = ? AND status NOT IN ('voided', 'deleted')";
+                    WHERE id = ? AND status != 'voided'";
             
             $stmt = $conn->prepare($sql);
-            if ($stmt === false) {
-                throw new Exception("Failed to prepare statement: " . $conn->error);
-            }
-            $stmt->bind_param('i', $numericId);
-            if (!$stmt->execute()) {
-                throw new Exception("Failed to execute statement: " . $stmt->error);
-            }
+            $stmt->bind_param('i', $transactionId);
+            $stmt->execute();
         }
         
         if ($stmt->affected_rows === 0) {
@@ -668,12 +495,12 @@ function softDeleteTransaction() {
             $auditStmt = $conn->prepare($auditSql);
             $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $action = $columnsExist ? 'Transaction moved to bin' : 'Transaction voided (soft delete not available)';
-            $auditStmt->bind_param('iiss', $currentUser['id'], $numericId, $action, $ipAddress);
+            $auditStmt->bind_param('iiss', $currentUser['id'], $transactionId, $action, $ipAddress);
             $auditStmt->execute();
         }
         
         // Log activity
-        logActivity('delete', 'transaction_reading', "Deleted transaction #$numericId", $conn);
+        logActivity('delete', 'transaction_reading', "Deleted transaction #$transactionId", $conn);
         
         $conn->commit();
         
@@ -738,65 +565,14 @@ function tableExists($tableName) {
 function restoreTransaction() {
     global $conn;
     
-    $originalTransactionId = $_POST['transaction_id'] ?? '';
+    $transactionId = $_POST['transaction_id'] ?? '';
     $currentUser = getCurrentUser();
     
-    if (empty($originalTransactionId)) {
+    if (empty($transactionId)) {
         throw new Exception('Transaction ID is required');
     }
     
-    // Extract numeric ID and determine source from prefix
-    $numericId = $originalTransactionId;
-    $source = 'journal'; // default
-    
-    if (is_string($originalTransactionId) && strpos($originalTransactionId, '-') !== false) {
-        $parts = explode('-', $originalTransactionId);
-        if (count($parts) > 1) {
-            $prefix = strtoupper($parts[0]);
-            $numericId = (int)$parts[1];
-            if ($prefix === 'BT') {
-                $source = 'bank';
-            }
-        }
-    }
-    $numericId = (int)$numericId;
-    
-    if ($numericId <= 0) {
-        throw new Exception('Invalid transaction ID');
-    }
-    
-    // Handle bank transaction restore
-    if ($source === 'bank') {
-        $conn->begin_transaction();
-        try {
-            $sql = "UPDATE bank_transactions SET deleted_at = NULL, deleted_by = NULL WHERE transaction_id = ? AND deleted_at IS NOT NULL";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param('i', $numericId);
-            $stmt->execute();
-            
-            if ($stmt->affected_rows === 0) {
-                throw new Exception('Bank transaction not found in bin');
-            }
-            
-            logActivity('restore', 'transaction_reading', "Restored bank transaction #$numericId", $conn);
-            
-            $conn->commit();
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Bank transaction restored successfully'
-            ]);
-            
-            ob_end_flush();
-            exit();
-            
-        } catch (Exception $e) {
-            $conn->rollback();
-            throw $e;
-        }
-    }
-    
-    // Start transaction for journal entries
+    // Start transaction
     $conn->begin_transaction();
     
     try {
@@ -804,49 +580,24 @@ function restoreTransaction() {
         $hasDeletedAt = checkSoftDeleteColumnsExist();
         $hasDeletedStatus = checkDeletedStatusExists();
         
-        // Check if restored_at and restored_by columns exist
-        $hasRestoredColumns = false;
-        try {
-            $result = $conn->query("SHOW COLUMNS FROM journal_entries LIKE 'restored_at'");
-            $hasRestoredColumns = $result && $result->num_rows > 0;
-        } catch (Exception $e) {
-            $hasRestoredColumns = false;
-        }
-        
         if ($hasDeletedAt && $hasDeletedStatus) {
             // Full soft delete: restore from 'deleted' status to 'posted'
-            if ($hasRestoredColumns) {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted', 
-                            deleted_at = NULL, 
-                            deleted_by = NULL,
-                            restored_at = NOW(),
-                            restored_by = ?
-                        WHERE id = ? AND status = 'deleted'";
-            } else {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted', 
-                            deleted_at = NULL, 
-                            deleted_by = NULL
-                        WHERE id = ? AND status = 'deleted'";
-            }
+            $sql = "UPDATE journal_entries 
+                    SET status = 'posted', 
+                        deleted_at = NULL, 
+                        deleted_by = NULL,
+                        restored_at = NOW(),
+                        restored_by = ?
+                    WHERE id = ? AND status = 'deleted'";
         } else if ($hasDeletedAt && !$hasDeletedStatus) {
             // Has deleted_at but no 'deleted' status: restore from 'voided' with deleted_at to 'posted'
-            if ($hasRestoredColumns) {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted',
-                            deleted_at = NULL, 
-                            deleted_by = NULL,
-                            restored_at = NOW(),
-                            restored_by = ?
-                        WHERE id = ? AND status = 'voided' AND deleted_at IS NOT NULL";
-            } else {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted',
-                            deleted_at = NULL, 
-                            deleted_by = NULL
-                        WHERE id = ? AND status = 'voided' AND deleted_at IS NOT NULL";
-            }
+            $sql = "UPDATE journal_entries 
+                    SET status = 'posted',
+                        deleted_at = NULL, 
+                        deleted_by = NULL,
+                        restored_at = NOW(),
+                        restored_by = ?
+                    WHERE id = ? AND status = 'voided' AND deleted_at IS NOT NULL";
         } else {
             // No soft delete columns: restore from 'voided' status to 'posted'
             $sql = "UPDATE journal_entries 
@@ -854,22 +605,15 @@ function restoreTransaction() {
                     WHERE id = ? AND status = 'voided'";
         }
         
-        $stmt = $conn->prepare($sql);
-        if ($stmt === false) {
-            throw new Exception("Failed to prepare statement: " . $conn->error);
-        }
-        
-        if ($hasDeletedAt && $hasRestoredColumns) {
-            $stmt->bind_param('ii', $currentUser['id'], $numericId);
-        } else if ($hasDeletedAt) {
-            $stmt->bind_param('i', $numericId);
+        if ($hasDeletedAt) {
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('ii', $currentUser['id'], $transactionId);
         } else {
-            $stmt->bind_param('i', $numericId);
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $transactionId);
         }
         
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to execute statement: " . $stmt->error);
-        }
+        $stmt->execute();
         
         if ($stmt->affected_rows === 0) {
             throw new Exception('Transaction not found or not in bin');
@@ -909,17 +653,18 @@ function restoreTransaction() {
 function getBinItems() {
     global $conn;
     
-    $items = [];
-    
-    // 1. Get deleted journal entries
+    // Check if we have deleted_at column for proper soft delete tracking
     $hasDeletedAt = checkSoftDeleteColumnsExist();
     $hasDeletedStatus = checkDeletedStatusExists();
     
     if ($hasDeletedAt) {
+        // Use deleted_at column to find deleted items
         $whereClause = "je.deleted_at IS NOT NULL";
     } else if ($hasDeletedStatus) {
+        // Use status = 'deleted'
         $whereClause = "je.status = 'deleted'";
     } else {
+        // Fallback: look for voided status (our current implementation)
         $whereClause = "je.status = 'voided'";
     }
     
@@ -943,39 +688,11 @@ function getBinItems() {
             ORDER BY " . ($hasDeletedAt ? "je.deleted_at" : "je.updated_at") . " DESC";
     
     $result = $conn->query($sql);
+    
+    $items = [];
     if ($result) {
         while ($row = $result->fetch_assoc()) {
             $items[] = $row;
-        }
-    }
-    
-    // 2. Get deleted bank transactions
-    $checkBankDeletedAt = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
-    if ($checkBankDeletedAt && $checkBankDeletedAt->num_rows > 0) {
-        $bankSql = "SELECT 
-                        bt.transaction_id as id,
-                        bt.transaction_ref as journal_no,
-                        DATE(bt.created_at) as entry_date,
-                        COALESCE(bt.description, 'Bank Transaction') as description,
-                        bt.transaction_ref as reference_no,
-                        CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END as total_debit,
-                        CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END as total_credit,
-                        bt.deleted_at,
-                        tt.type_name as type_code,
-                        tt.type_name as type_name,
-                        NULL as deleted_by_username,
-                        NULL as deleted_by_name,
-                        'bank_transaction' as item_type
-                    FROM bank_transactions bt
-                    INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
-                    WHERE bt.deleted_at IS NOT NULL
-                    ORDER BY bt.deleted_at DESC";
-        
-        $bankResult = $conn->query($bankSql);
-        if ($bankResult) {
-            while ($row = $bankResult->fetch_assoc()) {
-                $items[] = $row;
-            }
         }
     }
     
@@ -1051,62 +768,45 @@ function permanentDeleteTransaction() {
 }
 
 /**
- * Permanently delete a bank transaction from bin
+ * Test API endpoint to debug issues
  */
-function permanentDeleteBankTransaction() {
+function testAPI() {
+    global $conn;
+    
+    $currentUser = getCurrentUser();
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'API is working',
+        'user' => $currentUser,
+        'database_connected' => $conn ? true : false,
+        'timestamp' => date('Y-m-d H:i:s'),
+        'php_version' => PHP_VERSION
+    ]);
+    
+    ob_end_flush();
+    exit();
+}
+
+/**
+ * Simple delete test - minimal logic
+ */
+function testDeleteSimple() {
     global $conn;
     
     $transactionId = $_POST['transaction_id'] ?? '';
     $currentUser = getCurrentUser();
     
-    if (empty($transactionId)) {
-        throw new Exception('Transaction ID is required');
-    }
+    echo json_encode([
+        'success' => true,
+        'message' => 'Simple delete test successful',
+        'transaction_id' => $transactionId,
+        'user_id' => $currentUser['id'] ?? 'no user',
+        'database_connected' => $conn ? true : false,
+    ]);
     
-    $numericId = (int)$transactionId;
-    if ($numericId <= 0) {
-        throw new Exception('Invalid transaction ID');
-    }
-    
-    $conn->begin_transaction();
-    
-    try {
-        // Log the permanent deletion in audit trail
-        if (tableExists('audit_logs')) {
-            $auditSql = "INSERT INTO audit_logs (user_id, action, object_type, object_id, additional_info, ip_address, created_at) 
-                         VALUES (?, 'PERMANENT_DELETE', 'bank_transaction', ?, 'Bank transaction permanently deleted from bin', ?, NOW())";
-            $auditStmt = $conn->prepare($auditSql);
-            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            $auditStmt->bind_param('iis', $currentUser['id'], $numericId, $ipAddress);
-            $auditStmt->execute();
-        }
-        
-        // Permanently delete the bank transaction
-        $deleteSql = "DELETE FROM bank_transactions WHERE transaction_id = ? AND deleted_at IS NOT NULL";
-        $deleteStmt = $conn->prepare($deleteSql);
-        $deleteStmt->bind_param('i', $numericId);
-        $deleteStmt->execute();
-        
-        if ($deleteStmt->affected_rows === 0) {
-            throw new Exception('Bank transaction not found or not in bin');
-        }
-        
-        logActivity('permanent_delete', 'transaction_reading', "Permanently deleted bank transaction #$numericId from bin", $conn);
-        
-        $conn->commit();
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Bank transaction permanently deleted'
-        ]);
-        
-        ob_end_flush();
-        exit();
-        
-    } catch (Exception $e) {
-        $conn->rollback();
-        throw $e;
-    }
+    ob_end_flush();
+    exit();
 }
 
 /**
@@ -1126,51 +826,26 @@ function restoreAllTransactions() {
         $hasDeletedAt = checkSoftDeleteColumnsExist();
         $hasDeletedStatus = checkDeletedStatusExists();
         
-        // Check if restored_at and restored_by columns exist
-        $hasRestoredColumns = false;
-        try {
-            $result = $conn->query("SHOW COLUMNS FROM journal_entries LIKE 'restored_at'");
-            $hasRestoredColumns = $result && $result->num_rows > 0;
-        } catch (Exception $e) {
-            $hasRestoredColumns = false;
-        }
-        
         $restoredCount = 0;
         
         if ($hasDeletedAt && $hasDeletedStatus) {
             // Full soft delete: restore from 'deleted' status
-            if ($hasRestoredColumns) {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted', 
-                            deleted_at = NULL, 
-                            deleted_by = NULL,
-                            restored_at = NOW(),
-                            restored_by = ?
-                        WHERE status = 'deleted'";
-            } else {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted', 
-                            deleted_at = NULL, 
-                            deleted_by = NULL
-                        WHERE status = 'deleted'";
-            }
+            $sql = "UPDATE journal_entries 
+                    SET status = 'posted', 
+                        deleted_at = NULL, 
+                        deleted_by = NULL,
+                        restored_at = NOW(),
+                        restored_by = ?
+                    WHERE status = 'deleted'";
         } else if ($hasDeletedAt && !$hasDeletedStatus) {
             // Has deleted_at but no 'deleted' status: restore from 'voided' with deleted_at
-            if ($hasRestoredColumns) {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted',
-                            deleted_at = NULL, 
-                            deleted_by = NULL,
-                            restored_at = NOW(),
-                            restored_by = ?
-                        WHERE status = 'voided' AND deleted_at IS NOT NULL";
-            } else {
-                $sql = "UPDATE journal_entries 
-                        SET status = 'posted',
-                            deleted_at = NULL, 
-                            deleted_by = NULL
-                        WHERE status = 'voided' AND deleted_at IS NOT NULL";
-            }
+            $sql = "UPDATE journal_entries 
+                    SET status = 'posted',
+                        deleted_at = NULL, 
+                        deleted_by = NULL,
+                        restored_at = NOW(),
+                        restored_by = ?
+                    WHERE status = 'voided' AND deleted_at IS NOT NULL";
         } else {
             // No soft delete columns: restore from 'voided' status
             $sql = "UPDATE journal_entries 
@@ -1178,23 +853,14 @@ function restoreAllTransactions() {
                     WHERE status = 'voided'";
         }
         
-        $stmt = $conn->prepare($sql);
-        if ($stmt === false) {
-            throw new Exception("Failed to prepare statement: " . $conn->error);
-        }
-        
-        if ($hasDeletedAt && $hasRestoredColumns) {
+        if ($hasDeletedAt) {
+            $stmt = $conn->prepare($sql);
             $stmt->bind_param('i', $currentUser['id']);
-        } else if ($hasDeletedAt) {
-            // No parameters needed if no restored columns
         } else {
-            // No parameters needed
+            $stmt = $conn->prepare($sql);
         }
         
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to execute statement: " . $stmt->error);
-        }
-        
+        $stmt->execute();
         $restoredCount = $stmt->affected_rows;
         
         // Log the restoration in audit trail
@@ -1208,31 +874,15 @@ function restoreAllTransactions() {
             $auditStmt->execute();
             
             // Log activity
-            logActivity('restore_all', 'transaction_reading', "Restored $restoredCount journal entries from bin", $conn);
+            logActivity('restore_all', 'transaction_reading', "Restored $restoredCount transactions from bin", $conn);
         }
-        
-        // Also restore bank transactions
-        $bankRestoredCount = 0;
-        $checkBankDeletedAt = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
-        if ($checkBankDeletedAt && $checkBankDeletedAt->num_rows > 0) {
-            $bankSql = "UPDATE bank_transactions SET deleted_at = NULL, deleted_by = NULL WHERE deleted_at IS NOT NULL";
-            $bankResult = $conn->query($bankSql);
-            if ($bankResult) {
-                $bankRestoredCount = $conn->affected_rows;
-            }
-            if ($bankRestoredCount > 0) {
-                logActivity('restore_all', 'transaction_reading', "Restored $bankRestoredCount bank transactions from bin", $conn);
-            }
-        }
-        
-        $totalRestored = $restoredCount + $bankRestoredCount;
         
         $conn->commit();
         
         echo json_encode([
             'success' => true,
-            'message' => "Successfully restored $totalRestored transactions ($restoredCount journal entries, $bankRestoredCount bank transactions)",
-            'restored_count' => $totalRestored
+            'message' => "Successfully restored $restoredCount transactions",
+            'restored_count' => $restoredCount
         ]);
         
         ob_end_flush();
@@ -1266,13 +916,13 @@ function emptyBinTransactions() {
         $auditStmt->bind_param('is', $currentUser['id'], $ipAddress);
         $auditStmt->execute();
         
-        // Get count of journal entries to be deleted
+        // Get count of items to be deleted
         $countSql = "SELECT COUNT(*) as count FROM journal_entries WHERE status IN ('deleted', 'voided')";
         $countResult = $conn->query($countSql);
         $countRow = $countResult->fetch_assoc();
-        $journalDeletedCount = $countRow['count'];
+        $deletedCount = $countRow['count'];
         
-        if ($journalDeletedCount > 0) {
+        if ($deletedCount > 0) {
             // Delete journal lines first (foreign key constraint)
             $deleteLinesSql = "DELETE jl FROM journal_lines jl 
                                INNER JOIN journal_entries je ON jl.journal_entry_id = je.id 
@@ -1283,33 +933,16 @@ function emptyBinTransactions() {
             $deleteEntrySql = "DELETE FROM journal_entries WHERE status IN ('deleted', 'voided')";
             $conn->query($deleteEntrySql);
             
-            logActivity('empty_bin', 'transaction_reading', "Permanently deleted $journalDeletedCount journal entries from bin", $conn);
+            // Log activity
+            logActivity('empty_bin', 'transaction_reading', "Permanently deleted $deletedCount transactions from bin", $conn);
         }
-        
-        // Also delete bank transactions in bin
-        $bankDeletedCount = 0;
-        $checkBankDeletedAt = $conn->query("SHOW COLUMNS FROM bank_transactions LIKE 'deleted_at'");
-        if ($checkBankDeletedAt && $checkBankDeletedAt->num_rows > 0) {
-            $bankCountSql = "SELECT COUNT(*) as count FROM bank_transactions WHERE deleted_at IS NOT NULL";
-            $bankCountResult = $conn->query($bankCountSql);
-            $bankCountRow = $bankCountResult->fetch_assoc();
-            $bankDeletedCount = $bankCountRow['count'];
-            
-            if ($bankDeletedCount > 0) {
-                $deleteBankSql = "DELETE FROM bank_transactions WHERE deleted_at IS NOT NULL";
-                $conn->query($deleteBankSql);
-                logActivity('empty_bin', 'transaction_reading', "Permanently deleted $bankDeletedCount bank transactions from bin", $conn);
-            }
-        }
-        
-        $totalDeleted = $journalDeletedCount + $bankDeletedCount;
         
         $conn->commit();
         
         echo json_encode([
             'success' => true,
-            'message' => "Successfully permanently deleted $totalDeleted transactions ($journalDeletedCount journal entries, $bankDeletedCount bank transactions)",
-            'deleted_count' => $totalDeleted
+            'message' => "Successfully permanently deleted $deletedCount transactions",
+            'deleted_count' => $deletedCount
         ]);
         
         ob_end_flush();

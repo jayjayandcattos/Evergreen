@@ -266,5 +266,3 @@ $db_name = 'BankingDB';
     </div>
 </body>
 </html>
-
-

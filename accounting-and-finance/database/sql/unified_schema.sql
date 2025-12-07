@@ -98,6 +98,7 @@ CREATE TABLE employee (
     contact_number VARCHAR(20) DEFAULT NULL,
     email VARCHAR(100) DEFAULT NULL,
     address VARCHAR(255) DEFAULT NULL,
+<<<<<<< HEAD
     house_number VARCHAR(50) DEFAULT NULL,
     street VARCHAR(100) DEFAULT NULL,
     barangay VARCHAR(100) DEFAULT NULL,
@@ -105,6 +106,8 @@ CREATE TABLE employee (
     province VARCHAR(100) DEFAULT NULL,
     secondary_email VARCHAR(100) DEFAULT NULL,
     secondary_contact_number VARCHAR(20) DEFAULT NULL,
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     hire_date DATE DEFAULT NULL,
     department_id INT DEFAULT NULL,
     position_id INT DEFAULT NULL,
@@ -230,6 +233,7 @@ CREATE TABLE applicant (
     resume_file VARCHAR(255) DEFAULT NULL,
     application_status VARCHAR(20) DEFAULT NULL,
     archived_at DATETIME DEFAULT NULL,
+<<<<<<< HEAD
     offer_status ENUM('Pending', 'Accepted', 'Declined') DEFAULT 'Pending',
     offer_token VARCHAR(100) UNIQUE DEFAULT NULL,
     offer_sent_at DATETIME DEFAULT NULL,
@@ -237,6 +241,9 @@ CREATE TABLE applicant (
     offer_declined_at DATETIME DEFAULT NULL,
     INDEX idx_recruitment_id (recruitment_id),
      INDEX idx_offer_token (offer_token),
+=======
+    INDEX idx_recruitment_id (recruitment_id),
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     FOREIGN KEY (recruitment_id) REFERENCES recruitment(recruitment_id)
 );
 
@@ -285,6 +292,7 @@ CREATE TABLE system_logs (
 -- ========================================
 -- BANKING MODULE
 -- ========================================
+<<<<<<< HEAD
 CREATE TABLE account_applications (
     application_id INT AUTO_INCREMENT PRIMARY KEY,
     application_number VARCHAR(50) NOT NULL,
@@ -320,13 +328,28 @@ CREATE TABLE account_applications (
     INDEX idx_status (application_status),
     INDEX idx_submitted_at (submitted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 
 CREATE TABLE missions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mission_text VARCHAR(255) NOT NULL,
     points_value DECIMAL(10,2) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+=======
+);
+
+CREATE TABLE `points_history` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `points` decimal(10,2) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `transaction_type` enum('mission','redemption','referral','bonus') DEFAULT 'mission',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 
 CREATE TABLE bank_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -341,7 +364,10 @@ CREATE TABLE bank_users (
     password VARCHAR(255) NOT NULL,
     verification_code VARCHAR(100) DEFAULT NULL,
     bank_id VARCHAR(50) DEFAULT NULL,
+<<<<<<< HEAD
     referral_code VARCHAR(50) DEFAULT NULL,
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     total_points DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_verified BOOLEAN NOT NULL,
@@ -349,6 +375,23 @@ CREATE TABLE bank_users (
     INDEX idx_bank_id (bank_id)
 );
 
+<<<<<<< HEAD
+=======
+CREATE TABLE user_missions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    customer_id INT DEFAULT NULL,
+    mission_id INT NOT NULL,
+    points_earned DECIMAL(10,2) NOT NULL,
+    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_mission (user_id, mission_id),
+    INDEX idx_mission_id (mission_id),
+    INDEX idx_customer_id (customer_id),
+    FOREIGN KEY (user_id) REFERENCES bank_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+);
+
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 CREATE TABLE genders (
     gender_id INT AUTO_INCREMENT PRIMARY KEY,
     gender_name VARCHAR(50) NOT NULL,
@@ -392,6 +435,7 @@ CREATE TABLE bank_customers (
     last_name VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50) DEFAULT NULL,
+<<<<<<< HEAD
     address VARCHAR(255) DEFAULT NULL,
     city_province VARCHAR(100) DEFAULT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -456,6 +500,21 @@ CREATE TABLE bank_employees (
   UNIQUE KEY idx_username (username),
   UNIQUE KEY idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+=======
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by_employee_id INT DEFAULT NULL,
+    INDEX idx_email (email),
+    INDEX idx_created_by_employee_id (created_by_employee_id)
+);
+
+CREATE TABLE bank_employees (
+    employee_id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 
 CREATE TABLE bank_account_types (
     account_type_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -477,6 +536,7 @@ CREATE TABLE bank_accounts (
     INDEX idx_code (code)
 );
 
+<<<<<<< HEAD
 CREATE TABLE employment_statuses (
     employment_status_id INT AUTO_INCREMENT PRIMARY KEY,
     status_name VARCHAR(50) NOT NULL UNIQUE,
@@ -497,6 +557,8 @@ CREATE TABLE source_of_funds (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 CREATE TABLE customer_accounts (
     account_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
@@ -507,12 +569,15 @@ CREATE TABLE customer_accounts (
     is_locked BOOLEAN DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_employee_id INT DEFAULT NULL,
+<<<<<<< HEAD
     maintaining_balance_required DECIMAL(10,2) DEFAULT 500.00,
     monthly_service_fee DECIMAL(10,2) DEFAULT 100.00,
     below_maintaining_since DATE NULL,
     account_status ENUM('active', 'below_maintaining', 'flagged_for_removal', 'closed'),
     last_service_fee_date DATE NULL,
     closure_warning_date DATE NULL,  
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     UNIQUE KEY account_number (account_number),
     INDEX idx_customer_id (customer_id),
     INDEX idx_account_type_id (account_type_id),
@@ -880,7 +945,10 @@ CREATE TABLE loan_payments (
 
 CREATE TABLE loan_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
+<<<<<<< HEAD
     loan_type_id int(11) DEFAULT NULL,
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     -- Applicant information
     full_name VARCHAR(100) DEFAULT NULL,
     account_number VARCHAR(50) DEFAULT NULL,
@@ -891,6 +959,10 @@ CREATE TABLE loan_applications (
     user_email VARCHAR(255) NOT NULL,
     -- Requested loan details (transferred to loans table when approved)
     loan_type VARCHAR(50) DEFAULT NULL,
+<<<<<<< HEAD
+=======
+    loan_type_id INT DEFAULT NULL,
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     loan_terms VARCHAR(50) DEFAULT NULL,
     loan_amount DECIMAL(12,2) DEFAULT NULL,
     purpose TEXT DEFAULT NULL,
@@ -913,9 +985,12 @@ CREATE TABLE loan_applications (
     proof_of_income VARCHAR(255) DEFAULT NULL,
     coe_document VARCHAR(255) DEFAULT NULL,
     pdf_path VARCHAR(255) DEFAULT NULL,
+<<<<<<< HEAD
     pdf_approved VARCHAR(255) DEFAULT NULL,
     pdf_active VARCHAR(255) DEFAULT NULL,
     pdf_rejected VARCHAR(255) DEFAULT NULL,
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
     -- Link to approved loan (set when application is approved and loan created)
     loan_id BIGINT DEFAULT NULL,
     FOREIGN KEY (loan_type_id) REFERENCES loan_types(id) ON DELETE SET NULL,
@@ -931,11 +1006,14 @@ CREATE TABLE loan_applications (
     INDEX idx_loan_id (loan_id)
 );
 
+<<<<<<< HEAD
 CREATE TABLE `loan_application_types` (
   `id` int(11) NOT NULL,
   `name` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 
 ALTER TABLE loans 
 ADD CONSTRAINT fk_loans_application_id 
@@ -1035,7 +1113,20 @@ CREATE TABLE integration_logs (
     INDEX idx_created_at (created_at)
 );
 
+<<<<<<< HEAD
 
+=======
+ALTER TABLE bank_customers 
+ADD COLUMN referral_code VARCHAR(20) UNIQUE NULL,
+ADD COLUMN total_points DECIMAL(10,2) DEFAULT 0.00,
+ADD COLUMN referred_by_customer_id INT NULL,
+ADD INDEX idx_referral_code (referral_code),
+ADD INDEX idx_referred_by (referred_by_customer_id);
+
+ALTER TABLE bank_customers 
+ADD CONSTRAINT fk_referred_by 
+FOREIGN KEY (referred_by_customer_id) REFERENCES bank_customers(customer_id) ON DELETE SET NULL;
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 
 -- ========================================
 -- VIEWS
@@ -1121,6 +1212,10 @@ GROUP BY tt.type_name;
 
 -- Ensure user_account table has role column with correct type
 -- This is safe to run even if column already exists
+<<<<<<< HEAD
+=======
+
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 SET @db_exists = (SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'BankingDB');
 
 SET @table_exists = (
@@ -1247,8 +1342,13 @@ ON DUPLICATE KEY UPDATE
 -- Step 1: Normalize ALL leave_request status values to 'Approved' (consistent case)
 -- This fixes both 'approved' (lowercase) and 'Approved' (capitalized) to be consistent
 UPDATE leave_request 
+<<<<<<< HEAD
 SET status = 'Declined' 
 WHERE UPPER(TRIM(status)) = 'REJECTED';
+=======
+SET status = 'Approved' 
+WHERE UPPER(TRIM(status)) = 'APPROVED';
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 
 -- Step 2: Ensure employees 22 and 3 are Active
 UPDATE employee 
@@ -1287,6 +1387,7 @@ SET status = 'Approved',
 WHERE leave_request_id = 2 
 AND employee_id = 3;
 
+<<<<<<< HEAD
 -- ========================================
 -- ADDRESS FIELD MIGRATION
 -- ========================================
@@ -1303,6 +1404,8 @@ WHERE address IS NOT NULL AND address != '' AND city IS NULL;
 UPDATE employee 
 SET province = COALESCE(province, 'Metro Manila')
 WHERE province IS NULL;
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 -- Step 6: Add/update index for better query performance on leave_request
 -- Check if index exists before dropping (safer approach)
 SET @index_exists = (
@@ -1375,4 +1478,8 @@ SELECT '=== FIX COMPLETE ===' as status;
 
 -- ========================================
 -- END OF UNIFIED SCHEMA
+<<<<<<< HEAD
 -- ========================================
+=======
+-- ========================================
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383

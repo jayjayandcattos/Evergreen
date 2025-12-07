@@ -65,6 +65,8 @@ class Customer extends Database{
             SELECT
                 a.account_id,
                 a.account_number,
+                a.account_type_id,
+                act.type_name AS type_name,
                 act.type_name AS account_type,
                 c.first_name,
                 c.last_name,
@@ -94,7 +96,7 @@ class Customer extends Database{
             WHERE 
                 cla.customer_id = :customer_id AND cla.is_active = 1 AND a.is_locked = 0
             GROUP BY 
-                a.account_id, a.account_number, act.type_name, c.first_name, c.last_name
+                a.account_id, a.account_number, a.account_type_id, act.type_name, c.first_name, c.last_name
             ORDER BY a.created_at DESC;
         ");
 
@@ -935,18 +937,18 @@ class Customer extends Database{
         )
         VALUES (
             :transaction_ref,
-            :receiver,
+            :sender,
             :transaction_type,
             :amount,
-            :sender,
+            :receiver,
             :message
         );
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
-        $this->db->bind(':receiver', $receiver);
-        $this->db->bind(':transaction_type', 9); // Transfer In (ID 9)
+        $this->db->bind(':sender', $receiver);
+        $this->db->bind(':transaction_type', 9);
         $this->db->bind(':amount', $amount);
-        $this->db->bind(':sender', $sender);
+        $this->db->bind(':receiver', $sender);
         $this->db->bind(':message', $message);
         $this->db->execute();
     }
@@ -1154,21 +1156,22 @@ class Customer extends Database{
     {
         $this->db->query("
             SELECT
-                ca.account_number,
                 la.id AS application_id,
+                la.account_number,
                 la.loan_type,
-                la.loan_amount AS remaining_balance, -- NULL if no active loan application
-                DATE_FORMAT(la.created_at, '%M %d, %Y') AS application_date
+                la.loan_amount AS remaining_balance,
+                DATE_FORMAT(la.created_at, '%M %d, %Y') AS application_date,
+                la.status
             FROM
-                customer_accounts ca
-            LEFT JOIN
-                loan_applications la 
-                ON ca.account_number = la.account_number
-                AND la.status = 'Approved'       -- Only join to approved applications
+                loan_applications la
+            INNER JOIN
+                customer_accounts ca ON la.account_number = ca.account_number
             WHERE
                 ca.customer_id = :customer_id
+                AND la.status = 'Active'
+                AND la.loan_amount > 0
             ORDER BY
-                ca.account_number, la.loan_amount DESC;
+                la.created_at DESC;
         ");
         $this->db->bind(':customer_id', $customerId);
         return $this->db->resultSet();
@@ -1188,7 +1191,7 @@ class Customer extends Database{
             SELECT la.id, la.loan_amount, la.status
             FROM loan_applications la
             INNER JOIN customer_accounts ca ON la.account_number = ca.account_number
-            WHERE la.id = :application_id AND ca.customer_id = :customer_id AND la.status = 'Approved'
+            WHERE la.id = :application_id AND ca.customer_id = :customer_id AND la.status = 'Active'
         ");
         $this->db->bind(':application_id', $applicationId);
         $this->db->bind(':customer_id', $customerId);

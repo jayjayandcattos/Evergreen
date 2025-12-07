@@ -38,19 +38,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (empty($email) || empty($bank_id)) {
             $error = "Please fill in all fields.";
         } else {
-            // Check database connection
-            if (isset($db_connection_error) || !isset($conn) || $conn->connect_error) {
-                $error = "Database connection failed. Please try again later.";
-            } else {
-                $sql = "SELECT customer_id, first_name FROM bank_customers WHERE email = ? AND bank_id = ?";
-                $stmt = $conn->prepare($sql);
-                
-                if ($stmt === false) {
-                    $error = "Database error: " . $conn->error;
-                } else {
-                    $stmt->bind_param("ss", $email, $bank_id);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
+            $sql = "SELECT customer_id, first_name FROM bank_customers WHERE email = ? AND bank_id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("ss", $email, $bank_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
             
             if ($result && $result->num_rows === 1) {
                 $row = $result->fetch_assoc();
@@ -68,10 +60,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 try {
                     // Server settings
                     $mail->isSMTP();
-                    $mail->Host       = 'smtp.gmail.com'; // Change to your SMTP host
+                    $mail->Host       = 'smtp.gmail.com';
                     $mail->SMTPAuth   = true;
-                    $mail->Username   = 'evrgrn.64@gmail.com'; // Your email
-                    $mail->Password   = 'dourhhbymvjejuct'; // Your app password
+                    $mail->Username   = 'evrgrn.64@gmail.com';
+                    $mail->Password   = 'dourhhbymvjejuct'; 
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                     $mail->Port       = 587;
                     
@@ -109,12 +101,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     // Optional: Log the error for debugging
                     // error_log("Mailer Error: " . $mail->ErrorInfo);
                 }
-                } else {
-                    $error = "No account found with this email and Bank ID.";
-                }
-                    $stmt->close();
-                }
+            } else {
+                $error = "No account found with this email and Bank ID.";
             }
+            $stmt->close();
         }
     } elseif (isset($_POST['verify_otp'])) {
         // Step 2: Verify OTP
@@ -158,39 +148,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $error = "Password must be at least 8 characters long.";
                 $step = 3;
             } else {
-                // Check database connection
-                if (isset($db_connection_error) || !isset($conn) || $conn->connect_error) {
-                    $error = "Database connection failed. Please try again later.";
-                    $step = 3;
+                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                $user_id = $_SESSION['reset_user_id'];
+                
+                $sql = "UPDATE bank_customers SET password = ? WHERE customer_id = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("si", $hashed_password, $user_id);
+                
+                if ($stmt->execute()) {
+                    $success = true;
+                    unset($_SESSION['reset_user_id']);
+                    unset($_SESSION['reset_email']);
+                    unset($_SESSION['reset_otp']);
+                    unset($_SESSION['otp_time']);
+                    unset($_SESSION['otp_verified']);
                 } else {
-                    $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                    $user_id = $_SESSION['reset_user_id'];
-                    
-                    // Fix: Use password_hash column name (matches login.php) and add error handling
-                    $sql = "UPDATE bank_customers SET password_hash = ? WHERE customer_id = ?";
-                    $stmt = $conn->prepare($sql);
-                    
-                    // Check if prepare succeeded before binding parameters
-                    if ($stmt === false) {
-                        $error = "Database error: " . $conn->error;
-                        $step = 3;
-                    } else {
-                        $stmt->bind_param("si", $hashed_password, $user_id);
-                        
-                        if ($stmt->execute()) {
-                            $success = true;
-                            unset($_SESSION['reset_user_id']);
-                            unset($_SESSION['reset_email']);
-                            unset($_SESSION['reset_otp']);
-                            unset($_SESSION['otp_time']);
-                            unset($_SESSION['otp_verified']);
-                        } else {
-                            $error = "Failed to reset password. Please try again. Error: " . $stmt->error;
-                            $step = 3;
-                        }
-                        $stmt->close();
-                    }
+                    $error = "Failed to reset password. Please try again.";
+                    $step = 3;
                 }
+                $stmt->close();
             }
         }
     } elseif (isset($_POST['resend_otp'])) {
@@ -200,22 +176,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['reset_otp'] = $otp;
             $_SESSION['otp_time'] = time();
             
-            // Check database connection
-            if (isset($db_connection_error) || !isset($conn) || $conn->connect_error) {
-                $error = "Database connection failed. Please try again later.";
-                $step = 2;
-            } else {
-                $sql = "SELECT first_name FROM bank_customers WHERE customer_id = ?";
-                $stmt = $conn->prepare($sql);
-                
-                if ($stmt === false) {
-                    $error = "Database error: " . $conn->error;
-                    $step = 2;
-                } else {
-                    $stmt->bind_param("i", $_SESSION['reset_user_id']);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    $row = $result->fetch_assoc();
+            $sql = "SELECT first_name FROM bank_customers WHERE customer_id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $_SESSION['reset_user_id']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
             
             // Send OTP via PHPMailer
             $mail = new PHPMailer(true);
@@ -258,14 +224,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 $mail->send();
                 $step = 2;
-                } catch (Exception $e) {
-                    $error = "Failed to resend verification code. Please try again.";
-                    $step = 2;
-                }
-                
-                $stmt->close();
-                }
+            } catch (Exception $e) {
+                $error = "Failed to resend verification code. Please try again.";
             }
+            
+            $stmt->close();
         }
     }
 }

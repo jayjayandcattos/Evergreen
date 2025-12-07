@@ -310,6 +310,110 @@ echo password_hash('your_new_password', PASSWORD_DEFAULT);
 - [✅] All existing queries work
 - [✅] No data loss
 - [✅] Backward compatible
+- [✅] Logout functionality implemented
+
+---
+
+## Post-Migration Updates
+
+### Logout Button Fix (November 29, 2025)
+
+**Issue:** Logout button on employee dashboard was not working.
+
+**Root Cause:**
+
+- Dashboard JavaScript was calling `checkAuthentication()` directly
+- This bypassed the `initAuthentication()` function which sets up event listeners
+- Logout button had no click handler attached
+
+**Solution Implemented:**
+
+**File Modified:** `assets/js/employee-dashboard.js`
+
+**Before:**
+
+```javascript
+document.addEventListener("DOMContentLoaded", async function () {
+  const employee = await checkAuthentication();
+  if (employee) {
+    updateEmployeeDisplay(employee);
+    // ... rest of code
+  }
+});
+```
+
+**After:**
+
+```javascript
+document.addEventListener("DOMContentLoaded", async function () {
+  // Initialize authentication (includes logout button setup)
+  const employee = await initAuthentication();
+
+  if (employee) {
+    // ... rest of code
+  }
+});
+```
+
+**How It Works:**
+
+1. `initAuthentication()` function (in auth-helper.js):
+
+   - Calls `checkAuthentication()` to verify session
+   - Updates employee name display
+   - **Sets up logout button event listener**
+
+   ```javascript
+   const logoutBtn = document.getElementById("logoutBtn");
+   if (logoutBtn) {
+     logoutBtn.addEventListener("click", handleLogout);
+   }
+   ```
+
+2. `handleLogout()` function:
+   - Shows confirmation dialog
+   - Calls `../api/auth/employee-logout.php`
+   - Clears session storage
+   - Redirects to login page
+
+**Logout Flow:**
+
+```
+User clicks logout button
+  ↓
+Confirmation dialog: "Are you sure you want to logout?"
+  ↓ (Yes)
+Fetch API call to employee-logout.php
+  ↓
+Server destroys PHP session
+  ↓
+Client clears sessionStorage
+  ↓
+Redirect to employee-login.html
+```
+
+**Files Involved:**
+
+- ✅ `assets/js/employee-dashboard.js` - Updated to use initAuthentication()
+- ✅ `assets/js/auth-helper.js` - Contains logout logic (no changes needed)
+- ✅ `api/auth/employee-logout.php` - Server-side logout endpoint (existing)
+- ✅ `public/employee-dashboard.html` - Logout button HTML (existing)
+
+**Testing:**
+
+- [✅] Logout button displays correctly
+- [✅] Click shows confirmation dialog
+- [✅] Confirming logout clears session
+- [✅] Redirects to login page
+- [✅] Cannot access dashboard after logout
+- [✅] Login works after logout
+
+**Impact:**
+
+- No database changes
+- No API changes
+- JavaScript-only fix
+- Improves security by allowing proper session termination
 
 ---
 

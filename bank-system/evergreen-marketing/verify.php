@@ -14,42 +14,6 @@ include("db_connect.php");
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-/**
- * Generate unique account number based on account type prefix
- * Format: PREFIX-XXXX-YYYY (e.g., SA-1234-2025)
- * @param mysqli $conn Database connection
- * @param string $prefix Account type prefix (e.g., 'SA' for Savings Account)
- * @return string Generated unique account number
- */
-function generateUniqueAccountNumber($conn, $prefix = 'SA') {
-    $current_year = date('Y');
-    $max_attempts = 100;
-    $attempt = 0;
-    
-    do {
-        $unique_digits = str_pad(mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
-        $account_number = "{$prefix}-{$unique_digits}-{$current_year}";
-        
-        // Check if account number already exists
-        $check_sql = "SELECT COUNT(*) as count FROM customer_accounts WHERE account_number = ?";
-        $check_stmt = $conn->prepare($check_sql);
-        $check_stmt->bind_param("s", $account_number);
-        $check_stmt->execute();
-        $result = $check_stmt->get_result();
-        $row = $result->fetch_assoc();
-        $check_stmt->close();
-        
-        $attempt++;
-    } while ($row && $row['count'] > 0 && $attempt < $max_attempts);
-    
-    if ($attempt >= $max_attempts) {
-        // Fallback: add timestamp to ensure uniqueness
-        $account_number = "{$prefix}-{$unique_digits}-{$current_year}-" . time();
-    }
-    
-    return $account_number;
-}
-
 // Check if user has registration data in session OR if account was just created
 if (!isset($_SESSION['temp_registration']) && !isset($_SESSION['show_success_modal'])) {
     header("Location: signup.php");
@@ -76,199 +40,227 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         // Check if entered code matches the stored verification code
         if ($entered_code === $registration_data['verification_code']) {
-            error_log("About to insert user with referral code: " . ($registration_data['referral_code'] ?? 'NOT SET'));
+            error_log("About to insert user");
     
-           if (!isset($registration_data['referral_code']) || empty($registration_data['referral_code'])) {
-              error_log("WARNING: Referral code is missing from registration data!");
-              $error = "System error: Referral code not generated. Please try again.";
-          } else 
-            // NOW insert the user into the database
-            $sql = "INSERT INTO bank_customers (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password_hash, verification_code, bank_id, referral_code, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
+            // Start transaction to ensure both systems are updated together
+            $conn->begin_transaction();
             
-                $stmt = $conn->prepare($sql);
-        if ($stmt) {
-              $stmt->bind_param("ssssssssssss",  // Changed from 11 's' to 12 's'
-        $registration_data['first_name'],
-       $registration_data['middle_name'],
-              $registration_data['last_name'],
-              $registration_data['address'],
-              $registration_data['city_province'],
-              $registration_data['email'],
-              $registration_data['contact_number'],
-              $registration_data['birthday'],
-              $registration_data['password'],
-              $registration_data['verification_code'],
-              $registration_data['bank_id'],
-              $registration_data['referral_code']  // ⭐ ADD THIS LINE
-              );
+            try {
+                // 1. Insert into bank_users table (Marketing system) with referral_code
+                $sql1 = "INSERT INTO bank_users (first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, referral_code, total_points, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 1)";
+                $stmt1 = $conn->prepare($sql1);
+                $stmt1->bind_param("ssssssssssss",
+                    $registration_data['first_name'],
+                    $registration_data['middle_name'],
+                    $registration_data['last_name'],
+                    $registration_data['address'],
+                    $registration_data['city_province'],
+                    $registration_data['email'],
+                    $registration_data['contact_number'],
+                    $registration_data['birthday'],
+                    $registration_data['password'],
+                    $registration_data['verification_code'],
+                    $registration_data['bank_id'],
+                    $registration_data['referral_code']
+                );
+                $stmt1->execute();
+                $bank_user_id = $conn->insert_id;
+                $stmt1->close();
                 
-                if ($stmt->execute()) {
-                    error_log("Account created successfully for: " . $registration_data['email']);
-                    
-                    // Get the newly created customer_id
-                    $customer_id = $conn->insert_id;
-                    
-                    // Start transaction for data integrity
-                    $conn->begin_transaction();
-                    
-                    try {
-                        // Insert into customer_profiles
-                        $profile_sql = "INSERT INTO customer_profiles (customer_id, date_of_birth, marital_status, profile_created_at) VALUES (?, ?, 'single', NOW())";
-                        $profile_stmt = $conn->prepare($profile_sql);
-                        if ($profile_stmt) {
-                            $profile_stmt->bind_param("is", $customer_id, $registration_data['birthday']);
-                            if (!$profile_stmt->execute()) {
-                                throw new Exception("Failed to insert customer profile: " . $profile_stmt->error);
-                            }
-                            $profile_stmt->close();
-                            error_log("Customer profile created for customer ID {$customer_id}");
-                        } else {
-                            throw new Exception("Failed to prepare customer profile statement: " . $conn->error);
-                        }
-                        
-                        // Get postal code from barangays table if available
-                        $postal_code = '';
-                        if (isset($registration_data['barangay_id']) && $registration_data['barangay_id'] > 0) {
-                            $zip_sql = "SELECT zip_code FROM barangays WHERE barangay_id = ? LIMIT 1";
-                            $zip_stmt = $conn->prepare($zip_sql);
-                            if ($zip_stmt) {
-                                $zip_stmt->bind_param("i", $registration_data['barangay_id']);
-                                $zip_stmt->execute();
-                                $zip_result = $zip_stmt->get_result();
-                                if ($zip_row = $zip_result->fetch_assoc()) {
-                                    $postal_code = $zip_row['zip_code'] ?? '';
-                                }
-                                $zip_stmt->close();
-                            }
-                        }
-                        
-                        // Insert into addresses
-                        $province_id = isset($registration_data['province_id']) ? (int)$registration_data['province_id'] : null;
-                        $city_id = isset($registration_data['city_id']) ? (int)$registration_data['city_id'] : null;
-                        $barangay_id = isset($registration_data['barangay_id']) ? (int)$registration_data['barangay_id'] : null;
-                        
-                        $address_sql = "INSERT INTO addresses (customer_id, address_line, province_id, city_id, barangay_id, postal_code, address_type, is_primary, created_at) VALUES (?, ?, ?, ?, ?, ?, 'home', 1, NOW())";
-                        $address_stmt = $conn->prepare($address_sql);
-                        if ($address_stmt) {
-                            $address_stmt->bind_param("isiiis", $customer_id, $registration_data['address'], $province_id, $city_id, $barangay_id, $postal_code);
-                            if (!$address_stmt->execute()) {
-                                throw new Exception("Failed to insert address: " . $address_stmt->error);
-                            }
-                            $address_stmt->close();
-                            error_log("Address created for customer ID {$customer_id}");
-                        } else {
-                            throw new Exception("Failed to prepare address statement: " . $conn->error);
-                        }
-                        
-                        // Insert into emails
-                        $email_sql = "INSERT INTO emails (customer_id, email, is_primary, created_at) VALUES (?, ?, 1, NOW())";
-                        $email_stmt = $conn->prepare($email_sql);
-                        if ($email_stmt) {
-                            $email_stmt->bind_param("is", $customer_id, $registration_data['email']);
-                            if (!$email_stmt->execute()) {
-                                throw new Exception("Failed to insert email: " . $email_stmt->error);
-                            }
-                            $email_stmt->close();
-                            error_log("Email created for customer ID {$customer_id}");
-                        } else {
-                            throw new Exception("Failed to prepare email statement: " . $conn->error);
-                        }
-                        
-                        // Insert into phones
-                        $phone_sql = "INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at) VALUES (?, ?, 'mobile', 1, NOW())";
-                        $phone_stmt = $conn->prepare($phone_sql);
-                        if ($phone_stmt) {
-                            $phone_stmt->bind_param("is", $customer_id, $registration_data['contact_number']);
-                            if (!$phone_stmt->execute()) {
-                                throw new Exception("Failed to insert phone: " . $phone_stmt->error);
-                            }
-                            $phone_stmt->close();
-                            error_log("Phone created for customer ID {$customer_id}");
-                        } else {
-                            throw new Exception("Failed to prepare phone statement: " . $conn->error);
-                        }
-                        
-                        // Commit transaction if all inserts succeeded
-                        $conn->commit();
-                        error_log("All related records inserted successfully for customer ID {$customer_id}");
-                        
-                    } catch (Exception $e) {
-                        // Rollback transaction on error
-                        $conn->rollback();
-                        error_log("Error inserting related records: " . $e->getMessage());
-                        throw $e;
-                    }
-                    
-                    // Automatically create a Savings Account for the new customer
-                    try {
-                        // Generate unique account number for Savings Account
-                        $account_number = generateUniqueAccountNumber($conn, 'SA');
-                        
-                        // Get Savings Account type ID (usually 1)
-                        $account_type_sql = "SELECT account_type_id FROM bank_account_types WHERE type_name = 'Savings Account' LIMIT 1";
-                        $account_type_result = $conn->query($account_type_sql);
-                        if ($account_type_result && $account_type_row = $account_type_result->fetch_assoc()) {
-                            $account_type_id = $account_type_row['account_type_id'];
-                        } else {
-                            // If Savings Account type doesn't exist, use default ID 1
-                            $account_type_id = 1;
-                            error_log("Warning: Savings Account type not found, using default ID 1");
-                        }
-                        
-                        // Create account in customer_accounts table
-                        $interest_rate = 0.50; // 0.5% for Savings Account
-                        $create_account_sql = "INSERT INTO customer_accounts (customer_id, account_number, account_type_id, interest_rate, is_locked, created_at) VALUES (?, ?, ?, ?, 0, NOW())";
-                        $create_account_stmt = $conn->prepare($create_account_sql);
-                        if ($create_account_stmt) {
-                            $create_account_stmt->bind_param("isid", $customer_id, $account_number, $account_type_id, $interest_rate);
-                            if ($create_account_stmt->execute()) {
-                                $account_id = $conn->insert_id;
-                                error_log("Bank account created successfully: Account #{$account_number} for customer ID {$customer_id}");
-                                
-                                // Link account to customer in customer_linked_accounts
-                                $link_sql = "INSERT INTO customer_linked_accounts (customer_id, account_id, is_active, linked_at) VALUES (?, ?, 1, NOW())";
-                                $link_stmt = $conn->prepare($link_sql);
-                                if ($link_stmt) {
-                                    $link_stmt->bind_param("ii", $customer_id, $account_id);
-                                    if ($link_stmt->execute()) {
-                                        error_log("Account link created successfully for customer ID {$customer_id} and account ID {$account_id}");
-                                    } else {
-                                        error_log("Warning: Failed to create account link: " . $link_stmt->error);
-                                    }
-                                    $link_stmt->close();
-                                } else {
-                                    error_log("Warning: Failed to prepare account link statement: " . $conn->error);
-                                }
-                            } else {
-                                error_log("Warning: Failed to create bank account: " . $create_account_stmt->error);
-                            }
-                            $create_account_stmt->close();
-                        } else {
-                            error_log("Warning: Failed to prepare account creation statement: " . $conn->error);
-                        }
-                    } catch (Exception $e) {
-                        // Log error but don't fail the entire registration process
-                        error_log("Error creating bank account for customer ID {$customer_id}: " . $e->getMessage());
-                    }
-                    
-                    // Set success flag BEFORE clearing temp data
-                    $_SESSION['account_created'] = true;
-                    $_SESSION['show_success_modal'] = true;
-                    $_SESSION['created_account_email'] = $registration_data['email'];
-                    
-                    // Clear temp session data
-                    unset($_SESSION['temp_registration']);
-                    
-                    // Set flag to show modal on page reload
-                    $show_success = true;
-                } else {
-                    $error = "Failed to create account: " . $stmt->error;
-                    error_log("Database error: " . $stmt->error);
+                error_log("User created with referral code: " . $registration_data['referral_code']);
+                
+                // 2. Insert into bank_customers table (Basic-operation system) with referral_code
+                $sql2 = "INSERT INTO bank_customers (first_name, middle_name, last_name, email, password_hash, referral_code, total_points, created_at) VALUES (?, ?, ?, ?, ?, ?, 0.00, NOW())";
+                $stmt2 = $conn->prepare($sql2);
+                $stmt2->bind_param("ssssss",
+                    $registration_data['first_name'],
+                    $registration_data['middle_name'],
+                    $registration_data['last_name'],
+                    $registration_data['email'],
+                    $registration_data['password'],
+                    $registration_data['referral_code']
+                );
+                $stmt2->execute();
+                $customer_id = $conn->insert_id;
+                $stmt2->close();
+                
+                // 3. Insert into emails table (for Basic-operation system)
+                $sql3 = "INSERT INTO emails (customer_id, email, is_primary, created_at) VALUES (?, ?, 1, NOW())";
+                $stmt3 = $conn->prepare($sql3);
+                $stmt3->bind_param("is", $customer_id, $registration_data['email']);
+                $stmt3->execute();
+                $stmt3->close();
+                
+                // 4. Insert into phones table (for Basic-operation system)
+                $sql4 = "INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at) VALUES (?, ?, 'mobile', 1, NOW())";
+                $stmt4 = $conn->prepare($sql4);
+                $stmt4->bind_param("is", $customer_id, $registration_data['contact_number']);
+                $stmt4->execute();
+                $stmt4->close();
+                
+                // 5. Get province_id (default to Metro Manila if not found)
+                $sql5 = "SELECT province_id FROM provinces WHERE province_name LIKE ? LIMIT 1";
+                $stmt5 = $conn->prepare($sql5);
+                $province_search = "%" . $registration_data['city_province'] . "%";
+                $stmt5->bind_param("s", $province_search);
+                $stmt5->execute();
+                $result5 = $stmt5->get_result();
+                $province_id = 1; // Default to Metro Manila
+                if ($row = $result5->fetch_assoc()) {
+                    $province_id = $row['province_id'];
                 }
-                $stmt->close();
-            } else {
-                $error = "Database preparation error: " . $conn->error;
-                error_log("Prepare error: " . $conn->error);
+                $stmt5->close();
+                
+                // 6. Insert into addresses table (for Basic-operation system)
+                $sql6 = "INSERT INTO addresses (customer_id, address_line, city, province_id, address_type, is_primary, created_at) VALUES (?, ?, ?, ?, 'home', 1, NOW())";
+                $stmt6 = $conn->prepare($sql6);
+                $stmt6->bind_param("issi",
+                    $customer_id,
+                    $registration_data['address'],
+                    $registration_data['city_province'],
+                    $province_id
+                );
+                $stmt6->execute();
+                $stmt6->close();
+                
+                // 7. Create a default savings account for the new customer
+                // First, get the Savings Account type ID
+                $sql7 = "SELECT account_type_id FROM bank_account_types WHERE type_name = 'Savings Account' LIMIT 1";
+                $result7 = $conn->query($sql7);
+                $account_type_id = 1; // Default
+                if ($row = $result7->fetch_assoc()) {
+                    $account_type_id = $row['account_type_id'];
+                }
+                
+                // Generate unique account number
+                $account_number = 'SA-' . str_pad($customer_id, 6, '0', STR_PAD_LEFT) . '-' . date('Y');
+                
+                // Insert customer account
+                $sql8 = "INSERT INTO customer_accounts (customer_id, account_number, account_type_id, interest_rate, is_locked, created_at) VALUES (?, ?, ?, 2.50, 0, NOW())";
+                $stmt8 = $conn->prepare($sql8);
+                $stmt8->bind_param("isi", $customer_id, $account_number, $account_type_id);
+                $stmt8->execute();
+                $account_id = $conn->insert_id;
+                $stmt8->close();
+                
+                // 8. Link the account to the customer
+                $sql9 = "INSERT INTO customer_linked_accounts (customer_id, account_id, linked_at, is_active) VALUES (?, ?, NOW(), 1)";
+                $stmt9 = $conn->prepare($sql9);
+                $stmt9->bind_param("ii", $customer_id, $account_id);
+                $stmt9->execute();
+                $stmt9->close();
+                
+                // 9. Create initial deposit transaction (welcome bonus)
+                $sql10 = "SELECT transaction_type_id FROM transaction_types WHERE type_name = 'Deposit' LIMIT 1";
+                $result10 = $conn->query($sql10);
+                $transaction_type_id = 1; // Default
+                if ($row = $result10->fetch_assoc()) {
+                    $transaction_type_id = $row['transaction_type_id'];
+                }
+                
+                $initial_deposit = 1000.00; // Welcome bonus
+                $transaction_ref = 'TXN-WELCOME-' . $customer_id . '-' . time();
+                
+                $sql11 = "INSERT INTO bank_transactions (transaction_ref, account_id, transaction_type_id, amount, description, created_at) VALUES (?, ?, ?, ?, 'Welcome Bonus - Account Opening', NOW())";
+                $stmt11 = $conn->prepare($sql11);
+                $stmt11->bind_param("siid", $transaction_ref, $account_id, $transaction_type_id, $initial_deposit);
+                $stmt11->execute();
+                $stmt11->close();
+                
+                // 10. Process referral code if provided during signup
+                if (isset($registration_data['used_referral_code']) && !empty($registration_data['used_referral_code'])) {
+                    $used_code = $registration_data['used_referral_code'];
+                    
+                    // Find the referrer by their referral code
+                    $sql_ref = "SELECT id FROM bank_users WHERE referral_code = ?";
+                    $stmt_ref = $conn->prepare($sql_ref);
+                    $stmt_ref->bind_param("s", $used_code);
+                    $stmt_ref->execute();
+                    $result_ref = $stmt_ref->get_result();
+                    
+                    if ($result_ref->num_rows > 0) {
+                        $referrer = $result_ref->fetch_assoc();
+                        $referrer_id = $referrer['id'];
+                        
+                        // Award points: 20 to referrer, 10 to new user
+                        $referrer_points = 20.00;
+                        $referred_points = 10.00;
+                        
+                        // Insert referral record
+                        $sql_ins_ref = "INSERT INTO referrals (referrer_id, referred_id, points_earned) VALUES (?, ?, ?)";
+                        $stmt_ins_ref = $conn->prepare($sql_ins_ref);
+                        $stmt_ins_ref->bind_param("iid", $referrer_id, $bank_user_id, $referrer_points);
+                        $stmt_ins_ref->execute();
+                        $stmt_ins_ref->close();
+                        
+                        // Update referrer's points in bank_users
+                        $sql_upd_ref = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+                        $stmt_upd_ref = $conn->prepare($sql_upd_ref);
+                        $stmt_upd_ref->bind_param("di", $referrer_points, $referrer_id);
+                        $stmt_upd_ref->execute();
+                        $stmt_upd_ref->close();
+                        
+                        // Update new user's points in bank_users
+                        $sql_upd_new = "UPDATE bank_users SET total_points = total_points + ? WHERE id = ?";
+                        $stmt_upd_new = $conn->prepare($sql_upd_new);
+                        $stmt_upd_new->bind_param("di", $referred_points, $bank_user_id);
+                        $stmt_upd_new->execute();
+                        $stmt_upd_new->close();
+                        
+                        // Also update bank_customers table
+                        $sql_upd_cust_ref = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = (SELECT customer_id FROM bank_customers WHERE email = (SELECT email FROM bank_users WHERE id = ?))";
+                        $stmt_upd_cust_ref = $conn->prepare($sql_upd_cust_ref);
+                        $stmt_upd_cust_ref->bind_param("di", $referrer_points, $referrer_id);
+                        $stmt_upd_cust_ref->execute();
+                        $stmt_upd_cust_ref->close();
+                        
+                        $sql_upd_cust_new = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?";
+                        $stmt_upd_cust_new = $conn->prepare($sql_upd_cust_new);
+                        $stmt_upd_cust_new->bind_param("di", $referred_points, $customer_id);
+                        $stmt_upd_cust_new->execute();
+                        $stmt_upd_cust_new->close();
+                        
+                        // Add to points history
+                        $sql_hist_ref = "INSERT INTO points_history (user_id, points, description, transaction_type) VALUES (?, ?, 'Referral bonus - Friend signed up', 'referral')";
+                        $stmt_hist_ref = $conn->prepare($sql_hist_ref);
+                        $stmt_hist_ref->bind_param("id", $referrer_id, $referrer_points);
+                        $stmt_hist_ref->execute();
+                        $stmt_hist_ref->close();
+                        
+                        $sql_hist_new = "INSERT INTO points_history (user_id, points, description, transaction_type) VALUES (?, ?, 'Referral bonus - Used referral code', 'referral')";
+                        $stmt_hist_new = $conn->prepare($sql_hist_new);
+                        $stmt_hist_new->bind_param("id", $bank_user_id, $referred_points);
+                        $stmt_hist_new->execute();
+                        $stmt_hist_new->close();
+                        
+                        error_log("Referral processed: Referrer ID $referrer_id got $referrer_points pts, New user ID $bank_user_id got $referred_points pts");
+                    }
+                    $stmt_ref->close();
+                }
+                
+                // Commit transaction
+                $conn->commit();
+                
+                error_log("Account created successfully for: " . $registration_data['email']);
+                error_log("Customer ID: $customer_id, Account Number: $account_number");
+                
+                // Set success flag BEFORE clearing temp data
+                $_SESSION['account_created'] = true;
+                $_SESSION['show_success_modal'] = true;
+                $_SESSION['created_account_email'] = $registration_data['email'];
+                $_SESSION['created_account_number'] = $account_number;
+                
+                // Clear temp session data
+                unset($_SESSION['temp_registration']);
+                
+                // Set flag to show modal on page reload
+                $show_success = true;
+                
+            } catch (Exception $e) {
+                // Rollback transaction on error
+                $conn->rollback();
+                $error = "Failed to create account: " . $e->getMessage();
+                error_log("Database error: " . $e->getMessage());
             }
         } else {
             $error = "Invalid verification code. Please try again.";
@@ -761,11 +753,20 @@ if (isset($_SESSION['show_success_modal'])) {
             <p style="
               color: #0d3d38;
               font-size: 0.9rem;
+              margin: 0 0 0.5rem 0;
+              line-height: 1.5;
+            ">
+              <strong>🎉 Welcome Bonus</strong><br>
+              <span style="color: #666;">You've received PHP 1,000.00 as a welcome bonus!</span>
+            </p>
+            <p style="
+              color: #0d3d38;
+              font-size: 0.9rem;
               margin: 0;
               line-height: 1.5;
             ">
               <strong>📧 Check your email</strong><br>
-              <span style="color: #666;">Your Bank ID and login credentials have been sent to your email address.</span>
+              <span style="color: #666;">Your Bank ID and account details have been sent to your email address.</span>
             </p>
           </div>
           

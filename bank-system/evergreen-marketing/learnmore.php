@@ -1016,7 +1016,7 @@ $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
-                    <img src="images/Logo.png.png">
+                    <img src="images/Logo.svg">
                 </a>
             </div>
             <span>
@@ -1037,7 +1037,7 @@ $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION
                 </div>
             </div>
 
-            <a href="/Evergreen/LoanSubsystem/index.php">Loans</a>
+            <a href="/Evergreen/LoanSubsystem/">Loans</a>
             <a href="about.php">About Us</a>
         </div>
 
@@ -1053,6 +1053,7 @@ $fullName = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
                     <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
+                    <a href="refer.php" role="menuitem">Refer to a friend</a>
                     <a href="cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>

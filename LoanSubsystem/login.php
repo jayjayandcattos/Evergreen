@@ -1,7 +1,5 @@
 <?php
 session_start();
-
-// Include database configuration
 require_once 'config/database.php';
 
 // 🔒 If already logged in, redirect to correct dashboard
@@ -24,42 +22,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $user = null;
     
-    // Check based on selected role
+    // Verify based on selected role
     if ($selectedRole === 'admin') {
-        // Try to authenticate as admin using BankingDB.users table
         $user = verifyAdminPassword($email, $password);
-        if ($user) {
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_name'] = $user['full_name'] ?? $user['display_name'];
-            $_SESSION['user_role'] = 'admin';
-            $_SESSION['loan_officer_id'] = $user['loan_officer_id'] ?? ('LO-' . str_pad($user['id'], 4, '0', STR_PAD_LEFT));
-            $_SESSION['customer_id'] = null; // Admin doesn't have customer_id
-            
-            header('Location: adminindex.php');
-            exit();
+    } else {
+        $user = verifyUserPassword($email, $password);
+    }
+
+    if ($user) {
+        // 🔑 Role must match
+        if ($user['role'] !== $selectedRole) {
+            $error = "Invalid role selection. Please select the correct role.";
         } else {
-            $error = "Invalid admin credentials or insufficient permissions.";
+            $_SESSION['user_email'] = $user['email'];
+            $_SESSION['user_name'] = $user['display_name'] ?? $user['full_name'];
+            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_id'] = $user['id'];
+            
+            if ($user['role'] === 'admin') {
+                $_SESSION['loan_officer_id'] = $user['loan_officer_id'] ?? 'LO-0123';
+                header('Location: adminindex.php');
+                exit();
+            } else {
+                header('Location: index.php');
+                exit();
+            }
         }
     } else {
-        // Try to authenticate as customer using BankingDB.bank_customers table
-        $user = verifyUserPassword($email, $password);
-        if ($user) {
-            // Get additional customer info (already in $user from verifyUserPassword)
-            if (isset($user['id'])) {
-                $_SESSION['customer_id'] = $user['id'];
-                $_SESSION['account_number'] = $user['account_number'] ?? null;
-                $_SESSION['contact_number'] = $user['contact_number'] ?? null;
-            }
-            
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_name'] = $user['full_name'] ?? $user['display_name'];
-            $_SESSION['user_role'] = 'client';
-            
-            header('Location: index.php');
-            exit();
-        } else {
-            $error = "Invalid email or password.";
-        }
+        $error = "Invalid email or password.";
     }
 }
 ?>

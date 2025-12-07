@@ -1,9 +1,12 @@
 <?php
+<<<<<<< HEAD
 // Suppress error display, but log them
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 require_once '../../config/database.php';
 require_once '../../includes/session.php';
 
@@ -85,6 +88,7 @@ try {
             echo json_encode(getBankTransactionDetails());
             break;
             
+<<<<<<< HEAD
         case 'get_pending_applications':
             echo json_encode(getPendingApplications());
             break;
@@ -102,11 +106,14 @@ try {
             break;
             break;
             
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
     
 } catch (Exception $e) {
+<<<<<<< HEAD
     error_log("General Ledger API Error: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
     echo json_encode([
@@ -122,6 +129,9 @@ try {
         'message' => 'A fatal error occurred: ' . $e->getMessage(),
         'error_type' => get_class($e)
     ]);
+=======
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 }
 
 function getStatistics() {
@@ -257,6 +267,7 @@ function getAccounts() {
             $hasTransactionsTable = true;
         }
         
+<<<<<<< HEAD
         // Build balance calculation using transaction-type-based logic
         // All amounts are stored as positive; transaction type determines if credit or debit
         if ($hasTransactionsTable) {
@@ -278,6 +289,16 @@ function getAccounts() {
                             )
                             FROM bank_transactions bt
                             INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+=======
+        // Build balance calculation
+        if ($hasTransactionsTable) {
+            $balanceCalc = "(SELECT COALESCE(
+                                SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - 
+                                SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END), 
+                                0
+                            )
+                            FROM bank_transactions bt 
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                             WHERE bt.account_id = ca.account_id)";
         } else {
             // Try balance column in accounts table, or default to 0
@@ -1621,12 +1642,16 @@ function getAccountTransactions() {
         }
         
         // Get bank customer account info using ONLY bank-system tables
+<<<<<<< HEAD
         // Use transaction-type-based balance calculation (same as Basic Operation)
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
         $sql = "SELECT 
                     ca.account_number,
                     CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) as account_name,
                     COALESCE(bat.type_name, 'Unknown') as account_type,
                     COALESCE(
+<<<<<<< HEAD
                         (SELECT SUM(
                             CASE tt.type_name
                                 WHEN 'Deposit' THEN bt.amount
@@ -1643,6 +1668,10 @@ function getAccountTransactions() {
                          FROM bank_transactions bt
                          INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
                          WHERE bt.account_id = ca.account_id), 
+=======
+                        (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
+                         FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
                         0
                     ) as available_balance
                 FROM customer_accounts ca
@@ -1808,6 +1837,7 @@ function getBankTransactionDetails() {
         ];
     }
 }
+<<<<<<< HEAD
 
 // ========================================
 // CARD APPLICATION FUNCTIONS
@@ -2588,4 +2618,6 @@ function declineApplication() {
         ];
     }
 }
+=======
+>>>>>>> dc50b08335147bbc9d9dbcd923f6d1b98adb2383
 ?>

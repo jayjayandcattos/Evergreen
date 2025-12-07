@@ -48,8 +48,27 @@
                             <h4 class="fw-bold mb-0" style="color: #003631;">Fund Transfer</h4>
                         </div>
 
-                        <!------- FORM --------------------------------------------------------------------------------------------->
+                        <!------- FORM ------------------------------------------------------------------------------------------->
                         <form action="<?= URLROOT ."/customer/fund_transfer"?>" method="POST">
+
+                            <!------- TRANSFER TYPE SELECTION ------------------------------------------------------------------->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold" style="color: #003631;">Transfer Type:</label>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="transfer_type" id="own_account" value="own_account" checked>
+                                        <label class="form-check-label" for="own_account">
+                                            Own Account
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="transfer_type" id="another_account" value="another_account">
+                                        <label class="form-check-label" for="another_account">
+                                            Another Evergreen Account
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
 
                             <?php if (!empty($data['low_balance_confirm_required'])): ?>
                                 <div class="alert alert-warning">
@@ -70,23 +89,55 @@
                                 </div>
                                 <select name="from_account" id="from_account" class="form-select" style="background-color: #e8e8df; border: none; border-radius: 8px;" required>
                                     <?php foreach($data['accounts'] as $account): ?>
-                                        <option value="<?= $account->account_number?>" data-balance="<?= number_format($account->ending_balance, 2, '.', '') ?>">
-                                            <?= $account->account_number ?>
+                                        <?php 
+                                        // Only allow Savings (1), Checking (2), and Loan (4) accounts to send money
+                                        if (in_array($account->account_type_id, [1, 2, 4])): 
+                                        ?>
+                                        <option value="<?= $account->account_number?>" 
+                                                data-balance="<?= number_format($account->ending_balance, 2, '.', '') ?>" 
+                                                data-type="<?= $account->account_type_id ?>" 
+                                                data-type-name="<?= $account->type_name ?>">
+                                            <?= $account->account_number ?> (<?= $account->type_name ?>)
                                         </option>
+                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
 
-                            <!--- RECIPIENT NUMBER --------------------------------------------------------------------------------->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold" style="color: #003631;">Recipient Account:</label>
-                                <input type="text" name="recipient_number" class="form-control" placeholder="ex. CHA-123-456" style="background-color: #e8e8df; border: none; border-radius: 8px;">
+                            <!--- TO ACCOUNT (for own account transfers only) ------------------------------------------------>
+                            <div class="mb-3" id="to_account_section" style="display: none;">
+                                <label class="form-label fw-semibold" style="color: #003631;">To Account:</label>
+                                <select name="to_account" id="to_account" class="form-select" style="background-color: #e8e8df; border: none; border-radius: 8px;">
+                                    <option value="">Select destination account</option>
+                                    <?php foreach($data['accounts'] as $account): ?>
+                                        <?php 
+                                        // Only allow Savings (1) and Checking (2) to receive money
+                                        // Loan accounts (4) cannot receive transfers
+                                        if (in_array($account->account_type_id, [1, 2])): 
+                                        ?>
+                                        <option value="<?= $account->account_number?>" 
+                                                data-type="<?= $account->account_type_id ?>" 
+                                                data-type-name="<?= $account->type_name ?>">
+                                            <?= $account->account_number ?> (<?= $account->type_name ?>)
+                                        </option>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
 
-                            <!--- RECIPIENT NAME ----------------------------------------------------------------------------------->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold" style="color: #003631;">Recipient Name:</label>
-                                <input type="text" name="recipient_name" class="form-control" placeholder="ex. Maria Allan Reviles" style="background-color: #e8e8df; border: none; border-radius: 8px;">
+                            <!--- ANOTHER ACCOUNT SECTION (for transfers to other customers) -------------------------------->
+                            <div id="another_account_section">
+                                <!--- RECIPIENT NUMBER ----------------------------------------------------------------------------->
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" style="color: #003631;">Recipient Account:</label>
+                                    <input type="text" name="recipient_number" id="recipient_number" class="form-control" placeholder="ex. CHA-123-456" style="background-color: #e8e8df; border: none; border-radius: 8px;">
+                                </div>
+
+                                <!--- RECIPIENT NAME ------------------------------------------------------------------------------->
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" style="color: #003631;">Recipient Name:</label>
+                                    <input type="text" name="recipient_name" id="recipient_name" class="form-control" placeholder="ex. Maria Allan Reviles" style="background-color: #e8e8df; border: none; border-radius: 8px;">
+                                </div>
                             </div>
 
                             <!--- AMOUNT ------------------------------------------------------------------------------------------->
@@ -105,10 +156,10 @@
                                 <input type="number" id="transfer_amount" name="amount" class="form-control" placeholder="600" style="background-color: #e8e8df; border: none; border-radius: 8px;" step="0.01" min="0">
                             </div>
 
-                            <!--- MESSAGE ------------------------------------------------------------------------------------------>
-                            <div class="mb-4">
+                            <!--- MESSAGE (only for another account transfers) -------------------------------------------------->
+                            <div class="mb-4" id="message_section">
                                 <label class="form-label fw-semibold" style="color: #003631;">Message:</label>
-                                <textarea class="form-control" name="message" rows="2" placeholder="Optional" style="background-color: #e8e8df; border: none; border-radius: 8px;"></textarea>
+                                <textarea class="form-control" name="message" id="message" rows="2" placeholder="Optional" style="background-color: #e8e8df; border: none; border-radius: 8px;"></textarea>
                             </div>
 
                             <!--- TRANSACTION DETAILS ------------------------------------------------------------------------------>
@@ -196,6 +247,84 @@
     // Minimum required remaining balance after transfer for confirmation modal
     const MIN_REQUIRED_BALANCE = 500.00;
 
+  // Get current fee based on transfer type
+  function getCurrentFee() {
+    const transferType = document.querySelector('input[name="transfer_type"]:checked').value;
+    return transferType === 'own_account' ? 0 : FEE;
+  }
+
+  // Toggle form fields based on transfer type
+  function toggleTransferType() {
+    const transferType = document.querySelector('input[name="transfer_type"]:checked').value;
+    const toAccountSection = document.getElementById('to_account_section');
+    const anotherAccountSection = document.getElementById('another_account_section');
+    const messageSection = document.getElementById('message_section');
+    const toAccountSelect = document.getElementById('to_account');
+    const recipientNumber = document.getElementById('recipient_number');
+    const recipientName = document.getElementById('recipient_name');
+    const messageField = document.getElementById('message');
+    
+    if (transferType === 'own_account') {
+      // Show own account fields
+      toAccountSection.style.display = 'block';
+      toAccountSelect.required = true;
+      
+      // Hide another account fields
+      anotherAccountSection.style.display = 'none';
+      messageSection.style.display = 'none';
+      recipientNumber.required = false;
+      recipientName.required = false;
+      
+      // Clear another account fields
+      recipientNumber.value = '';
+      recipientName.value = '';
+      messageField.value = '';
+      
+      // Update to_account dropdown to exclude selected from_account
+      updateToAccountOptions();
+    } else {
+      // Hide own account fields
+      toAccountSection.style.display = 'none';
+      toAccountSelect.required = false;
+      toAccountSelect.value = '';
+      
+      // Show another account fields
+      anotherAccountSection.style.display = 'block';
+      messageSection.style.display = 'block';
+      recipientNumber.required = true;
+      recipientName.required = true;
+    }
+    
+    // Update remaining balance calculation with new fee
+    updateRemainingBalance();
+  }
+
+  // Update to_account dropdown options based on selected from_account
+  function updateToAccountOptions() {
+    const fromAccount = document.getElementById('from_account');
+    const toAccount = document.getElementById('to_account');
+    const selectedFromAccount = fromAccount.value;
+    
+    // Reset and rebuild options
+    Array.from(toAccount.options).forEach(option => {
+      if (option.value === '') return; // Keep the placeholder
+      
+      // Hide the option if it's the same as from_account
+      if (option.value === selectedFromAccount) {
+        option.style.display = 'none';
+        option.disabled = true;
+      } else {
+        option.style.display = 'block';
+        option.disabled = false;
+      }
+    });
+    
+    // Reset selection if current selection is now disabled
+    if (toAccount.value === selectedFromAccount) {
+      toAccount.value = '';
+    }
+  }
+
   // Initialize balance on page load
   function initializeBalance() {
     const selectElement = document.getElementById('from_account');
@@ -211,6 +340,12 @@
     const balanceDisplay = document.getElementById('account_balance');
     balanceDisplay.textContent = '₱' + balance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     
+    // Update to_account options if in own_account mode
+    const transferType = document.querySelector('input[name="transfer_type"]:checked').value;
+    if (transferType === 'own_account') {
+      updateToAccountOptions();
+    }
+    
     // Update remaining balance calculation
     updateRemainingBalance();
   }
@@ -223,7 +358,8 @@
     
     const amountInput = document.getElementById('transfer_amount');
     const amount = parseFloat(amountInput.value) || 0;
-    const total = amount + FEE;
+    const currentFee = getCurrentFee();
+    const total = amount + currentFee;
     const remaining = balance - total;
     
     const insufficientAlert = document.getElementById('insufficient_balance');
@@ -248,6 +384,13 @@
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize balance on page load
     initializeBalance();
+    toggleTransferType();
+    
+    // Listen for transfer type changes
+    const transferTypeRadios = document.querySelectorAll('input[name="transfer_type"]');
+    transferTypeRadios.forEach(radio => {
+      radio.addEventListener('change', toggleTransferType);
+    });
     
     // Listen for account selection changes
     const selectElement = document.getElementById('from_account');
@@ -269,7 +412,8 @@
                 const selectedOption = selectElement.options[selectElement.selectedIndex];
                 const balance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
                 const amount = parseFloat(document.getElementById('transfer_amount').value) || 0;
-                const total = amount + FEE;
+                const currentFee = getCurrentFee();
+                const total = amount + currentFee;
                 const remaining = balance - total;
 
                 // If insufficient funds, let server validation handle it (we still prevent form submit here)
