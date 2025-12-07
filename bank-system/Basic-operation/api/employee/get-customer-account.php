@@ -95,20 +95,23 @@ try {
     }
 
     // Get account information with customer details
-    // Tables: customer_accounts (ca), bank_customers (bc), bank_account_types (bat)
+    // Join: customer_accounts -> bank_customers -> account_applications
     $stmt = $db->prepare("
         SELECT 
             ca.account_id,
             ca.account_number,
             ca.is_locked,
+            ca.account_type_id,
+            ca.account_status,
             bc.customer_id,
-            bc.first_name,
-            bc.middle_name,
-            bc.last_name,
+            aa.first_name,
+            aa.middle_name,
+            aa.last_name,
             bat.type_name as account_type
         FROM customer_accounts ca
         INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
-        INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
+        INNER JOIN account_applications aa ON bc.application_id = aa.application_id
+        LEFT JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
         WHERE ca.account_number = :account_number
         LIMIT 1
     ");
@@ -126,8 +129,8 @@ try {
         exit();
     }
 
-    // Check if account is locked
-    if ($account['is_locked']) {
+    // Check if account is locked (only if customer_accounts entry exists)
+    if ($account['is_locked'] == 1) {
         echo json_encode([
             'success' => false,
             'message' => 'This account is locked. Please contact customer service.'
@@ -152,7 +155,7 @@ try {
             'customer_name' => $fullName,
             // Use the calculated balance
             'balance' => number_format($currentBalance, 2), 
-            'account_type' => $account['account_type']
+            'account_type' => $account['account_type'] ?? 'Savings Account'
         ]
     ]);
 

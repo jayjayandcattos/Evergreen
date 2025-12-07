@@ -37,7 +37,7 @@ try {
     }
 
     // Build base query, using unified_schema table names:
-    // bank_transactions (bt), customer_accounts (ca), bank_customers (bc), bank_employees (be), transaction_types (tt)
+    // bank_transactions (bt), customer_accounts (ca), bank_customers (bc), account_applications (aa), bank_employees (be), transaction_types (tt)
     $query = "
         SELECT 
             bt.transaction_id,
@@ -46,14 +46,15 @@ try {
             bt.amount,
             bt.description,
             ca.account_number,
-            CONCAT(bc.first_name, ' ', 
-                CASE WHEN bc.middle_name IS NOT NULL THEN CONCAT(bc.middle_name, ' ') ELSE '' END,
-                bc.last_name) as customer_name,
+            CONCAT(aa.first_name, ' ', 
+                CASE WHEN aa.middle_name IS NOT NULL THEN CONCAT(aa.middle_name, ' ') ELSE '' END,
+                aa.last_name) as customer_name,
             tt.type_name as transaction_type,
             be.employee_name
         FROM bank_transactions bt
         INNER JOIN customer_accounts ca ON bt.account_id = ca.account_id
         INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+        INNER JOIN account_applications aa ON bc.application_id = aa.application_id
         INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
         LEFT JOIN bank_employees be ON bt.employee_id = be.employee_id
         WHERE 1=1

@@ -438,29 +438,36 @@
                   <select name="account_type" class="form-control" required>
                     <option value="">Select Account Type</option>
                     <option value="Savings">Savings Account</option>
-                    <option value="Checking">Checking Account</option>
                   </select>
                   <div class="error-message" id="error-account_type"></div>
                 </div>
                 <div class="form-group">
-                  <label>Source of Funds</label>
+                  <label
+                    >Source of Funds <span style="color: red">*</span></label
+                  >
                   <select
                     id="source_of_funds"
                     name="source_of_funds"
                     class="form-control"
+                    required
                   >
                     <option value="">Select Source</option>
                   </select>
+                  <div class="error-message" id="error-source_of_funds"></div>
                 </div>
                 <div class="form-group">
-                  <label>Employment Status</label>
+                  <label
+                    >Employment Status <span style="color: red">*</span></label
+                  >
                   <select
                     id="employment_status"
                     name="employment_status"
                     class="form-control"
+                    required
                   >
                     <option value="">Select Status</option>
                   </select>
+                  <div class="error-message" id="error-employment_status"></div>
                 </div>
                 <div class="form-group">
                   <label>Name of Employer</label>
@@ -471,6 +478,15 @@
                     placeholder="Company Name"
                   />
                 </div>
+                <div class="form-group">
+                  <label>Job Title/Position</label>
+                  <input
+                    type="text"
+                    name="job_title"
+                    class="form-control"
+                    placeholder="e.g., Manager, Engineer"
+                  />
+                </div>
                 <div class="form-group form-group-large">
                   <label>Employer Address</label>
                   <input
@@ -479,6 +495,20 @@
                     class="form-control"
                     placeholder="123 Bldg. Metro Manila"
                   />
+                </div>
+                <div class="form-group">
+                  <label>Annual Income</label>
+                  <input
+                    type="number"
+                    name="annual_income"
+                    class="form-control"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                  />
+                  <small style="color: #666; font-size: 11px">
+                    Enter your estimated annual income in PHP
+                  </small>
                 </div>
               </div>
 
@@ -743,7 +773,7 @@
             const options = result.data
               .map(
                 (status) =>
-                  `<option value="${status.employment_status_id}" title="${
+                  `<option value="${status.status_name}" title="${
                     status.description || ""
                   }">${status.status_name}</option>`
               )
@@ -783,7 +813,7 @@
             const options = result.data
               .map(
                 (source) =>
-                  `<option value="${source.source_id}" title="${
+                  `<option value="${source.source_name}" title="${
                     source.description || ""
                   }" data-requires-proof="${source.requires_proof}">${
                     source.source_name
@@ -1431,6 +1461,12 @@
           delete data.phone_numbers;
         }
 
+        // Debug logging for dropdown values
+        console.log("Form data collected:");
+        console.log("  - employment_status:", data.employment_status);
+        console.log("  - source_of_funds:", data.source_of_funds);
+        console.log("  - job_title:", data.job_title);
+
         return data;
       }
 
@@ -1561,12 +1597,12 @@
 
       // Save form data to sessionStorage
       function saveFormData(data) {
-        sessionStorage.setItem("step1_formData", JSON.stringify(data));
+        sessionStorage.setItem("onboarding_step1", JSON.stringify(data));
       }
 
       // Restore form data from sessionStorage
       function restoreFormData() {
-        const savedData = sessionStorage.getItem("step1_formData");
+        const savedData = sessionStorage.getItem("onboarding_step1");
         if (!savedData) return;
 
         try {

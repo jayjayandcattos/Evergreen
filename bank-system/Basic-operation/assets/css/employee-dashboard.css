@@ -237,6 +237,11 @@ body {
   color: var(--primary-green);
 }
 
+.approval-icon {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+}
+
 .card-title {
   color: var(--primary-green);
   font-size: 1.5rem;

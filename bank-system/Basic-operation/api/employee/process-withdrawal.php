@@ -117,7 +117,7 @@ try {
 
     try {
         // --- 1. Get account information and lock the row ---
-        // Tables: customer_accounts (ca), bank_customers (bc), bank_account_types (bat)
+        // Join: customer_accounts -> bank_customers -> account_applications
         $stmt = $db->prepare("
             SELECT 
                 ca.account_id,
@@ -128,11 +128,12 @@ try {
                 ca.account_status,
                 ca.below_maintaining_since,
                 bat.type_name as account_type,
-                bc.first_name,
-                bc.middle_name,
-                bc.last_name
+                aa.first_name,
+                aa.middle_name,
+                aa.last_name
             FROM customer_accounts ca
             INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+            INNER JOIN account_applications aa ON bc.application_id = aa.application_id
             INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
             WHERE ca.account_number = :account_number
             FOR UPDATE -- Lock the row
@@ -171,58 +172,24 @@ try {
         // --- 4. Determine New Balance after withdrawal ---
         $newBalance = $previousBalance - $amount;
         
-        // --- 5. Check maintaining balance requirements ---
+        // --- 5. Check maintaining balance for warnings only (not blocking) ---
         $maintainingBalance = floatval($account['maintaining_balance_required'] ?? 500.00);
         $serviceFee = floatval($account['monthly_service_fee'] ?? 100.00);
         $warnings = [];
         $statusUpdate = null;
         
-        // Prevent withdrawal that would result in negative balance
-        if ($newBalance < 0) {
-            throw new Exception('Withdrawal would result in negative balance');
-        }
-        
-        // Check if withdrawal would bring balance below maintaining requirement
-        if ($newBalance < $maintainingBalance && $previousBalance >= $maintainingBalance) {
-            $deficit = $maintainingBalance - $newBalance;
-            throw new Exception(
-                'Withdrawal denied. This would bring your balance to PHP ' . number_format($newBalance, 2) . ', ' .
-                'which is PHP ' . number_format($deficit, 2) . ' below the required maintaining balance of PHP ' . 
-                number_format($maintainingBalance, 2) . '. ' .
-                'Maximum withdrawal allowed: PHP ' . number_format($previousBalance - $maintainingBalance, 2)
-            );
-        }
-        
-        // Check if balance is already below maintaining and withdrawal would make it worse
-        if ($previousBalance < $maintainingBalance && $newBalance < $previousBalance) {
-            throw new Exception(
-                'Withdrawal denied. Your current balance (PHP ' . number_format($previousBalance, 2) . ') ' .
-                'is already below the maintaining balance of PHP ' . number_format($maintainingBalance, 2) . '. ' .
-                'Please deposit funds to meet the maintaining balance requirement before making withdrawals.'
-            );
-        }
-        
-        // If already below maintaining, only allow withdrawal if it maintains the same level
-        if ($previousBalance < $maintainingBalance) {
-            $warnings[] = "Warning: Your balance is below the maintaining balance of PHP " . number_format($maintainingBalance, 2);
-            $warnings[] = "Monthly service fees may apply";
+        // Add warning if withdrawal brings balance below maintaining requirement
+        if ($newBalance < $maintainingBalance) {
+            $warnings[] = "Warning: This withdrawal will bring the balance below the maintaining balance of PHP " . number_format($maintainingBalance, 2);
+            $warnings[] = "Account may be subject to monthly service fees";
             $statusUpdate = 'below_maintaining';
-        }
-        
-        // Check if balance will reach zero
-        if ($newBalance == 0) {
-            throw new Exception(
-                'Withdrawal denied. This would result in a zero balance. ' .
-                'Minimum balance of PHP ' . number_format($maintainingBalance, 2) . ' must be maintained. ' .
-                'Maximum withdrawal allowed: PHP ' . number_format($previousBalance - $maintainingBalance, 2)
-            );
         }
         
         // **IMPORTANT FIX:** Removed the `UPDATE accounts SET balance = :new_balance` query,
         // as the `customer_accounts` table does not have a `balance` column.
         // The balance is calculated on-demand from transactions.
         
-        // --- 5. Get 'Withdrawal' transaction_type_id ---
+        // --- 6. Get 'Withdrawal' transaction_type_id ---
         $stmt = $db->prepare("SELECT transaction_type_id FROM transaction_types WHERE type_name = 'Withdrawal'");
         $stmt->execute();
         $withdrawalType = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -275,17 +242,20 @@ try {
                 UPDATE customer_accounts 
                 SET account_status = :status,
                     below_maintaining_since = CASE 
-                        WHEN :status = 'below_maintaining' AND below_maintaining_since IS NULL THEN CURDATE()
-                        WHEN :status = 'active' THEN NULL
+                        WHEN :status2 = 'below_maintaining' AND below_maintaining_since IS NULL THEN CURDATE()
+                        WHEN :status3 = 'active' THEN NULL
                         ELSE below_maintaining_since
                     END,
                     closure_warning_date = CASE
-                        WHEN :status = 'flagged_for_removal' THEN CURDATE()
+                        WHEN :status4 = 'flagged_for_removal' THEN CURDATE()
                         ELSE closure_warning_date
                     END
                 WHERE account_id = :account_id
             ");
             $stmt->bindParam(':status', $statusUpdate);
+            $stmt->bindParam(':status2', $statusUpdate);
+            $stmt->bindParam(':status3', $statusUpdate);
+            $stmt->bindParam(':status4', $statusUpdate);
             $stmt->bindParam(':account_id', $account['account_id']);
             $stmt->execute();
             
@@ -364,18 +334,19 @@ try {
         // Rollback transaction on error
         $db->rollBack();
         
+        error_log("Withdrawal transaction error: " . $e->getMessage());
+        
         echo json_encode([
             'success' => false,
             'message' => 'Transaction failed: ' . $e->getMessage()
         ]);
-        // Re-throw for logging in the outer catch block
-        throw $e;
+        exit(); // Exit to prevent outer catch from executing
     }
 
 } catch (Exception $e) {
     error_log("Withdrawal processing error: " . $e->getMessage());
     
-    // Only output a generic message if the inner catch hasn't handled it
+    // Only output if headers not sent and no output yet
     if (!headers_sent()) {
         http_response_code(500);
         echo json_encode([

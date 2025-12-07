@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Evergreen - Security & Credentials</title>
+    <title>Evergreen - Document Verification</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -35,7 +35,7 @@
 
         <!-- Step Indicator -->
         <div class="step-indicator">
-          <h5>Step 2 of 3: Security & Credentials</h5>
+          <h5>Step 2 of 3: Document Verification</h5>
         </div>
 
         <!-- Main Content -->
@@ -46,7 +46,7 @@
               <span class="nav-number">1.</span> Personal Details
             </div>
             <div class="nav-item active">
-              <span class="nav-number">2.</span> Security
+              <span class="nav-number">2.</span> Document Verification
             </div>
             <div class="nav-item">
               <span class="nav-number">3.</span> Review
@@ -55,383 +55,67 @@
 
           <!-- Main Form Content -->
           <div class="form-section">
-            <form id="securityForm">
-              <!-- Security & Credentials Section -->
-              <div class="section-title">Security & Credentials</div>
+            <form id="documentForm" enctype="multipart/form-data">
+              <!-- Document Verification Section -->
+              <div class="section-title">Document Verification</div>
+
+              <p style="color: #666; font-size: 14px; margin-bottom: 25px">
+                Please upload clear photos or scans of your valid
+                government-issued ID. Accepted formats: JPG, PNG, PDF (max 5MB
+                per file)
+              </p>
 
               <div class="security-layout">
-                <!-- Left Column: Credentials -->
+                <!-- Left Column: ID Upload -->
                 <div class="credentials-column">
-                  <div class="subsection-title">Create your Credentials</div>
+                  <div class="subsection-title">Upload Your Valid ID</div>
 
                   <div class="form-group">
-                    <label>Password <span style="color: red">*</span></label>
-                    <input
-                      type="password"
-                      name="password"
+                    <label>ID Type <span style="color: red">*</span></label>
+                    <select
+                      name="id_type"
+                      id="id_type"
                       class="form-control"
-                      placeholder="************"
                       required
-                    />
-                    <small style="color: #666; font-size: 11px">
-                      Must contain: 8+ characters, uppercase, lowercase, number,
-                      and special character
+                    >
+                      <option value="">Select ID Type</option>
+                      <option value="Passport">Passport</option>
+                      <option value="Driver's License">Driver's License</option>
+                      <option value="National ID">National ID (PhilSys)</option>
+                      <option value="UMID">UMID</option>
+                      <option value="SSS ID">SSS ID</option>
+                      <option value="PRC ID">PRC ID</option>
+                      <option value="Voter's ID">Voter's ID</option>
+                      <option value="Postal ID">Postal ID</option>
+                      <option value="TIN ID">TIN ID</option>
+                    </select>
+                    <small
+                      style="
+                        color: #666;
+                        font-size: 11px;
+                        display: block;
+                        margin-top: 5px;
+                      "
+                    >
+                      Select the type of ID you will be uploading
                     </small>
                   </div>
 
                   <div class="form-group">
-                    <label
-                      >Confirm Password <span style="color: red">*</span></label
-                    >
-                    <input
-                      type="password"
-                      name="confirm_password"
-                      class="form-control"
-                      placeholder="************"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <!-- Right Column: MFA -->
-                <div class="mfa-column">
-                  <div class="subsection-title">
-                    Multi-factor Authentication (MFA)
-                  </div>
-
-                  <!-- MFA Method Selection -->
-                  <div class="form-group">
-                    <label
-                      >Authentication Method
-                      <span style="color: red">*</span></label
-                    >
-                    <div
-                      class="mfa-method-selector"
-                      style="
-                        display: flex;
-                        gap: 15px;
-                        margin-bottom: 15px;
-                        margin-top: 10px;
-                      "
-                    >
-                      <label
-                        class="mfa-option"
-                        style="flex: 1; position: relative"
-                      >
-                        <input
-                          type="radio"
-                          name="mfa_method"
-                          value="phone"
-                          checked
-                          style="
-                            position: absolute;
-                            opacity: 0;
-                            pointer-events: none;
-                          "
-                        />
-                        <div
-                          class="mfa-card"
-                          style="
-                            border: 2px solid #ddd;
-                            border-radius: 12px;
-                            padding: 20px;
-                            text-align: center;
-                            cursor: pointer;
-                            transition: all 0.3s ease;
-                            background: white;
-                            position: relative;
-                          "
-                        >
-                          <div class="mfa-icon" style="margin-bottom: 12px">
-                            <svg
-                              width="40"
-                              height="40"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="#666"
-                              stroke-width="2"
-                            >
-                              <rect
-                                x="5"
-                                y="2"
-                                width="14"
-                                height="20"
-                                rx="2"
-                                ry="2"
-                              ></rect>
-                              <line x1="12" y1="18" x2="12.01" y2="18"></line>
-                            </svg>
-                          </div>
-                          <div
-                            class="mfa-title"
-                            style="
-                              font-weight: 600;
-                              color: #333;
-                              margin-bottom: 5px;
-                            "
-                          >
-                            Phone Number
-                          </div>
-                          <div
-                            class="mfa-description"
-                            style="font-size: 12px; color: #666"
-                          >
-                            Receive code via SMS
-                          </div>
-                          <div
-                            class="mfa-check"
-                            style="
-                              position: absolute;
-                              top: 10px;
-                              right: 10px;
-                              width: 24px;
-                              height: 24px;
-                              border-radius: 50%;
-                              background: #1a6b62;
-                              display: none;
-                              align-items: center;
-                              justify-content: center;
-                            "
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="white"
-                              stroke-width="3"
-                            >
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                          </div>
-                        </div>
-                      </label>
-                      <label
-                        class="mfa-option"
-                        style="flex: 1; position: relative"
-                      >
-                        <input
-                          type="radio"
-                          name="mfa_method"
-                          value="email"
-                          style="
-                            position: absolute;
-                            opacity: 0;
-                            pointer-events: none;
-                          "
-                        />
-                        <div
-                          class="mfa-card"
-                          style="
-                            border: 2px solid #ddd;
-                            border-radius: 12px;
-                            padding: 20px;
-                            text-align: center;
-                            cursor: pointer;
-                            transition: all 0.3s ease;
-                            background: white;
-                            position: relative;
-                          "
-                        >
-                          <div class="mfa-icon" style="margin-bottom: 12px">
-                            <svg
-                              width="40"
-                              height="40"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="#666"
-                              stroke-width="2"
-                            >
-                              <path
-                                d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                              ></path>
-                              <polyline points="22,6 12,13 2,6"></polyline>
-                            </svg>
-                          </div>
-                          <div
-                            class="mfa-title"
-                            style="
-                              font-weight: 600;
-                              color: #333;
-                              margin-bottom: 5px;
-                            "
-                          >
-                            Email Address
-                          </div>
-                          <div
-                            class="mfa-description"
-                            style="font-size: 12px; color: #666"
-                          >
-                            Receive code via email
-                          </div>
-                          <div
-                            class="mfa-check"
-                            style="
-                              position: absolute;
-                              top: 10px;
-                              right: 10px;
-                              width: 24px;
-                              height: 24px;
-                              border-radius: 50%;
-                              background: #1a6b62;
-                              display: none;
-                              align-items: center;
-                              justify-content: center;
-                            "
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="white"
-                              stroke-width="3"
-                            >
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <style>
-                    .mfa-option input:checked + .mfa-card {
-                      border-color: #1a6b62;
-                      background: linear-gradient(
-                        135deg,
-                        #f0f7f5 0%,
-                        #e8f3f0 100%
-                      );
-                      box-shadow: 0 4px 12px rgba(26, 107, 98, 0.15);
-                    }
-
-                    .mfa-option input:checked + .mfa-card .mfa-icon svg {
-                      stroke: #1a6b62;
-                    }
-
-                    .mfa-option input:checked + .mfa-card .mfa-title {
-                      color: #1a6b62;
-                    }
-
-                    .mfa-option input:checked + .mfa-card .mfa-check {
-                      display: flex !important;
-                    }
-
-                    .mfa-card:hover {
-                      border-color: #1a6b62;
-                      transform: translateY(-2px);
-                      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-                    }
-                  </style>
-
-                  <!-- Phone Number MFA (Default) -->
-                  <div id="phoneMfaSection">
-                    <div class="form-group">
-                      <label
-                        >Mobile Number <span style="color: red">*</span></label
-                      >
-                      <div class="mobile-input-group">
-                        <select
-                          name="phone_country_code"
-                          class="form-control phone-country-code"
-                          style="width: 200px; flex: none"
-                        >
-                          <option value="">Loading...</option>
-                        </select>
-                        <input
-                          type="tel"
-                          name="mobile_number"
-                          id="mobile_number"
-                          class="form-control"
-                          placeholder="9123456789"
-                          style="flex: 1"
-                        />
-                        <button
-                          type="button"
-                          class="btn btn-send-code"
-                          id="sendPhoneCode"
-                        >
-                          Send Code
-                        </button>
-                      </div>
-                      <small style="color: #666; font-size: 11px">
-                        Select country code and enter your number
-                      </small>
-                    </div>
-                  </div>
-
-                  <!-- Email MFA (Hidden by default) -->
-                  <div id="emailMfaSection" style="display: none">
-                    <div class="form-group">
-                      <label
-                        >Email Address <span style="color: red">*</span></label
-                      >
-                      <div style="display: flex; gap: 10px">
-                        <input
-                          type="email"
-                          name="email_verification"
-                          id="email_verification"
-                          class="form-control"
-                          placeholder="your.email@example.com"
-                          style="flex: 1"
-                        />
-                        <button
-                          type="button"
-                          class="btn btn-send-code"
-                          id="sendEmailCode"
-                        >
-                          Send Code
-                        </button>
-                      </div>
-                      <small style="color: #666; font-size: 11px">
-                        Enter your email to receive verification code
-                      </small>
-                    </div>
-                  </div>
-
-                  <div class="form-group">
-                    <label
-                      >Verification Code
-                      <span style="color: red">*</span></label
-                    >
-                    <div class="code-inputs">
+                    <label>Front of ID <span style="color: red">*</span></label>
+                    <div class="file-upload-wrapper">
                       <input
-                        type="text"
-                        class="code-box"
-                        maxlength="1"
-                        disabled
+                        type="file"
+                        name="id_front"
+                        id="id_front"
+                        class="file-input"
+                        accept="image/jpeg,image/png,image/jpg,application/pdf"
+                        required
                       />
-                      <input
-                        type="text"
-                        class="code-box"
-                        maxlength="1"
-                        disabled
-                      />
-                      <input
-                        type="text"
-                        class="code-box"
-                        maxlength="1"
-                        disabled
-                      />
-                      <input
-                        type="text"
-                        class="code-box"
-                        maxlength="1"
-                        disabled
-                      />
-                    </div>
-
-                    <!-- Mock Code Display for Testing -->
-                    <div
-                      class="mock-code-display"
-                      id="mockCodeDisplay"
-                      style="display: none"
-                    >
-                      <div class="mock-code-header">
+                      <label for="id_front" class="file-upload-label">
                         <svg
-                          width="20"
-                          height="20"
+                          width="24"
+                          height="24"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -443,41 +127,153 @@
                           <polyline points="17 8 12 3 7 8"></polyline>
                           <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>Test Mode - Verification Code:</span>
-                      </div>
-                      <div style="margin: 15px 0">
-                        <div
-                          style="
-                            font-weight: 600;
-                            color: #003631;
-                            margin-bottom: 8px;
-                          "
+                        <span class="file-label-text"
+                          >Choose File or Drag Here</span
                         >
-                          Verification Code:
-                        </div>
-                        <div
-                          class="mock-code-value"
-                          id="mockCodeValue"
-                          style="
-                            font-size: 24px;
-                            font-weight: bold;
-                            color: #003631;
-                            letter-spacing: 5px;
-                          "
-                        >
-                          0000
-                        </div>
-                      </div>
-                      <small class="mock-code-note"
-                        >This is only visible in test mode. In production, codes
-                        will be sent via SMS.</small
-                      >
+                        <span class="file-name"></span>
+                      </label>
                     </div>
+                    <small style="color: #666; font-size: 11px">
+                      Upload a clear photo of the front of your ID
+                    </small>
+                    <div class="file-preview" id="preview_id_front"></div>
+                  </div>
 
-                    <div class="resend-text">
-                      Didn't receive the code?
-                      <a href="#" class="resend-link">Resend Code</a>
-                      <div class="timer-text"></div>
+                  <div class="form-group">
+                    <label>Back of ID <span style="color: red">*</span></label>
+                    <div class="file-upload-wrapper">
+                      <input
+                        type="file"
+                        name="id_back"
+                        id="id_back"
+                        class="file-input"
+                        accept="image/jpeg,image/png,image/jpg,application/pdf"
+                        required
+                      />
+                      <label for="id_back" class="file-upload-label">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path
+                            d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                          ></path>
+                          <polyline points="17 8 12 3 7 8"></polyline>
+                          <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span class="file-label-text"
+                          >Choose File or Drag Here</span
+                        >
+                        <span class="file-name"></span>
+                      </label>
+                    </div>
+                    <small style="color: #666; font-size: 11px">
+                      Upload a clear photo of the back of your ID (if
+                      applicable)
+                    </small>
+                    <div class="file-preview" id="preview_id_back"></div>
+                  </div>
+                </div>
+
+                <!-- Right Column: ID Number & Instructions -->
+                <div class="mfa-column">
+                  <div class="subsection-title">Identification Number</div>
+
+                  <div class="form-group">
+                    <label>ID Number <span style="color: red">*</span></label>
+                    <input
+                      type="text"
+                      name="id_number"
+                      id="id_number"
+                      class="form-control"
+                      placeholder="Enter your ID number"
+                      required
+                      maxlength="100"
+                    />
+                    <small style="color: #666; font-size: 11px">
+                      Enter the ID number shown on your selected document
+                    </small>
+                  </div>
+
+                  <div class="info-box" style="margin-top: 30px">
+                    <div style="display: flex; align-items: start; gap: 12px">
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#1a6b62"
+                        stroke-width="2"
+                        style="flex-shrink: 0; margin-top: 2px"
+                      >
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                      </svg>
+                      <div>
+                        <h4
+                          style="
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: #1a6b62;
+                            margin: 0 0 8px 0;
+                          "
+                        >
+                          Document Requirements
+                        </h4>
+                        <ul
+                          style="
+                            margin: 0;
+                            padding-left: 18px;
+                            font-size: 12px;
+                            color: #666;
+                          "
+                        >
+                          <li>Images must be clear and readable</li>
+                          <li>All four corners of the ID must be visible</li>
+                          <li>File size should not exceed 5MB</li>
+                          <li>Accepted formats: JPG, PNG, PDF</li>
+                          <li>ID must be valid (not expired)</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="info-box"
+                    style="
+                      margin-top: 15px;
+                      background: #fff3cd;
+                      border-left: 4px solid #ffc107;
+                    "
+                  >
+                    <div style="display: flex; align-items: start; gap: 12px">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#856404"
+                        stroke-width="2"
+                        style="flex-shrink: 0; margin-top: 2px"
+                      >
+                        <path
+                          d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                        ></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                      <div>
+                        <p style="margin: 0; font-size: 12px; color: #856404">
+                          <strong>Security Notice:</strong> Your documents are
+                          encrypted and stored securely. They will only be used
+                          for verification purposes.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -501,23 +297,101 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      // Auto-focus next code input box
-      document.querySelectorAll(".code-box").forEach((input, index, inputs) => {
-        input.addEventListener("input", (e) => {
-          if (e.target.value.length === 1 && index < inputs.length - 1) {
-            inputs[index + 1].focus();
-          }
-        });
+    <style>
+      /* File Upload Styles */
+      .file-upload-wrapper {
+        position: relative;
+        margin-bottom: 10px;
+      }
 
-        input.addEventListener("keydown", (e) => {
-          if (e.key === "Backspace" && e.target.value === "" && index > 0) {
-            inputs[index - 1].focus();
-          }
-        });
-      });
-    </script>
+      .file-input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .file-upload-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 20px;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        background-color: #fafafa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-height: 120px;
+      }
+
+      .file-upload-label:hover {
+        border-color: #1a6b62;
+        background-color: #f0f7f5;
+      }
+
+      .file-upload-label svg {
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .file-label-text {
+        font-size: 14px;
+        color: #666;
+        font-weight: 500;
+      }
+
+      .file-name {
+        font-size: 12px;
+        color: #1a6b62;
+        margin-top: 8px;
+        font-weight: 600;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-input:focus + .file-upload-label {
+        border-color: #1a6b62;
+        box-shadow: 0 0 0 3px rgba(26, 107, 98, 0.1);
+      }
+
+      .file-upload-wrapper.has-file .file-upload-label {
+        border-color: #1a6b62;
+        background-color: #f0f7f5;
+      }
+
+      .file-preview {
+        margin-top: 15px;
+        display: none;
+      }
+
+      .file-preview.show {
+        display: block;
+      }
+
+      .file-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+      }
+
+      .info-box {
+        background-color: #f0f7f5;
+        border-radius: 8px;
+        padding: 15px;
+        border-left: 4px solid #1a6b62;
+      }
+
+      .mobile-input-group {
+        display: flex;
+        gap: 10px;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/customer-onboarding-security.js"></script>
   </body>
 </html>

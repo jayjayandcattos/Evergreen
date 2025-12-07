@@ -46,7 +46,7 @@
               <span class="nav-number">1.</span> Personal Details
             </div>
             <div class="nav-item">
-              <span class="nav-number">2.</span> Security
+              <span class="nav-number">2.</span> Document Verification
             </div>
             <div class="nav-item active">
               <span class="nav-number">3.</span> Review
@@ -66,7 +66,11 @@
                   <div class="detail-section" id="section-personal-details">
                     <div class="section-header-inline">
                       <h5 class="section-subtitle">Personal Details</h5>
-                      <button type="button" class="btn-edit-icon">
+                      <button
+                        type="button"
+                        class="btn-edit-icon"
+                        data-section="personal-details"
+                      >
                         <span>Edit</span>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -90,9 +94,19 @@
                     </div>
                     <div class="detail-list">
                       <div class="detail-item">
-                        <span class="label">Full Name</span>
-                        <span class="value" id="review-full-name"
-                          >Juan Dela Cruz</span
+                        <span class="label">First Name</span>
+                        <span class="value" id="review-first-name">Juan</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Middle Name</span>
+                        <span class="value" id="review-middle-name"
+                          >Santos</span
+                        >
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Last Name</span>
+                        <span class="value" id="review-last-name"
+                          >Dela Cruz</span
                         >
                       </div>
                       <div class="detail-item">
@@ -160,7 +174,11 @@
                   <div class="detail-section" id="section-contact-details">
                     <div class="section-header-inline">
                       <h5 class="section-subtitle">Contact Details</h5>
-                      <button type="button" class="btn-edit-icon">
+                      <button
+                        type="button"
+                        class="btn-edit-icon"
+                        data-section="contact-details"
+                      >
                         <span>Edit</span>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -201,14 +219,15 @@
                   <!-- Divider Line -->
                   <div class="section-divider"></div>
 
-                  <!-- Employment Information Section -->
-                  <div
-                    class="detail-section"
-                    id="section-employment-information"
-                  >
+                  <!-- Financial Details Section -->
+                  <div class="detail-section" id="section-financial-details">
                     <div class="section-header-inline">
-                      <h5 class="section-subtitle">Employment Information</h5>
-                      <button type="button" class="btn-edit-icon">
+                      <h5 class="section-subtitle">Financial Details</h5>
+                      <button
+                        type="button"
+                        class="btn-edit-icon"
+                        data-section="financial-details"
+                      >
                         <span>Edit</span>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -261,11 +280,18 @@
                   <!-- Divider Line -->
                   <div class="section-divider"></div>
 
-                  <!-- Account Security Section -->
-                  <div class="detail-section" id="section-account-security">
+                  <!-- Document Verification Section -->
+                  <div
+                    class="detail-section"
+                    id="section-document-verification"
+                  >
                     <div class="section-header-inline">
-                      <h5 class="section-subtitle">Account Security</h5>
-                      <button type="button" class="btn-edit-icon">
+                      <h5 class="section-subtitle">Document Verification</h5>
+                      <button
+                        type="button"
+                        class="btn-edit-icon"
+                        onclick="window.location.href='customer-onboarding-security.html'"
+                      >
                         <span>Edit</span>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -289,14 +315,18 @@
                     </div>
                     <div class="detail-list">
                       <div class="detail-item">
-                        <span class="label">Email (Login Username)</span>
-                        <span class="value" id="review-email"
-                          >user@example.com</span
-                        >
+                        <span class="label">ID Type</span>
+                        <span class="value" id="review-id-type">-</span>
                       </div>
                       <div class="detail-item">
-                        <span class="label">Password</span>
-                        <span class="value" id="review-password">••••••••</span>
+                        <span class="label">ID Number</span>
+                        <span class="value" id="review-id-number">-</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="label">Documents Uploaded</span>
+                        <span class="value" id="review-documents"
+                          >ID Front & Back</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -357,7 +387,7 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content success-modal-content">
           <div class="modal-body">
-            <h1 class="success-title">Account Created Successfully!</h1>
+            <h1 class="success-title">Application Submitted Successfully!</h1>
 
             <div class="success-icon">
               <svg
@@ -379,8 +409,12 @@
             </div>
 
             <div class="account-info">
-              <p class="account-label">Account Number</p>
+              <p class="account-label">Application Number</p>
               <p class="account-number" id="account-number">-</p>
+              <p style="font-size: 0.9rem; color: #666; margin-top: 1rem">
+                Your application is pending approval. You will be notified once
+                approved.
+              </p>
             </div>
 
             <button
@@ -414,6 +448,6 @@
         }
       });
     </script>
-    <script src="../assets/js/customer-onboarding-review.js"></script>
+    <script src="../assets/js/customer-onboarding-review.js?v=9"></script
   </body>
 </html>

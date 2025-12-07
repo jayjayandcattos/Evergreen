@@ -54,21 +54,22 @@ function setupEventListeners() {
   }
 
   // Edit buttons for each section
-  const editButtons = document.querySelectorAll(".btn-edit-icon");
+  const editButtons = document.querySelectorAll(".btn-edit-icon[data-section]");
   console.log("Found", editButtons.length, "edit buttons");
 
   editButtons.forEach((btn) => {
     btn.addEventListener("click", function (e) {
       e.preventDefault();
-      console.log("Edit button clicked");
+      const sectionId = this.getAttribute("data-section");
+      console.log("Edit button clicked for section:", sectionId);
 
-      const section = this.closest(".detail-section");
-      if (section) {
-        const sectionId = section.id.replace("section-", "");
-        console.log("Editing section:", sectionId);
-        editSection(sectionId);
+      if (sectionId) {
+        enableEditMode(
+          sectionId,
+          document.querySelector(`#section-${sectionId}`)
+        );
       } else {
-        console.error("Could not find parent section");
+        console.error("Could not find section ID");
       }
     });
   });
@@ -87,7 +88,7 @@ function setupEventListeners() {
 }
 
 /**
- * Load session data from backend
+ * Load session data from sessionStorage
  */
 async function loadSessionData() {
   // Prevent multiple simultaneous calls
@@ -99,47 +100,51 @@ async function loadSessionData() {
   isLoadingData = true;
 
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/customer/get-session-data.php`,
-      {
-        method: "GET",
-        credentials: "include",
-      }
-    );
+    // Get data from sessionStorage instead of API
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    const step2Data = sessionStorage.getItem("onboarding_step2");
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    console.log("Step 1 data from sessionStorage:", step1Data);
+    console.log("Step 2 data from sessionStorage:", step2Data);
 
-    const result = await response.json();
-
-    console.log("Session data loaded:", result);
-
-    if (result.success && result.data) {
-      // Check if we have minimum required data from step 1
-      if (!result.data.first_name || !result.data.last_name) {
-        console.error("Missing required step 1 data");
-        showGlobalError(
-          "Missing required information. Please start from the beginning."
-        );
-        setTimeout(() => {
-          window.location.href = "customer-onboarding-details.html";
-        }, 2000);
-        isLoadingData = false;
-        return;
-      }
-
-      sessionData = result.data;
-      populateReviewData(sessionData);
-      isLoadingData = false;
-    } else {
-      isLoadingData = false;
-      console.error("Session validation failed:", result);
+    if (!step1Data) {
+      console.error("No step 1 data found in sessionStorage");
       showGlobalError("Session expired. Please start from the beginning.");
       setTimeout(() => {
         window.location.href = "customer-onboarding-details.html";
       }, 2000);
+      isLoadingData = false;
+      return;
     }
+
+    // Parse the data
+    const parsedStep1 = JSON.parse(step1Data);
+    const parsedStep2 = step2Data ? JSON.parse(step2Data) : {};
+
+    // Combine step 1 and step 2 data
+    const combinedData = {
+      ...parsedStep1,
+      ...parsedStep2,
+    };
+
+    console.log("Combined session data:", combinedData);
+
+    // Check if we have minimum required data from step 1
+    if (!combinedData.first_name || !combinedData.last_name) {
+      console.error("Missing required step 1 data");
+      showGlobalError(
+        "Missing required information. Please start from the beginning."
+      );
+      setTimeout(() => {
+        window.location.href = "customer-onboarding-details.html";
+      }, 2000);
+      isLoadingData = false;
+      return;
+    }
+
+    sessionData = combinedData;
+    populateReviewData(sessionData);
+    isLoadingData = false;
   } catch (error) {
     isLoadingData = false;
     console.error("Error loading session data:", error);
@@ -157,11 +162,10 @@ function populateReviewData(data) {
   console.log("Populating review with data:", data);
 
   try {
-    // Personal Information - Full Name
-    const fullName = `${data.first_name || ""} ${data.middle_name || ""} ${
-      data.last_name || ""
-    }`.trim();
-    setFieldValue("review-full-name", fullName);
+    // Personal Information - Name fields
+    setFieldValue("review-first-name", data.first_name || "");
+    setFieldValue("review-middle-name", data.middle_name || "");
+    setFieldValue("review-last-name", data.last_name || "");
 
     // Map field names from Step 1 form to review display
     setFieldValue(
@@ -214,6 +218,17 @@ function populateReviewData(data) {
     // Account Type
     const accountType = data.account_type || "Savings";
     setFieldValue("review-account-type", accountType + " Account");
+
+    // Document Verification - ID Type and ID Number from step 2
+    setFieldValue("review-id-type", data.id_type || "-");
+    setFieldValue("review-id-number", data.id_number || "-");
+
+    // Documents Uploaded status
+    if (data.documents_uploaded) {
+      setFieldValue("review-documents", "ID Front & Back");
+    } else {
+      setFieldValue("review-documents", "Not uploaded");
+    }
 
     // Note: Email is already set above and will be shown in Account Security section as username
   } catch (error) {
@@ -989,8 +1004,14 @@ async function saveSection(sectionId) {
     const fieldId = input.id.replace("edit-", "");
     let newValue = input.value.trim();
 
-    // Validate that non-password fields are not empty
-    if (!newValue || (input.tagName === "SELECT" && newValue === "")) {
+    // Validate required fields (all fields except middle name and employer name)
+    const optionalFields = ["review-middle-name", "review-employer"];
+    const isRequired = !optionalFields.includes(fieldId);
+
+    if (
+      isRequired &&
+      (!newValue || (input.tagName === "SELECT" && newValue === ""))
+    ) {
       hasError = true;
       // Add visual feedback
       input.classList.add("is-invalid");
@@ -1014,7 +1035,9 @@ async function saveSection(sectionId) {
 
     // Map field IDs to session data keys
     const fieldMap = {
-      "review-full-name": "full_name",
+      "review-first-name": "first_name",
+      "review-middle-name": "middle_name",
+      "review-last-name": "last_name",
       "review-birth-date": "date_of_birth",
       "review-birth-place": "place_of_birth",
       "review-gender": "gender",
@@ -1032,6 +1055,8 @@ async function saveSection(sectionId) {
       "review-annual-income": "source_of_funds",
       "review-account-type": "account_type",
       "review-username": "username",
+      "review-id-type": "id_type",
+      "review-id-number": "id_number",
     };
 
     const dataKey = fieldMap[fieldId];
@@ -1047,47 +1072,75 @@ async function saveSection(sectionId) {
   }
 
   try {
-    // Update session data
-    const response = await fetch(
-      `${API_BASE_URL}/customer/update-session.php`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(updatedData),
-      }
-    );
+    // Update sessionStorage directly instead of API call
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    const step2Data = sessionStorage.getItem("onboarding_step2");
 
-    const result = await response.json();
+    let parsedStep1 = step1Data ? JSON.parse(step1Data) : {};
+    let parsedStep2 = step2Data ? JSON.parse(step2Data) : {};
 
-    if (result.success) {
-      // Update the displayed values without reloading all session data
-      // (reloading can cause loops if there are issues)
-
-      // Reload session data to get latest values (only if needed)
-      // await loadSessionData();
-
-      // Exit edit mode
-      disableEditMode(sectionId, section);
-
-      // Show success message instead of alert
-      showSuccessMessage(
-        "Changes saved successfully! Refreshing page...",
-        "success",
-        section
-      );
-
-      // Reload page after a delay to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      showSuccessMessage(
-        "Error: " + (result.message || "Unknown error"),
-        "error",
-        section
-      );
+    // Get current data based on section
+    let currentData = {};
+    if (
+      sectionId === "personal-details" ||
+      sectionId === "contact-details" ||
+      sectionId === "financial-details"
+    ) {
+      currentData = parsedStep1;
+    } else if (sectionId === "document-verification") {
+      currentData = parsedStep2;
     }
+
+    // Check if any changes were actually made
+    let hasChanges = false;
+    for (const key in updatedData) {
+      if (updatedData[key] !== currentData[key]) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    // If no changes, show info message and exit edit mode
+    if (!hasChanges) {
+      disableEditMode(sectionId, section);
+      showSuccessMessage("No changes were made.", "info", section);
+      return;
+    }
+
+    // Merge updated data into the appropriate step
+    // Personal, Contact, and Financial details go to step1
+    if (
+      sectionId === "personal-details" ||
+      sectionId === "contact-details" ||
+      sectionId === "financial-details"
+    ) {
+      parsedStep1 = { ...parsedStep1, ...updatedData };
+      sessionStorage.setItem("onboarding_step1", JSON.stringify(parsedStep1));
+    }
+    // Document verification goes to step2
+    else if (sectionId === "document-verification") {
+      parsedStep2 = { ...parsedStep2, ...updatedData };
+      sessionStorage.setItem("onboarding_step2", JSON.stringify(parsedStep2));
+    }
+
+    // Update the global sessionData
+    sessionData = { ...parsedStep1, ...parsedStep2 };
+
+    // Exit edit mode
+    disableEditMode(sectionId, section);
+
+    // Show success message
+    showSuccessMessage("Changes saved successfully!", "success", section);
+
+    // Refresh the display with updated data
+    setTimeout(() => {
+      populateReviewData(sessionData);
+      // Remove success message after refresh
+      const existingMsg = section.querySelector(".edit-message");
+      if (existingMsg) {
+        existingMsg.remove();
+      }
+    }, 1000);
   } catch (error) {
     console.error("Error saving changes:", error);
     showSuccessMessage(
@@ -1099,7 +1152,7 @@ async function saveSection(sectionId) {
 }
 
 /**
- * Show success/error message inline
+ * Show success/error/info message inline
  */
 function showSuccessMessage(message, type = "success", section) {
   // Remove any existing message
@@ -1108,11 +1161,17 @@ function showSuccessMessage(message, type = "success", section) {
     existingMsg.remove();
   }
 
+  // Map type to Bootstrap alert class
+  let alertClass = "success";
+  if (type === "error") {
+    alertClass = "danger";
+  } else if (type === "info") {
+    alertClass = "info";
+  }
+
   // Create message element
   const msgEl = document.createElement("div");
-  msgEl.className = `edit-message alert alert-${
-    type === "success" ? "success" : "danger"
-  } mt-2`;
+  msgEl.className = `edit-message alert alert-${alertClass} mt-2`;
   msgEl.style.padding = "0.5rem 1rem";
   msgEl.style.fontSize = "0.9rem";
   msgEl.textContent = message;
@@ -1121,8 +1180,8 @@ function showSuccessMessage(message, type = "success", section) {
   const header = section.querySelector(".section-header-inline");
   header.parentNode.insertBefore(msgEl, header.nextSibling);
 
-  // Auto-remove after 3 seconds for success messages
-  if (type === "success") {
+  // Auto-remove after 3 seconds for success/info messages
+  if (type === "success" || type === "info") {
     setTimeout(() => {
       msgEl.remove();
     }, 3000);
@@ -1135,10 +1194,15 @@ function showSuccessMessage(message, type = "success", section) {
 function cancelEdit(sectionId) {
   const section = document.querySelector(`#section-${sectionId}`);
 
-  // Restore original values
+  // Restore original values by removing input elements and restoring text
   Object.keys(originalValues[sectionId] || {}).forEach((id) => {
     const el = document.getElementById(id);
     if (el) {
+      // Remove all child elements (inputs/selects)
+      while (el.firstChild) {
+        el.removeChild(el.firstChild);
+      }
+      // Restore the original text content
       el.textContent = originalValues[sectionId][id];
     }
   });
@@ -1236,10 +1300,77 @@ async function submitApplication() {
     btnText.classList.add("d-none");
     spinner.classList.remove("d-none");
 
+    // Get data from sessionStorage and send it to the API
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    const step2Data = sessionStorage.getItem("onboarding_step2");
+
+    if (!step1Data) {
+      throw new Error("Session data missing. Please start from the beginning.");
+    }
+
+    // Combine step 1 and step 2 data
+    const step1Parsed = JSON.parse(step1Data);
+    const step2Parsed = step2Data ? JSON.parse(step2Data) : {};
+
+    // Create FormData to handle file uploads
+    const formData = new FormData();
+
+    // Add all step 1 fields
+    for (const [key, value] of Object.entries(step1Parsed)) {
+      if (value !== null && value !== undefined) {
+        formData.append(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : value
+        );
+      }
+    }
+
+    // Add step 2 fields (excluding file data)
+    for (const [key, value] of Object.entries(step2Parsed)) {
+      if (
+        key.endsWith("_data") ||
+        key.endsWith("_name") ||
+        key.endsWith("_type")
+      ) {
+        continue; // Skip file data fields for now
+      }
+      if (value !== null && value !== undefined) {
+        formData.append(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : value
+        );
+      }
+    }
+
+    // Convert base64 files back to Blob and add to FormData
+    if (step2Parsed.id_front_data) {
+      const frontBlob = await fetch(step2Parsed.id_front_data).then((r) =>
+        r.blob()
+      );
+      formData.append(
+        "id_front_image",
+        frontBlob,
+        step2Parsed.id_front_name || "id_front.jpg"
+      );
+    }
+
+    if (step2Parsed.id_back_data) {
+      const backBlob = await fetch(step2Parsed.id_back_data).then((r) =>
+        r.blob()
+      );
+      formData.append(
+        "id_back_image",
+        backBlob,
+        step2Parsed.id_back_name || "id_back.jpg"
+      );
+    }
+
+    console.log("Sending form data to API with files");
+
     const response = await fetch(`${API_BASE_URL}/customer/create-final.php`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       credentials: "include",
+      body: formData,
     });
 
     // Check if response is ok and content-type is JSON

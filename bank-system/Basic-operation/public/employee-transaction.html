@@ -232,6 +232,67 @@
       </div>
     </footer>
 
+    <!-- Low Balance Warning Modal -->
+    <div
+      class="modal fade"
+      id="lowBalanceWarningModal"
+      tabindex="-1"
+      aria-labelledby="lowBalanceWarningLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title" id="lowBalanceWarningLabel">
+              ⚠️ Low Balance Warning
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-3">
+              <strong>Warning:</strong> This withdrawal will bring the account
+              balance below the minimum required balance of
+              <strong>PHP 500.00</strong>.
+            </p>
+            <p class="mb-3">
+              Remaining balance after withdrawal:
+              <strong class="text-danger" id="remainingBalanceWarning"
+                >PHP 0.00</strong
+              >
+            </p>
+            <p class="mb-0">
+              <small class="text-muted">
+                <strong>Note:</strong> Accounts with a balance below PHP 500.00
+                for more than 30 days may be subject to a monthly maintenance
+                fee. Please advise the customer accordingly.
+              </small>
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-warning"
+              id="confirmLowBalanceBtn"
+            >
+              Proceed Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/auth-helper.js"></script>
     <script src="../assets/js/employee-transaction.js"></script>

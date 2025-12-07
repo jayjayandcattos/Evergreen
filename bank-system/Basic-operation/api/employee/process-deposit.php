@@ -136,7 +136,7 @@ try {
 
     try {
         // --- 1. Get account information and lock the row ---
-        // Tables: customer_accounts (ca), bank_customers (bc), bank_account_types (bat)
+        // Join: customer_accounts -> bank_customers -> account_applications
         $stmt = $db->prepare("
             SELECT 
                 ca.account_id,
@@ -145,11 +145,12 @@ try {
                 ca.account_status,
                 bat.account_type_id,
                 bat.type_name as account_type,
-                bc.first_name,
-                bc.middle_name,
-                bc.last_name
+                aa.first_name,
+                aa.middle_name,
+                aa.last_name
             FROM customer_accounts ca
             INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+            INNER JOIN account_applications aa ON bc.application_id = aa.application_id
             INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
             WHERE ca.account_number = :account_number
             FOR UPDATE -- Lock the row
@@ -273,12 +274,13 @@ try {
         // Rollback transaction on error
         $db->rollBack();
         
+        error_log("Deposit transaction error: " . $e->getMessage());
+        
         echo json_encode([
             'success' => false,
             'message' => 'Transaction failed: ' . $e->getMessage()
         ]);
-        // Re-throw for logging in the outer catch block
-        throw $e; 
+        exit(); // Exit to prevent outer catch from executing
     }
 
 } catch (PDOException $e) {
