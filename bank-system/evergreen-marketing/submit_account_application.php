@@ -22,13 +22,68 @@ if ($conn->connect_error) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
-    // Get JSON data from request
-    $rawData = file_get_contents('php://input');
-    $data = json_decode($rawData, true);
+    // Check if this is a FormData submission (with file) or JSON
+    $contentType = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+    
+    if (strpos($contentType, 'multipart/form-data') !== false || !empty($_POST)) {
+        // FormData submission - get data from $_POST
+        $data = $_POST;
+        
+        // Parse JSON arrays
+        if (isset($data['selectedCards'])) {
+            $data['selectedCards'] = json_decode($data['selectedCards'], true) ?: [];
+        }
+        if (isset($data['additionalServices'])) {
+            $data['additionalServices'] = json_decode($data['additionalServices'], true) ?: [];
+        }
+    } else {
+        // JSON submission
+        $rawData = file_get_contents('php://input');
+        $data = json_decode($rawData, true);
+    }
     
     if (!$data) {
         echo json_encode(['success' => false, 'message' => 'Invalid data received']);
         exit;
+    }
+    
+    // Handle file upload
+    $idDocumentPath = null;
+    if (isset($_FILES['id_document']) && $_FILES['id_document']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/id_documents/';
+        
+        // Create directory if it doesn't exist
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        // Validate file type
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        $fileType = $_FILES['id_document']['type'];
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, and PDF are allowed.']);
+            exit;
+        }
+        
+        // Validate file size (max 5MB)
+        $maxSize = 5 * 1024 * 1024;
+        if ($_FILES['id_document']['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'message' => 'File is too large. Maximum size is 5MB.']);
+            exit;
+        }
+        
+        // Generate unique filename
+        $extension = pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION);
+        $uniqueName = 'id_' . uniqid() . '_' . time() . '.' . $extension;
+        $targetPath = $uploadDir . $uniqueName;
+        
+        if (move_uploaded_file($_FILES['id_document']['tmp_name'], $targetPath)) {
+            $idDocumentPath = $targetPath;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to upload ID document.']);
+            exit;
+        }
     }
     
     // Start transaction
@@ -78,7 +133,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             application_number, application_status,
             first_name, last_name, email, phone_number, date_of_birth,
             street_address, barangay, city, state, zip_code,
-            ssn, id_type, id_number,
+            ssn, id_type, id_number, id_document_path,
             employment_status, employer_name, job_title, annual_income,
             account_type, selected_cards, additional_services,
             terms_accepted, privacy_acknowledged, marketing_consent,
@@ -87,7 +142,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             ?, 'pending',
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
-            ?, ?, ?,
+            ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?,
             ?, ?, ?,
@@ -96,11 +151,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         $stmt = $conn->prepare($sql);
         $stmt->bind_param(
-            "sssssssssssssssssdsssiii",
+            "ssssssssssssssssssdsssiii",
             $applicationNumber,
             $firstName, $lastName, $email, $phoneNumber, $dateOfBirth,
             $streetAddress, $barangay, $city, $state, $zipCode,
-            $ssn, $idType, $idNumber,
+            $ssn, $idType, $idNumber, $idDocumentPath,
             $employmentStatus, $employerName, $jobTitle, $annualIncome,
             $accountType, $selectedCards, $additionalServices,
             $termsAccepted, $privacyAcknowledged, $marketingConsent

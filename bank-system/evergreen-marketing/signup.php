@@ -60,8 +60,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $middle_name = trim($_POST['middle_name']);
     $last_name = trim($_POST['last_name']);
     $address = trim($_POST['address']);
+    $region = trim($_POST['region']);
+    $region_name = trim($_POST['region_name'] ?? '');
     $province = trim($_POST['province']);
+    $province_name = trim($_POST['province_name'] ?? '');
     $city_province = trim($_POST['city_province']);
+    $city_name = trim($_POST['city_name'] ?? '');
+    $barangay = trim($_POST['barangay']);
+    $barangay_name = trim($_POST['barangay_name'] ?? '');
     $email = trim($_POST['email']);
     $contact_number = trim($_POST['contact_number']);
     $birthday = $_POST['birthday'];
@@ -70,9 +76,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $terms_accepted = isset($_POST['terms']) ? true : false;
 
     if (empty($first_name) || empty($middle_name) || empty($last_name) || 
-        empty($address) || empty($province) || empty($city_province) || empty($email) || 
-        empty($contact_number) || empty($birthday) || empty($password) || 
-        empty($confirm_password)) {
+        empty($address) || empty($region) || empty($province) || empty($city_province) || 
+        empty($barangay) || empty($email) || empty($contact_number) || empty($birthday) || 
+        empty($password) || empty($confirm_password)) {
         $error = "Please fill in all required fields.";
     } elseif (!$terms_accepted) {
         $error = "You must agree to the Terms and Conditions.";
@@ -114,16 +120,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Combine province and city for storage
-        $full_location = $city_province . ', ' . $province;
+        // Store location with names for display and codes for lookup
+        // Format: "City Name, Province Name, Region Name, Barangay Name" for full location data
+        $full_location = $city_name . ', ' . $province_name . ', ' . $region_name . ', ' . $barangay_name;
         
-        // Store user data in session
+        // Store user data in session with full location details
         $_SESSION['temp_registration'] = [
             'first_name' => $first_name,
             'middle_name' => $middle_name,
             'last_name' => $last_name,
             'address' => $address,
             'city_province' => $full_location,
+            // Store location codes for precise lookup in evergreen_form
+            'region_code' => $region,
+            'region_name' => $region_name,
+            'province_code' => $province,
+            'province_name' => $province_name,
+            'city_code' => $city_province,
+            'city_name' => $city_name,
+            'barangay_code' => $barangay,
+            'barangay_name' => $barangay_name,
             'email' => $email,
             'contact_number' => $contact_number,
             'birthday' => $birthday,
@@ -1040,7 +1056,7 @@ $stmt->execute();
 
       <div class="form-row">
         <div class="input-wrapper" style="grid-column: span 2;">
-          <label class="input-label">House number/Street/Brgy</label>
+          <label class="input-label">House number/Street</label>
           <input type="text" name="address" id="address" placeholder="29 Simforosa st. Brgy. Nagkaisang" 
                  value="<?php echo isset($_POST['address']) ? htmlspecialchars($_POST['address']) : ''; ?>">
           <span class="error-message" id="address_error">This field is required</span>
@@ -1049,18 +1065,35 @@ $stmt->execute();
 
       <div class="form-row">
         <div class="input-wrapper">
+          <label class="input-label">Region</label>
+          <select name="region" id="region" required>
+            <option value="">Select Region</option>
+          </select>
+          <span class="error-message" id="region_error">This field is required</span>
+        </div>
+        <div class="input-wrapper">
           <label class="input-label">Province</label>
-          <select name="province" id="province" required>
+          <select name="province" id="province" required disabled>
             <option value="">Select Province</option>
           </select>
           <span class="error-message" id="province_error">This field is required</span>
         </div>
+      </div>
+
+      <div class="form-row">
         <div class="input-wrapper">
           <label class="input-label">City/Municipality</label>
           <select name="city_province" id="city_province" required disabled>
             <option value="">Select City/Municipality</option>
           </select>
           <span class="error-message" id="city_province_error">This field is required</span>
+        </div>
+        <div class="input-wrapper">
+          <label class="input-label">Barangay</label>
+          <select name="barangay" id="barangay" required disabled>
+            <option value="">Select Barangay</option>
+          </select>
+          <span class="error-message" id="barangay_error">This field is required</span>
         </div>
       </div>
 
@@ -1485,55 +1518,239 @@ $stmt->execute();
         loadProvinces();
       });
 
-      // Load provinces from API
-      function loadProvinces() {
-        fetch('get_locations.php?action=get_provinces')
+      // ========================================
+      // PHILIPPINE LOCATION DROPDOWNS (Same as evergreen_form.php)
+      // ========================================
+      
+      let currentRegionCode = '';
+      let regionHasNoProvinces = false;
+
+      // Load all regions on page load
+      function loadRegions() {
+        const regionSelect = document.getElementById('region');
+        regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+        
+        fetch('get_locations.php?action=get_regions')
           .then(response => response.json())
-          .then(provinces => {
-            const provinceSelect = document.getElementById('province');
-            provinces.forEach(province => {
-              const option = document.createElement('option');
-              option.value = province;
-              option.textContent = province;
-              provinceSelect.appendChild(option);
-            });
+          .then(regions => {
+            regionSelect.innerHTML = '<option value="">Select Region</option>';
+            
+            if (regions.length > 0) {
+              regions.forEach(region => {
+                const option = document.createElement('option');
+                option.value = region.code;
+                option.textContent = region.name;
+                option.dataset.name = region.name;
+                regionSelect.appendChild(option);
+              });
+            } else {
+              regionSelect.innerHTML = '<option value="">No regions available</option>';
+            }
           })
           .catch(error => {
-            console.error('Error loading provinces:', error);
+            console.error('Error loading regions:', error);
+            regionSelect.innerHTML = '<option value="">Error loading regions</option>';
+          });
+      }
+
+      // Load provinces when region is selected
+      document.getElementById('region').addEventListener('change', function() {
+        const regionCode = this.value;
+        currentRegionCode = regionCode;
+        const provinceSelect = document.getElementById('province');
+        const citySelect = document.getElementById('city_province');
+        const barangaySelect = document.getElementById('barangay');
+        
+        // Update hidden field for region name
+        updateHiddenField('region_name', this.options[this.selectedIndex]?.text || '');
+        
+        // Clear and disable subsequent dropdowns
+        provinceSelect.innerHTML = '<option value="">Select Province</option>';
+        citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        
+        citySelect.disabled = true;
+        barangaySelect.disabled = true;
+        regionHasNoProvinces = false;
+        
+        if (regionCode) {
+          provinceSelect.disabled = false;
+          provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+          
+          fetch(`get_locations.php?action=get_provinces&region_code=${encodeURIComponent(regionCode)}`)
+            .then(response => response.json())
+            .then(provinces => {
+              if (provinces.length > 0) {
+                regionHasNoProvinces = false;
+                provinceSelect.innerHTML = '<option value="">Select Province</option>';
+                provinces.forEach(province => {
+                  const option = document.createElement('option');
+                  option.value = province.code;
+                  option.textContent = province.name;
+                  option.dataset.name = province.name;
+                  provinceSelect.appendChild(option);
+                });
+              } else {
+                // Region has NO provinces (like NCR) - load cities directly
+                regionHasNoProvinces = true;
+                provinceSelect.innerHTML = '<option value="METRO_MANILA" data-name="Metro Manila">Metro Manila</option>';
+                provinceSelect.value = 'METRO_MANILA';
+                updateHiddenField('province_name', 'Metro Manila');
+                loadCitiesFromRegion(regionCode);
+              }
+            })
+            .catch(error => {
+              console.error('Error loading provinces:', error);
+              provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
+            });
+        } else {
+          provinceSelect.disabled = true;
+        }
+      });
+
+      // Function to load cities directly from region (for NCR)
+      function loadCitiesFromRegion(regionCode) {
+        const citySelect = document.getElementById('city_province');
+        const barangaySelect = document.getElementById('barangay');
+        
+        citySelect.innerHTML = '<option value="">Loading cities...</option>';
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        
+        citySelect.disabled = false;
+        barangaySelect.disabled = true;
+        
+        fetch(`get_locations.php?action=get_cities&region_code=${encodeURIComponent(regionCode)}`)
+          .then(response => response.json())
+          .then(cities => {
+            citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (cities.length > 0) {
+              cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city.code;
+                option.textContent = city.name;
+                option.dataset.name = city.name;
+                citySelect.appendChild(option);
+              });
+            } else {
+              citySelect.innerHTML = '<option value="">No cities available</option>';
+            }
+          })
+          .catch(error => {
+            console.error('Error loading cities:', error);
+            citySelect.innerHTML = '<option value="">Error loading cities</option>';
           });
       }
 
       // Load cities when province is selected
       document.getElementById('province').addEventListener('change', function() {
-        const province = this.value;
+        const provinceCode = this.value;
         const citySelect = document.getElementById('city_province');
+        const barangaySelect = document.getElementById('barangay');
         
-        // Clear previous cities
+        // Update hidden field for province name
+        updateHiddenField('province_name', this.options[this.selectedIndex]?.dataset?.name || this.options[this.selectedIndex]?.text || '');
+        
+        // If NCR/Metro Manila, cities are already loaded
+        if (provinceCode === 'METRO_MANILA') {
+          return;
+        }
+        
         citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        barangaySelect.disabled = true;
         
-        if (province) {
-          // Enable city dropdown
+        if (provinceCode) {
           citySelect.disabled = false;
+          citySelect.innerHTML = '<option value="">Loading cities...</option>';
           
-          // Fetch cities for selected province
-          fetch(`get_locations.php?action=get_cities&province=${encodeURIComponent(province)}`)
+          fetch(`get_locations.php?action=get_cities&province_code=${encodeURIComponent(provinceCode)}`)
             .then(response => response.json())
             .then(cities => {
-              cities.forEach(city => {
-                const option = document.createElement('option');
-                option.value = city;
-                option.textContent = city;
-                citySelect.appendChild(option);
-              });
+              citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+              
+              if (cities.length > 0) {
+                cities.forEach(city => {
+                  const option = document.createElement('option');
+                  option.value = city.code;
+                  option.textContent = city.name;
+                  option.dataset.name = city.name;
+                  citySelect.appendChild(option);
+                });
+              } else {
+                citySelect.innerHTML = '<option value="">No cities available</option>';
+              }
             })
             .catch(error => {
               console.error('Error loading cities:', error);
+              citySelect.innerHTML = '<option value="">Error loading cities</option>';
             });
         } else {
-          // Disable city dropdown if no province selected
           citySelect.disabled = true;
         }
       });
+
+      // Load barangays when city is selected
+      document.getElementById('city_province').addEventListener('change', function() {
+        const cityCode = this.value;
+        const barangaySelect = document.getElementById('barangay');
+        
+        // Update hidden field for city name
+        updateHiddenField('city_name', this.options[this.selectedIndex]?.dataset?.name || this.options[this.selectedIndex]?.text || '');
+        
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        
+        if (cityCode) {
+          barangaySelect.disabled = false;
+          barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+          
+          fetch(`get_locations.php?action=get_barangays&city_code=${encodeURIComponent(cityCode)}`)
+            .then(response => response.json())
+            .then(barangays => {
+              barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+              
+              if (barangays.length > 0) {
+                barangays.forEach(barangay => {
+                  const option = document.createElement('option');
+                  option.value = barangay.code;
+                  option.textContent = barangay.name;
+                  option.dataset.name = barangay.name;
+                  barangaySelect.appendChild(option);
+                });
+              } else {
+                barangaySelect.innerHTML = '<option value="">No barangays available</option>';
+              }
+            })
+            .catch(error => {
+              console.error('Error loading barangays:', error);
+              barangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
+            });
+        } else {
+          barangaySelect.disabled = true;
+        }
+      });
+
+      // Update barangay name when selected
+      document.getElementById('barangay').addEventListener('change', function() {
+        updateHiddenField('barangay_name', this.options[this.selectedIndex]?.dataset?.name || this.options[this.selectedIndex]?.text || '');
+      });
+
+      // Helper function to update hidden fields
+      function updateHiddenField(name, value) {
+        let field = document.querySelector(`input[name="${name}"]`);
+        if (!field) {
+          field = document.createElement('input');
+          field.type = 'hidden';
+          field.name = name;
+          document.getElementById('signupForm').appendChild(field);
+        }
+        field.value = value;
+      }
+
+      // Load regions on page load (replaces loadProvinces)
+      function loadProvinces() {
+        loadRegions();
+      }
 
       // Password strength checker with requirements
       const password = document.getElementById('password');
@@ -1704,8 +1921,10 @@ $stmt->execute();
           'middle_name',
           'last_name', 
           'address',
+          'region',
           'province',
-          'city_province', 
+          'city_province',
+          'barangay',
           'email', 
           'contact_number', 
           'birthday', 

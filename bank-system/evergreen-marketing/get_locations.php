@@ -179,6 +179,7 @@ switch ($action) {
         $regionCode = isset($_GET['region_code']) ? $_GET['region_code'] : '';
         
         if ($regionCode) {
+            // Get provinces for a specific region
             $provinces = getCachedOrFetch("provinces_{$regionCode}", function() use ($regionCode) {
                 $data = fetchFromAPI("/regions/{$regionCode}/provinces");
                 if ($data && count($data) > 0) {
@@ -199,16 +200,83 @@ switch ($action) {
             
             echo json_encode($provinces ?: []);
         } else {
-            echo json_encode([]);
+            // Get ALL provinces (for signup form) - returns province names only
+            $allProvinces = getCachedOrFetch("all_provinces", function() {
+                $data = fetchFromAPI("/provinces");
+                if ($data) {
+                    $result = [];
+                    foreach ($data as $province) {
+                        $result[] = $province['name'];
+                    }
+                    // Add Metro Manila as a special entry
+                    $result[] = 'Metro Manila';
+                    sort($result);
+                    return array_unique($result);
+                }
+                return [];
+            });
+            
+            echo json_encode($allProvinces ?: []);
         }
         break;
 
     case 'get_cities':
         $provinceCode = isset($_GET['province_code']) ? $_GET['province_code'] : '';
         $regionCode = isset($_GET['region_code']) ? $_GET['region_code'] : '';
+        $provinceName = isset($_GET['province']) ? $_GET['province'] : '';
         
+        // If province NAME is provided (for signup form - returns city names only)
+        if ($provinceName) {
+            // Handle Metro Manila specially
+            if (strtolower($provinceName) === 'metro manila') {
+                $cities = getCachedOrFetch("cities_metro_manila_names", function() {
+                    // NCR region code is typically 130000000
+                    $data = fetchFromAPI("/regions/130000000/cities-municipalities");
+                    if ($data) {
+                        $result = [];
+                        foreach ($data as $city) {
+                            $result[] = $city['name'];
+                        }
+                        sort($result);
+                        return $result;
+                    }
+                    return [];
+                });
+                echo json_encode($cities ?: []);
+            } else {
+                // Find province code by name first, then get cities
+                $cities = getCachedOrFetch("cities_by_name_" . md5($provinceName), function() use ($provinceName) {
+                    // Get all provinces to find the code
+                    $provinces = fetchFromAPI("/provinces");
+                    $provinceCode = null;
+                    
+                    if ($provinces) {
+                        foreach ($provinces as $province) {
+                            if (strcasecmp($province['name'], $provinceName) === 0) {
+                                $provinceCode = $province['code'];
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if ($provinceCode) {
+                        $data = fetchFromAPI("/provinces/{$provinceCode}/cities-municipalities");
+                        if ($data) {
+                            $result = [];
+                            foreach ($data as $city) {
+                                $result[] = $city['name'];
+                            }
+                            sort($result);
+                            return $result;
+                        }
+                    }
+                    return [];
+                });
+                echo json_encode($cities ?: []);
+            }
+        }
         // If province code is provided, get cities from province
-        if ($provinceCode) {
+        elseif ($provinceCode) {
             $cities = getCachedOrFetch("cities_{$provinceCode}", function() use ($provinceCode) {
                 $data = fetchFromAPI("/provinces/{$provinceCode}/cities-municipalities");
                 if ($data) {
@@ -289,6 +357,110 @@ switch ($action) {
         $zipcode = getZipCode($cityName, $barangayName, $cityCode);
         
         echo json_encode(['zipcode' => $zipcode]);
+        break;
+
+    case 'find_region_by_location':
+        // Find region code based on province name or city name
+        // Used by evergreen_form.php to auto-select region from signup data
+        $provinceName = isset($_GET['province']) ? trim($_GET['province']) : '';
+        $cityName = isset($_GET['city']) ? trim($_GET['city']) : '';
+        
+        $result = ['region_code' => '', 'region_name' => '', 'province_code' => '', 'city_code' => ''];
+        
+        // Metro Manila cities mapping
+        $metroManilaCities = [
+            'manila', 'quezon city', 'makati', 'makati city', 'pasig', 'pasig city',
+            'taguig', 'taguig city', 'mandaluyong', 'mandaluyong city', 'pasay', 'pasay city',
+            'paranaque', 'parañaque', 'paranaque city', 'parañaque city',
+            'muntinlupa', 'muntinlupa city', 'las pinas', 'las piñas', 'las pinas city', 'las piñas city',
+            'marikina', 'marikina city', 'san juan', 'san juan city',
+            'caloocan', 'caloocan city', 'malabon', 'malabon city',
+            'navotas', 'navotas city', 'valenzuela', 'valenzuela city', 'pateros'
+        ];
+        
+        // Check if it's Metro Manila
+        $isMetroManila = false;
+        if (strtolower($provinceName) === 'metro manila' || 
+            strtolower($provinceName) === 'ncr' ||
+            strtolower($provinceName) === 'national capital region') {
+            $isMetroManila = true;
+        }
+        
+        // Check if city is in Metro Manila
+        if (!$isMetroManila && $cityName) {
+            $cityLower = strtolower($cityName);
+            foreach ($metroManilaCities as $mmCity) {
+                if (strpos($cityLower, $mmCity) !== false || strpos($mmCity, $cityLower) !== false) {
+                    $isMetroManila = true;
+                    break;
+                }
+            }
+        }
+        
+        if ($isMetroManila) {
+            $result['region_code'] = '130000000';
+            $result['region_name'] = 'National Capital Region (NCR)';
+            $result['province_code'] = 'METRO_MANILA';
+            
+            // Try to find city code
+            if ($cityName) {
+                $cities = getCachedOrFetch("cities_metro_manila_codes", function() {
+                    $data = fetchFromAPI("/regions/130000000/cities-municipalities");
+                    if ($data) {
+                        $cityMap = [];
+                        foreach ($data as $city) {
+                            $cityMap[strtolower($city['name'])] = $city['code'];
+                        }
+                        return $cityMap;
+                    }
+                    return [];
+                });
+                
+                $cityLower = strtolower($cityName);
+                if (isset($cities[$cityLower])) {
+                    $result['city_code'] = $cities[$cityLower];
+                } else {
+                    // Try partial match
+                    foreach ($cities as $name => $code) {
+                        if (strpos($name, $cityLower) !== false || strpos($cityLower, $name) !== false) {
+                            $result['city_code'] = $code;
+                            break;
+                        }
+                    }
+                }
+            }
+        } else if ($provinceName) {
+            // Find province and its region
+            $provinceData = getCachedOrFetch("province_region_map", function() {
+                $regions = fetchFromAPI("/regions");
+                $map = [];
+                
+                if ($regions) {
+                    foreach ($regions as $region) {
+                        $provinces = fetchFromAPI("/regions/{$region['code']}/provinces");
+                        if ($provinces) {
+                            foreach ($provinces as $province) {
+                                $map[strtolower($province['name'])] = [
+                                    'province_code' => $province['code'],
+                                    'region_code' => $region['code'],
+                                    'region_name' => $region['name']
+                                ];
+                            }
+                        }
+                    }
+                }
+                return $map;
+            }, 604800); // Cache for 1 week
+            
+            $provinceLower = strtolower($provinceName);
+            if (isset($provinceData[$provinceLower])) {
+                $result['region_code'] = $provinceData[$provinceLower]['region_code'];
+                $result['region_name'] = $provinceData[$provinceLower]['region_name'];
+                $result['province_code'] = $provinceData[$provinceLower]['province_code'];
+            }
+        }
+        
+        echo json_encode($result);
         break;
 
     case 'clear_cache':

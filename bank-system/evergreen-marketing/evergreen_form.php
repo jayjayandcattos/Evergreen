@@ -4,6 +4,147 @@
        'cookie_secure' => isset($_SERVER['HTTPS']),
        'use_strict_mode' => true
     ]);
+
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['email'])) {
+        header("Location: login.php");
+        exit;
+    }
+
+    // Include database connection
+    include("db_connect.php");
+
+    // Fetch user data from database
+    $user_id = $_SESSION['user_id'];
+    $userData = [];
+    
+    $sql = "SELECT first_name, middle_name, last_name, email, contact_number, birthday, address, city_province 
+            FROM bank_customers WHERE customer_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result && $result->num_rows === 1) {
+        $userData = $result->fetch_assoc();
+    }
+    $stmt->close();
+
+    // Format birthday for date input (YYYY-MM-DD)
+    $userBirthday = '';
+    if (!empty($userData['birthday'])) {
+        $userBirthday = date('Y-m-d', strtotime($userData['birthday']));
+    }
+
+    // Parse city_province to extract city, province, region, and barangay
+    $userCity = '';
+    $userProvince = '';
+    $userRegion = '';
+    $userBarangay = '';
+    if (!empty($userData['city_province'])) {
+        $parts = explode(',', $userData['city_province']);
+        if (count($parts) >= 2) {
+            $userCity = trim($parts[0]);
+            $userProvince = trim($parts[1]);
+        } else {
+            $userCity = trim($userData['city_province']);
+        }
+        
+        // Check if we have additional location parts (Region, Barangay)
+        if (count($parts) >= 3) {
+            $userRegion = trim($parts[2]);
+        }
+        if (count($parts) >= 4) {
+            $userBarangay = trim($parts[3]);
+        }
+        
+        // If region is empty, try to look it up from province/city using the API
+        if (empty($userRegion) && (!empty($userProvince) || !empty($userCity))) {
+            // Metro Manila cities list
+            $metroManilaCities = [
+                'manila', 'quezon city', 'makati', 'makati city', 'pasig', 'pasig city',
+                'taguig', 'taguig city', 'mandaluyong', 'mandaluyong city', 'pasay', 'pasay city',
+                'paranaque', 'parañaque', 'paranaque city', 'parañaque city',
+                'muntinlupa', 'muntinlupa city', 'las pinas', 'las piñas', 'las pinas city', 'las piñas city',
+                'marikina', 'marikina city', 'san juan', 'san juan city',
+                'caloocan', 'caloocan city', 'malabon', 'malabon city',
+                'navotas', 'navotas city', 'valenzuela', 'valenzuela city', 'pateros'
+            ];
+            
+            // Check if it's Metro Manila
+            $isMetroManila = false;
+            $provinceLower = strtolower($userProvince);
+            $cityLower = strtolower($userCity);
+            
+            if ($provinceLower === 'metro manila' || $provinceLower === 'ncr' || 
+                $provinceLower === 'national capital region' ||
+                stripos($userProvince, 'Metro Manila') !== false) {
+                $isMetroManila = true;
+            }
+            
+            // Check if city is in Metro Manila
+            if (!$isMetroManila && $userCity) {
+                foreach ($metroManilaCities as $mmCity) {
+                    if (strpos($cityLower, $mmCity) !== false || strpos($mmCity, $cityLower) !== false) {
+                        $isMetroManila = true;
+                        break;
+                    }
+                }
+            }
+            
+            if ($isMetroManila) {
+                $userRegion = 'National Capital Region (NCR)';
+                if (empty($userProvince) || $userProvince === $userCity) {
+                    $userProvince = 'Metro Manila';
+                }
+            } else {
+                // Try to fetch region from PSGC Cloud API
+                // Build the API URL to find region by province
+                $psgcApiBase = 'https://psgc.cloud/api';
+                
+                // First, try to get all provinces and find the matching one
+                $provincesUrl = $psgcApiBase . '/provinces';
+                $context = stream_context_create([
+                    'http' => [
+                        'method' => 'GET',
+                        'timeout' => 10,
+                        'header' => "Accept: application/json\r\nUser-Agent: EvergreenBankApp/1.0\r\n"
+                    ],
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                ]);
+                
+                $provincesResponse = @file_get_contents($provincesUrl, false, $context);
+                if ($provincesResponse) {
+                    $provinces = json_decode($provincesResponse, true);
+                    if ($provinces) {
+                        $provinceCode = null;
+                        $provinceLowerSearch = strtolower($userProvince);
+                        
+                        foreach ($provinces as $province) {
+                            if (strcasecmp($province['name'], $userProvince) === 0 ||
+                                stripos($province['name'], $userProvince) !== false ||
+                                stripos($userProvince, $province['name']) !== false) {
+                                $provinceCode = $province['code'];
+                                break;
+                            }
+                        }
+                        
+                        // If we found the province, get its region
+                        if ($provinceCode) {
+                            $provinceDetailUrl = $psgcApiBase . '/provinces/' . $provinceCode;
+                            $provinceDetailResponse = @file_get_contents($provinceDetailUrl, false, $context);
+                            if ($provinceDetailResponse) {
+                                $provinceDetail = json_decode($provinceDetailResponse, true);
+                                if ($provinceDetail && isset($provinceDetail['regionName'])) {
+                                    $userRegion = $provinceDetail['regionName'];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 ?>
 
 <html>
@@ -238,11 +379,132 @@
         color: #8C8C8C;
       }
 
+      /* ID Upload Section Styles */
+      .id-upload-section {
+        margin-top: 15px;
+      }
+
+      .upload-container {
+        width: 100%;
+      }
+
+      .upload-area {
+        border: 2px dashed #C4C4C4;
+        border-radius: 10px;
+        padding: 30px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f9f9f9;
+        margin-top: 5px;
+        display: block;
+      }
+
+      .upload-area:hover {
+        border-color: #003631;
+        background: #f0f7f6;
+      }
+
+      .upload-area.dragover {
+        border-color: #003631;
+        background: #e8f5e9;
+        transform: scale(1.02);
+      }
+
+      .upload-icon {
+        font-size: 40px;
+        margin-bottom: 10px;
+      }
+
+      .upload-text {
+        font-size: 14px;
+        color: #003631;
+        font-weight: 500;
+        margin: 0 0 5px 0;
+      }
+
+      .upload-hint {
+        font-size: 12px;
+        color: #8C8C8C;
+        margin: 0;
+      }
+
+      .upload-preview {
+        border: 1px solid #C4C4C4;
+        border-radius: 10px;
+        padding: 15px;
+        background: #f9f9f9;
+        margin-top: -10px;
+      }
+
+      .upload-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        display: block;
+        margin: 0 auto 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+
+      .preview-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 10px;
+        border-top: 1px solid #E6E6E6;
+      }
+
+      .preview-info #file-name {
+        font-size: 13px;
+        color: #003631;
+        font-weight: 500;
+        max-width: 70%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .remove-file {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .remove-file:hover {
+        background: #c82333;
+      }
+
+      /* PDF preview placeholder */
+      .pdf-preview {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        background: #fff;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+
+      .pdf-preview .pdf-icon {
+        font-size: 50px;
+        margin-bottom: 10px;
+      }
+
+      .pdf-preview .pdf-text {
+        font-size: 14px;
+        color: #003631;
+      }
+
       .two-col-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
-        align-items: center;
+        align-items: start;
       }
 
       .full-width {
@@ -258,7 +520,7 @@
       /* FORM - Button */
       .btn-container {
         display: flex;
-        justify-content: flex-start;
+        justify-content: space-between;
       }
 
       .button-action {
@@ -1144,7 +1406,7 @@
 
         .two-col-row {
           grid-template-columns: 1fr;
-          gap: 12px;
+          gap: 15px;
         }
 
         .account-type-cards {
@@ -1709,64 +1971,56 @@
             <div class="upper-input-wrap">
               <div class="input-wrap">
                 <label for="f-name">First Name<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="f-name">
+                <input type="text" class="inp-credentials" id="f-name" value="<?php echo htmlspecialchars($userData['first_name'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="l-name">Last Name<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="l-name">
+                <input type="text" class="inp-credentials" id="l-name" value="<?php echo htmlspecialchars($userData['last_name'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
             </div>
 
             <div class="lower-input-wrap">
               <div class="input-wrap">
                 <label for="e-mail">Email Address<span style="color: red;">*</span></label>
-                <input type="email" class="inp-credentials" id="e-mail">
+                <input type="email" class="inp-credentials" id="e-mail" value="<?php echo htmlspecialchars($userData['email'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="phone-number">Phone Number<span style="color: red;">*</span></label>
-                <input type="tel" class="inp-credentials" id="phone-number" placeholder="(123) 456-7890">
+                <input type="tel" class="inp-credentials" id="phone-number" value="<?php echo htmlspecialchars($userData['contact_number'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
             </div>
           </div>
 
           <div class="date-input-wrap">
               <div class="input-wrap">
                 <label for="date-of-birth">Date of Birth<span style="color: red;">*</span></label>
-                <input type="date" class="inp-credentials" id="date-of-birth" max="">
-                <span class="helper-text" style="font-size: 11px; color: #666; margin-top: 4px;">You must be at least 18 years old</span>
+                <input type="date" class="inp-credentials" id="date-of-birth" value="<?php echo htmlspecialchars($userBirthday); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
+                <span class="helper-text" style="font-size: 11px; color: #666; margin-top: 4px;">Based on your account registration</span>
               </div>
             </div>
 
             <div class="city-input-wrap">
               <div class="input-wrap">
                 <label for="region">Region<span style="color: red;">*</span></label>
-                <select class="inp-credentials" id="region">
-                  <option value="">Select Region</option>
-                </select>
+                <input type="text" class="inp-credentials" id="region" value="<?php echo htmlspecialchars($userRegion); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="state">Province<span style="color: red;">*</span></label>
-                <select class="inp-credentials" id="state" disabled>
-                  <option value="">Select Province</option>
-                </select>
+                <input type="text" class="inp-credentials" id="state" value="<?php echo htmlspecialchars($userProvince); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="city">City/Municipality<span style="color: red;">*</span></label>
-                <select class="inp-credentials" id="city" disabled>
-                  <option value="">Select City/Municipality</option>
-                </select>
+                <input type="text" class="inp-credentials" id="city" value="<?php echo htmlspecialchars($userCity); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="barangay">Barangay<span style="color: red;">*</span></label>
-                <select class="inp-credentials" id="barangay" disabled>
-                  <option value="">Select Barangay</option>
-                </select>
+                <input type="text" class="inp-credentials" id="barangay" value="<?php echo htmlspecialchars($userBarangay); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
             </div>
 
             <div class="street-input-wrap">
               <div class="input-wrap">
                 <label for="street-address">Street Address / House No.<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="street-address" placeholder="e.g., 123 Main Street, Block 5 Lot 10">
+                <input type="text" class="inp-credentials" id="street-address" value="<?php echo htmlspecialchars($userData['address'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="zip-code">Zip Code<span style="color: red;">*</span></label>
@@ -1781,29 +2035,80 @@
   
   <div class="ssn-wrap">
     <div class="input-wrap">
-      <label for="ssn">Social Security Number<span style="color: red;">*</span></label>
-      <input type="text" id="ssn" class="inp-credentials" placeholder="123-45-6789">
+      <label for="ssn">TIN (Tax Identification Number)<span style="color: red;">*</span></label>
+      <input type="text" id="ssn" class="inp-credentials" placeholder="123-456-789-000" maxlength="15">
     </div>
-    <div class="helper-text">Your SSN is securely encrypted and never shared with third parties.</div>
+    <div class="helper-text">Your TIN is securely encrypted and never shared with third parties.</div>
   </div>
 
   <div class="two-col-row">
     <div class="input-wrap">
-      <label for="id-type">ID Type<span style="color: red;">*</span></label>
+      <label for="id-type">Valid Government ID<span style="color: red;">*</span></label>
       <select id="id-type" class="inp-credentials">
-        <option>Driver's License</option>
-        <option>Passport</option>
-        <option>State ID</option>
+        <option value="">Select ID Type</option>
+        <option value="philippine_passport">Philippine Passport</option>
+        <option value="drivers_license">Driver's License (LTO)</option>
+        <option value="umid">UMID (Unified Multi-Purpose ID)</option>
+        <option value="philhealth">PhilHealth ID</option>
+        <option value="sss">SSS ID</option>
+        <option value="gsis">GSIS ID</option>
+        <option value="prc">PRC ID (Professional Regulation Commission)</option>
+        <option value="postal">Postal ID</option>
+        <option value="voters">Voter's ID / COMELEC Registration</option>
+        <option value="national_id">Philippine National ID (PhilSys)</option>
+        <option value="senior_citizen">Senior Citizen ID</option>
+        <option value="pwd">PWD ID</option>
+        <option value="nbi">NBI Clearance</option>
+        <option value="police">Police Clearance</option>
+        <option value="barangay">Barangay ID / Certificate</option>
+        <option value="tin_card">TIN Card</option>
+        <option value="school_id">School ID (with current registration)</option>
+        <option value="company_id">Company ID</option>
+        <option value="ofw">OFW ID</option>
+        <option value="seaman_book">Seaman's Book</option>
+        <option value="ibp">IBP ID (Integrated Bar of the Philippines)</option>
+        <option value="owwa">OWWA ID</option>
       </select>
     </div>
     <div class="input-wrap">
       <label for="id-number">ID Number<span style="color: red;">*</span></label>
-      <input type="text" id="id-number" class="inp-credentials">
+      <input type="text" id="id-number" class="inp-credentials" placeholder="Enter your ID number">
+      <span class="helper-text" id="id-format-hint" style="font-size: 11px; color: #666; margin-top: 4px;"></span>
+    </div>
+  </div>
+
+  <!-- ID Upload Section -->
+  <div class="id-upload-section" style="margin-top: 20px;">
+    <div class="input-wrap">
+      <label>Upload ID Photo<span style="color: red;">*</span></label>
+      <div class="upload-container" id="upload-container">
+        <input type="file" id="id-upload" name="id-upload" accept="image/jpeg,image/png,image/jpg,application/pdf" onchange="handleIdUpload(this)" style="position: absolute; opacity: 0; width: 0; height: 0;">
+        <label for="id-upload" class="upload-area" id="upload-area">
+          <div class="upload-icon">📄</div>
+          <p class="upload-text">Click or drag to upload your ID</p>
+          <p class="upload-hint">Accepted formats: JPG, PNG, PDF (Max 5MB)</p>
+        </label>
+        <div class="upload-preview" id="upload-preview" style="display: none;">
+          <img id="preview-image" src="" alt="ID Preview" style="display: none;">
+          <div class="pdf-placeholder" id="pdf-placeholder" style="display: none; text-align: center; padding: 20px;">
+            <div style="font-size: 50px;">📄</div>
+            <p style="color: #003631; font-weight: 500;">PDF Document</p>
+          </div>
+          <div class="preview-info">
+            <span id="file-name"></span>
+            <button type="button" class="remove-file" id="remove-file" onclick="removeIdFile()">✕ Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="helper-text" style="margin-top: 8px;">
+        <strong>Important:</strong> Please ensure your ID photo is clear and all information is readable. 
+        The ID number must match the number you entered above.
+      </div>
     </div>
   </div>
 
   <!-- Employment Section -->
-  <h3 class="section-title">Employment Information</h3>
+  <h3 class="section-title" style="margin-top: 25px;">Employment Information</h3>
 
   <div class="emp-wrap">
     <div class="input-wrap">
@@ -1995,8 +2300,12 @@
             </div>
             <div class="review-grid">
               <div class="review-item full-width">
-                <label>Social Security Number</label>
-                <p class="value highlight rev-ssn">•••-••-••••</p>
+                <label>TIN (Tax Identification Number)</label>
+                <p class="value highlight rev-ssn">•••-•••-•••-•••</p>
+              </div>
+              <div class="review-item full-width">
+                <label>ID Document Uploaded</label>
+                <p class="value rev-id-upload" style="color: #28a745;">✓ Document uploaded</p>
               </div>
               <div class="review-item">
                 <label>ID Type</label>
@@ -2066,9 +2375,95 @@
         <button id="confirm-btn">Done</button>
       </div>
     </div>
-  </body>
     <script>
     // panels
+    // ========================================
+    // GLOBAL ID UPLOAD FUNCTIONS (called by inline handlers)
+    // ========================================
+    let uploadedIdFile = null;
+    
+    function handleIdUpload(input) {
+      console.log('handleIdUpload called');
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        console.log('File:', file.name, file.type, file.size);
+        
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+          alert('Invalid file type. Please upload JPG, PNG, or PDF files only.');
+          input.value = '';
+          return;
+        }
+        
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('File is too large. Maximum size is 5MB.');
+          input.value = '';
+          return;
+        }
+        
+        uploadedIdFile = file;
+        
+        // Get elements
+        const uploadArea = document.getElementById('upload-area');
+        const uploadPreview = document.getElementById('upload-preview');
+        const previewImage = document.getElementById('preview-image');
+        const pdfPlaceholder = document.getElementById('pdf-placeholder');
+        const fileNameSpan = document.getElementById('file-name');
+        
+        // Update file name
+        if (fileNameSpan) fileNameSpan.textContent = file.name;
+        
+        // Show appropriate preview
+        if (file.type === 'application/pdf') {
+          if (previewImage) previewImage.style.display = 'none';
+          if (pdfPlaceholder) pdfPlaceholder.style.display = 'block';
+        } else {
+          if (pdfPlaceholder) pdfPlaceholder.style.display = 'none';
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            if (previewImage) {
+              previewImage.src = e.target.result;
+              previewImage.style.display = 'block';
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+        
+        // Toggle visibility
+        if (uploadArea) uploadArea.style.display = 'none';
+        if (uploadPreview) uploadPreview.style.display = 'block';
+        
+        console.log('Upload complete, preview visible');
+      }
+    }
+    
+    function removeIdFile() {
+      console.log('removeIdFile called');
+      uploadedIdFile = null;
+      
+      const uploadInput = document.getElementById('id-upload');
+      const uploadArea = document.getElementById('upload-area');
+      const uploadPreview = document.getElementById('upload-preview');
+      const previewImage = document.getElementById('preview-image');
+      const pdfPlaceholder = document.getElementById('pdf-placeholder');
+      const fileNameSpan = document.getElementById('file-name');
+      
+      if (uploadInput) uploadInput.value = '';
+      if (previewImage) {
+        previewImage.src = '';
+        previewImage.style.display = 'none';
+      }
+      if (pdfPlaceholder) pdfPlaceholder.style.display = 'none';
+      if (fileNameSpan) fileNameSpan.textContent = '';
+      if (uploadPreview) uploadPreview.style.display = 'none';
+      if (uploadArea) uploadArea.style.display = 'block';
+    }
+    
+    // ========================================
+    // PANELS AND NAVIGATION
+    // ========================================
     let personalInfoPanel = document.querySelector(".personal-info-panel");
     let verificationPanel = document.querySelector(".verification-part");
     let reviewPanel = document.querySelector(".review-part");
@@ -2144,42 +2539,30 @@
     // Per-step validation
     function validatePersonal() {
       let valid = true;
-      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','region','barangay','city','zip-code'];
-      required.forEach(id => {
+      
+      // Validate all read-only fields have values (from database)
+      const readOnlyFields = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','region','state','city','barangay'];
+      readOnlyFields.forEach(id => {
         const el = document.getElementById(id);
         if (!isNotEmpty(el.value)) {
-          showFieldError(el, 'This field is required');
+          showFieldError(el, 'This field is required - please update your profile');
           valid = false;
         } else {
           clearFieldError(el);
         }
       });
       
-      // Special validation for province (can be "NO_PROVINCE" for NCR)
-      const provinceEl = document.getElementById('state');
-      if (!isNotEmpty(provinceEl.value)) {
-        showFieldError(provinceEl, 'This field is required');
+      // Validate zip code (auto-populated but check it exists)
+      const zipEl = document.getElementById('zip-code');
+      if (!isNotEmpty(zipEl.value)) {
+        showFieldError(zipEl, 'Zip code is required');
         valid = false;
       } else {
-        clearFieldError(provinceEl);
+        clearFieldError(zipEl);
       }
 
-      const emailEl = document.getElementById('e-mail');
-      if (isNotEmpty(emailEl.value) && !isEmail(emailEl.value)) {
-        showFieldError(emailEl, 'Enter a valid email address');
-        valid = false;
-      }
-
-      // Validate age (must be 18+)
-      const dobEl = document.getElementById('date-of-birth');
-      if (isNotEmpty(dobEl.value)) {
-        if (!isAtLeast18(dobEl.value)) {
-          showFieldError(dobEl, 'You must be at least 18 years old to apply');
-          valid = false;
-        } else {
-          clearFieldError(dobEl);
-        }
-      }
+      // Email validation skipped - already validated during signup and is read-only
+      // Age validation skipped - already validated during signup and is read-only
 
       return valid;
     }
@@ -2280,11 +2663,7 @@
         
         // Simulate processing time
         setTimeout(() => {
-          // Gather data
-          const provinceSelect = document.getElementById('state');
-          const provinceValue = provinceSelect.value;
-          const provinceName = provinceValue === 'METRO_MANILA' ? 'Metro Manila' : provinceSelect.options[provinceSelect.selectedIndex].text;
-          
+          // Gather data - all location fields are now read-only inputs
           let injector = {
             firstName: document.getElementById('f-name').value,
             lastName: document.getElementById('l-name').value,
@@ -2292,10 +2671,10 @@
             phoneNumber: document.getElementById('phone-number').value,
             dateOfBirth: document.getElementById('date-of-birth').value,
             streetAddress: document.getElementById('street-address').value,
-            region: document.getElementById('region').options[document.getElementById('region').selectedIndex].text,
-            barangay: document.getElementById('barangay').options[document.getElementById('barangay').selectedIndex].text,
-            city: document.getElementById('city').options[document.getElementById('city').selectedIndex].text,
-            state: provinceName,
+            region: document.getElementById('region').value,
+            barangay: document.getElementById('barangay').value,
+            city: document.getElementById('city').value,
+            state: document.getElementById('state').value,
             zipCode: document.getElementById('zip-code').value,
             socialSecurityNumber: document.getElementById('ssn').value,
             idType: document.getElementById('id-type').value,
@@ -2320,9 +2699,16 @@
           displayCred('rev-city', injector.city);
           displayCred('rev-barangay', injector.barangay);
           displayCred('rev-zip', injector.zipCode);
-          displayCred('rev-ssn', maskSSN(injector.socialSecurityNumber));
-          displayCred('rev-id-type', injector.idType);
+          displayCred('rev-ssn', maskTIN(injector.socialSecurityNumber));
+          displayCred('rev-id-type', getIdTypeName(injector.idType));
           displayCred('rev-id-number', injector.idNumber);
+          
+          // Update ID upload status in review
+          const uploadStatus = document.querySelector('.rev-id-upload');
+          if (uploadStatus && uploadedIdFile) {
+            uploadStatus.textContent = '✓ ' + uploadedIdFile.name;
+            uploadStatus.style.color = '#28a745';
+          }
           displayCred('rev-employment-status', injector.employmentStatus);
           displayCred('rev-employer-name', injector.employerName);
           displayCred('rev-job-title', injector.jobTitle);
@@ -2343,29 +2729,54 @@
       okBtn.disabled = true;
       okBtn.textContent = 'Processing...';
       
-      // Prepare data for submission - include codes for database storage
-      const provinceCodeValue = document.getElementById('state').value;
-      const applicationData = {
-        ...infoData[0],
-        // Include location codes for precise database storage
-        regionCode: document.getElementById('region').value,
-        provinceCode: provinceCodeValue === 'METRO_MANILA' ? 'NCR' : provinceCodeValue,
-        cityCode: document.getElementById('city').value,
-        barangayCode: document.getElementById('barangay').value,
-        selectedCards: getSelectedCards(),
-        additionalServices: getSelectedServices(),
-        termsAccepted: document.getElementById('term-tnc').checked,
-        privacyAcknowledged: document.getElementById('term-privacy').checked,
-        marketingConsent: document.querySelectorAll('.terms-box input[type="checkbox"]')[2].checked
-      };
+      // Use FormData for file upload support
+      const formData = new FormData();
       
-      // Submit to backend
+      // Add all application data
+      formData.append('firstName', infoData[0].firstName);
+      formData.append('lastName', infoData[0].lastName);
+      formData.append('email', infoData[0].email);
+      formData.append('phoneNumber', infoData[0].phoneNumber);
+      formData.append('dateOfBirth', infoData[0].dateOfBirth);
+      formData.append('streetAddress', infoData[0].streetAddress);
+      formData.append('region', infoData[0].region);
+      formData.append('barangay', infoData[0].barangay);
+      formData.append('city', infoData[0].city);
+      formData.append('state', infoData[0].state);
+      formData.append('zipCode', infoData[0].zipCode);
+      formData.append('socialSecurityNumber', infoData[0].socialSecurityNumber);
+      formData.append('idType', infoData[0].idType);
+      formData.append('idNumber', infoData[0].idNumber);
+      formData.append('employmentStatus', infoData[0].employmentStatus);
+      formData.append('employerName', infoData[0].employerName);
+      formData.append('jobTitle', infoData[0].jobTitle);
+      formData.append('annualIncome', infoData[0].annualIncome);
+      formData.append('accountType', infoData[0].accountType || '');
+      
+      // Location names
+      formData.append('regionName', document.getElementById('region').value);
+      formData.append('provinceName', document.getElementById('state').value);
+      formData.append('cityName', document.getElementById('city').value);
+      formData.append('barangayName', document.getElementById('barangay').value);
+      
+      // Selected cards and services
+      formData.append('selectedCards', JSON.stringify(getSelectedCards()));
+      formData.append('additionalServices', JSON.stringify(getSelectedServices()));
+      
+      // Terms
+      formData.append('termsAccepted', document.getElementById('term-tnc').checked ? '1' : '0');
+      formData.append('privacyAcknowledged', document.getElementById('term-privacy').checked ? '1' : '0');
+      formData.append('marketingConsent', document.querySelectorAll('.terms-box input[type="checkbox"]')[2].checked ? '1' : '0');
+      
+      // Add the uploaded ID file
+      if (uploadedIdFile) {
+        formData.append('id_document', uploadedIdFile);
+      }
+      
+      // Submit to backend with FormData
       fetch('submit_account_application.php', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(applicationData)
+        body: formData
       })
       .then(response => response.json())
       .then(data => {
@@ -2389,14 +2800,14 @@
         } else {
           alert('Error: ' + data.message);
           okBtn.disabled = false;
-          okBtn.textContent = 'Ok';
+          okBtn.textContent = 'Submit Application ✓';
         }
       })
       .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while submitting your application. Please try again.');
         okBtn.disabled = false;
-        okBtn.textContent = 'Ok';
+        okBtn.textContent = 'Submit Application ✓';
       });
     });
 
@@ -2439,14 +2850,48 @@
       return date.toLocaleDateString('en-US', options);
     }
 
-    // Mask SSN for display (show only last 4 digits)
-    function maskSSN(ssn) {
-      if (!ssn) return '•••-••-••••';
-      const cleaned = ssn.replace(/\D/g, '');
-      if (cleaned.length >= 4) {
-        return '•••-••-' + cleaned.slice(-4);
+    // Mask TIN for display (show only last 3 digits)
+    function maskTIN(tin) {
+      if (!tin) return '•••-•••-•••-•••';
+      const cleaned = tin.replace(/\D/g, '');
+      if (cleaned.length >= 3) {
+        return '•••-•••-•••-' + cleaned.slice(-3);
       }
-      return '•••-••-••••';
+      return '•••-•••-•••-•••';
+    }
+    
+    // Alias for backward compatibility
+    function maskSSN(ssn) {
+      return maskTIN(ssn);
+    }
+    
+    // Get readable ID type name
+    function getIdTypeName(idTypeValue) {
+      const idTypeNames = {
+        'philippine_passport': 'Philippine Passport',
+        'drivers_license': "Driver's License (LTO)",
+        'umid': 'UMID (Unified Multi-Purpose ID)',
+        'philhealth': 'PhilHealth ID',
+        'sss': 'SSS ID',
+        'gsis': 'GSIS ID',
+        'prc': 'PRC ID',
+        'postal': 'Postal ID',
+        'voters': "Voter's ID / COMELEC",
+        'national_id': 'Philippine National ID (PhilSys)',
+        'senior_citizen': 'Senior Citizen ID',
+        'pwd': 'PWD ID',
+        'nbi': 'NBI Clearance',
+        'police': 'Police Clearance',
+        'barangay': 'Barangay ID / Certificate',
+        'tin_card': 'TIN Card',
+        'school_id': 'School ID',
+        'company_id': 'Company ID',
+        'ofw': 'OFW ID',
+        'seaman_book': "Seaman's Book",
+        'ibp': 'IBP ID',
+        'owwa': 'OWWA ID'
+      };
+      return idTypeNames[idTypeValue] || idTypeValue || '—';
     }
 
     // Format currency
@@ -2506,276 +2951,25 @@
     updateStepUI();
 
     // ========================================
-    // PHILIPPINE LOCATION DROPDOWNS (Using PSGC Cloud API)
+    // AUTO-POPULATE ZIP CODE ON PAGE LOAD
     // ========================================
     
-    // Store current region code for later use
-    let currentRegionCode = '';
-    let regionHasNoProvinces = false;
-    
-    // Load regions on page load
+    // Load zip code on page load based on stored city
     document.addEventListener('DOMContentLoaded', function() {
-      loadRegions();
-      setMaxBirthDate();
+      loadZipCode();
     });
 
-    // Set max date for birth date (18 years ago from today)
-    function setMaxBirthDate() {
-      const today = new Date();
-      const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-      const maxDateString = maxDate.toISOString().split('T')[0];
-      document.getElementById('date-of-birth').setAttribute('max', maxDateString);
-    }
-
-    // Load all regions
-    function loadRegions() {
-      const regionSelect = document.getElementById('region');
-      
-      // Add loading indicator
-      regionSelect.innerHTML = '<option value="">Loading regions...</option>';
-      
-      fetch('get_locations.php?action=get_regions')
-        .then(response => response.json())
-        .then(regions => {
-          regionSelect.innerHTML = '<option value="">Select Region</option>';
-          
-          if (regions.length > 0) {
-            regions.forEach(region => {
-              const option = document.createElement('option');
-              option.value = region.code;
-              option.textContent = region.name;
-              option.dataset.name = region.name;
-              regionSelect.appendChild(option);
-            });
-          } else {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'No regions available';
-            regionSelect.appendChild(option);
-          }
-        })
-        .catch(error => {
-          console.error('Error loading regions:', error);
-          regionSelect.innerHTML = '<option value="">Error loading regions</option>';
-        });
-    }
-
-    // Load provinces when region is selected
-    document.getElementById('region').addEventListener('change', function() {
-      const regionCode = this.value;
-      currentRegionCode = regionCode;
-      const provinceSelect = document.getElementById('state');
-      const citySelect = document.getElementById('city');
-      const barangaySelect = document.getElementById('barangay');
+    // Fetch zip code based on stored city name
+    function loadZipCode() {
+      const cityName = document.getElementById('city').value;
+      const barangayName = document.getElementById('barangay').value;
       const zipCodeInput = document.getElementById('zip-code');
       
-      // Clear and disable subsequent dropdowns
-      provinceSelect.innerHTML = '<option value="">Select Province</option>';
-      citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
-      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-      zipCodeInput.value = '';
-      
-      citySelect.disabled = true;
-      barangaySelect.disabled = true;
-      regionHasNoProvinces = false;
-      
-      if (regionCode) {
-        // Enable province dropdown and show loading
-        provinceSelect.disabled = false;
-        provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
-        
-        // Fetch provinces for selected region
-        fetch(`get_locations.php?action=get_provinces&region_code=${encodeURIComponent(regionCode)}`)
-          .then(response => response.json())
-          .then(provinces => {
-            if (provinces.length > 0) {
-              // Region has provinces - normal flow
-              regionHasNoProvinces = false;
-              provinceSelect.innerHTML = '<option value="">Select Province</option>';
-              provinces.forEach(province => {
-                const option = document.createElement('option');
-                option.value = province.code;
-                option.textContent = province.name;
-                option.dataset.name = province.name;
-                provinceSelect.appendChild(option);
-              });
-            } else {
-              // Region has NO provinces (like NCR) - load cities directly from region
-              regionHasNoProvinces = true;
-              provinceSelect.innerHTML = '<option value="METRO_MANILA" data-name="Metro Manila">Metro Manila</option>';
-              provinceSelect.value = 'METRO_MANILA';
-              
-              // Automatically load cities from region
-              loadCitiesFromRegion(regionCode);
-            }
-          })
-          .catch(error => {
-            console.error('Error loading provinces:', error);
-            provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
-          });
-      } else {
-        provinceSelect.disabled = true;
-      }
-    });
-    
-    // Function to load cities directly from region (for regions without provinces)
-    function loadCitiesFromRegion(regionCode) {
-      const citySelect = document.getElementById('city');
-      const barangaySelect = document.getElementById('barangay');
-      const zipCodeInput = document.getElementById('zip-code');
-      
-      // Clear and enable city dropdown
-      citySelect.innerHTML = '<option value="">Loading cities...</option>';
-      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-      zipCodeInput.value = '';
-      
-      citySelect.disabled = false;
-      barangaySelect.disabled = true;
-      
-      // Fetch cities directly from region
-      fetch(`get_locations.php?action=get_cities&region_code=${encodeURIComponent(regionCode)}`)
-        .then(response => response.json())
-        .then(cities => {
-          citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
-          
-          if (cities.length > 0) {
-            cities.forEach(city => {
-              const option = document.createElement('option');
-              option.value = city.code;
-              option.textContent = city.name;
-              option.dataset.name = city.name;
-              citySelect.appendChild(option);
-            });
-          } else {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'No cities available';
-            citySelect.appendChild(option);
-          }
-        })
-        .catch(error => {
-          console.error('Error loading cities:', error);
-          citySelect.innerHTML = '<option value="">Error loading cities</option>';
-        });
-    }
-
-    // Load cities when province is selected
-    document.getElementById('state').addEventListener('change', function() {
-      const provinceCode = this.value;
-      const citySelect = document.getElementById('city');
-      const barangaySelect = document.getElementById('barangay');
-      const zipCodeInput = document.getElementById('zip-code');
-      
-      // If this is a region without provinces (NCR/Metro Manila), cities are already loaded
-      if (provinceCode === 'METRO_MANILA') {
-        return;
-      }
-      
-      // Clear and disable subsequent dropdowns
-      citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
-      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-      zipCodeInput.value = '';
-      
-      barangaySelect.disabled = true;
-      
-      if (provinceCode) {
-        // Enable city dropdown
-        citySelect.disabled = false;
-        citySelect.innerHTML = '<option value="">Loading cities...</option>';
-        
-        // Fetch cities for selected province
-        fetch(`get_locations.php?action=get_cities&province_code=${encodeURIComponent(provinceCode)}`)
-          .then(response => response.json())
-          .then(cities => {
-            citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
-            
-            if (cities.length > 0) {
-              cities.forEach(city => {
-                const option = document.createElement('option');
-                option.value = city.code;
-                option.textContent = city.name;
-                option.dataset.name = city.name;
-                citySelect.appendChild(option);
-              });
-            } else {
-              const option = document.createElement('option');
-              option.value = '';
-              option.textContent = 'No cities available';
-              citySelect.appendChild(option);
-            }
-          })
-          .catch(error => {
-            console.error('Error loading cities:', error);
-            citySelect.innerHTML = '<option value="">Error loading cities</option>';
-          });
-      } else {
-        citySelect.disabled = true;
-      }
-    });
-
-    // Load barangays when city is selected
-    document.getElementById('city').addEventListener('change', function() {
-      const cityCode = this.value;
-      const barangaySelect = document.getElementById('barangay');
-      const zipCodeInput = document.getElementById('zip-code');
-      
-      // Clear barangays and zip code
-      barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-      zipCodeInput.value = '';
-      
-      if (cityCode) {
-        // Enable barangay dropdown
-        barangaySelect.disabled = false;
-        barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
-        
-        // Fetch barangays for selected city
-        fetch(`get_locations.php?action=get_barangays&city_code=${encodeURIComponent(cityCode)}`)
-          .then(response => response.json())
-          .then(barangays => {
-            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-            
-            if (barangays.length > 0) {
-              barangays.forEach(barangay => {
-                const option = document.createElement('option');
-                option.value = barangay.code;
-                option.textContent = barangay.name;
-                option.dataset.name = barangay.name;
-                barangaySelect.appendChild(option);
-              });
-            } else {
-              const option = document.createElement('option');
-              option.value = '';
-              option.textContent = 'No barangays available';
-              barangaySelect.appendChild(option);
-            }
-          })
-          .catch(error => {
-            console.error('Error loading barangays:', error);
-            barangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
-          });
-      } else {
-        barangaySelect.disabled = true;
-      }
-    });
-
-    // Auto-populate zip code when barangay is selected
-    document.getElementById('barangay').addEventListener('change', function() {
-      const barangaySelect = this;
-      const citySelect = document.getElementById('city');
-      const zipCodeInput = document.getElementById('zip-code');
-      
-      const barangayCode = barangaySelect.value;
-      const barangayName = barangaySelect.options[barangaySelect.selectedIndex]?.text || '';
-      const cityCode = citySelect.value;
-      const cityName = citySelect.options[citySelect.selectedIndex]?.text || '';
-      
-      if (barangayCode && cityCode) {
-        // Fetch zip code with both code and name for better lookup
+      if (cityName) {
         const params = new URLSearchParams({
           action: 'get_zipcode',
-          city_code: cityCode,
           city_name: cityName,
-          barangay_name: barangayName
+          barangay_name: barangayName || ''
         });
         
         fetch(`get_locations.php?${params.toString()}`)
@@ -2783,18 +2977,13 @@
           .then(data => {
             if (data.zipcode) {
               zipCodeInput.value = data.zipcode;
-            } else {
-              zipCodeInput.value = '';
             }
           })
           .catch(error => {
             console.error('Error loading zip code:', error);
-            zipCodeInput.value = '';
           });
-      } else {
-        zipCodeInput.value = '';
       }
-    });
+    }
 
     // ========================================
     // CARD SELECTION
@@ -2830,5 +3019,381 @@
       });
       return cards;
     }
-</script>
+
+    // ========================================
+    // AUTO-SELECT LOCATION FROM USER DATA
+    // ========================================
+    
+    // User's stored location data from PHP
+    const storedCity = "<?php echo addslashes($userCity); ?>";
+    const storedProvince = "<?php echo addslashes($userProvince); ?>";
+    const storedRegion = "<?php echo addslashes($userRegion); ?>";
+    const storedBarangay = "<?php echo addslashes($userBarangay); ?>";
+    
+    // Function to auto-select location after regions are loaded
+    function autoSelectUserLocation() {
+      if (!storedCity && !storedProvince) return;
+      
+      console.log('Auto-selecting location:', { storedCity, storedProvince });
+      
+      // Use the API to find the region based on province/city
+      const params = new URLSearchParams({
+        action: 'find_region_by_location',
+        province: storedProvince,
+        city: storedCity
+      });
+      
+      fetch(`get_locations.php?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+          console.log('Location lookup result:', data);
+          
+          if (data.region_code) {
+            const regionSelect = document.getElementById('region');
+            
+            // Select the region
+            regionSelect.value = data.region_code;
+            regionSelect.dispatchEvent(new Event('change'));
+            
+            // Wait for provinces to load, then auto-select province and city
+            setTimeout(() => {
+              autoSelectProvinceAndCity(data.province_code, data.city_code);
+            }, 1500);
+          } else {
+            // Fallback to manual detection
+            autoSelectUserLocationFallback();
+          }
+        })
+        .catch(error => {
+          console.error('Error finding region:', error);
+          autoSelectUserLocationFallback();
+        });
+    }
+    
+    // Fallback function for manual region detection
+    function autoSelectUserLocationFallback() {
+      const regionSelect = document.getElementById('region');
+      let targetRegionCode = '';
+      
+      if (storedProvince.toLowerCase().includes('metro manila') || 
+          storedProvince.toLowerCase().includes('ncr') ||
+          storedCity.toLowerCase().includes('makati') ||
+          storedCity.toLowerCase().includes('quezon city') ||
+          storedCity.toLowerCase().includes('manila') ||
+          storedCity.toLowerCase().includes('pasig') ||
+          storedCity.toLowerCase().includes('taguig') ||
+          storedCity.toLowerCase().includes('mandaluyong') ||
+          storedCity.toLowerCase().includes('pasay') ||
+          storedCity.toLowerCase().includes('paranaque') ||
+          storedCity.toLowerCase().includes('muntinlupa') ||
+          storedCity.toLowerCase().includes('las pinas') ||
+          storedCity.toLowerCase().includes('marikina') ||
+          storedCity.toLowerCase().includes('san juan') ||
+          storedCity.toLowerCase().includes('caloocan') ||
+          storedCity.toLowerCase().includes('malabon') ||
+          storedCity.toLowerCase().includes('navotas') ||
+          storedCity.toLowerCase().includes('valenzuela') ||
+          storedCity.toLowerCase().includes('pateros')) {
+        // NCR - National Capital Region
+        for (let i = 0; i < regionSelect.options.length; i++) {
+          if (regionSelect.options[i].text.toLowerCase().includes('national capital') ||
+              regionSelect.options[i].text.toLowerCase().includes('ncr')) {
+            targetRegionCode = regionSelect.options[i].value;
+            regionSelect.value = targetRegionCode;
+            regionSelect.dispatchEvent(new Event('change'));
+            break;
+          }
+        }
+      }
+      
+      // After region is selected, try to auto-select city
+      if (targetRegionCode && storedCity) {
+        setTimeout(() => {
+          autoSelectCity();
+        }, 1500); // Wait for cities to load
+      }
+    }
+    
+    // Auto-select province and city using codes from API
+    function autoSelectProvinceAndCity(provinceCode, cityCode) {
+      const provinceSelect = document.getElementById('state');
+      const citySelect = document.getElementById('city');
+      
+      // Wait until provinces are loaded
+      if (provinceSelect.options.length <= 1 && provinceSelect.innerHTML.includes('Loading')) {
+        setTimeout(() => autoSelectProvinceAndCity(provinceCode, cityCode), 500);
+        return;
+      }
+      
+      // Select province by code
+      if (provinceCode) {
+        if (provinceCode === 'METRO_MANILA') {
+          // For NCR, province is already set to METRO_MANILA
+          provinceSelect.value = 'METRO_MANILA';
+        } else {
+          // Try to select by code
+          for (let i = 0; i < provinceSelect.options.length; i++) {
+            if (provinceSelect.options[i].value === provinceCode) {
+              provinceSelect.value = provinceCode;
+              provinceSelect.dispatchEvent(new Event('change'));
+              break;
+            }
+          }
+        }
+      }
+      
+      // Wait for cities to load, then select city
+      if (cityCode || storedCity) {
+        setTimeout(() => {
+          autoSelectCityByCode(cityCode);
+        }, 1500);
+      }
+    }
+    
+    // Auto-select city by code or name
+    function autoSelectCityByCode(cityCode) {
+      const citySelect = document.getElementById('city');
+      
+      // Wait until cities are loaded
+      if (citySelect.options.length <= 1) {
+        setTimeout(() => autoSelectCityByCode(cityCode), 500);
+        return;
+      }
+      
+      let found = false;
+      
+      // Try to select by code first
+      if (cityCode) {
+        for (let i = 0; i < citySelect.options.length; i++) {
+          if (citySelect.options[i].value === cityCode) {
+            citySelect.value = cityCode;
+            citySelect.dispatchEvent(new Event('change'));
+            found = true;
+            break;
+          }
+        }
+      }
+      
+      // If not found by code, try by name
+      if (!found && storedCity) {
+        for (let i = 0; i < citySelect.options.length; i++) {
+          const optionText = citySelect.options[i].text.toLowerCase();
+          const searchCity = storedCity.toLowerCase();
+          if (optionText.includes(searchCity) || searchCity.includes(optionText)) {
+            citySelect.value = citySelect.options[i].value;
+            citySelect.dispatchEvent(new Event('change'));
+            found = true;
+            break;
+          }
+        }
+      }
+      
+      // After city is selected, try to auto-select barangay
+      if (found && storedBarangay) {
+        setTimeout(() => {
+          autoSelectBarangay();
+        }, 1500);
+      }
+    }
+    
+    // Auto-select barangay by name
+    function autoSelectBarangay() {
+      const barangaySelect = document.getElementById('barangay');
+      
+      // Wait until barangays are loaded
+      if (barangaySelect.options.length <= 1) {
+        setTimeout(autoSelectBarangay, 500);
+        return;
+      }
+      
+      // Try to find matching barangay by name
+      if (storedBarangay) {
+        for (let i = 0; i < barangaySelect.options.length; i++) {
+          const optionText = barangaySelect.options[i].text.toLowerCase();
+          const searchBarangay = storedBarangay.toLowerCase();
+          if (optionText.includes(searchBarangay) || searchBarangay.includes(optionText)) {
+            barangaySelect.value = barangaySelect.options[i].value;
+            barangaySelect.dispatchEvent(new Event('change'));
+            break;
+          }
+        }
+      }
+    }
+    
+    function autoSelectCity() {
+      const citySelect = document.getElementById('city');
+      
+      // Wait until cities are loaded
+      if (citySelect.options.length <= 1) {
+        setTimeout(autoSelectCity, 500);
+        return;
+      }
+      
+      // Try to find matching city
+      for (let i = 0; i < citySelect.options.length; i++) {
+        if (citySelect.options[i].text.toLowerCase().includes(storedCity.toLowerCase()) ||
+            storedCity.toLowerCase().includes(citySelect.options[i].text.toLowerCase())) {
+          citySelect.value = citySelect.options[i].value;
+          citySelect.dispatchEvent(new Event('change'));
+          break;
+        }
+      }
+    }
+    
+    // Location fields are read-only, no need to load regions dynamically
+
+    // ========================================
+    // PHILIPPINE ID TYPE HANDLING
+    // ========================================
+    
+    // ID format hints for different Philippine IDs
+    const idFormatHints = {
+      'philippine_passport': 'Format: P1234567A (Letter + 7 digits + Letter)',
+      'drivers_license': 'Format: N01-23-456789 (LTO License Number)',
+      'umid': 'Format: 0123-4567890-1 (CRN Number)',
+      'philhealth': 'Format: 01-234567890-1 (PhilHealth ID Number)',
+      'sss': 'Format: 01-2345678-9 (SSS Number)',
+      'gsis': 'Format: 123456789012 (GSIS BP Number)',
+      'prc': 'Format: 0123456 (PRC License Number)',
+      'postal': 'Format: 01-2345678 (Postal ID Number)',
+      'voters': 'Format: 1234-5678A-B1234CDE56789 (VIN)',
+      'national_id': 'Format: 1234-5678-9012-3456 (PhilSys Number)',
+      'senior_citizen': 'Format: Varies by LGU',
+      'pwd': 'Format: Varies by LGU',
+      'nbi': 'Format: 2024-A1234567 (NBI Clearance Number)',
+      'police': 'Format: Varies by station',
+      'barangay': 'Format: Varies by barangay',
+      'tin_card': 'Format: 123-456-789-000 (TIN)',
+      'school_id': 'Format: Student ID Number',
+      'company_id': 'Format: Employee ID Number',
+      'ofw': 'Format: OFW ID Number',
+      'seaman_book': 'Format: Seaman\'s Book Number',
+      'ibp': 'Format: IBP Number',
+      'owwa': 'Format: OWWA ID Number'
+    };
+
+    // Update ID format hint when ID type changes
+    document.getElementById('id-type').addEventListener('change', function() {
+      const hint = document.getElementById('id-format-hint');
+      const selectedValue = this.value;
+      
+      if (selectedValue && idFormatHints[selectedValue]) {
+        hint.textContent = idFormatHints[selectedValue];
+        hint.style.display = 'block';
+      } else {
+        hint.textContent = '';
+        hint.style.display = 'none';
+      }
+    });
+
+    // ========================================
+    // UPDATE VALIDATION FOR VERIFICATION STEP
+    // ========================================
+    
+    // Override validateVerification to include ID upload check
+    const originalValidateVerification = validateVerification;
+    validateVerification = function() {
+      let valid = true;
+      
+      // TIN validation
+      const ssnEl = document.getElementById('ssn');
+      const tinValue = ssnEl.value.replace(/\D/g, '');
+      if (!tinValue || tinValue.length < 9) {
+        showFieldError(ssnEl, 'Enter a valid TIN (e.g. 123-456-789-000)');
+        valid = false;
+      } else { 
+        clearFieldError(ssnEl); 
+      }
+
+      // ID Type validation
+      const idTypeEl = document.getElementById('id-type');
+      if (!idTypeEl.value) {
+        showFieldError(idTypeEl, 'Please select an ID type');
+        valid = false;
+      } else {
+        clearFieldError(idTypeEl);
+      }
+
+      // ID Number validation
+      const idNum = document.getElementById('id-number');
+      if (!isNotEmpty(idNum.value)) { 
+        showFieldError(idNum, 'ID number is required'); 
+        valid = false; 
+      } else { 
+        clearFieldError(idNum); 
+      }
+
+      // ID Upload validation
+      if (!uploadedIdFile) {
+        const uploadContainer = document.getElementById('upload-container');
+        // Show error for upload
+        let uploadError = document.getElementById('upload-error');
+        if (!uploadError) {
+          uploadError = document.createElement('div');
+          uploadError.id = 'upload-error';
+          uploadError.className = 'field-error';
+          uploadError.style.display = 'block';
+          uploadError.style.marginTop = '5px';
+          uploadContainer.parentNode.appendChild(uploadError);
+        }
+        uploadError.textContent = 'Please upload a photo of your ID';
+        uploadError.style.display = 'block';
+        valid = false;
+      } else {
+        const uploadError = document.getElementById('upload-error');
+        if (uploadError) uploadError.style.display = 'none';
+      }
+
+      // Employment validation
+      const employer = document.getElementById('employer-name');
+      const job = document.getElementById('job-title');
+      const income = document.getElementById('annual-income');
+      const employment = document.getElementById('employment-status');
+
+      if (!isNotEmpty(employment.value)) { 
+        showFieldError(employment, 'Select employment status'); 
+        valid = false; 
+      } else { 
+        clearFieldError(employment); 
+      }
+      
+      if (!isNotEmpty(employer.value)) { 
+        showFieldError(employer, 'Employer is required'); 
+        valid = false; 
+      } else { 
+        clearFieldError(employer); 
+      }
+      
+      if (!isNotEmpty(job.value)) { 
+        showFieldError(job, 'Job title required'); 
+        valid = false; 
+      } else { 
+        clearFieldError(job); 
+      }
+      
+      if (!isNotEmpty(income.value) || !isNumeric(income.value)) { 
+        showFieldError(income, 'Enter numeric income'); 
+        valid = false; 
+      } else { 
+        clearFieldError(income); 
+      }
+
+      return valid;
+    };
+
+    // Format TIN as user types
+    document.getElementById('ssn').addEventListener('input', function(e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 12) value = value.slice(0, 12);
+      
+      // Format as 123-456-789-000
+      let formatted = '';
+      for (let i = 0; i < value.length; i++) {
+        if (i === 3 || i === 6 || i === 9) formatted += '-';
+        formatted += value[i];
+      }
+      e.target.value = formatted;
+    });
+    </script>
+  </body>
 </html>

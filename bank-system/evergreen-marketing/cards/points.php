@@ -90,7 +90,7 @@
 
         .nav-links {
             display: flex;
-            gap: 3rem;
+            gap: 1.5rem;
             align-items: center;
         }
 
@@ -98,6 +98,7 @@
             color: white;
             text-decoration: none;
             font-size: 1rem;
+            margin: 0 1.1rem;
             transition: color 0.3s;
         }
 

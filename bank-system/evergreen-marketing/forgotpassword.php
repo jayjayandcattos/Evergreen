@@ -151,7 +151,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $user_id = $_SESSION['reset_user_id'];
                 
-                $sql = "UPDATE bank_customers SET password = ? WHERE customer_id = ?";
+                $sql = "UPDATE bank_customers SET password_hash = ? WHERE customer_id = ?";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("si", $hashed_password, $user_id);
                 
