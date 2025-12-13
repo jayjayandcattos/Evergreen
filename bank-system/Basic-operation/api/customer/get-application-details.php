@@ -32,18 +32,14 @@ try {
         exit();
     }
     
-    // Fetch application details with location names, source of funds name, and employment status name
+    // Fetch application details with location names
     $stmt = $db->prepare("
         SELECT 
             aa.*,
-            sof.source_name as source_of_funds_name,
-            es.status_name as employment_status_name,
             p.province_name,
             c.city_name,
             b.barangay_name
         FROM account_applications aa
-        LEFT JOIN source_of_funds sof ON aa.source_of_funds = sof.source_id
-        LEFT JOIN employment_statuses es ON aa.employment_status = es.employment_status_id
         LEFT JOIN provinces p ON aa.province_id = p.province_id
         LEFT JOIN cities c ON aa.city_id = c.city_id
         LEFT JOIN barangays b ON aa.barangay_id = b.barangay_id
@@ -54,6 +50,18 @@ try {
     $stmt->execute();
     
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($application) {
+        // Fetch related documents
+        $docStmt = $db->prepare("
+            SELECT document_id, document_type, file_name, file_path, mime_type, uploaded_at
+            FROM application_documents
+            WHERE application_id = :application_id
+        ");
+        $docStmt->bindParam(':application_id', $applicationId, PDO::PARAM_INT);
+        $docStmt->execute();
+        $application['documents'] = $docStmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     
     if (!$application) {
         echo json_encode([

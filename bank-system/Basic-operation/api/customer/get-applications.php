@@ -46,11 +46,7 @@ try {
             aa.email,
             aa.phone_number,
             aa.account_type,
-            aa.submitted_at,
-            aa.reviewed_at,
-            aa.rejection_reason,
-            aa.created_by_employee_id,
-            aa.reviewed_by_employee_id
+            aa.submitted_at
         FROM account_applications aa
         WHERE 1=1
     ";

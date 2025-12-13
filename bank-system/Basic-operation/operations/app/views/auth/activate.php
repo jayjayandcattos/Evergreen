@@ -114,8 +114,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_account'])) {
                 
                 $mail->send();
                 
-                // Redirect to OTP verification page
-                header('Location: ' . URLROOT . '/auth/activate_verify?continue=true');
+                // Redirect to OTP verification page (direct file path, not through router)
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                $host = $_SERVER['HTTP_HOST'];
+                $verifyPath = '/Evergreen/bank-system/Basic-operation/operations/app/views/auth/activate_verify.php';
+                header('Location: ' . $protocol . '://' . $host . $verifyPath);
                 exit();
                 
             } catch (Exception $e) {

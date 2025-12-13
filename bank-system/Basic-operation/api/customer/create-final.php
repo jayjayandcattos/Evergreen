@@ -62,6 +62,8 @@ try {
         error_log("Using data from multipart POST");
         error_log("POST data: " . print_r($data, true));
         error_log("FILES data: " . print_r($_FILES, true));
+        error_log("🔍 id_type from POST: " . ($data['id_type'] ?? 'NOT SET'));
+        error_log("🔍 id_number from POST: " . ($data['id_number'] ?? 'NOT SET'));
     } else {
         // Get JSON input from POST body
         $input = file_get_contents('php://input');
@@ -155,6 +157,8 @@ try {
     error_log("  - employment_status: " . ($mappedData['employment_status'] ?? 'NULL'));
     error_log("  - occupation: " . ($mappedData['occupation'] ?? 'NULL'));
     error_log("  - source_of_funds: " . ($mappedData['source_of_funds'] ?? 'NULL'));
+    error_log("  - id_type: '" . ($mappedData['id_type'] ?? 'NULL') . "'");
+    error_log("  - id_number: '" . ($mappedData['id_number'] ?? 'NULL') . "'");
 
     // Validate required fields
     // Note: Either email OR mobile_number is required (at least one must be verified)
@@ -273,20 +277,20 @@ try {
                 date_of_birth, place_of_birth, gender, civil_status, nationality,
                 email, phone_number,
                 street_address, barangay_id, city_id, province_id, postal_code,
-                id_type, id_number, id_front_image, id_back_image, id_uploaded_at,
-                employment_status, employer_name, occupation, annual_income, source_of_funds,
+                id_type, id_number,
+                employment_status, employer_name, occupation, annual_income,
                 account_type, terms_accepted,
-                created_by_employee_id, submitted_at
+                submitted_at
             ) VALUES (
                 :application_number, 'pending',
                 :first_name, :middle_name, :last_name,
                 :date_of_birth, :place_of_birth, :gender, :civil_status, :nationality,
                 :email, :phone_number,
                 :street_address, :barangay_id, :city_id, :province_id, :postal_code,
-                :id_type, :id_number, NULL, NULL, NULL,
-                :employment_status, :employer_name, :occupation, :annual_income, :source_of_funds,
+                :id_type, :id_number,
+                :employment_status, :employer_name, :occupation, :annual_income,
                 :account_type, 1,
-                :created_by_employee_id, NOW()
+                NOW()
             )
         ");
         
@@ -312,9 +316,7 @@ try {
         $stmt->bindParam(':employer_name', $mappedData['employer_name']);
         $stmt->bindParam(':occupation', $mappedData['occupation']);
         $stmt->bindParam(':annual_income', $mappedData['annual_income']);
-        $stmt->bindParam(':source_of_funds', $mappedData['source_of_funds']);
         $stmt->bindParam(':account_type', $accountTypeBase);
-        $stmt->bindParam(':created_by_employee_id', $mappedData['created_by_employee_id']);
         $stmt->execute();
 
         $applicationId = $db->lastInsertId();
@@ -363,7 +365,6 @@ try {
                 birthday,
                 password_hash,
                 is_verified,
-                created_by_employee_id,
                 created_at
             ) VALUES (
                 :application_id,
@@ -377,7 +378,6 @@ try {
                 :birthday,
                 NULL,
                 0,
-                :created_by_employee_id,
                 NOW()
             )
         ");
@@ -391,7 +391,6 @@ try {
         $stmt->bindParam(':email', $customerEmail);
         $stmt->bindParam(':contact_number', $customerPhone);
         $stmt->bindParam(':birthday', $birthDate);
-        $stmt->bindParam(':created_by_employee_id', $mappedData['created_by_employee_id']);
         $stmt->execute();
 
         $customerId = $db->lastInsertId();
@@ -408,6 +407,22 @@ try {
             if (move_uploaded_file($frontFile['tmp_name'], $frontPath)) {
                 $idFrontPath = 'uploads/id_images/' . $frontFilename;
                 error_log("Front ID image uploaded: " . $idFrontPath);
+                
+                // Store in application_documents table
+                $docStmt = $db->prepare("
+                    INSERT INTO application_documents 
+                    (application_id, document_type, file_name, file_path, file_size, mime_type) 
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+                $docStmt->execute([
+                    $applicationId,
+                    'id_front',
+                    $frontFile['name'],
+                    $idFrontPath,
+                    $frontFile['size'],
+                    $frontFile['type']
+                ]);
+                error_log("Stored front ID in application_documents table");
             }
         }
         
@@ -421,24 +436,35 @@ try {
             if (move_uploaded_file($backFile['tmp_name'], $backPath)) {
                 $idBackPath = 'uploads/id_images/' . $backFilename;
                 error_log("Back ID image uploaded: " . $idBackPath);
+                
+                // Store in application_documents table
+                $docStmt = $db->prepare("
+                    INSERT INTO application_documents 
+                    (application_id, document_type, file_name, file_path, file_size, mime_type) 
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+                $docStmt->execute([
+                    $applicationId,
+                    'id_back',
+                    $backFile['name'],
+                    $idBackPath,
+                    $backFile['size'],
+                    $backFile['type']
+                ]);
+                error_log("Stored back ID in application_documents table");
             }
         }
         
-        // Step 4: Update account_applications with ID image paths AND customer_id (bidirectional linking)
+        // Step 4: Link customer_id to account_applications (bidirectional linking)
         $updateStmt = $db->prepare("
             UPDATE account_applications 
-            SET id_front_image = :id_front_image,
-                id_back_image = :id_back_image,
-                id_uploaded_at = NOW(),
-                customer_id = :customer_id
+            SET customer_id = :customer_id
             WHERE application_id = :application_id
         ");
-        $updateStmt->bindParam(':id_front_image', $idFrontPath);
-        $updateStmt->bindParam(':id_back_image', $idBackPath);
         $updateStmt->bindParam(':customer_id', $customerId);
         $updateStmt->bindParam(':application_id', $applicationId);
         $updateStmt->execute();
-        error_log("Updated ID images and customer_id in account_applications");
+        error_log("Linked customer_id in account_applications");
 
         // Step 5: Link the application to the bank_customers record (bidirectional linking complete)
         $stmt = $db->prepare("UPDATE bank_customers SET application_id = :application_id WHERE customer_id = :customer_id");

@@ -275,6 +275,9 @@ async function handleFormSubmit(e) {
     const idType = document.getElementById("id_type").value;
     const idNumber = document.getElementById("id_number").value;
 
+    console.log("🔍 Step 2 - idType value:", idType);
+    console.log("🔍 Step 2 - idNumber value:", idNumber);
+
     formData.append("id_type", idType);
     formData.append("id_number", idNumber);
 
@@ -325,6 +328,7 @@ async function handleFormSubmit(e) {
     // Wait for all files to be converted
     await Promise.all(filePromises);
 
+    console.log("🔍 Step 2 - Saving to sessionStorage:", step2Data);
     sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
     console.log("Document verification data prepared with files");
 

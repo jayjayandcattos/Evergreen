@@ -287,9 +287,10 @@ function validateStep1Data($data, $pdo) {
     if (empty($data['account_type'])) {
         $errors['account_type'] = 'Account type is required';
     } else {
-        $validAccountTypes = ['Savings', 'Checking'];
-        if (!in_array($data['account_type'], $validAccountTypes)) {
-            $errors['account_type'] = 'Invalid account type. Please select Savings or Checking';
+        // Accept both short and canonical names
+        $validAccountTypes = ['Savings', 'Checking', 'Savings Account', 'Checking Account'];
+        if (!in_array($data['account_type'], $validAccountTypes, true)) {
+            $errors['account_type'] = 'Invalid account type. Please select Savings Account or Checking Account';
         }
     }
     

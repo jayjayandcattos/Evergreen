@@ -53,8 +53,24 @@ try {
     
     if (empty($input['account_type'])) {
         $errors['account_type'] = 'Account type is required';
-    } elseif (!in_array($input['account_type'], ['Savings', 'Checking'])) {
-        $errors['account_type'] = 'Invalid account type. Must be Savings or Checking';
+    } else {
+        // Normalize incoming type to canonical names
+        $typeRaw = trim($input['account_type']);
+        $typeNormalized = $typeRaw;
+        if (strcasecmp($typeRaw, 'Savings') === 0) {
+            $typeNormalized = 'Savings Account';
+        } elseif (strcasecmp($typeRaw, 'Checking') === 0) {
+            $typeNormalized = 'Checking Account';
+        }
+
+        // Accept both canonical and short forms
+        $allowed = ['Savings', 'Checking', 'Savings Account', 'Checking Account'];
+        if (!in_array($typeRaw, $allowed, true) && !in_array($typeNormalized, ['Savings Account', 'Checking Account'], true)) {
+            $errors['account_type'] = 'Invalid account type. Must be Savings Account or Checking Account';
+        } else {
+            // Overwrite input with normalized canonical name for downstream usage
+            $input['account_type'] = $typeNormalized;
+        }
     }
 
     // Validate ID fields
@@ -111,7 +127,8 @@ try {
         exit();
     }
 
-    $accountTypeName = $input['account_type'] . ' Account'; // Append " Account" to match database format
+    // account_type now holds canonical name; do not re-append
+    $accountTypeName = $input['account_type'];
 
     // Connect to database
     $db = getDBConnection();
@@ -278,19 +295,14 @@ try {
                     postal_code,
                     id_type,
                     id_number,
-                    id_front_image,
-                    id_back_image,
-                    id_uploaded_at,
                     employment_status,
                     employer_name,
                     occupation,
                     annual_income,
-                    source_of_funds,
                     account_type,
                     terms_accepted,
                     privacy_acknowledged,
-                    submitted_at,
-                    created_by_employee_id
+                    submitted_at
                 ) VALUES (
                     :application_number,
                     'pending',
@@ -312,19 +324,14 @@ try {
                     :postal_code,
                     :id_type,
                     :id_number,
-                    :id_front_image,
-                    :id_back_image,
-                    NOW(),
                     :employment_status,
                     :employer_name,
                     :occupation,
                     :annual_income,
-                    :source_of_funds,
                     :account_type,
                     1,
                     1,
-                    NOW(),
-                    :created_by_employee_id
+                    NOW()
                 )
             ");
             
@@ -347,18 +354,31 @@ try {
             $stmt->bindValue(':postal_code', $existingApplication['postal_code']);
             $stmt->bindParam(':id_type', $input['id_type']);
             $stmt->bindParam(':id_number', $input['id_number']);
-            $stmt->bindParam(':id_front_image', $idFrontPath);
-            $stmt->bindParam(':id_back_image', $idBackPath);
             $stmt->bindValue(':employment_status', $existingApplication['employment_status']);
             $stmt->bindValue(':employer_name', $existingApplication['employer_name']);
             $stmt->bindValue(':occupation', $existingApplication['occupation']);
             $stmt->bindValue(':annual_income', $existingApplication['annual_income']);
-            $stmt->bindValue(':source_of_funds', $existingApplication['source_of_funds']);
             $stmt->bindParam(':account_type', $input['account_type']);
-            $stmt->bindParam(':created_by_employee_id', $employeeId);
             $stmt->execute();
             
             $newApplicationId = $db->lastInsertId();
+            
+            // Insert ID documents into application_documents table
+            $docStmt = $db->prepare("
+                INSERT INTO application_documents (
+                    application_id,
+                    document_type,
+                    file_path,
+                    uploaded_at
+                ) VALUES 
+                (:app_id, 'id_front', :id_front, NOW()),
+                (:app_id2, 'id_back', :id_back, NOW())
+            ");
+            $docStmt->bindParam(':app_id', $newApplicationId);
+            $docStmt->bindParam(':app_id2', $newApplicationId);
+            $docStmt->bindParam(':id_front', $idFrontPath);
+            $docStmt->bindParam(':id_back', $idBackPath);
+            $docStmt->execute();
         }
         
         // Commit transaction

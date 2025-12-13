@@ -317,19 +317,41 @@ async function viewApplicationDetails(applicationId) {
  */
 function displayApplicationDetails(app) {
   const detailsContainer = document.getElementById("applicationDetails");
-  const baseUrl =
-    window.location.origin +
-    window.location.pathname.substring(
-      0,
-      window.location.pathname.indexOf("/public/")
-    );
+  // Explicit base paths (avoid /public in URLs)
+  const rootBase = `${window.location.origin}/Evergreen/bank-system/Basic-operation`;
+  const uploadsBase = `${rootBase}/uploads`;
 
-  const idFrontUrl = app.id_front_image
-    ? `${baseUrl}/${app.id_front_image}`
-    : null;
-  const idBackUrl = app.id_back_image
-    ? `${baseUrl}/${app.id_back_image}`
-    : null;
+  // Resolve ID images: prefer application_documents if provided
+  let idFrontPath = null;
+  let idBackPath = null;
+  if (Array.isArray(app.documents)) {
+    const frontDoc = app.documents.find(
+      (d) => d.document_type === "id_front" && d.file_path
+    );
+    const backDoc = app.documents.find(
+      (d) => d.document_type === "id_back" && d.file_path
+    );
+    idFrontPath = frontDoc ? frontDoc.file_path : null;
+    idBackPath = backDoc ? backDoc.file_path : null;
+  }
+
+  // Helper to build a proper URL for file paths
+  const buildFileUrl = (p) => {
+    if (!p) return null;
+    // If already absolute (http/https), return as-is
+    if (/^https?:\/\//i.test(p)) return p;
+    // Normalize leading slash
+    const path = p.startsWith("/") ? p.slice(1) : p;
+    // Prefer uploadsBase when path starts with uploads/
+    if (path.startsWith("uploads/")) {
+      return `${uploadsBase}/${path.replace(/^uploads\//, "")}`;
+    }
+    // Fallback to baseUrl
+    return `${baseUrl}/${path}`;
+  };
+
+  const idFrontUrl = buildFileUrl(idFrontPath) || buildFileUrl(app.id_front_image);
+  const idBackUrl = buildFileUrl(idBackPath) || buildFileUrl(app.id_back_image);
 
   detailsContainer.innerHTML = `
     <!-- Personal Information -->

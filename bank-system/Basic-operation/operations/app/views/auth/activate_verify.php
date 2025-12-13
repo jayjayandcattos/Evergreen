@@ -51,8 +51,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // OTP verified successfully
             $_SESSION['otp_activation_verified'] = true;
             
-            // Redirect to password setup
-            header('Location: ' . URLROOT . '/auth/activate_password?continue=true');
+            // Redirect to password setup (direct file path, not through router)
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'];
+            $passwordSetupPath = '/Evergreen/bank-system/Basic-operation/operations/app/views/auth/activate_password.php';
+            header('Location: ' . $protocol . '://' . $host . $passwordSetupPath);
             exit();
         }
     } elseif (isset($_POST['resend_otp'])) {

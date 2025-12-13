@@ -3,7 +3,10 @@ session_start();
 
 // Redirect if OTP not verified
 if (!isset($_SESSION['otp_activation_verified']) || !isset($_SESSION['activation_customer_id'])) {
-    header('Location: ' . (defined('URLROOT') ? URLROOT : '') . '/auth/activate');
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $activatePath = '/Evergreen/bank-system/Basic-operation/operations/app/views/auth/activate.php';
+    header('Location: ' . $protocol . '://' . $host . $activatePath);
     exit();
 }
 
@@ -52,8 +55,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['set_password'])) {
             
             $success = true;
             
-            // Redirect to login after 3 seconds
-            header("refresh:3;url=" . URLROOT . "/auth/login");
+            // Redirect to login after 3 seconds (direct path to avoid router)
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'];
+            $loginPath = '/Evergreen/bank-system/evergreen-marketing/login.php';
+            header("refresh:3;url=" . $protocol . '://' . $host . $loginPath);
         } else {
             $error = "Failed to set password. Please try again.";
         }

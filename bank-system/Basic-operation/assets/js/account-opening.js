@@ -47,8 +47,12 @@ function setupAccountTypeSelection() {
       this.classList.add("selected");
 
       // Set hidden input value
-      const accountType = this.getAttribute("data-type");
-      hiddenInput.value = accountType;
+      const shortType = this.getAttribute("data-type");
+      const typeMap = {
+        Savings: "Savings Account",
+        Checking: "Checking Account",
+      };
+      hiddenInput.value = typeMap[shortType] || shortType;
 
       // Clear error
       clearError("account_type");
@@ -814,8 +818,7 @@ function populateReviewData() {
 
   // Account details
   document.getElementById("review-account-type").textContent =
-    document.getElementById("selected_account_type").value + " Account" ||
-    "Not selected";
+    document.getElementById("selected_account_type").value || "Not selected";
 
   const depositAmount = document.getElementById("initial_deposit").value;
   const depositSource = document.getElementById("deposit_source").value;

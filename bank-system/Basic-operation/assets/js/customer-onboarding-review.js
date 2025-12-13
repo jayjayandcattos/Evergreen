@@ -1312,6 +1312,10 @@ async function submitApplication() {
     const step1Parsed = JSON.parse(step1Data);
     const step2Parsed = step2Data ? JSON.parse(step2Data) : {};
 
+    console.log("🔍 Step2 Data:", step2Parsed);
+    console.log("🔍 id_type from step2:", step2Parsed.id_type);
+    console.log("🔍 id_number from step2:", step2Parsed.id_number);
+
     // Create FormData to handle file uploads
     const formData = new FormData();
 
@@ -1329,12 +1333,15 @@ async function submitApplication() {
     for (const [key, value] of Object.entries(step2Parsed)) {
       if (
         key.endsWith("_data") ||
-        key.endsWith("_name") ||
-        key.endsWith("_type")
+        key === "id_front_name" ||
+        key === "id_back_name" ||
+        key === "id_front_type" ||
+        key === "id_back_type"
       ) {
         continue; // Skip file data fields for now
       }
       if (value !== null && value !== undefined) {
+        console.log(`✅ Adding step2 field: ${key} = ${value}`);
         formData.append(
           key,
           typeof value === "object" ? JSON.stringify(value) : value
