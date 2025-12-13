@@ -83,18 +83,34 @@ try {
         }
         
         // 3. Get account type ID
-        $accountTypeBase = $application['account_type']; // 'Savings' or 'Checking'
+        $accountTypeBase = $application['account_type']; // 'Savings Account' or 'Checking Account'
+        error_log("Account Type from Application: " . $accountTypeBase);
+        
+        // Normalize account type for prefix generation (remove " Account" suffix)
+        $accountTypeForPrefix = str_replace(' Account', '', $accountTypeBase); // 'Savings' or 'Checking'
+        error_log("Account Type for Prefix: " . $accountTypeForPrefix);
+        
+        // Try to find the account type in bank_account_types table
+        // The table might have 'Savings', 'Checking' OR 'Savings Account', 'Checking Account'
         $stmt = $db->prepare("
-            SELECT account_type_id 
+            SELECT account_type_id, type_name 
             FROM bank_account_types 
-            WHERE type_name = :type_name
+            WHERE type_name = :type_name OR type_name = :type_name_with_suffix
         ");
-        $stmt->bindParam(':type_name', $accountTypeBase);
+        $typeNameWithSuffix = $accountTypeForPrefix . ' Account';
+        $stmt->bindParam(':type_name', $accountTypeForPrefix);
+        $stmt->bindParam(':type_name_with_suffix', $typeNameWithSuffix);
         $stmt->execute();
         $accountType = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        error_log("Account Type Query Result: " . ($accountType ? json_encode($accountType) : 'NOT FOUND'));
+        
         if (!$accountType) {
-            throw new Exception('Account type not found');
+            // Log all available account types for debugging
+            $debugStmt = $db->query("SELECT account_type_id, type_name FROM bank_account_types");
+            $availableTypes = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("Available account types in database: " . json_encode($availableTypes));
+            throw new Exception("Account type '$accountTypeBase' not found in bank_account_types table. Available types: " . json_encode($availableTypes));
         }
         
         $accountTypeId = $accountType['account_type_id'];
@@ -103,7 +119,7 @@ try {
         // SA = Savings Account, CHA = Checking Account
         // XXXX = Random 4-digit number
         // YYYY = Current year
-        $prefix = ($accountTypeBase === 'Savings') ? 'SA' : 'CHA';
+        $prefix = ($accountTypeForPrefix === 'Savings') ? 'SA' : 'CHA';
         $randomNumber = str_pad(rand(1000, 9999), 4, '0', STR_PAD_LEFT);
         $year = date('Y');
         $accountNumber = $prefix . '-' . $randomNumber . '-' . $year;

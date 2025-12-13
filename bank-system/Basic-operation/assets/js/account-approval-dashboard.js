@@ -260,8 +260,13 @@ function filterApplications() {
 
     const matchesStatus =
       !statusFilter || app.application_status === statusFilter;
+    
+    // Account type filter: handle both "Savings" and "Savings Account" formats
     const matchesAccountType =
-      !accountTypeFilter || app.account_type === accountTypeFilter;
+      !accountTypeFilter || 
+      app.account_type === accountTypeFilter || 
+      app.account_type === accountTypeFilter + ' Account' ||
+      app.account_type?.replace(' Account', '') === accountTypeFilter;
 
     return matchesSearch && matchesStatus && matchesAccountType;
   });

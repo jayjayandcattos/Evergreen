@@ -352,6 +352,10 @@ try {
             }
         }
         
+        // Generate unique referral code (EVG#####)
+        $referralCode = generateUniqueReferralCode($db);
+        error_log("Generated referral code: " . $referralCode);
+        
         $stmt = $db->prepare("
             INSERT INTO bank_customers (
                 application_id,
@@ -364,6 +368,7 @@ try {
                 contact_number,
                 birthday,
                 password_hash,
+                referral_code,
                 is_verified,
                 created_at
             ) VALUES (
@@ -377,6 +382,7 @@ try {
                 :contact_number,
                 :birthday,
                 NULL,
+                :referral_code,
                 0,
                 NOW()
             )
@@ -391,6 +397,7 @@ try {
         $stmt->bindParam(':email', $customerEmail);
         $stmt->bindParam(':contact_number', $customerPhone);
         $stmt->bindParam(':birthday', $birthDate);
+        $stmt->bindParam(':referral_code', $referralCode);
         $stmt->execute();
 
         $customerId = $db->lastInsertId();
@@ -473,7 +480,95 @@ try {
         $stmt->execute();
         error_log("Linked bank_customers to account_applications");
 
-        // NOTE: emails, phones, addresses, customer_profiles, and customer_accounts are NOT created here
+        // Step 6: Lookup gender_id from genders table
+        $genderId = null;
+        if (!empty($mappedData['gender'])) {
+            $genderStmt = $db->prepare("SELECT gender_id FROM genders WHERE gender_name = :gender_name LIMIT 1");
+            $genderStmt->bindParam(':gender_name', $mappedData['gender']);
+            $genderStmt->execute();
+            $genderResult = $genderStmt->fetch(PDO::FETCH_ASSOC);
+            if ($genderResult) {
+                $genderId = $genderResult['gender_id'];
+                error_log("Found gender_id: " . $genderId . " for gender: " . $mappedData['gender']);
+            } else {
+                error_log("Warning: No gender_id found for gender: " . $mappedData['gender']);
+            }
+        }
+
+        // Step 7: Create customer_profile record
+        $profileStmt = $db->prepare("
+            INSERT INTO customer_profiles (
+                customer_id,
+                gender_id,
+                date_of_birth,
+                marital_status,
+                national_id,
+                occupation,
+                company,
+                income_range,
+                nationality,
+                profile_created_at
+            ) VALUES (
+                :customer_id,
+                :gender_id,
+                :date_of_birth,
+                :marital_status,
+                :national_id,
+                :occupation,
+                :company,
+                :income_range,
+                :nationality,
+                NOW()
+            )
+        ");
+        
+        $profileStmt->bindParam(':customer_id', $customerId);
+        $profileStmt->bindParam(':gender_id', $genderId);
+        $profileStmt->bindParam(':date_of_birth', $birthDate);
+        $profileStmt->bindParam(':marital_status', $mappedData['civil_status']);
+        $profileStmt->bindParam(':national_id', $mappedData['id_number']);
+        $profileStmt->bindParam(':occupation', $mappedData['occupation']);
+        $profileStmt->bindParam(':company', $mappedData['employer_name']);
+        $profileStmt->bindParam(':income_range', $mappedData['annual_income']);
+        $profileStmt->bindParam(':nationality', $mappedData['nationality']);
+        $profileStmt->execute();
+        error_log("Created customer_profile record for customer_id: " . $customerId);
+
+        // Step 8: Create address record
+        $addressStmt = $db->prepare("
+            INSERT INTO addresses (
+                customer_id,
+                address_line,
+                barangay_id,
+                city_id,
+                province_id,
+                postal_code,
+                address_type,
+                is_primary,
+                created_at
+            ) VALUES (
+                :customer_id,
+                :address_line,
+                :barangay_id,
+                :city_id,
+                :province_id,
+                :postal_code,
+                'home',
+                1,
+                NOW()
+            )
+        ");
+        
+        $addressStmt->bindParam(':customer_id', $customerId);
+        $addressStmt->bindParam(':address_line', $mappedData['address_line']);
+        $addressStmt->bindParam(':barangay_id', $mappedData['barangay_id']);
+        $addressStmt->bindParam(':city_id', $mappedData['city_id']);
+        $addressStmt->bindParam(':province_id', $mappedData['province_id']);
+        $addressStmt->bindParam(':postal_code', $mappedData['postal_code']);
+        $addressStmt->execute();
+        error_log("Created address record for customer_id: " . $customerId);
+
+        // NOTE: emails, phones, and customer_accounts are NOT created here
         // They will be created after the application is approved by an employee
         // This is a walk-in registration - customer gets minimal login record and application pending approval
 
@@ -532,17 +627,15 @@ try {
 
 /**
  * Generate unique referral code
+ * Format: EVG##### (EVG + 5 random digits)
  * @param PDO $db Database connection
  * @return string Unique referral code
  */
 function generateUniqueReferralCode($db) {
     do {
-        // Generate a 6-character code (3 letters + 3 numbers)
-        $code = '';
-        for ($i = 0; $i < 3; $i++) {
-            $code .= chr(rand(65, 90)); // A-Z
-        }
-        for ($i = 0; $i < 3; $i++) {
+        // Generate EVG##### format (5 random digits)
+        $code = 'EVG';
+        for ($i = 0; $i < 5; $i++) {
             $code .= rand(0, 9); // 0-9
         }
         

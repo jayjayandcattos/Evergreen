@@ -862,26 +862,28 @@ class Customer extends Database{
         $this->db->bind(':message', $message);
         $this->db->execute();
 
-        // For the fee
-        $this->db->query("
-        INSERT INTO bank_transactions (
-            account_id,
-            transaction_type_id,
-            amount,
-            description
-        )
-        VALUES (
-            :sender,
-            :transaction_type,
-            :amount,
-            :message
-        );
-        ");
-        $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 5);
-        $this->db->bind(':amount', $fee);
-        $this->db->bind(':message', 'Transaction Service Charge - ' . $transaction_ref);
-        $this->db->execute();
+        // For the fee - only record if fee > 0 (i.e., not an own account transfer)
+        if ($fee > 0) {
+            $this->db->query("
+            INSERT INTO bank_transactions (
+                account_id,
+                transaction_type_id,
+                amount,
+                description
+            )
+            VALUES (
+                :sender,
+                :transaction_type,
+                :amount,
+                :message
+            );
+            ");
+            $this->db->bind(':sender', $sender);
+            $this->db->bind(':transaction_type', 5);
+            $this->db->bind(':amount', $fee);
+            $this->db->bind(':message', 'Transaction Service Charge - ' . $transaction_ref);
+            $this->db->execute();
+        }
 
         // for the receiver
         $this->db->query("
@@ -1700,34 +1702,11 @@ class Customer extends Database{
     public function getAccountApplicationsByEmail($email) {
         $this->db->query("
             SELECT 
-                application_id,
                 application_number,
-                application_status,
-                first_name,
-                last_name,
-                email,
-                phone_number,
-                date_of_birth,
-                street_address,
-                barangay,
-                city,
-                state,
-                zip_code,
-                ssn,
-                id_type,
-                id_number,
-                employment_status,
-                employer_name,
-                job_title,
-                annual_income,
                 account_type,
-                selected_cards,
-                additional_services,
-                terms_accepted,
-                privacy_acknowledged,
-                marketing_consent,
-                submitted_at,
-                reviewed_at
+                application_status,
+                rejection_reason,
+                submitted_at
             FROM account_applications
             WHERE email = :email
             ORDER BY submitted_at DESC

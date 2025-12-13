@@ -320,11 +320,8 @@
               <div class="form-row">
                 <div class="form-group">
                   <label>Gender <span style="color: red">*</span></label>
-                  <select name="gender" class="form-control" required>
-                    <option value="" disabled selected>Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                  <select name="gender" id="gender" class="form-control" required>
+                    <option value="" disabled selected>Loading...</option>
                   </select>
                   <div class="error-message" id="error-gender"></div>
                 </div>
@@ -573,6 +570,7 @@
         await loadCountryCodes();
         await loadProvinces(); // Load provinces on page load
         await loadAllCitiesForBirthplace(); // Load all cities for place of birth
+        await loadGenders(); // Load genders from database
         await loadEmploymentStatuses(); // Load employment statuses from database
         await loadSourceOfFunds(); // Load source of funds from database
         setupFormHandlers();
@@ -746,6 +744,53 @@
           }
         } catch (error) {
           console.error("Error loading cities for birthplace:", error);
+        }
+      }
+
+      // ========================================
+      // GENDER DROPDOWN FUNCTION
+      // ========================================
+
+      // Load genders from database
+      async function loadGenders() {
+        try {
+          const apiUrl = `${API_BASE_URL}/common/get-genders.php`;
+          console.log("Loading genders from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("Genders result:", result);
+
+          if (result.success && result.data) {
+            const genderSelect = document.getElementById("gender");
+            const options = result.data
+              .map(
+                (gender) =>
+                  `<option value="${gender.gender_name}">${gender.gender_name}</option>`
+              )
+              .join("");
+
+            genderSelect.innerHTML =
+              '<option value="" disabled selected>Select Gender</option>' + options;
+            console.log("Loaded", result.data.length, "genders");
+          } else {
+            console.error("Failed to load genders:", result.message);
+          }
+        } catch (error) {
+          console.error("Error loading genders:", error);
+          // Fallback to hardcoded genders
+          const genderSelect = document.getElementById("gender");
+          genderSelect.innerHTML = `
+            <option value="" disabled selected>Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          `;
         }
       }
 
