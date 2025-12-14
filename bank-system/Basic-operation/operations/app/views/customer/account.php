@@ -749,7 +749,9 @@
                 const accountType = card.dataset.accountType.toLowerCase();
 
                 const matchesSearch = accountName.includes(searchTerm) || accountNumber.includes(searchTerm);
-                const matchesTypeFilter = selectedAccountTypes.length === 0 || selectedAccountTypes.includes(accountType);
+                // Use partial matching for account type filter (e.g., "savings" matches "savings account")
+                const matchesTypeFilter = selectedAccountTypes.length === 0 || 
+                    selectedAccountTypes.some(filterType => accountType.includes(filterType));
                 // Default to show if no toggle exists for this account, or if the toggle is checked
                 const isExplicitlyShown = showHideStates[accountId] === undefined || showHideStates[accountId];
 

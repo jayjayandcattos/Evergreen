@@ -83,16 +83,14 @@ class Customer extends Database{
                     END
                 ), 0) AS current_balance
             FROM customer_accounts a
-            LEFT JOIN customer_linked_accounts cla ON cla.account_id = a.account_id AND cla.is_active = 1
-            LEFT JOIN bank_customers bc ON bc.customer_id = COALESCE(a.customer_id, cla.customer_id)
+            LEFT JOIN customer_linked_accounts cla ON cla.account_id = a.account_id AND cla.customer_id = :cid1
+            LEFT JOIN bank_customers bc ON bc.customer_id = a.customer_id
             LEFT JOIN bank_account_types act ON a.account_type_id = act.account_type_id
             LEFT JOIN bank_transactions t ON a.account_id = t.account_id
             LEFT JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id
-            WHERE (
-                a.customer_id = :cid1
-                OR cla.customer_id = :cid2
-            )
+            WHERE a.customer_id = :cid2
             AND a.is_locked = 0
+            AND (cla.account_id IS NULL OR cla.is_active = 1)
             GROUP BY a.account_id, a.account_number, a.account_type_id, act.type_name, bc.first_name, bc.last_name
             ORDER BY a.created_at DESC;
         ");
