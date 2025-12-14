@@ -104,13 +104,12 @@ try {
             ca.account_type_id,
             ca.account_status,
             bc.customer_id,
-            aa.first_name,
-            aa.middle_name,
-            aa.last_name,
+            bc.first_name,
+            bc.middle_name,
+            bc.last_name,
             bat.type_name as account_type
         FROM customer_accounts ca
         INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
-        INNER JOIN account_applications aa ON bc.application_id = aa.application_id
         LEFT JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
         WHERE ca.account_number = :account_number
         LIMIT 1
