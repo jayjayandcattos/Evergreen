@@ -71,6 +71,7 @@ try {
     $loan_terms = isset($_POST['loan_terms']) ? trim($_POST['loan_terms']) : '';
     $loan_amount = isset($_POST['loan_amount']) ? (float)$_POST['loan_amount'] : 0;
     $purpose = isset($_POST['purpose']) ? trim($_POST['purpose']) : '';
+    $account_number = isset($_POST['account_number']) ? trim($_POST['account_number']) : '';
     
     // ✅ FIXED: Get loan_valid_id_type (FK to loan_valid_id.id) and valid_id_number
     $loan_valid_id_type = isset($_POST['loan_valid_id_type']) ? (int)$_POST['loan_valid_id_type'] : 0;
@@ -92,6 +93,38 @@ try {
     if (empty($purpose)) {
         throw new Exception("Please provide the purpose of the loan.");
     }
+    
+    // Validate account_number and ensure it belongs to customer
+    if (empty($account_number)) {
+        throw new Exception("Please select an account to receive the loan disbursement.");
+    }
+    
+    // Verify account belongs to customer and is Savings/Checking only
+    $acc_verify_stmt = $conn->prepare("
+        SELECT ca.account_id, bat.type_name 
+        FROM customer_accounts ca
+        INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
+        WHERE ca.account_number = ? 
+        AND ca.customer_id = ?
+        AND ca.is_locked = 0
+        AND (ca.account_status = 'active' OR ca.account_status IS NULL)
+        AND bat.type_name IN ('Savings Account', 'Checking Account')
+    ");
+    
+    if (!$acc_verify_stmt) {
+        throw new Exception("Database error: " . $conn->error);
+    }
+    
+    $acc_verify_stmt->bind_param("si", $account_number, $currentUser['customer_id']);
+    $acc_verify_stmt->execute();
+    $acc_verify_result = $acc_verify_stmt->get_result();
+    
+    if ($acc_verify_result->num_rows === 0) {
+        $acc_verify_stmt->close();
+        throw new Exception("Invalid account selected. Please select a valid Savings or Checking account.");
+    }
+    
+    $acc_verify_stmt->close();
     
     // Validate valid ID type and number
     if ($loan_valid_id_type <= 0) {
@@ -200,9 +233,9 @@ try {
 
     // Get full name and other user details
     $full_name = $currentUser['full_name'] ?? '';
-    $account_number = $currentUser['account_number'] ?? '';
     $contact_number = $currentUser['contact_number'] ?? '';
     $user_email_db = $currentUser['email'] ?? $email;
+    // account_number already validated above from POST data
 
     // ✅ FIXED: Insert into loan_applications with correct column name loan_valid_id_type
     $insert_stmt = $conn->prepare("INSERT INTO loan_applications (

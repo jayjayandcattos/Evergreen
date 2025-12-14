@@ -114,9 +114,9 @@ function validateAll() {
         runValidation(() => validateField(fullNameInput, '^[a-zA-Z\\s]{3,50}$', 3, 50, 'Full Name must be 3-50 letters and spaces only.', 'name-error'));
     }
 
-    // ✅ Validate exactly 10 digits (but skip if readonly)
+    // ✅ Skip validation if account_number is a select dropdown (new behavior)
     const accountInput = document.getElementById('account_number');
-    if (accountInput && !accountInput.readOnly) {
+    if (accountInput && !accountInput.readOnly && accountInput.tagName !== 'SELECT') {
         runValidation(() => validateField(accountInput, '^\\d{10}$', 10, 10, 'Account Number must be exactly 10 digits.', 'account-error'));
     }
 
@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     validateField(input, '^[a-zA-Z\\s]{3,50}$', 3, 50, 'Full Name must be 3-50 letters and spaces only.', 'name-error');
                     break;
                 case 'account_number':
-                    if (!input.readOnly) {
+                    if (!input.readOnly && input.tagName !== 'SELECT') {
                         validateField(input, '^\\d{10}$', 10, 10, 'Account Number must be exactly 10 digits.', 'account-error');
                     }
                     break;

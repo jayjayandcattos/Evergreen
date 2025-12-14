@@ -83,7 +83,7 @@ if ($statusResult) {
               lvi.valid_id_type
             FROM loan_applications la 
             LEFT JOIN loan_types lt ON la.loan_type_id = lt.id 
-            LEFT JOIN loan_valid_id lvi ON la.loan_valid_id_type = lvi.loan_valid_id_type
+            LEFT JOIN loan_valid_id lvi ON la.loan_valid_id_type = lvi.id
             WHERE la.status = 'Pending' 
             ORDER BY la.id DESC
           ");
@@ -138,7 +138,7 @@ if ($statusResult) {
               lvi.valid_id_type
             FROM loan_applications la 
             LEFT JOIN loan_types lt ON la.loan_type_id = lt.id 
-            LEFT JOIN loan_valid_id lvi ON la.loan_valid_id_type = lvi.loan_valid_id_type
+            LEFT JOIN loan_valid_id lvi ON la.loan_valid_id_type = lvi.id
             WHERE la.status = 'Approved' 
             ORDER BY la.approved_at DESC
           ");

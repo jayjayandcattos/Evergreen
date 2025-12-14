@@ -29,16 +29,25 @@ $stmt->execute();
 $result = $stmt->get_result();
 $currentUser = $result->fetch_assoc();
 
-// Get account number from customer_accounts if it exists
-$account_number = '';
+// Get Savings/Checking accounts only for loan disbursement
+$customerAccounts = [];
 if ($currentUser) {
-    $acc_stmt = $conn->prepare("SELECT account_number FROM customer_accounts WHERE customer_id = ? LIMIT 1");
+    $acc_stmt = $conn->prepare("
+        SELECT ca.account_number, ca.account_id, bat.type_name 
+        FROM customer_accounts ca
+        INNER JOIN bank_account_types bat ON ca.account_type_id = bat.account_type_id
+        WHERE ca.customer_id = ? 
+        AND ca.is_locked = 0
+        AND (ca.account_status = 'active' OR ca.account_status IS NULL)
+        AND bat.type_name IN ('Savings Account', 'Checking Account')
+        ORDER BY bat.type_name, ca.account_number
+    ");
     if ($acc_stmt) {
         $acc_stmt->bind_param("i", $currentUser['customer_id']);
         $acc_stmt->execute();
         $acc_result = $acc_stmt->get_result();
-        if ($acc_row = $acc_result->fetch_assoc()) {
-            $account_number = $acc_row['account_number'];
+        while ($acc_row = $acc_result->fetch_assoc()) {
+            $customerAccounts[] = $acc_row;
         }
         $acc_stmt->close();
     }
@@ -53,7 +62,6 @@ if (!$currentUser) {
     ];
 }
 
-$currentUser['account_number'] = $account_number;
 $stmt->close();
 
 // Fetch loan types - show all active loan types
@@ -106,9 +114,24 @@ $conn->close();
               <span class="validation-message" id="name-error"></span>
             </div>
             <div class="input-container">
-              <input type="text" name="account_number" id="account_number" 
-                     value="<?= htmlspecialchars($currentUser['account_number']) ?>" 
-                     placeholder="Account Number (10 digits)" required readonly />
+              <label for="account_number">Disbursement Account <span class="required">*</span></label>
+              <?php if (empty($customerAccounts)): ?>
+                <div class="alert alert-warning" style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 4px; color: #856404; margin-top: 8px;">
+                  <strong>No Active Account Found!</strong><br>
+                  You need to have an active Savings or Checking account to apply for a loan. 
+                  Please <a href="../bank-system/evergreen-marketing/evergreen_form.php" style="color: #856404; text-decoration: underline;">apply for an account</a> first.
+                </div>
+                <input type="hidden" name="account_number" value="">
+              <?php else: ?>
+                <select name="account_number" id="account_number" required>
+                  <option value="">Select account to receive loan</option>
+                  <?php foreach ($customerAccounts as $acc): ?>
+                    <option value="<?= htmlspecialchars($acc['account_number']) ?>">
+                      <?= htmlspecialchars($acc['account_number']) ?> - <?= htmlspecialchars($acc['type_name']) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              <?php endif; ?>
               <span class="validation-message" id="account-error"></span>
             </div>
             <div class="input-container">
@@ -345,6 +368,20 @@ document.addEventListener('DOMContentLoaded', function () {
 // Show terms modal on form submit
 document.getElementById('loanForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    
+    // Check if user has selected an account
+    const accountSelect = document.getElementById('account_number');
+    if (accountSelect && accountSelect.tagName === 'SELECT' && !accountSelect.value) {
+        alert('Please select an account to receive the loan disbursement.');
+        accountSelect.focus();
+        return false;
+    }
+    
+    // Check if no accounts available (hidden input case)
+    if (accountSelect && accountSelect.type === 'hidden' && !accountSelect.value) {
+        alert('You need to have an active Savings or Checking account to apply for a loan. Please apply for an account first.');
+        return false;
+    }
     
     // Validate form
     if (this.checkValidity()) {

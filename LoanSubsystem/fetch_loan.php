@@ -69,7 +69,7 @@ $stmt = $conn->prepare("
         lvi.valid_id_type
     FROM loan_applications la
     LEFT JOIN loan_types lt ON la.loan_type_id = lt.id
-    LEFT JOIN loan_valid_id lvi ON la.loan_valid_id_type = lvi.loan_valid_id_type
+    LEFT JOIN loan_valid_id lvi ON la.loan_valid_id_type = lvi.id
     WHERE la.email = ?
     ORDER BY la.id DESC
 ");
