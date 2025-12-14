@@ -1,34 +1,81 @@
-<!---Loan_AppForm.php--->
-
 <?php
 session_start();
-require_once 'config/database.php';
+require_once __DIR__ . '/config/database.php';
 
-// Redirect to login if not authenticated
+// Check if user is logged in
 if (!isset($_SESSION['user_email'])) {
-    header('Location: login.php');
+    header("Location: ../login.php");
     exit();
 }
 
-// Get current user from database
-$currentUser = getUserByEmail($_SESSION['user_email']);
+$conn = getDBConnection();
+$user_email = $_SESSION['user_email'];
+
+// Fetch user details from bank_customers - construct full_name from first, middle, last
+$stmt = $conn->prepare("SELECT 
+    CONCAT(first_name, ' ', IFNULL(CONCAT(middle_name, ' '), ''), last_name) as full_name,
+    contact_number,
+    email,
+    customer_id
+FROM bank_customers 
+WHERE email = ?");
+
+if (!$stmt) {
+    die("Database error: " . $conn->error);
+}
+
+$stmt->bind_param("s", $user_email);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentUser = $result->fetch_assoc();
+
+// Get account number from customer_accounts if it exists
+$account_number = '';
+if ($currentUser) {
+    $acc_stmt = $conn->prepare("SELECT account_number FROM customer_accounts WHERE customer_id = ? LIMIT 1");
+    if ($acc_stmt) {
+        $acc_stmt->bind_param("i", $currentUser['customer_id']);
+        $acc_stmt->execute();
+        $acc_result = $acc_stmt->get_result();
+        if ($acc_row = $acc_result->fetch_assoc()) {
+            $account_number = $acc_row['account_number'];
+        }
+        $acc_stmt->close();
+    }
+}
 
 if (!$currentUser) {
-    session_destroy();
-    header('Location: login.php?error=invalid');
-    exit();
+    // Fallback or error handling
+    $currentUser = [
+        'full_name' => '',
+        'contact_number' => '',
+        'email' => $user_email
+    ];
 }
 
-// Map database fields to expected format
-$currentUser['full_name'] = $currentUser['display_name'] ?? $currentUser['full_name'];
-$currentUser['account_number'] = $currentUser['account_number'] ?? '';
-$currentUser['contact_number'] = $currentUser['contact_number'] ?? '';
-// Note: job and monthly_salary are not in bank_users table
-// You may need to add these fields to the database or use defaults
-$currentUser['job'] = 'Not Specified'; // Default value
-$currentUser['monthly_salary'] = 0; // Default value
-?>
+$currentUser['account_number'] = $account_number;
+$stmt->close();
 
+// Fetch loan types - show all active loan types
+$loanTypes = [];
+$lt_result = $conn->query("SELECT id, name FROM loan_types ORDER BY name");
+if ($lt_result) {
+    while ($row = $lt_result->fetch_assoc()) {
+        $loanTypes[] = $row;
+    }
+}
+
+// ✅ FIXED: Fetch valid ID types from loan_valid_id table (correct column name is 'valid_id_type')
+$validIdTypes = [];
+$id_result = $conn->query("SELECT id, valid_id_type FROM loan_valid_id ORDER BY valid_id_type");
+if ($id_result) {
+    while ($row = $id_result->fetch_assoc()) {
+        $validIdTypes[] = $row;
+    }
+}
+
+$conn->close();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -83,17 +130,18 @@ $currentUser['monthly_salary'] = 0; // Default value
           <h2>Loan Details</h2>
           <div class="input-group">
             <div class="input-container">
-              <select name="loan_type" id="loan_type" required>
+              <label for="loan_type">Loan Type <span class="required">*</span></label>
+              <select name="loan_type_id" id="loan_type" required>
                 <option value="">Select Loan Type</option>
-                <option value="Personal Loan">Personal Loan</option>
-                <option value="Car Loan">Car Loan</option>
-                <option value="Home Loan">Home Loan</option>
-                <option value="Multi-Purpose Loan">Multi-Purpose Loan</option>
+                <?php foreach ($loanTypes as $type): ?>
+                  <option value="<?= (int)$type['id'] ?>"><?= htmlspecialchars($type['name']) ?></option>
+                <?php endforeach; ?>
               </select>
               <span class="validation-message" id="loan-type-error"></span>
             </div>
 
             <div class="input-container">
+              <label for="loan_terms">Loan Term <span class="required">*</span></label>
               <select name="loan_terms" id="loan_terms" required>
                 <option value="">Select Loan Terms</option>
                 <option value="6 Months">6 Months</option>
@@ -107,30 +155,63 @@ $currentUser['monthly_salary'] = 0; // Default value
             </div>
 
             <div class="input-container">
+              <label for="loan_amount">Loan Amount <span class="required">*</span></label>
               <input type="number" name="loan_amount" id="loan_amount" 
-                     placeholder="Loan Amount (Min ₱5,000)" min="5000" required />
+                     placeholder="Loan Amount (Min ₱5,000)" min="5000" step="0.01" required />
               <span class="validation-message" id="amount-error"></span>
             </div>
 
             <div class="input-container">
-              <textarea name="purpose" id="purpose" placeholder="Purpose / Description" required></textarea>
+              <label for="purpose">Purpose of Loan <span class="required">*</span></label>
+              <textarea name="purpose" id="purpose" placeholder="Describe the purpose of your loan" required></textarea>
               <span class="validation-message" id="purpose-error"></span>
             </div>
           </div>
-          <div class="input-container">
-            <label for="attachment">Upload Valid ID <span class="required">*</span></label>
-            <input type="file" name="attachment" id="attachment" accept=".pdf,.jpg,.jpeg,.png" required />
-            <span class="validation-message" id="attachment-error"></span>
-          </div>
-          <div class="input-container">
-            <label for="proof_of_income">Upload Proof of Income / Payslip <span class="required">*</span></label>
-            <input type="file" name="proof_of_income" id="proof_of_income" accept=".pdf,.jpg,.jpeg,.png" required />
-            <span class="validation-message" id="proof-income-error"></span>
-          </div>
-          <div class="input-container">
-            <label for="coe_document">Upload Certificate of Employment (COE) <span class="required">*</span></label>
-            <input type="file" name="coe_document" id="coe_document" accept=".pdf,.jpg,.jpeg,.png" required />
-            <span class="validation-message" id="coe-error"></span>
+        </section>
+
+        <section id="step-supporting-details">
+          <h2>Supporting Details</h2>
+          <div class="input-group">
+            <!-- ✅ FIXED: Valid ID Type dropdown now populated from loan_valid_id table -->
+            <div class="input-container">
+              <label for="loan_valid_id_type">Valid ID Type <span class="required">*</span></label>
+              <select name="loan_valid_id_type" id="loan_valid_id_type" required>
+                <option value="">Select Valid ID</option>
+                <?php foreach ($validIdTypes as $idType): ?>
+                  <option value="<?= (int)$idType['id'] ?>"><?= htmlspecialchars($idType['valid_id_type']) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <span class="validation-message" id="valid-id-type-error"></span>
+            </div>
+
+            <!-- ✅ FIXED: ID Number input field (text type for alphanumeric IDs) -->
+            <div class="input-container">
+              <label for="valid_id_number">ID Number <span class="required">*</span></label>
+              <input type="text" name="valid_id_number" id="valid_id_number" 
+                     placeholder="Enter your ID number" maxlength="150" required />
+              <span class="validation-message" id="valid-id-number-error"></span>
+            </div>
+
+            <div class="input-container">
+              <label for="attachment">Upload Valid ID <span class="required">*</span></label>
+              <small>Accepted: JPG, JPEG, PNG, PDF, DOC, DOCX (Max 5MB)</small>
+              <input type="file" name="attachment" id="attachment" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required />
+              <span class="validation-message" id="attachment-error"></span>
+            </div>
+
+            <div class="input-container">
+              <label for="proof_of_income">Upload Proof of Income / Payslip <span class="required">*</span></label>
+              <small>Accepted: JPG, JPEG, PNG, PDF, DOC, DOCX (Max 5MB)</small>
+              <input type="file" name="proof_of_income" id="proof_of_income" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required />
+              <span class="validation-message" id="proof-income-error"></span>
+            </div>
+
+            <div class="input-container">
+              <label for="coe_document">Upload Certificate of Employment (COE) <span class="required">*</span></label>
+              <small>Accepted: PDF, DOC, DOCX only (Max 5MB)</small>
+              <input type="file" name="coe_document" id="coe_document" accept=".pdf,.doc,.docx" required />
+              <span class="validation-message" id="coe-error"></span>
+            </div>
           </div>
         </section>
 
@@ -215,19 +296,125 @@ $currentUser['monthly_salary'] = 0; // Default value
 // Auto-select loan type from URL
 document.addEventListener('DOMContentLoaded', function () {
     const urlParams = new URLSearchParams(window.location.search);
-    const loanType = urlParams.get('loanType');
-    if (loanType) {
+    const loanTypeName = urlParams.get('loanType');
+    if (loanTypeName) {
         const loanSelect = document.getElementById('loan_type');
         for (let option of loanSelect.options) {
-            if (option.value === loanType) {
+            if (option.text.trim() === decodeURIComponent(loanTypeName).trim()) {
                 option.selected = true;
                 break;
             }
         }
     }
+
+    // File type and size validation
+    const validIdInput = document.getElementById('attachment');
+    const proofInput = document.getElementById('proof_of_income');
+    const coeInput = document.getElementById('coe_document');
+
+    const maxFileSize = 5 * 1024 * 1024; // 5MB in bytes
+    const validIdTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const coeTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+    function validateFile(input, allowedTypes, errorId) {
+        const file = input.files[0];
+        const errorSpan = document.getElementById(errorId);
+        if (file) {
+            // Check file type
+            if (!allowedTypes.includes(file.type)) {
+                errorSpan.textContent = 'Invalid file type. Please upload an allowed format.';
+                input.value = '';
+                return false;
+            }
+            // Check file size
+            if (file.size > maxFileSize) {
+                errorSpan.textContent = 'File size exceeds 5MB. Please upload a smaller file.';
+                input.value = '';
+                return false;
+            }
+            errorSpan.textContent = '';
+            return true;
+        }
+    }
+
+    validIdInput.addEventListener('change', () => validateFile(validIdInput, validIdTypes, 'attachment-error'));
+    proofInput.addEventListener('change', () => validateFile(proofInput, validIdTypes, 'proof-income-error'));
+    coeInput.addEventListener('change', () => validateFile(coeInput, coeTypes, 'coe-error'));
 });
 
-// Modal close function
+// Show terms modal on form submit
+document.getElementById('loanForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Validate form
+    if (this.checkValidity()) {
+        // Show terms and agreement modal
+        const modal = document.getElementById('combined-modal');
+        const applicationContent = document.querySelector('.page-content');
+        const termsView = document.getElementById('terms-view');
+        const confirmationView = document.getElementById('confirmation-view');
+        
+        // Show terms view, hide confirmation
+        termsView.classList.remove('hidden');
+        confirmationView.classList.add('hidden');
+        
+        modal.classList.remove('hidden');
+        applicationContent.classList.add('blur-background');
+        document.body.style.overflow = 'hidden';
+    } else {
+        // Let browser show validation messages
+        this.reportValidity();
+    }
+});
+
+// Accept terms and submit form
+async function acceptTerms() {
+    const form = document.getElementById('loanForm');
+    const formData = new FormData(form);
+    const acceptBtn = document.querySelector('.btn-accept');
+    const originalText = acceptBtn.textContent;
+    
+    // Disable button and show loading
+    acceptBtn.disabled = true;
+    acceptBtn.textContent = 'Submitting...';
+    
+    try {
+        const response = await fetch('submit_loan.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Hide terms view and show confirmation view
+            document.getElementById('terms-view').classList.add('hidden');
+            document.getElementById('confirmation-view').classList.remove('hidden');
+            
+            // Update reference details
+            if (result.loan_id) {
+                document.getElementById('ref-number').textContent = 'LOAN-' + String(result.loan_id).padStart(6, '0');
+            }
+            const today = new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            document.getElementById('ref-date').textContent = today;
+        } else {
+            // Show error message
+            alert('❌ Error: ' + result.error);
+            acceptBtn.disabled = false;
+            acceptBtn.textContent = originalText;
+        }
+    } catch (error) {
+        console.error('Submission error:', error);
+        alert('❌ An error occurred while submitting your application. Please try again.');
+        acceptBtn.disabled = false;
+        acceptBtn.textContent = originalText;
+    }
+}
+
 function closeModal() {
     const combinedModal = document.getElementById('combined-modal');
     const applicationContent = document.querySelector('.page-content');

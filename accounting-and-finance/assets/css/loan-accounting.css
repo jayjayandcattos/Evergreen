@@ -814,6 +814,58 @@
     .table tbody td {
         padding: 8px 4px;
     }
+    
+    /* Loan table responsiveness for monthly payment and outstanding balance */
+    #loanTable {
+        font-size: 11px;
+    }
+    
+    #loanTable th,
+    #loanTable td {
+        padding: 6px 4px;
+        white-space: nowrap;
+    }
+    
+    #loanTable .text-end {
+        text-align: right !important;
+    }
+    
+    /* Ensure monthly payment and outstanding balance columns are visible */
+    #loanTable th:nth-child(9),
+    #loanTable td:nth-child(9) {
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 576px) {
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        display: block;
+        width: 100%;
+    }
+    
+    #loanTable {
+        min-width: 1200px;
+        width: 100%;
+    }
+    
+    /* Make monthly payment and outstanding balance more readable on small screens */
+    #loanTable th:nth-child(9),
+    #loanTable td:nth-child(9) {
+        min-width: 140px;
+        font-size: 10px;
+    }
+    
+    /* Stack action buttons on small screens */
+    .btn-group-sm {
+        flex-direction: column;
+    }
+    
+    .btn-group-sm .btn {
+        width: 100%;
+        margin-bottom: 2px;
+    }
 }
 
 /* Loading Spinner */

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reports - Evergreen Bank</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/reports.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container-fluid">
+        <a
+          class="navbar-brand d-flex align-items-center"
+          href="employee-dashboard.html"
+        >
+          <img
+            src="../assets/img/evergreen_icon2.png"
+            alt="Logo"
+            class="logo"
+          />
+          <span class="brand-text">EVERGREEN</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="navbarNav"
+        >
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="employee-dashboard.html">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="employee-transaction.html"
+                >Transactions</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="transaction-history.html"
+                >Transaction History</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="account-opening.html"
+                >Account Opening</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="account-approval-dashboard.html"
+                >Approval Dashboard</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="reports.html">Reports</a>
+            </li>
+          </ul>
+        </div>
+        <div class="d-flex align-items-center ms-auto gap-3">
+          <span class="username-text me-2" id="employeeName">Username</span>
+          <div class="user-avatar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" fill="#003631" />
+              <circle cx="12" cy="9" r="3" fill="white" />
+              <path
+                d="M6 18.5C6 16.5 8.5 15 12 15C15.5 15 18 16.5 18 18.5"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <button class="btn-logout" id="logoutBtn" title="Logout">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="container-fluid px-4 py-4">
+        <!-- Page Header -->
+        <div class="page-header">
+          <h2 class="page-title">Bank Reports & Statistics</h2>
+          <p class="page-subtitle">
+            Overview of all accounts and their current status
+          </p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-4 mb-4">
+          <!-- Total Accounts -->
+          <div class="col-md-6 col-lg-3">
+            <div class="stats-card total-accounts">
+              <div class="stats-icon">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <line x1="2" y1="10" x2="22" y2="10" />
+                </svg>
+              </div>
+              <div class="stats-info">
+                <h3 class="stats-value" id="total-accounts">--</h3>
+                <p class="stats-label">Total Accounts</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Accounts -->
+          <div class="col-md-6 col-lg-3">
+            <div class="stats-card active-accounts">
+              <div class="stats-icon">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div class="stats-info">
+                <h3 class="stats-value" id="active-accounts">--</h3>
+                <p class="stats-label">Active Accounts</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Below Maintaining Balance -->
+          <div class="col-md-6 col-lg-3">
+            <div class="stats-card below-maintaining">
+              <div class="stats-icon">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div class="stats-info">
+                <h3 class="stats-value" id="below-maintaining-accounts">--</h3>
+                <p class="stats-label">Below Maintaining</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Closed Accounts -->
+          <div class="col-md-6 col-lg-3">
+            <div class="stats-card closed-accounts">
+              <div class="stats-icon">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+              </div>
+              <div class="stats-info">
+                <h3 class="stats-value" id="closed-accounts">--</h3>
+                <p class="stats-label">Closed Accounts</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flagged for Removal -->
+          <div class="col-md-6 col-lg-3">
+            <div class="stats-card flagged-accounts">
+              <div class="stats-icon">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                  />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div class="stats-info">
+                <h3 class="stats-value" id="flagged-accounts">--</h3>
+                <p class="stats-label">Flagged for Removal</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loan Approvals -->
+          <div class="col-md-6 col-lg-3">
+            <div class="stats-card loan-approvals">
+              <div class="stats-icon">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="1" x2="12" y2="23" />
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div class="stats-info">
+                <h3 class="stats-value" id="loan-approvals">--</h3>
+                <p class="stats-label">Loan Approvals</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Accounts Table -->
+        <div class="table-card">
+          <div class="table-header">
+            <h4 class="table-title">Account Status List</h4>
+            <div class="table-actions">
+              <input
+                type="text"
+                class="form-control search-input"
+                id="search-account"
+                placeholder="Search by account number or name..."
+              />
+              <select class="form-select filter-select" id="filter-status">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="below_maintaining">Below Maintaining</option>
+                <option value="flagged_for_removal">Flagged for Removal</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table accounts-table">
+              <thead>
+                <tr>
+                  <th>Account Number</th>
+                  <th>Account Holder</th>
+                  <th>Account Type</th>
+                  <th>Current Balance</th>
+                  <th>Status</th>
+                  <th>Below Since</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="accounts-table-body">
+                <tr>
+                  <td colspan="7" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container-fluid px-4">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <p class="footer-text mb-0">
+              © 2023 Evergreen Bank. All rights reserved.
+            </p>
+            <p class="footer-small mb-0">
+              Member FDIC. Equal Housing Lender. Evergreen Bank, N.A.
+            </p>
+          </div>
+          <div class="col-md-6 text-md-end mt-2 mt-md-0">
+            <a href="#" class="footer-link">Privacy Policy</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">Terms and Agreements</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">FAQS</a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link">About Us</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/auth-helper.js"></script>
+    <script src="../assets/js/reports.js"></script>
+  </body>
+</html>

@@ -790,7 +790,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="../viewing.php">
-                    <img src="../images/Logo.svg">
+                    <img src="../images/Logo.png.png">
                 </a>
             </div>
                 <span>

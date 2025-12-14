@@ -1,21 +1,70 @@
-<!---index.php--->
-
+<!--index.php--->
 <?php
 session_start();
 
-// Check if user is logged in via marketing system OR loan system
-$isLoggedIn = isset($_SESSION['user_id']) || isset($_SESSION['customer_id']) || isset($_SESSION['user_email']);
+// Auto-login bridge: Check if user is logged in via marketing system
+// This allows seamless navigation from marketing pages to loan system
+if (!isset($_SESSION['user_email'])) {
+    // Check for marketing session variables (from evergreen-marketing)
+    if (isset($_SESSION['user_id']) && isset($_SESSION['email'])) {
+        // User is logged in from marketing system, auto-login to loan system
+        $_SESSION['user_email'] = $_SESSION['email'];
+        $_SESSION['user_name'] = $_SESSION['full_name'] ?? ($_SESSION['first_name'] . ' ' . ($_SESSION['last_name'] ?? ''));
+        $_SESSION['user_role'] = 'client'; // Default role for customers from marketing
+        
+        $host = "localhost";
+$user = "root";
+$pass = "";
+$db = "BankingDB";
 
-// If not logged in at all, redirect to marketing login
-if (!$isLoggedIn) {
-    header('Location: /Evergreen/bank-system/evergreen-marketing/login.php');
-    exit();
+// CREATE CONNECTION
+$conn = new mysqli($host, $user, $pass, $db);
+
+// CHECK CONNECTION
+if ($conn->connect_error) {
+    exit(json_encode(['error' => 'Database connection failed: ' . $conn->connect_error]));
 }
 
-// If logged in via marketing but not loan system, sync the session
-if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($_SESSION['user_email'])) {
-    // Set user_email from marketing session for loan system compatibility
-    $_SESSION['user_email'] = $_SESSION['email'] ?? '';
+        
+        $conn = new mysqli($host, $user, $pass, $db);
+        if (!$conn->connect_error) {
+            $email = $_SESSION['email'];
+            $sql = "SELECT 
+                        bc.customer_id,
+                        bc.first_name,
+                        bc.middle_name,
+                        bc.last_name,
+                        bc.email,
+                        bc.contact_number,
+                        (SELECT ca.account_number 
+                         FROM customer_accounts ca 
+                         WHERE ca.customer_id = bc.customer_id 
+                         LIMIT 1) as account_number
+                    FROM bank_customers bc
+                    WHERE bc.email = ?
+                    LIMIT 1";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($row = $result->fetch_assoc()) {
+                    // Store user info in session for loan system
+                    $_SESSION['user_email'] = $row['email'];
+                    $_SESSION['user_name'] = trim($row['first_name'] . ' ' . ($row['middle_name'] ?? '') . ' ' . $row['last_name']);
+                    $_SESSION['customer_id'] = $row['customer_id'];
+                    $_SESSION['account_number'] = $row['account_number'] ?? null;
+                    $_SESSION['contact_number'] = $row['contact_number'] ?? null;
+                }
+                $stmt->close();
+            }
+            $conn->close();
+        }
+    } else {
+        // No session found, redirect to loan login
+        header('Location: login.php');
+        exit();
+    }
 }
 ?>
 
@@ -177,6 +226,11 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
       background: linear-gradient(to right, #e8f5e9 0%, white 10%);
     }
 
+    .notification-item.active {
+      border-left-color: #2e7d32;
+      background: linear-gradient(to right, #c8e6c9 0%, white 10%);
+    }
+
     .notification-item.rejected {
       border-left-color: #f44336;
       background: linear-gradient(to right, #ffebee 0%, white 10%);
@@ -192,6 +246,10 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
     }
 
     .notification-item.approved h3 {
+      color: #4CAF50;
+    }
+
+    .notification-item.active h3 {
       color: #2e7d32;
     }
 
@@ -209,6 +267,11 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
 
     .status-badge.approved {
       background: #4CAF50;
+      color: white;
+    }
+
+    .status-badge.active {
+      background: #2e7d32;
       color: white;
     }
 
@@ -254,6 +317,13 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
       color: #666;
     }
 
+    .notification-timestamp {
+      font-size: 13px;
+      color: #888;
+      font-style: italic;
+      margin-top: 10px;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -290,110 +360,108 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
     }
 
     .loan-card.disabled {
-  opacity: 0.5;
-  cursor: not-allowed !important;
-  pointer-events: none;
-  filter: grayscale(50%);
-}
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      pointer-events: none;
+      filter: grayscale(50%);
+    }
 
-.loan-card.disabled::after {
-  content: 'Application Pending';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: bold;
-  font-size: 14px;
-  z-index: 10;
-}
+    .loan-card.disabled::after {
+      content: 'Application Pending';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 10;
+    }
 
-/* PDF Buttons */
-.download-btn {
-  display: inline-block;
-  background: #007bff;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
-  text-decoration: none;
-  margin-top: 10px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
+    /* PDF Buttons */
+    .download-btn {
+      display: inline-block;
+      background: #007bff;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      text-decoration: none;
+      margin-top: 10px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
 
-.download-btn:hover {
-  background: #0056b3;
-  transform: translateY(-1px);
-}
+    .download-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
 
-/* Ensure PDF buttons are visible */
-.pdf-actions {
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px solid #eee;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
+    .pdf-actions {
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
 
-.download-btn, .generate-pdf-btn {
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-}
+    .download-btn, .generate-pdf-btn {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
 
-.download-btn {
-    background: #007bff;
-    color: white;
-    text-decoration: none;
-}
+    .download-btn {
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+    }
 
-.download-btn:hover {
-    background: #0056b3;
-    transform: translateY(-1px);
-}
+    .download-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
 
-.generate-pdf-btn {
-    background: #6c757d;
-    color: white;
-    border: none;
-    cursor: pointer;
-}
+    .generate-pdf-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
 
-.generate-pdf-btn:hover {
-    background: #545b62;
-    transform: translateY(-1px);
-}
+    .generate-pdf-btn:hover {
+      background: #545b62;
+      transform: translateY(-1px);
+    }
 
-/* Improve notification item spacing */
-.notification-item {
-    background: white;
-    border-left: 5px solid #003631;
-    padding: 20px;
-    margin-bottom: 16px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    line-height: 1.5;
-}
+    .notification-item {
+      background: white;
+      border-left: 5px solid #003631;
+      padding: 20px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      line-height: 1.5;
+    }
 
-.notification-item p {
-    margin: 8px 0;
-    color: #555;
-    font-size: 15px;
-}
+    .notification-item p {
+      margin: 8px 0;
+      color: #555;
+      font-size: 15px;
+    }
 
-.notification-item p strong {
-    color: #003631;
-    font-weight: 600;
-    min-width: 180px;
-    display: inline-block;
-}
+    .notification-item p strong {
+      color: #003631;
+      font-weight: 600;
+      min-width: 180px;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -461,7 +529,7 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
 
     <section class="stats">
       <div class="card">
-        <p class="card-title">Approved Loans</p>
+        <p class="card-title">Active Loans</p>
         <p class="card-value" id="activeLoansCount">0</p>
       </div>
 
@@ -498,7 +566,7 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
 
         <div class="loan-footer">
           <p>Your next payment is due on <b id="nextPaymentDate">-</b></p>
-          <button class="pay-btn">Pay Now</button>
+          <!--<button class="pay-btn">Pay Now</button>-->
         </div>
       </div>
 
@@ -595,7 +663,9 @@ if ((isset($_SESSION['user_id']) || isset($_SESSION['customer_id'])) && !isset($
 </footer>
 
 <script>
+// ✅ FIXED: Proper notification feed with separate PDF tracking
 let allLoans = [];
+let allNotifications = [];
 
 document.addEventListener("DOMContentLoaded", async function () {
   const tbody = document.getElementById('loanTableBody');
@@ -619,16 +689,66 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       const loans = await response.json();
 
-      // Handle error response from PHP
       if (loans.error) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">${loans.error}</td></tr>`;
         return;
       }
 
-      // Store loans globally for notifications
       allLoans = loans;
 
-      // ✅ Check if user has pending loans and disable cards
+      // ✅ BUILD NOTIFICATION FEED (separate events for each status change)
+      allNotifications = [];
+      loans.forEach((loan) => {
+        // First approval (Pending → Approved)
+        if (loan.approved_at && (loan.status === 'Approved' || loan.status === 'Active')) {
+          allNotifications.push({
+            id: loan.id,
+            type: 'approved',
+            loan_type: loan.loan_type,
+            loan_amount: loan.loan_amount,
+            loan_terms: loan.loan_terms,
+            monthly_payment: loan.monthly_payment,
+            remarks: loan.remarks,
+            timestamp: loan.approved_at,
+            pdf_path: loan.pdf_approved || null // ✅ Use pdf_approved column
+          });
+        }
+
+        // Second approval (Approved → Active)
+        if (loan.status === 'Active' && loan.approved_at) {
+          allNotifications.push({
+            id: loan.id,
+            type: 'active',
+            loan_type: loan.loan_type,
+            loan_amount: loan.loan_amount,
+            loan_terms: loan.loan_terms,
+            monthly_payment: loan.monthly_payment,
+            next_payment_due: loan.next_payment_due,
+            remarks: loan.remarks,
+            timestamp: loan.approved_at,
+            pdf_path: loan.pdf_active || null // ✅ Use pdf_active column
+          });
+        }
+
+        // Rejection
+        if (loan.status === 'Rejected' && loan.rejected_at) {
+          allNotifications.push({
+            id: loan.id,
+            type: 'rejected',
+            loan_type: loan.loan_type,
+            loan_amount: loan.loan_amount,
+            loan_terms: loan.loan_terms,
+            rejection_remarks: loan.rejection_remarks,
+            timestamp: loan.rejected_at,
+            pdf_path: loan.pdf_rejected || null // ✅ Use pdf_rejected column
+          });
+        }
+      });
+
+      // Sort notifications by timestamp (most recent first)
+      allNotifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Check if user has pending loans and disable cards
       const hasPendingLoan = loans.some(loan => loan.status === 'Pending');
       const loanCards = document.querySelectorAll('.loan-card');
       
@@ -636,16 +756,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         loanCards.forEach(card => {
           card.classList.add('disabled');
           card.style.position = 'relative';
-          // Remove click handler
           card.onclick = null;
         });
       } else {
         loanCards.forEach(card => {
           card.classList.remove('disabled');
-          // Restore click handlers
           const loanType = card.querySelector('.loan-card-title').textContent;
           let urlLoanType;
-          // Map card titles to dropdown values
           if (loanType === 'Housing Loan') {
             urlLoanType = 'Home Loan';
           } else if (loanType === 'Multipurpose Loan') {
@@ -659,28 +776,31 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
       }
 
-      // Sort loans: latest transaction first (most recent approved or rejected)
+      // Sort loans: latest transaction first
       loans.sort((a, b) => {
         let dateA, dateB;
         
-        // Get the most relevant date for each loan
-        if (a.status === 'Approved' && a.approved_at) {
+        if (a.status === 'Active' && a.approved_at) {
           dateA = new Date(a.approved_at);
         } else if (a.status === 'Rejected' && a.rejected_at) {
           dateA = new Date(a.rejected_at);
+        } else if (a.status === 'Approved' && a.approved_at) {
+          dateA = new Date(a.approved_at);
         } else {
           dateA = new Date(a.created_at || 0);
         }
         
-        if (b.status === 'Approved' && b.approved_at) {
+        if (b.status === 'Active' && b.approved_at) {
           dateB = new Date(b.approved_at);
         } else if (b.status === 'Rejected' && b.rejected_at) {
           dateB = new Date(b.rejected_at);
+        } else if (b.status === 'Approved' && b.approved_at) {
+          dateB = new Date(b.approved_at);
         } else {
           dateB = new Date(b.created_at || 0);
         }
         
-        return dateB - dateA; // Most recent first
+        return dateB - dateA;
       });
 
       tbody.innerHTML = '';
@@ -700,37 +820,37 @@ document.addEventListener("DOMContentLoaded", async function () {
       let activeCount = 0;
       let pendingCount = 0;
       let closedCount = 0;
+      let approvedCount = 0;
       let rejectedCount = 0;
       let earliestDueDate = null;
-      let notificationCount = 0;
 
       loans.forEach((loan) => {
-        // Count by status
-        if (loan.status === 'Approved') {
+        if (loan.status === 'Active') {
           activeCount++;
-          notificationCount++;
-          // Track earliest due date from next_payment_due
           if (loan.next_payment_due) {
             const dueDate = new Date(loan.next_payment_due);
             if (!earliestDueDate || dueDate < earliestDueDate) {
               earliestDueDate = dueDate;
             }
           }
+        } else if (loan.status === 'Approved') {
+          approvedCount++;
         } else if (loan.status === 'Pending') {
           pendingCount++;
         } else if (loan.status === 'Rejected') {
           closedCount++;
           rejectedCount++;
-          notificationCount++;
         } else if (loan.status === 'Closed') {
           closedCount++;
         }
 
-        // Format status for display
         let displayStatus = loan.status;
         let statusStyle = '';
-        if (loan.status === 'Approved') {
-          displayStatus = 'Approved';
+        if (loan.status === 'Active') {
+          displayStatus = 'Active';
+          statusStyle = 'style="color: #2e7d32; font-weight: bold;"';
+        } else if (loan.status === 'Approved') {
+          displayStatus = 'Approved - Awaiting Claim';
           statusStyle = 'style="color: #4CAF50; font-weight: bold;"';
         } else if (loan.status === 'Rejected') {
           statusStyle = 'style="color: #f44336; font-weight: bold;"';
@@ -738,15 +858,26 @@ document.addEventListener("DOMContentLoaded", async function () {
           statusStyle = 'style="color: #FF9800; font-weight: bold;"';
         }
 
-        // Format next payment due
         let nextPayment = '-';
-        if (loan.status === 'Approved' && loan.next_payment_due) {
+        if (loan.status === 'Active' && loan.next_payment_due) {
           const date = new Date(loan.next_payment_due);
           nextPayment = date.toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'short', 
             day: 'numeric' 
           });
+        } else if (loan.status === 'Approved') {
+          if (loan.approved_at) {
+            const claimDate = new Date(loan.approved_at);
+            claimDate.setDate(claimDate.getDate() + 30);
+            nextPayment = 'Claim by: ' + claimDate.toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric' 
+            });
+          } else {
+            nextPayment = 'Awaiting Claim';
+          }
         } else if (loan.status === 'Pending') {
           nextPayment = 'Pending Approval';
         } else if (loan.status === 'Rejected') {
@@ -766,12 +897,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         tbody.insertAdjacentHTML('beforeend', row);
       });
 
-      // Update stats cards
       activeLoansCount.textContent = activeCount;
       pendingLoansCount.textContent = pendingCount;
       closedLoansCount.textContent = closedCount;
 
-      // Update next payment date
       if (earliestDueDate) {
         nextPaymentDate.textContent = earliestDueDate.toLocaleDateString('en-US', { 
           year: 'numeric', 
@@ -783,6 +912,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
 
       // Update notification badge
+      const notificationCount = allNotifications.length;
       if (notificationCount > 0) {
         notificationBadge.textContent = notificationCount;
         notificationBadge.style.display = 'flex';
@@ -791,10 +921,16 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
 
       // Update notification message
-      if (activeCount > 0 && rejectedCount > 0) {
-        notificationMessage.innerHTML = `You have <strong>${activeCount}</strong> approved and <strong>${rejectedCount}</strong> rejected loan${rejectedCount > 1 ? 's' : ''}.`;
+      if (approvedCount > 0 && activeCount > 0 && rejectedCount > 0) {
+        notificationMessage.innerHTML = `You have <strong>${approvedCount}</strong> approved (awaiting claim), <strong>${activeCount}</strong> active, and <strong>${rejectedCount}</strong> rejected loan${rejectedCount > 1 ? 's' : ''}.`;
+      } else if (approvedCount > 0 && activeCount > 0) {
+        notificationMessage.innerHTML = `You have <strong>${approvedCount}</strong> loan${approvedCount > 1 ? 's' : ''} awaiting claim and <strong>${activeCount}</strong> active loan${activeCount > 1 ? 's' : ''}.`;
+      } else if (approvedCount > 0) {
+        notificationMessage.innerHTML = `🎉 Congratulations! You have <strong>${approvedCount}</strong> approved loan${approvedCount > 1 ? 's' : ''}. Please claim within 30 days!`;
+      } else if (activeCount > 0 && rejectedCount > 0) {
+        notificationMessage.innerHTML = `You have <strong>${activeCount}</strong> active and <strong>${rejectedCount}</strong> rejected loan${rejectedCount > 1 ? 's' : ''}.`;
       } else if (activeCount > 0) {
-        notificationMessage.innerHTML = `You have <strong>${activeCount}</strong> approved loan${activeCount > 1 ? 's' : ''}.`;
+        notificationMessage.innerHTML = `You have <strong>${activeCount}</strong> active loan${activeCount > 1 ? 's' : ''}.`;
       } else if (rejectedCount > 0) {
         notificationMessage.innerHTML = `You have <strong>${rejectedCount}</strong> rejected loan${rejectedCount > 1 ? 's' : ''}.`;
       } else if (pendingCount > 0) {
@@ -812,14 +948,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   loadLoans();
 });
 
+// ✅ FIXED: Update the notification modal to use download_pdf.php
 function openNotificationModal() {
   const modal = document.getElementById('notificationModal');
   const modalBody = document.getElementById('notificationModalBody');
   
-  // Filter loans that are approved or rejected
-  const notifications = allLoans.filter(loan => loan.status === 'Approved' || loan.status === 'Rejected');
-  
-  if (notifications.length === 0) {
+  if (allNotifications.length === 0) {
     modalBody.innerHTML = `
       <div class="notification-empty">
         <i class="fas fa-bell-slash"></i>
@@ -829,50 +963,88 @@ function openNotificationModal() {
   } else {
     let notificationHTML = '<div class="notification-header-text"><h3>📢 You have new notifications</h3></div>';
     
-    notifications.forEach((loan) => {
-      const isApproved = loan.status === 'Approved';
-      const statusClass = isApproved ? 'approved' : 'rejected';
-      const statusIcon = isApproved ? '✅' : '❌';
-      const statusText = isApproved ? 'Approved' : 'Rejected';
+    allNotifications.forEach((notif) => {
+      const statusClass = notif.type;
+      let statusIcon = '';
+      let statusText = '';
+      let statusBadge = '';
       
-      // Format next payment due
-      let nextPaymentDue = 'N/A';
-      if (isApproved && loan.next_payment_due) {
-        const date = new Date(loan.next_payment_due);
-        nextPaymentDue = date.toLocaleDateString('en-US', { 
+      if (notif.type === 'approved') {
+        statusIcon = '✅';
+        statusText = 'Loan Approved - Awaiting Claim';
+        statusBadge = 'approved';
+      } else if (notif.type === 'active') {
+        statusIcon = '🎉';
+        statusText = 'Loan Activated';
+        statusBadge = 'active';
+      } else if (notif.type === 'rejected') {
+        statusIcon = '❌';
+        statusText = 'Loan Rejected';
+        statusBadge = 'rejected';
+      }
+      
+      const timestamp = new Date(notif.timestamp);
+      const formattedDate = timestamp.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      let importantDate = '';
+      let importantDateLabel = '';
+      
+      if (notif.type === 'approved') {
+        const claimDate = new Date(notif.timestamp);
+        claimDate.setDate(claimDate.getDate() + 30);
+        importantDate = claimDate.toLocaleDateString('en-US', { 
           year: 'numeric', 
-          month: 'short', 
+          month: 'long', 
           day: 'numeric' 
         });
+        importantDateLabel = 'Claim Deadline';
+      } else if (notif.type === 'active' && notif.next_payment_due) {
+        const date = new Date(notif.next_payment_due);
+        importantDate = date.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        importantDateLabel = 'Next Payment Due';
       }
       
-      // Get the correct remarks based on status
       let remarksText = '';
-      if (isApproved && loan.remarks) {
-        remarksText = loan.remarks;
-      } else if (!isApproved && loan.rejection_remarks) {
-        remarksText = loan.rejection_remarks;
+      if (notif.type === 'rejected' && notif.rejection_remarks) {
+        remarksText = notif.rejection_remarks;
+      } else if ((notif.type === 'approved' || notif.type === 'active') && notif.remarks) {
+        remarksText = notif.remarks;
       }
       
-      // Generate PDF button HTML
+      // ✅ CRITICAL FIX: Use download_pdf.php with proper filename
       let pdfButton = '';
-      if (loan.pdf_path) {
-        pdfButton = `<a href="${loan.pdf_path}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
+      if (notif.pdf_path) {
+        // Extract just the filename from the path
+        const filename = notif.pdf_path.replace('uploads/', '');
+        pdfButton = `<a href="download_pdf.php?file=${encodeURIComponent(filename)}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
       } else {
-        pdfButton = `<button class="generate-pdf-btn" onclick="generatePDF(${loan.id}, '${isApproved ? 'approved' : 'rejected'}')"><i class="fas fa-file-pdf"></i> Generate PDF</button>`;
+        pdfButton = `<button class="generate-pdf-btn" onclick="generatePDF(${notif.id}, '${notif.type}', this)"><i class="fas fa-file-pdf"></i> Generate PDF</button>`;
       }
       
       notificationHTML += `
-        <div class="notification-item ${statusClass}">
-          <h3>${statusIcon} Loan Application ${statusText} <span class="status-badge ${statusClass}">${statusText}</span></h3>
+        <div class="notification-item ${statusClass}" data-notif-id="${notif.id}-${notif.type}">
+          <h3>${statusIcon} ${statusText} <span class="status-badge ${statusBadge}">${statusText}</span></h3>
           <div class="notification-divider"></div>
-          <p><strong>Loan Amount:</strong> ₱${parseFloat(loan.loan_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-          <p><strong>Term:</strong> ${loan.loan_terms || 'N/A'}</p>
+          <p><strong>Loan ID:</strong> ${notif.id}</p>
+          <p><strong>Loan Type:</strong> ${notif.loan_type || 'N/A'}</p>
+          <p><strong>Loan Amount:</strong> PHP ${parseFloat(notif.loan_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+          <p><strong>Term:</strong> ${notif.loan_terms || 'N/A'}</p>
           <p><strong>Interest:</strong> 20% per annum</p>
-          <p><strong>Monthly Payment:</strong> ₱${parseFloat(loan.monthly_payment || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-          <p><strong>Status:</strong> ${statusText}</p>
-          ${isApproved ? `<p><strong>Next Payment Due:</strong> ${nextPaymentDue}</p>` : ''}
-          ${remarksText ? `<p><strong>${isApproved ? 'Approval' : 'Rejection'} Remarks:</strong> ${remarksText}</p>` : ''}
+          ${notif.monthly_payment ? `<p><strong>Monthly Payment:</strong> PHP ${parseFloat(notif.monthly_payment).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>` : ''}
+          ${importantDate ? `<p><strong>${importantDateLabel}:</strong> ${importantDate}</p>` : ''}
+          ${remarksText ? `<p><strong>Remarks:</strong> ${remarksText}</p>` : ''}
+          ${notif.type === 'approved' ? '<p style="color: #f57c00; font-weight: bold;"><i class="fas fa-exclamation-triangle"></i> Please visit our bank within 30 days to claim your loan!</p>' : ''}
+          <p class="notification-timestamp"><i class="fas fa-clock"></i> ${formattedDate}</p>
           <div class="pdf-actions">
             ${pdfButton}
           </div>
@@ -891,7 +1063,6 @@ function closeNotificationModal() {
   modal.style.display = 'none';
 }
 
-// Close modal when clicking outside
 window.onclick = function(event) {
   const modal = document.getElementById('notificationModal');
   if (event.target === modal) {
@@ -899,50 +1070,85 @@ window.onclick = function(event) {
   }
 }
 
-function generatePDF(loanId, type) {
-  const button = event.target;
-  const originalText = button.innerHTML;
-  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-  button.disabled = true;
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    const modal = document.getElementById('notificationModal');
+    if (modal.style.display === 'block') {
+      closeNotificationModal();
+    }
+  }
+});
+
+
+// ✅ FIXED: generatePDF function to update download link correctly
+function generatePDF(loanId, type, buttonElement) {
+  const originalText = buttonElement.innerHTML;
+  buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+  buttonElement.disabled = true;
   
   fetch(`generate_pdf.php?loan_id=${loanId}&type=${type}`)
     .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      
+      return response.text().then(text => {
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          console.error('Invalid JSON response:', text);
+          throw new Error('Server returned invalid response. Check console for details.');
+        }
+      });
     })
     .then(data => {
       if (data.success) {
+        // Update database with PDF filename
         return fetch('update_loan_pdf.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ loan_id: loanId, pdf_path: data.filename })
+          body: JSON.stringify({ 
+            loan_id: loanId, 
+            pdf_path: data.filename,
+            type: type
+          })
         }).then(res => res.json()).then(updateData => {
           if (updateData.success) {
-            button.outerHTML = `<a href="${data.filename}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
-            const loanIndex = allLoans.findIndex(loan => loan.id === loanId);
-            if (loanIndex !== -1) allLoans[loanIndex].pdf_path = data.filename;
+            // ✅ Extract just the filename for the download URL
+            const filename = data.filename;
+            const downloadUrl = `download_pdf.php?file=${encodeURIComponent(filename)}`;
+            
+            // ✅ Update button to download link
+            buttonElement.outerHTML = `<a href="${downloadUrl}" class="download-btn" download><i class="fas fa-download"></i> Download PDF</a>`;
+            
+            // ✅ Update notification feed in memory
+            allNotifications.forEach(notif => {
+              if (notif.id === loanId && notif.type === type) {
+                notif.pdf_path = updateData.pdf_path; // Store full path from database
+              }
+            });
+            
+            alert('PDF generated successfully! Click to download.');
           } else {
             throw new Error('Update failed: ' + (updateData.error || 'Unknown'));
           }
         });
       } else {
-        throw new Error(data.error || 'Unknown error');
+        throw new Error(data.error || 'PDF generation failed');
       }
     })
     .catch(err => {
-      console.error('PDF Error:', err);
-      alert('Error generating PDF: ' + err.message);
-      button.innerHTML = originalText;
-      button.disabled = false;
+      console.error('PDF Generation Error:', err);
+      alert('Error generating PDF:\n\n' + err.message + '\n\nPlease check:\n1. FPDF library is installed in fpdf/ folder\n2. uploads/ folder has write permissions\n3. Database connection is working');
+      buttonElement.innerHTML = originalText;
+      buttonElement.disabled = false;
     });
 }
-
 // Auto-scroll to dashboard after loan submission
 const urlParams = new URLSearchParams(window.location.search);
 const scrollTo = urlParams.get('scrollTo');
 
 if (scrollTo === 'dashboard') {
-  // Wait a bit for the page to fully load
   setTimeout(() => {
     const dashboardSection = document.getElementById('loan-dashboard');
     if (dashboardSection) {
@@ -951,11 +1157,9 @@ if (scrollTo === 'dashboard') {
         block: 'start' 
       });
     }
-    
-    // Clean up URL by removing the parameter
     const newUrl = window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
-  }, 500); // 500ms delay to ensure content is loaded
+  }, 500);
 }
 </script>
 

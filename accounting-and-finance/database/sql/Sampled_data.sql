@@ -17,6 +17,97 @@
 USE BankingDB;
 
 -- ========================================
+-- 0. DATABASE SCHEMA FIXES (if needed)
+-- ========================================
+-- Add missing columns to account_applications if they don't exist
+-- This ensures compatibility with older database versions
+
+-- Add middle_name column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'middle_name');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN middle_name VARCHAR(100) DEFAULT NULL AFTER first_name', 'SELECT "middle_name exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add place_of_birth column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'place_of_birth');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN place_of_birth VARCHAR(150) DEFAULT NULL AFTER date_of_birth', 'SELECT "place_of_birth exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add gender column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'gender');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN gender VARCHAR(20) DEFAULT NULL AFTER place_of_birth', 'SELECT "gender exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add civil_status column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'civil_status');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN civil_status VARCHAR(20) DEFAULT NULL AFTER gender', 'SELECT "civil_status exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add nationality column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'nationality');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN nationality VARCHAR(50) DEFAULT NULL AFTER civil_status', 'SELECT "nationality exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add barangay_id column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'barangay_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN barangay_id INT(11) DEFAULT NULL AFTER street_address', 'SELECT "barangay_id exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add city_id column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'city_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN city_id INT(11) DEFAULT NULL AFTER barangay_id', 'SELECT "city_id exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add province_id column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'province_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN province_id INT(11) DEFAULT NULL AFTER city_id', 'SELECT "province_id exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add postal_code column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'postal_code');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN postal_code VARCHAR(20) DEFAULT NULL AFTER province_id', 'SELECT "postal_code exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add occupation column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'occupation');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN occupation VARCHAR(100) DEFAULT NULL AFTER employer_name', 'SELECT "occupation exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add source_of_funds column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'source_of_funds');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN source_of_funds VARCHAR(100) DEFAULT NULL AFTER annual_income', 'SELECT "source_of_funds exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add reviewed_by_employee_id column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'reviewed_by_employee_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN reviewed_by_employee_id INT(11) DEFAULT NULL AFTER reviewed_at', 'SELECT "reviewed_by_employee_id exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add rejection_reason column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'rejection_reason');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN rejection_reason TEXT DEFAULT NULL AFTER reviewed_by_employee_id', 'SELECT "rejection_reason exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add created_by_employee_id column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'created_by_employee_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN created_by_employee_id INT(11) DEFAULT NULL AFTER rejection_reason', 'SELECT "created_by_employee_id exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add id_front_image column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'id_front_image');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN id_front_image VARCHAR(255) DEFAULT NULL AFTER created_by_employee_id', 'SELECT "id_front_image exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add id_back_image column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'id_back_image');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN id_back_image VARCHAR(255) DEFAULT NULL AFTER id_front_image', 'SELECT "id_back_image exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add id_uploaded_at column
+SET @column_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'BankingDB' AND TABLE_NAME = 'account_applications' AND COLUMN_NAME = 'id_uploaded_at');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE account_applications ADD COLUMN id_uploaded_at DATETIME DEFAULT NULL AFTER id_back_image', 'SELECT "id_uploaded_at exists" AS msg');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ========================================
 -- 1. ADMIN USER & ROLES
 -- ========================================
 
@@ -63,6 +154,51 @@ INSERT INTO user_roles (user_id, role_id) VALUES (1, 1) ON DUPLICATE KEY UPDATE 
 
 -- Assign Accounting Admin role to the finance admin user
 INSERT INTO user_roles (user_id, role_id) VALUES (2, 2) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
+
+-- ========================================
+-- 1A. BANK CUSTOMERS & GENDERS
+-- ========================================
+-- These must be inserted before customer_profiles due to foreign key constraints
+
+-- Insert genders (required for customer_profiles)
+INSERT INTO genders (gender_id, gender_name) VALUES
+(1, 'Male'),
+(2, 'Female'),
+(3, 'Other')
+ON DUPLICATE KEY UPDATE gender_name = VALUES(gender_name);
+
+-- Insert sample bank customers (required before customer_profiles)
+INSERT INTO bank_customers (
+    customer_id,
+    first_name,
+    middle_name,
+    last_name,
+    address,
+    city_province,
+    email,
+    contact_number,
+    birthday,
+    password_hash,
+    verification_code,
+    bank_id,
+    referral_code,
+    total_points,
+    referred_by_customer_id,
+    is_verified,
+    created_at,
+    created_by_employee_id
+) VALUES
+(1, 'Ricardo', 'Santos', 'Villanueva', '123 P. Burgos Street, Barangay Poblacion', 'Makati City, Metro Manila', 'ricardo.villanueva@evergreen.com', '09171234567', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK001', 'REF001', 2500.00, NULL, 1, NOW() - INTERVAL 120 DAY, NULL),
+(2, 'Maria', 'Cruz', 'Fernandez', '456 Rizal Avenue Extension, Barangay Kamuning', 'Quezon City, Metro Manila', 'maria.fernandez@evergreen.com', '09171234568', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK002', 'REF002', 1800.00, 1, 1, NOW() - INTERVAL 95 DAY, NULL),
+(3, 'Jose', 'Reyes', 'Torres', '789 EDSA Corner Shaw Boulevard', 'Mandaluyong City, Metro Manila', 'jose.torres@evergreen.com', '09171234569', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK003', 'REF003', 3200.00, 1, 1, NOW() - INTERVAL 80 DAY, NULL),
+(4, 'Ana', 'Lopez', 'Dela Cruz', '321 Ortigas Avenue, Barangay San Antonio', 'Pasig City, Metro Manila', 'ana.delacruz@evergreen.com', '09171234570', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK004', 'REF004', 950.00, 2, 1, NOW() - INTERVAL 65 DAY, NULL),
+(5, 'Roberto', 'Garcia', 'Mendoza', '654 Ayala Avenue, Barangay Bel-Air', 'Makati City, Metro Manila', 'roberto.mendoza@evergreen.com', '09171234571', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK005', 'REF005', 1500.00, 3, 1, NOW() - INTERVAL 50 DAY, NULL),
+(6, 'Cristina', 'Ramos', 'Bautista', '987 Taft Avenue, Barangay Malate', 'Manila City, Metro Manila', 'cristina.bautista@evergreen.com', '09171234572', '1991-02-14', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK006', 'REF006', 2200.00, 2, 1, NOW() - INTERVAL 40 DAY, NULL),
+(7, 'Michael', 'Santos', 'Aquino', '147 BGC High Street, Barangay Fort Bonifacio', 'Taguig City, Metro Manila', 'michael.aquino@evergreen.com', '09171234573', '1989-09-18', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK007', 'REF007', 1800.00, 1, 1, NOW() - INTERVAL 35 DAY, NULL),
+(8, 'Patricia', 'Cruz', 'Reyes', '258 Commonwealth Avenue, Barangay Batasan Hills', 'Quezon City, Metro Manila', 'patricia.reyes@evergreen.com', '09171234574', '1993-06-22', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK008', 'REF008', 1100.00, 4, 1, NOW() - INTERVAL 30 DAY, NULL),
+(9, 'Daniel', 'Villanueva', 'Gonzales', '369 Alabang-Zapote Road, Barangay Alabang', 'Muntinlupa City, Metro Manila', 'daniel.gonzales@evergreen.com', '09171234575', '1986-12-05', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK009', 'REF009', 2800.00, 3, 1, NOW() - INTERVAL 25 DAY, NULL),
+(10, 'Jennifer', 'Fernandez', 'Lim', '741 Katipunan Avenue, Barangay Loyola Heights', 'Quezon City, Metro Manila', 'jennifer.lim@evergreen.com', '09171234576', '1994-04-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, 'BNK010', 'REF010', 750.00, 5, 1, NOW() - INTERVAL 20 DAY, NULL)
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name);
 
 -- ========================================
 -- 2. ACCOUNT TYPES & CHART OF ACCOUNTS
@@ -324,41 +460,37 @@ ON DUPLICATE KEY UPDATE position_title = VALUES(position_title);
 -- Insert employee records linking to departments and positions
 -- This connects HRIS module to the payroll system
 
-INSERT INTO employee (employee_id, first_name, last_name, middle_name, gender, birth_date, contact_number, email, address, hire_date, department_id, position_id, employment_status) VALUES
+INSERT INTO employee (employee_id, first_name, last_name, middle_name, gender, birth_date, contact_number, email, address, house_number, street, barangay, city, province, secondary_email, secondary_contact_number, hire_date, department_id, position_id, employment_status) VALUES
 -- Management (C-Suite & Directors)
-(1, 'Juan', 'Santos', 'Carlos', 'Male', '1980-05-15', '09171234567', 'juan.santos@company.com', 'Makati City, Metro Manila', '2020-01-15', 2, 5, 'Active'),
-(2, 'Maria Elena', 'Rodriguez', NULL, 'Female', '1978-03-20', '09171234568', 'maria.rodriguez@company.com', 'BGC, Taguig City', '2019-06-01', 3, 2, 'Active'),
-(3, 'Jose Miguel', 'Cruz', NULL, 'Male', '1982-08-10', '09171234569', 'jose.cruz@company.com', 'Ortigas, Pasig City', '2021-02-01', 1, 1, 'Active'),
-(4, 'Ana Patricia', 'Lopez', NULL, 'Female', '1985-11-25', '09171234570', 'ana.lopez@company.com', 'Mandaluyong City', '2020-03-15', 4, 4, 'Active'),
-(5, 'Roberto Antonio', 'Garcia', NULL, 'Male', '1981-07-30', '09171234571', 'roberto.garcia@company.com', 'Quezon City', '2019-09-01', 5, 3, 'Active'),
-
+(1, 'Juan', 'Santos', 'Carlos', 'Male', '1980-05-15', '09171234567', 'juan.santos@company.com', 'Makati City, Metro Manila', '123', 'Ayala Avenue', 'Bel-Air', 'Makati City', 'Metro Manila', NULL, NULL, '2020-01-15', 2, 5, 'Active'),
+(2, 'Maria Elena', 'Rodriguez', NULL, 'Female', '1978-03-20', '09171234568', 'maria.rodriguez@company.com', 'BGC, Taguig City', '456', 'Bonifacio High Street', 'Fort Bonifacio', 'Taguig City', 'Metro Manila', NULL, NULL, '2019-06-01', 3, 2, 'Active'),
+(3, 'Jose Miguel', 'Cruz', NULL, 'Male', '1982-08-10', '09171234569', 'jose.cruz@company.com', 'Ortigas, Pasig City', '789', 'Ortigas Avenue', 'Ortigas Center', 'Pasig City', 'Metro Manila', NULL, NULL, '2021-02-01', 1, 1, 'Active'),
+(4, 'Ana Patricia', 'Lopez', NULL, 'Female', '1985-11-25', '09171234570', 'ana.lopez@company.com', 'Mandaluyong City', '321', 'Shaw Boulevard', 'Wack-Wack', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2020-03-15', 4, 4, 'Active'),
+(5, 'Roberto Antonio', 'Garcia', NULL, 'Male', '1981-07-30', '09171234571', 'roberto.garcia@company.com', 'Quezon City', '654', 'EDSA', 'Cubao', 'Quezon City', 'Metro Manila', NULL, NULL, '2019-09-01', 5, 3, 'Active'),
 -- Senior Staff (Managers & Senior Specialists)
-(6, 'Carmen Sofia', 'Martinez', NULL, 'Female', '1987-04-12', '09171234572', 'carmen.martinez@company.com', 'San Juan City', '2021-05-01', 6, 6, 'Active'),
-(7, 'Fernando Luis', 'Torres', NULL, 'Male', '1986-09-18', '09171234573', 'fernando.torres@company.com', 'Pasay City', '2020-07-01', 7, 7, 'Active'),
-(8, 'Isabella Rose', 'Flores', NULL, 'Female', '1989-12-05', '09171234574', 'isabella.flores@company.com', 'Makati City', '2021-01-15', 3, 8, 'Active'),
-(9, 'Miguel Angel', 'Reyes', NULL, 'Male', '1988-06-22', '09171234575', 'miguel.reyes@company.com', 'Taguig City', '2020-08-01', 1, 9, 'Active'),
-(10, 'Sofia Grace', 'Villanueva', NULL, 'Female', '1990-02-14', '09171234576', 'sofia.villanueva@company.com', 'Mandaluyong City', '2021-03-01', 4, 10, 'Active'),
-
+(6, 'Carmen Sofia', 'Martinez', NULL, 'Female', '1987-04-12', '09171234572', 'carmen.martinez@company.com', 'San Juan City', '987', 'Wilson Street', 'Greenhills', 'San Juan City', 'Metro Manila', NULL, NULL, '2021-05-01', 6, 6, 'Active'),
+(7, 'Fernando Luis', 'Torres', NULL, 'Male', '1986-09-18', '09171234573', 'fernando.torres@company.com', 'Pasay City', '147', 'Roxas Boulevard', 'Malate', 'Pasay City', 'Metro Manila', NULL, NULL, '2020-07-01', 7, 7, 'Active'),
+(8, 'Isabella Rose', 'Flores', NULL, 'Female', '1989-12-05', '09171234574', 'isabella.flores@company.com', 'Makati City', '258', 'Paseo de Roxas', 'Legaspi Village', 'Makati City', 'Metro Manila', NULL, NULL, '2021-01-15', 3, 8, 'Active'),
+(9, 'Miguel Angel', 'Reyes', NULL, 'Male', '1988-06-22', '09171234575', 'miguel.reyes@company.com', 'Taguig City', '369', 'C5 Road', 'Bicutan', 'Taguig City', 'Metro Manila', NULL, NULL, '2020-08-01', 1, 9, 'Active'),
+(10, 'Sofia Grace', 'Villanueva', NULL, 'Female', '1990-02-14', '09171234576', 'sofia.villanueva@company.com', 'Mandaluyong City', '741', 'Meralco Avenue', 'San Antonio', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2021-03-01', 4, 10, 'Active'),
 -- Mid-level Staff
-(11, 'Carlos Eduardo', 'Mendoza', NULL, 'Male', '1992-10-08', '09171234577', 'carlos.mendoza@company.com', 'Pasig City', '2022-01-15', 1, 11, 'Active'),
-(12, 'Patricia Isabel', 'Gutierrez', NULL, 'Female', '1991-03-17', '09171234578', 'patricia.gutierrez@company.com', 'Quezon City', '2022-02-01', 3, 12, 'Active'),
-(13, 'Ricardo Manuel', 'Herrera', NULL, 'Male', '1990-07-23', '09171234579', 'ricardo.herrera@company.com', 'Manila City', '2021-06-01', 7, 13, 'Active'),
-(14, 'Gabriela Alejandra', 'Morales', NULL, 'Female', '1993-05-11', '09171234580', 'gabriela.morales@company.com', 'Makati City', '2022-03-01', 6, 14, 'Active'),
-(15, 'Diego Fernando', 'Ramos', NULL, 'Male', '1992-11-29', '09171234581', 'diego.ramos@company.com', 'Taguig City', '2021-09-01', 5, 15, 'Active'),
-
+(11, 'Carlos Eduardo', 'Mendoza', NULL, 'Male', '1992-10-08', '09171234577', 'carlos.mendoza@company.com', 'Pasig City', '852', 'Julia Vargas Avenue', 'Ortigas', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-01-15', 1, 11, 'Active'),
+(12, 'Patricia Isabel', 'Gutierrez', NULL, 'Female', '1991-03-17', '09171234578', 'patricia.gutierrez@company.com', 'Quezon City', '963', 'Quezon Avenue', 'Diliman', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-02-01', 3, 12, 'Active'),
+(13, 'Ricardo Manuel', 'Herrera', NULL, 'Male', '1990-07-23', '09171234579', 'ricardo.herrera@company.com', 'Manila City', '159', 'Taft Avenue', 'Ermita', 'Manila City', 'Metro Manila', NULL, NULL, '2021-06-01', 7, 13, 'Active'),
+(14, 'Gabriela Alejandra', 'Morales', NULL, 'Female', '1993-05-11', '09171234580', 'gabriela.morales@company.com', 'Makati City', '357', 'Buendia Avenue', 'Pio del Pilar', 'Makati City', 'Metro Manila', NULL, NULL, '2022-03-01', 6, 14, 'Active'),
+(15, 'Diego Fernando', 'Ramos', NULL, 'Male', '1992-11-29', '09171234581', 'diego.ramos@company.com', 'Taguig City', '468', 'McKinley Road', 'McKinley Hill', 'Taguig City', 'Metro Manila', NULL, NULL, '2021-09-01', 5, 15, 'Active'),
 -- Junior Staff & Support Roles
-(16, 'Valentina Sofia', 'Castillo', NULL, 'Female', '1994-08-06', '09171234582', 'valentina.castillo@company.com', 'Pasig City', '2022-05-01', 4, 16, 'Active'),
-(17, 'Sebastian Alejandro', 'Vega', NULL, 'Male', '1993-12-19', '09171234583', 'sebastian.vega@company.com', 'Quezon City', '2022-04-15', 1, 17, 'Active'),
-(18, 'Camila Esperanza', 'Ruiz', NULL, 'Female', '1992-01-31', '09171234584', 'camila.ruiz@company.com', 'Makati City', '2021-11-01', 3, 18, 'Active'),
-(19, 'Nicolas Gabriel', 'Silva', NULL, 'Male', '1994-09-14', '09171234585', 'nicolas.silva@company.com', 'Mandaluyong City', '2022-06-01', 7, 19, 'Active'),
-(20, 'Lucia Esperanza', 'Jimenez', NULL, 'Female', '1995-04-27', '09171234586', 'lucia.jimenez@company.com', 'Pasay City', '2022-07-01', 6, 14, 'Active'),
-
+(16, 'Valentina Sofia', 'Castillo', NULL, 'Female', '1994-08-06', '09171234582', 'valentina.castillo@company.com', 'Pasig City', '570', 'C. Raymundo Avenue', 'Maybunga', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-05-01', 4, 16, 'Active'),
+(17, 'Sebastian Alejandro', 'Vega', NULL, 'Male', '1993-12-19', '09171234583', 'sebastian.vega@company.com', 'Quezon City', '681', 'Commonwealth Avenue', 'Batasan Hills', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-04-15', 1, 17, 'Active'),
+(18, 'Camila Esperanza', 'Ruiz', NULL, 'Female', '1992-01-31', '09171234584', 'camila.ruiz@company.com', 'Makati City', '792', 'Chino Roces Avenue', 'San Antonio', 'Makati City', 'Metro Manila', NULL, NULL, '2021-11-01', 3, 18, 'Active'),
+(19, 'Nicolas Gabriel', 'Silva', NULL, 'Male', '1994-09-14', '09171234585', 'nicolas.silva@company.com', 'Mandaluyong City', '803', 'Boni Avenue', 'Barangka', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2022-06-01', 7, 19, 'Active'),
+(20, 'Lucia Esperanza', 'Jimenez', NULL, 'Female', '1995-04-27', '09171234586', 'lucia.jimenez@company.com', 'Pasay City', '914', 'Macapagal Boulevard', 'Mall of Asia', 'Pasay City', 'Metro Manila', NULL, NULL, '2022-07-01', 6, 14, 'Active'),
 -- Additional Staff
-(21, 'Andres Felipe', 'Castro', NULL, 'Male', '1991-10-03', '09171234587', 'andres.castro@company.com', 'Taguig City', '2021-10-01', 5, 20, 'Active'),
-(22, 'Mariana Beatriz', 'Ortega', NULL, 'Female', '1993-06-16', '09171234588', 'mariana.ortega@company.com', 'Quezon City', '2022-01-01', 3, 21, 'Active'),
-(23, 'Santiago Ignacio', 'Pena', NULL, 'Male', '1990-02-28', '09171234589', 'santiago.pena@company.com', 'Makati City', '2021-07-15', 1, 22, 'Active'),
-(24, 'Daniela Fernanda', 'Vargas', NULL, 'Female', '1994-11-09', '09171234590', 'daniela.vargas@company.com', 'Pasig City', '2022-08-01', 4, 23, 'Active'),
-(25, 'Alejandro Jose', 'Medina', NULL, 'Male', '1992-05-22', '09171234591', 'alejandro.medina@company.com', 'Mandaluyong City', '2021-12-01', 7, 24, 'Active')
+(21, 'Andres Felipe', 'Castro', NULL, 'Male', '1991-10-03', '09171234587', 'andres.castro@company.com', 'Taguig City', '025', 'Upper Bicutan Road', 'Upper Bicutan', 'Taguig City', 'Metro Manila', NULL, NULL, '2021-10-01', 5, 20, 'Active'),
+(22, 'Mariana Beatriz', 'Ortega', NULL, 'Female', '1993-06-16', '09171234588', 'mariana.ortega@company.com', 'Quezon City', '136', 'Katipunan Avenue', 'Loyola Heights', 'Quezon City', 'Metro Manila', NULL, NULL, '2022-01-01', 3, 21, 'Active'),
+(23, 'Santiago Ignacio', 'Pena', NULL, 'Male', '1990-02-28', '09171234589', 'santiago.pena@company.com', 'Makati City', '247', 'Senator Gil Puyat Avenue', 'Bel-Air', 'Makati City', 'Metro Manila', NULL, NULL, '2021-07-15', 1, 22, 'Active'),
+(24, 'Daniela Fernanda', 'Vargas', NULL, 'Female', '1994-11-09', '09171234590', 'daniela.vargas@company.com', 'Pasig City', '358', 'Shaw Boulevard', 'Kapitolyo', 'Pasig City', 'Metro Manila', NULL, NULL, '2022-08-01', 4, 23, 'Active'),
+(25, 'Alejandro Jose', 'Medina', NULL, 'Male', '1992-05-22', '09171234591', 'alejandro.medina@company.com', 'Mandaluyong City', '469', 'Maysilo Circle', 'Plainview', 'Mandaluyong City', 'Metro Manila', NULL, NULL, '2021-12-01', 7, 24, 'Active')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
 
 -- ========================================
@@ -423,6 +555,33 @@ ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), role = VALUES(role), 
 -- ========================================
 -- Update existing user_account records with NULL role to 'Admin' for backward compatibility
 -- This ensures all existing admin accounts are properly marked
+
+-- ========================================
+-- CREATE ADMIN ACCOUNT
+-- ========================================
+-- This creates the main admin account for system access
+-- Username: admin
+-- Password: password
+-- Role: Admin
+-- IMPORTANT: Change the password in production!
+-- ========================================
+
+-- Create admin account in user_account table
+-- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+INSERT INTO user_account (employee_id, username, password_hash, role, last_login)
+VALUES (
+    1, -- Links to employee_id 1 (Juan Santos - HR Manager in employee table)
+    'admin', -- username
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password hash for 'password'
+    'Admin', -- role (must be exactly 'Admin')
+    NULL -- last_login will be set automatically on first login
+)
+ON DUPLICATE KEY UPDATE 
+    password_hash = VALUES(password_hash),
+    role = VALUES(role),
+    employee_id = VALUES(employee_id);
+
+
 UPDATE user_account 
 SET role = 'Admin' 
 WHERE role IS NULL 
@@ -460,555 +619,787 @@ ON DUPLICATE KEY UPDATE
 
 
 INSERT INTO employee_attendance (employee_external_no, attendance_date, time_in, time_out, status, hours_worked, overtime_hours, late_minutes, remarks) VALUES
--- EMP001: Random mixed pattern
+-- EMP001: Balanced pattern for days 1-30
+('EMP001', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP001', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP001', '2025-11-04', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP001', '2025-11-05', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP001', '2025-11-06', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP001', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP001', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP001', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP001', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP001', '2025-11-11', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP001', '2025-11-12', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP001', '2025-11-11', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP001', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP001', '2025-11-13', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP001', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP001', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP001', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP001', '2025-11-18', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP001', '2025-11-18', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
 ('EMP001', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP001', '2025-11-20', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP001', '2025-11-21', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP001', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-21', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP001', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP001', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP001', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP001', '2025-11-26', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP001', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-26', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
 ('EMP001', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP001', '2025-11-28', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP001', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP001', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 
--- EMP002: Random mixed pattern
+-- EMP002: Balanced pattern for days 1-30
+('EMP002', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),
+('EMP002', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),
 ('EMP002', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
 ('EMP002', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP002', '2025-11-05', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-('EMP002', '2025-11-06', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP002', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-07', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP002', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP002', '2025-11-11', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP002', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-12', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP002', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP002', '2025-11-17', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP002', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-18', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
 ('EMP002', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-20', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP002', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP002', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP002', '2025-11-26', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP002', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP002', '2025-11-27', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
 ('EMP002', '2025-11-28', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP002', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP002', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 
--- EMP003: Random mixed pattern
+-- EMP003: Balanced pattern for days 1-30
+('EMP003', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP003', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP003', '2025-11-04', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP003', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-05', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
 ('EMP003', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP003', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP003', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-10', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
 ('EMP003', '2025-11-11', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
 ('EMP003', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP003', '2025-11-13', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP003', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP003', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP003', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-18', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP003', '2025-11-19', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP003', '2025-11-20', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP003', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP003', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP003', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-24', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP003', '2025-11-25', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
 ('EMP003', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP003', '2025-11-27', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP003', '2025-11-28', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP003', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),
+('EMP003', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 
--- EMP004: Random mixed pattern
-('EMP004', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+-- EMP004: Balanced pattern for days 1-30
+('EMP004', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP004', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP004', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP004', '2025-11-06', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP004', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP004', '2025-11-10', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP004', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP004', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),
+('EMP004', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),
+('EMP004', '2025-11-10', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP004', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP004', '2025-11-12', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP004', '2025-11-13', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP004', '2025-11-12', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP004', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP004', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP004', '2025-11-17', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP004', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP004', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-17', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP004', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP004', '2025-11-19', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP004', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP004', '2025-11-21', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP004', '2025-11-21', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP004', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP004', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP004', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP004', '2025-11-26', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP004', '2025-11-27', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP004', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-26', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP004', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP004', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP005: Random mixed pattern
+('EMP004', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP004', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+-- EMP005: Balanced pattern for days 1-30
+('EMP005', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP005', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP005', '2025-11-04', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP005', '2025-11-05', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP005', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP005', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-05', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP005', '2025-11-06', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
 ('EMP005', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP005', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP005', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP005', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP005', '2025-11-12', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP005', '2025-11-12', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP005', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP005', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP005', '2025-11-17', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP005', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-17', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
 ('EMP005', '2025-11-18', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP005', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP005', '2025-11-20', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP005', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP005', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP005', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP005', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP005', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP005', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP005', '2025-11-27', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-('EMP005', '2025-11-28', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-
--- EMP006: Random mixed pattern
-('EMP006', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP005', '2025-11-28', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP005', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),
+('EMP005', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Weekend'),               
+-- EMP006: Balanced pattern for days 1-30   
+('EMP006', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP006', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP006', '2025-11-05', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
+('EMP006', '2025-11-05', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
 ('EMP006', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP006', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP006', '2025-11-10', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP006', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP006', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP006', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-10', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP006', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP006', '2025-11-12', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP006', '2025-11-13', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP006', '2025-11-13', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
 ('EMP006', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP006', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP006', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP006', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP006', '2025-11-19', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP006', '2025-11-20', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP006', '2025-11-21', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP006', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP006', '2025-11-21', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP006', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP006', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP006', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP006', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP006', '2025-11-27', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP006', '2025-11-27', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
 ('EMP006', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP007: Random mixed pattern
+('EMP006', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP006', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+-- EMP007: Balanced pattern for days 1-30
+('EMP007', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP007', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-04', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP007', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-06', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP007', '2025-11-07', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP007', '2025-11-10', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP007', '2025-11-07', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP007', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP007', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP007', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP007', '2025-11-13', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP007', '2025-11-14', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
-('EMP007', '2025-11-17', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP007', '2025-11-13', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP007', '2025-11-14', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP007', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP007', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP007', '2025-11-17', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
 ('EMP007', '2025-11-18', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP007', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-20', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP007', '2025-11-21', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP007', '2025-11-21', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP007', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP007', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP007', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP007', '2025-11-26', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP007', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP007', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP007', '2025-11-28', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-
--- EMP008: Random mixed pattern
+('EMP007', '2025-11-28', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP007', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP007', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+-- EMP008: Balanced pattern for days 1-30
+('EMP008', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP008', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP008', '2025-11-04', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP008', '2025-11-04', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
 ('EMP008', '2025-11-05', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP008', '2025-11-06', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP008', '2025-11-06', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
 ('EMP008', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP008', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP008', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP008', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP008', '2025-11-12', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP008', '2025-11-13', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP008', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP008', '2025-11-12', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP008', '2025-11-13', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP008', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP008', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP008', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP008', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP008', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP008', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP008', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP008', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP008', '2025-11-24', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
 ('EMP008', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP008', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP008', '2025-11-27', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP008', '2025-11-27', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
 ('EMP008', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP009: Random mixed pattern
-('EMP009', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP008', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP008', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+-- EMP009: Balanced pattern for days 1-30
+('EMP009', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP009', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP009', '2025-11-05', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
-('EMP009', '2025-11-06', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP009', '2025-11-05', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP009', '2025-11-06', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
 ('EMP009', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP009', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP009', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP009', '2025-11-11', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP009', '2025-11-11', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
 ('EMP009', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP009', '2025-11-13', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP009', '2025-11-14', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP009', '2025-11-14', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP009', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP009', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP009', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP009', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP009', '2025-11-20', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP009', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP009', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP009', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP009', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP009', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP009', '2025-11-26', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP009', '2025-11-27', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP009', '2025-11-28', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-
--- EMP010: Random mixed pattern
+('EMP009', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-27', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP009', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP009', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP009', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+-- EMP010: Balanced pattern for days 1-30
+('EMP010', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP010', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP010', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP010', '2025-11-04', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP010', '2025-11-05', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP010', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP010', '2025-11-05', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP010', '2025-11-06', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
 ('EMP010', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP010', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP010', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP010', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP010', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP010', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP010', '2025-11-12', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP010', '2025-11-12', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP010', '2025-11-13', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP010', '2025-11-14', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP010', '2025-11-14', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP010', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP010', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP010', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP010', '2025-11-18', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP010', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP010', '2025-11-20', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP010', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP010', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP010', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP010', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP010', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP010', '2025-11-24', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP010', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP010', '2025-11-26', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP010', '2025-11-27', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP010', '2025-11-26', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP010', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP010', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP010', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP010', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 
--- EMP011: Random mixed pattern
-('EMP011', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+-- EMP011: Balanced pattern for days 1-30
+('EMP011', '2025-11-01', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-02', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP011', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP011', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP011', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP011', '2025-11-07', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP011', '2025-11-10', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP011', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP011', '2025-11-07', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP011', '2025-11-08', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-09', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-10', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP011', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP011', '2025-11-12', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP011', '2025-11-13', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
+('EMP011', '2025-11-13', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
 ('EMP011', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP011', '2025-11-15', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP011', '2025-11-16', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP011', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP011', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP011', '2025-11-19', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP011', '2025-11-20', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP011', '2025-11-19', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP011', '2025-11-20', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP011', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP011', '2025-11-24', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP011', '2025-11-22', '08:00:00', '19:00:00', 'present', 9.00, 2.00, 0, 'Overtime work'),
+('EMP011', '2025-11-23', '08:00:00', '19:00:00', 'present', 9.00, 2.00, 0, 'Overtime work'),
+('EMP011', '2025-11-24', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP011', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP011', '2025-11-26', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP011', '2025-11-27', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP011', '2025-11-28', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP011', '2025-11-26', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP011', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP011', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 
--- EMP012: Random mixed pattern
+-- EMP012: Balanced pattern for days 1-30
+('EMP012', '2025-11-01', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP012', '2025-11-02', '08:00:00', '13:00:00', 'half_day', 5.00, 0.00, 0, 'Half day'),
 ('EMP012', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP012', '2025-11-04', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP012', '2025-11-05', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP012', '2025-11-04', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP012', '2025-11-05', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP012', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP012', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP012', '2025-11-10', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP012', '2025-11-11', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP012', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP012', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP012', '2025-11-10', '08:00:00', '20:00:00', 'present', 9.00, 3.00, 0, 'Overtime work'),
+('EMP012', '2025-11-11', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
 ('EMP012', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP012', '2025-11-13', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP012', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-15', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-16', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP012', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP012', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP012', '2025-11-19', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP012', '2025-11-20', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP012', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-19', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP012', '2025-11-20', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP012', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP012', '2025-11-24', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP012', '2025-11-22', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-23', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP012', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP012', '2025-11-26', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP012', '2025-11-27', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP012', '2025-11-28', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-
--- EMP013: Random mixed pattern
-('EMP013', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP013', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP013', '2025-11-05', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP013', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP013', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP013', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP013', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP013', '2025-11-12', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP013', '2025-11-13', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP013', '2025-11-14', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP013', '2025-11-17', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP012', '2025-11-27', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP012', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-29', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP012', '2025-11-30', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+-- EMP013: Balanced pattern for days 1-30
+('EMP013', '2025-11-01', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-02', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-04', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-05', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-08', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-09', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP013', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP013', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP013', '2025-11-18', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP013', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP013', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
 ('EMP013', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP013', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP013', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP013', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP013', '2025-11-25', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP013', '2025-11-25', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
 ('EMP013', '2025-11-26', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP013', '2025-11-27', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
+('EMP013', '2025-11-27', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
 ('EMP013', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP014: Random mixed pattern
+('EMP013', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP013', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP014: Perfect attendance - Never absent, always present, minimal late
+('EMP014', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP014', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP014', '2025-11-04', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP014', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP014', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP014', '2025-11-06', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-('EMP014', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP014', '2025-11-10', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP014', '2025-11-11', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP014', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP014', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP014', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP014', '2025-11-13', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
-('EMP014', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP014', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP014', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP014', '2025-11-19', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP014', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP014', '2025-11-21', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP014', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-18', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP014', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP014', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP014', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP014', '2025-11-26', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP014', '2025-11-27', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP014', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP014', '2025-11-26', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP014', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP014', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP015: Random mixed pattern
-('EMP015', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP015', '2025-11-04', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP015', '2025-11-05', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP015', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP015', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP015', '2025-11-10', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP015', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP015', '2025-11-12', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP015', '2025-11-13', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP015', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP015', '2025-11-17', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP015', '2025-11-18', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP015', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP015', '2025-11-20', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP015', '2025-11-21', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP015', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP015', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP015', '2025-11-26', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP015', '2025-11-27', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP015', '2025-11-28', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-
--- EMP016: Random mixed pattern
-('EMP016', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP014', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP014', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP015: Always late - Present but always arrives late
+('EMP015', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-03', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP015', '2025-11-04', '08:45:00', '17:00:00', 'late', 8.00, 0.00, 45, 'Late arrival'),
+('EMP015', '2025-11-05', '09:00:00', '17:00:00', 'late', 8.00, 0.00, 60, 'Late arrival'),
+('EMP015', '2025-11-06', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP015', '2025-11-07', '08:35:00', '17:00:00', 'late', 8.00, 0.00, 35, 'Late arrival'),
+('EMP015', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-10', '08:40:00', '17:00:00', 'late', 8.00, 0.00, 40, 'Late arrival'),
+('EMP015', '2025-11-11', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP015', '2025-11-12', '09:15:00', '17:00:00', 'late', 8.00, 0.00, 75, 'Late arrival'),
+('EMP015', '2025-11-13', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP015', '2025-11-14', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP015', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-17', '08:35:00', '17:00:00', 'late', 8.00, 0.00, 35, 'Late arrival'),
+('EMP015', '2025-11-18', '08:50:00', '17:00:00', 'late', 8.00, 0.00, 50, 'Late arrival'),
+('EMP015', '2025-11-19', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP015', '2025-11-20', '08:40:00', '17:00:00', 'late', 8.00, 0.00, 40, 'Late arrival'),
+('EMP015', '2025-11-21', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP015', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-24', '08:45:00', '17:00:00', 'late', 8.00, 0.00, 45, 'Late arrival'),
+('EMP015', '2025-11-25', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP015', '2025-11-26', '09:00:00', '17:00:00', 'late', 8.00, 0.00, 60, 'Late arrival'),
+('EMP015', '2025-11-27', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP015', '2025-11-28', '08:35:00', '17:00:00', 'late', 8.00, 0.00, 35, 'Late arrival'),
+('EMP015', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP015', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP016: Frequent leave taker - Always wants to take leave
+('EMP016', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
 ('EMP016', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP016', '2025-11-05', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP016', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP016', '2025-11-07', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP016', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP016', '2025-11-11', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP016', '2025-11-12', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP016', '2025-11-05', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Sick leave'),
+('EMP016', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Personal leave'),
+('EMP016', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-10', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP016', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-12', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
 ('EMP016', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP016', '2025-11-14', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP016', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP016', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP016', '2025-11-19', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP016', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP016', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP016', '2025-11-24', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP016', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP016', '2025-11-26', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP016', '2025-11-27', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP016', '2025-11-28', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-
--- EMP017: Random mixed pattern
+('EMP016', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP016', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP016', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP016', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP016', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-27', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP016', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP016', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP016', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP017: Mixed pattern - Good attendance with occasional issues
+('EMP017', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP017', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP017', '2025-11-04', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP017', '2025-11-05', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
+('EMP017', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP017', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP017', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP017', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP017', '2025-11-11', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-('EMP017', '2025-11-12', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP017', '2025-11-13', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP017', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP017', '2025-11-17', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP017', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP017', '2025-11-19', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP017', '2025-11-20', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP017', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP017', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP017', '2025-11-25', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
+('EMP017', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-10', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP017', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-12', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP017', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-18', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP017', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-20', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP017', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP017', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-24', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP017', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP017', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP017', '2025-11-27', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP017', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP017', '2025-11-28', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-
--- EMP018: Random mixed pattern
-('EMP018', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP018', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP018', '2025-11-05', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP017', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP017', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP018: Mixed pattern - Often absent and late
+('EMP018', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP018', '2025-11-04', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP018', '2025-11-05', '09:00:00', '17:00:00', 'late', 8.00, 0.00, 60, 'Late arrival'),
 ('EMP018', '2025-11-06', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP018', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP018', '2025-11-10', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP018', '2025-11-11', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP018', '2025-11-12', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP018', '2025-11-13', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP018', '2025-11-07', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP018', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-10', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP018', '2025-11-11', '08:40:00', '17:00:00', 'late', 8.00, 0.00, 40, 'Late arrival'),
+('EMP018', '2025-11-12', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP018', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP018', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP018', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP018', '2025-11-18', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP018', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP018', '2025-11-20', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP018', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP018', '2025-11-24', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP018', '2025-11-25', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP018', '2025-11-26', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP018', '2025-11-27', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP018', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-17', '08:35:00', '17:00:00', 'late', 8.00, 0.00, 35, 'Late arrival'),
+('EMP018', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP018', '2025-11-19', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP018', '2025-11-20', '08:45:00', '17:00:00', 'late', 8.00, 0.00, 45, 'Late arrival'),
+('EMP018', '2025-11-21', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP018', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-24', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP018', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP018', '2025-11-26', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP018', '2025-11-27', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
 ('EMP018', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP019: Random mixed pattern
-('EMP019', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP018', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP018', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP019: Mixed pattern - Very bad attendance with many absences
+('EMP019', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP019', '2025-11-04', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP019', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP019', '2025-11-06', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
-('EMP019', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP019', '2025-11-10', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP019', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP019', '2025-11-12', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP019', '2025-11-13', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-('EMP019', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP019', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP019', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP019', '2025-11-19', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP019', '2025-11-20', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP019', '2025-11-06', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP019', '2025-11-11', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP019', '2025-11-13', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP019', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-19', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP019', '2025-11-21', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP019', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP019', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP019', '2025-11-26', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP019', '2025-11-27', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP019', '2025-11-28', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-
--- EMP020: Random mixed pattern
-('EMP020', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP020', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP020', '2025-11-05', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP020', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP020', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP020', '2025-11-10', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP020', '2025-11-11', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP020', '2025-11-12', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP020', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP020', '2025-11-14', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP020', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP020', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP019', '2025-11-27', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP019', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP019', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP019', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP020: Mixed pattern - Good with overtime enthusiast
+('EMP020', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-04', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP020', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-06', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP020', '2025-11-07', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
+('EMP020', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-11', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
+('EMP020', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-13', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP020', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-17', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP020', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP020', '2025-11-19', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP020', '2025-11-20', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP020', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP020', '2025-11-24', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP020', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP020', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-24', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
 ('EMP020', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP020', '2025-11-26', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP020', '2025-11-27', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP020', '2025-11-28', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-
--- EMP021: Random mixed pattern
-('EMP021', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP021', '2025-11-04', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP021', '2025-11-05', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP020', '2025-11-26', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP020', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP020', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP020', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP021: Mixed pattern - Half day enthusiast
+('EMP021', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-03', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-05', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP021', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP021', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP021', '2025-11-10', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP021', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP021', '2025-11-12', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP021', '2025-11-13', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP021', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP021', '2025-11-17', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP021', '2025-11-18', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP021', '2025-11-19', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP021', '2025-11-07', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-11', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-13', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-19', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
 ('EMP021', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP021', '2025-11-21', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP021', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP021', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP021', '2025-11-25', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
-('EMP021', '2025-11-26', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP021', '2025-11-27', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP021', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP022: Random mixed pattern
-('EMP022', '2025-11-03', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP022', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP022', '2025-11-05', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
-('EMP022', '2025-11-06', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP022', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP022', '2025-11-10', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP022', '2025-11-11', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP022', '2025-11-12', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP022', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP022', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP022', '2025-11-17', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP022', '2025-11-18', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP022', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP022', '2025-11-20', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP022', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP022', '2025-11-24', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP022', '2025-11-25', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP022', '2025-11-26', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP022', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP022', '2025-11-28', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-
--- EMP023: Random mixed pattern
+('EMP021', '2025-11-25', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP021', '2025-11-28', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
+('EMP021', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP021', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP022: Mixed pattern - Absent and late mix
+('EMP022', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-04', '09:00:00', '17:00:00', 'late', 8.00, 0.00, 60, 'Late arrival'),
+('EMP022', '2025-11-05', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-06', '08:45:00', '17:00:00', 'late', 8.00, 0.00, 45, 'Late arrival'),
+('EMP022', '2025-11-07', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-10', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP022', '2025-11-11', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-12', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP022', '2025-11-13', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-14', '08:35:00', '17:00:00', 'late', 8.00, 0.00, 35, 'Late arrival'),
+('EMP022', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-17', '08:50:00', '17:00:00', 'late', 8.00, 0.00, 50, 'Late arrival'),
+('EMP022', '2025-11-18', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP022', '2025-11-20', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-21', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP022', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-24', '08:40:00', '17:00:00', 'late', 8.00, 0.00, 40, 'Late arrival'),
+('EMP022', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-26', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP022', '2025-11-27', '08:30:00', '17:00:00', 'late', 8.00, 0.00, 30, 'Late arrival'),
+('EMP022', '2025-11-28', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP022', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP022', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP023: Mixed pattern - Balanced with occasional issues
+('EMP023', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP023', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP023', '2025-11-04', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP023', '2025-11-05', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
+('EMP023', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
 ('EMP023', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP023', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP023', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP023', '2025-11-11', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
-('EMP023', '2025-11-12', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP023', '2025-11-13', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP023', '2025-11-14', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP023', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP023', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP023', '2025-11-19', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP023', '2025-11-20', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP023', '2025-11-21', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP023', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-10', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
+('EMP023', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-12', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP023', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-18', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
+('EMP023', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-20', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP023', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP023', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP023', '2025-11-25', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP023', '2025-11-26', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP023', '2025-11-27', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP023', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP024: Random mixed pattern
+('EMP023', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-26', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
+('EMP023', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP023', '2025-11-28', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP023', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP023', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP024: Mixed pattern - Very bad attendance with many absences and late
+('EMP024', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP024', '2025-11-03', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP024', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP024', '2025-11-05', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP024', '2025-11-06', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
-('EMP024', '2025-11-07', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP024', '2025-11-10', '08:00:00', '19:00:00', 'present', 10.00, 2.00, 0, 'Overtime work'),
-('EMP024', '2025-11-11', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP024', '2025-11-12', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arrival'),
-('EMP024', '2025-11-13', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP024', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP024', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP024', '2025-11-18', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP024', '2025-11-19', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP024', '2025-11-20', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP024', '2025-11-21', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP024', '2025-11-24', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
-('EMP024', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP024', '2025-11-26', '08:25:00', '17:00:00', 'late', 8.00, 0.00, 25, 'Late arrival'),
+('EMP024', '2025-11-04', '09:15:00', '17:00:00', 'late', 8.00, 0.00, 75, 'Late arrival'),
+('EMP024', '2025-11-05', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-06', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-07', '08:50:00', '17:00:00', 'late', 8.00, 0.00, 50, 'Late arrival'),
+('EMP024', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-10', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-11', '09:30:00', '17:00:00', 'late', 8.00, 0.00, 90, 'Late arrival'),
+('EMP024', '2025-11-12', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-13', '08:45:00', '17:00:00', 'late', 8.00, 0.00, 45, 'Late arrival'),
+('EMP024', '2025-11-14', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-17', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP024', '2025-11-19', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-20', '09:00:00', '17:00:00', 'late', 8.00, 0.00, 60, 'Late arrival'),
+('EMP024', '2025-11-21', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-24', '08:35:00', '17:00:00', 'late', 8.00, 0.00, 35, 'Late arrival'),
+('EMP024', '2025-11-25', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-26', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
 ('EMP024', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP024', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-
--- EMP025: Random mixed pattern
+('EMP024', '2025-11-28', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
+('EMP024', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP024', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+-- EMP025: Mixed pattern - Good attendance with occasional leave
+('EMP025', '2025-11-01', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP025', '2025-11-02', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP025', '2025-11-03', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP025', '2025-11-04', '08:10:00', '17:00:00', 'late', 8.00, 0.00, 10, 'Late arrival'),
-('EMP025', '2025-11-05', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP025', '2025-11-06', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
-('EMP025', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Vacation leave'),
+('EMP025', '2025-11-04', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-05', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-06', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-07', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP025', '2025-11-08', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP025', '2025-11-09', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP025', '2025-11-10', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP025', '2025-11-11', '08:20:00', '17:00:00', 'late', 8.00, 0.00, 20, 'Late arriv'),
-('EMP025', '2025-11-12', '08:00:00', '12:00:00', 'half_day', 4.00, 0.00, 0, 'Half day'),
-('EMP025', '2025-11-13', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP025', '2025-11-14', '08:00:00', '19:30:00', 'present', 10.50, 2.50, 0, 'Overtime work'),
-('EMP025', '2025-11-17', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP025', '2025-11-18', '08:15:00', '17:00:00', 'late', 8.00, 0.00, 15, 'Late arrival'),
-('EMP025', '2025-11-19', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP025', '2025-11-20', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent'),
-('EMP025', '2025-11-21', '08:00:00', '20:00:00', 'present', 11.00, 3.00, 0, 'Overtime work'),
+('EMP025', '2025-11-11', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-12', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP025', '2025-11-13', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-14', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-15', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP025', '2025-11-16', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP025', '2025-11-17', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-18', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-19', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP025', '2025-11-20', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-21', '08:00:00', '18:00:00', 'present', 9.00, 1.00, 0, 'Overtime work'),
+('EMP025', '2025-11-22', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP025', '2025-11-23', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
 ('EMP025', '2025-11-24', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
-('EMP025', '2025-11-25', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
-('EMP025', '2025-11-26', '08:05:00', '17:00:00', 'late', 8.00, 0.00, 5, 'Late arrival'),
-('EMP025', '2025-11-27', '08:00:00', '18:30:00', 'present', 9.50, 1.50, 0, 'Overtime work'),
-('EMP025', '2025-11-28', NULL, NULL, 'absent', 0.00, 0.00, 0, 'Absent')
+('EMP025', '2025-11-25', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-26', NULL, NULL, 'leave', 0.00, 0.00, 0, 'Leave'),
+('EMP025', '2025-11-27', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-28', '08:00:00', '17:00:00', 'present', 8.00, 0.00, 0, 'Regular work day'),
+('EMP025', '2025-11-29', NULL, NULL, 'absent', 0.00, 0.00, 0, ''),
+('EMP025', '2025-11-30', NULL, NULL, 'absent', 0.00, 0.00, 0, '')
+
 ON DUPLICATE KEY UPDATE hours_worked = VALUES(hours_worked), status = VALUES(status), overtime_hours = VALUES(overtime_hours), late_minutes = VALUES(late_minutes);
 -- ========================================
 -- 4E. HRIS ADDITIONAL TABLES (Leave, Contracts, Onboarding, Recruitment)
@@ -1070,12 +1461,12 @@ INSERT INTO recruitment (recruitment_id, job_title, department_id, date_posted, 
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 -- Applicants
-INSERT INTO applicant (applicant_id, recruitment_id, full_name, email, contact_number, resume_file, application_status, archived_at) VALUES
-(1, 1, 'John Michael Dela Cruz', 'john.delacruz@email.com', '09171234999', 'resume_john_delacruz.pdf', 'interview', NULL),
-(2, 1, 'Mary Grace Santos', 'mary.santos@email.com', '09171234998', 'resume_mary_santos.pdf', 'shortlisted', NULL),
-(3, 2, 'Peter James Garcia', 'peter.garcia@email.com', '09171234997', 'resume_peter_garcia.pdf', 'rejected', '2025-11-20'),
-(4, 3, 'Lisa Ann Reyes', 'lisa.reyes@email.com', '09171234996', 'resume_lisa_reyes.pdf', 'hired', NULL),
-(5, 4, 'Robert John Cruz', 'robert.cruz@email.com', '09171234995', 'resume_robert_cruz.pdf', 'pending', NULL)
+INSERT INTO applicant (applicant_id, recruitment_id, full_name, email, contact_number, resume_file, application_status, archived_at, offer_status, offer_token, offer_sent_at, offer_acceptance_timestamp, offer_declined_at) VALUES
+(1, 1, 'John Michael Dela Cruz', 'john.delacruz@email.com', '09171234999', 'resume_john_delacruz.pdf', 'interview', NULL, 'Pending', NULL, NULL, NULL, NULL),
+(2, 1, 'Mary Grace Santos', 'mary.santos@email.com', '09171234998', 'resume_mary_santos.pdf', 'shortlisted', NULL, 'Pending', NULL, NULL, NULL, NULL),
+(3, 2, 'Peter James Garcia', 'peter.garcia@email.com', '09171234997', 'resume_peter_garcia.pdf', 'rejected', '2025-11-20', 'Declined', NULL, NULL, NULL, '2025-11-20'),
+(4, 3, 'Lisa Ann Reyes', 'lisa.reyes@email.com', '09171234996', 'resume_lisa_reyes.pdf', 'hired', NULL, 'Accepted', NULL, NULL, '2025-11-15', NULL),
+(5, 4, 'Robert John Cruz', 'robert.cruz@email.com', '09171234995', 'resume_robert_cruz.pdf', 'pending', NULL, 'Pending', NULL, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE application_status = VALUES(application_status);
 
 -- Interviews
@@ -1150,65 +1541,102 @@ INSERT INTO bank_account_types (account_type_id, type_name, description) VALUES
 ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
 
 -- Bank Employees (for customer account creation tracking)
-INSERT INTO bank_employees (employee_id, employee_name, created_at) VALUES
-(1, 'Bank Teller 001', NOW() - INTERVAL 30 DAY),
-(2, 'Bank Teller 002', NOW() - INTERVAL 25 DAY),
-(3, 'Account Manager 001', NOW() - INTERVAL 20 DAY),
-(4, 'Bank Officer 001', NOW() - INTERVAL 15 DAY)
-ON DUPLICATE KEY UPDATE employee_name = VALUES(employee_name);
+INSERT INTO bank_employees (employee_id, username, password_hash, email, first_name, last_name, role, is_active, employee_name, created_at, updated_at) VALUES
+(1, 'admin', '$2y$10$kCoxX3xFyKc0QPuoiUdqVeDshsMP54kAS5DPoP6YLqFbozEkjh89W', 'admin@evergreenbank.com', 'System', 'Administrator', 'admin', 1, 'Bank Teller 001', '2025-10-27 19:46:01', '2025-11-29 02:14:45'),
+(2, 'teller1', '$2y$10$kCoxX3xFyKc0QPuoiUdqVeDshsMP54kAS5DPoP6YLqFbozEkjh89W', 'teller1@evergreenbank.com', 'John', 'Doe', 'teller', 1, 'Bank Teller 002', '2025-11-01 19:46:01', '2025-11-29 02:14:45'),
+(3, NULL, NULL, NULL, NULL, NULL, 'teller', 1, 'Account Manager 001', '2025-11-06 19:46:01', '2025-11-29 01:44:08'),
+(4, NULL, NULL, NULL, NULL, NULL, 'teller', 1, 'Bank Officer 001', '2025-11-11 19:46:01', '2025-11-29 01:44:08'),
+(7, 'testuser', '$2y$10$kCoxX3xFyKc0QPuoiUdqVeDshsMP54kAS5DPoP6YLqFbozEkjh89W', 'testuser@evergreenbank.com', 'Test', 'User', 'teller', 1, '', '2025-11-29 02:13:04', '2025-11-29 02:15:14')
+ON DUPLICATE KEY UPDATE 
+    username = VALUES(username),
+    password_hash = VALUES(password_hash),
+    email = VALUES(email),
+    first_name = VALUES(first_name),
+    last_name = VALUES(last_name),
+    role = VALUES(role),
+    is_active = VALUES(is_active),
+    employee_name = VALUES(employee_name),
+    updated_at = VALUES(updated_at);
 
 -- Bank Customers
 INSERT INTO bank_customers (customer_id, last_name, first_name, middle_name, email, password_hash, created_at, created_by_employee_id) VALUES
-(1, 'Reyes', 'Juan', 'Dela', 'juan.reyes@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 90 DAY, 1),
-(2, 'Santos', 'Maria', 'Garcia', 'maria.santos@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 75 DAY, 1),
-(3, 'Cruz', 'Jose', 'Ramos', 'jose.cruz@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 60 DAY, 2),
-(4, 'Lopez', 'Anna', NULL, 'anna.lopez@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 45 DAY, 2),
-(5, 'Garcia', 'Roberto', 'Fernandez', 'roberto.garcia@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 3)
+(1, 'Villanueva', 'Ricardo', 'Santos', 'ricardo.villanueva@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 120 DAY, 1),
+(2, 'Fernandez', 'Maria', 'Cruz', 'maria.fernandez@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 95 DAY, 1),
+(3, 'Torres', 'Jose', 'Reyes', 'jose.torres@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 80 DAY, 2),
+(4, 'Dela Cruz', 'Ana', 'Lopez', 'ana.delacruz@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 65 DAY, 2),
+(5, 'Mendoza', 'Roberto', 'Garcia', 'roberto.mendoza@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 50 DAY, 3),
+(6, 'Bautista', 'Cristina', 'Ramos', 'cristina.bautista@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 40 DAY, 1),
+(7, 'Aquino', 'Michael', 'Santos', 'michael.aquino@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 35 DAY, 2),
+(8, 'Reyes', 'Patricia', 'Cruz', 'patricia.reyes@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 30 DAY, 2),
+(9, 'Gonzales', 'Daniel', 'Villanueva', 'daniel.gonzales@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 25 DAY, 3),
+(10, 'Lim', 'Jennifer', 'Fernandez', 'jennifer.lim@evergreen.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW() - INTERVAL 20 DAY, 1)
 ON DUPLICATE KEY UPDATE last_name = VALUES(last_name), email = VALUES(email);
 
 -- Customer Profiles
 INSERT INTO customer_profiles (profile_id, customer_id, gender_id, date_of_birth, marital_status, national_id, occupation, company, income_range, preferred_language, nationality, loyalty_member, profile_created_at) VALUES
-(1, 1, 1, '1985-05-15', 'married', 'TIN-001-234-567-890', 'Software Engineer', 'Tech Solutions Inc.', '50000-100000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, 2, '1988-03-20', 'single', 'TIN-002-345-678-901', 'Marketing Manager', 'Digital Marketing Co.', '30000-50000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, 1, '1990-08-10', 'married', 'TIN-003-456-789-012', 'Business Owner', 'Small Business Corp', '100000-200000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, 2, '1992-11-25', 'single', 'TIN-004-567-890-123', 'Teacher', 'Public School', '20000-30000', 'Tagalog', 'Filipino', FALSE, NOW() - INTERVAL 40 DAY),
-(5, 5, 1, '1987-07-30', 'married', 'TIN-005-678-901-234', 'Accountant', 'Accounting Firm', '40000-60000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, 1, '1985-05-15', 'married', 'TIN-001-234-567-890', 'Senior Software Engineer', 'Evergreen Tech Solutions Inc.', '80000-120000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, 2, '1988-03-20', 'single', 'TIN-002-345-678-901', 'Marketing Manager', 'Evergreen Digital Marketing Co.', '60000-80000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, 1, '1990-08-10', 'married', 'TIN-003-456-789-012', 'Business Owner', 'Evergreen Business Corp', '150000-250000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, 2, '1992-11-25', 'single', 'TIN-004-567-890-123', 'Elementary Teacher', 'Manila Public School', '35000-45000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, 1, '1987-07-30', 'married', 'TIN-005-678-901-234', 'Certified Public Accountant', 'Evergreen Accounting Firm', '70000-90000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, 2, '1991-02-14', 'married', 'TIN-006-789-012-345', 'Nurse', 'Makati Medical Center', '40000-55000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, 1, '1989-09-18', 'single', 'TIN-007-890-123-456', 'Financial Analyst', 'Evergreen Investment Group', '75000-95000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, 2, '1993-06-22', 'single', 'TIN-008-901-234-567', 'Graphic Designer', 'Creative Design Studio', '45000-60000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, 1, '1986-12-05', 'married', 'TIN-009-012-345-678', 'Operations Manager', 'Evergreen Logistics Inc.', '90000-120000', 'English', 'Filipino', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, 2, '1994-04-30', 'single', 'TIN-010-123-456-789', 'Customer Service Representative', 'Evergreen Call Center', '30000-40000', 'Tagalog', 'Filipino', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE marital_status = VALUES(marital_status);
 
 -- Addresses
-INSERT INTO addresses (address_id, customer_id, address_line, city, province_id, postal_code, address_type, is_primary, created_at) VALUES
-(1, 1, '123 Main Street, Barangay San Antonio', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, '456 Rizal Avenue', 'Quezon City', 1, '1100', 'home', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, '789 EDSA Extension', 'Mandaluyong City', 1, '1550', 'home', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, '321 P. Burgos Street', 'Manila', 1, '1000', 'home', TRUE, NOW() - INTERVAL 40 DAY),
-(5, 5, '654 Ayala Avenue', 'Makati City', 1, '1200', 'home', TRUE, NOW() - INTERVAL 25 DAY)
+-- Note: city_id and barangay_id will be NULL initially since cities/barangays are loaded from location_data.sql separately
+-- They can be updated later after location data is imported using UPDATE statements if needed
+INSERT INTO addresses (address_id, customer_id, address_line, barangay_id, city_id, province_id, postal_code, address_type, is_primary, created_at) VALUES
+(1, 1, '123 P. Burgos Street, Barangay Poblacion', NULL, NULL, 1, '1200', 'home', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, '456 Rizal Avenue Extension, Barangay Kamuning', NULL, NULL, 1, '1100', 'home', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, '789 EDSA Corner Shaw Boulevard', NULL, NULL, 1, '1550', 'home', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, '321 Ortigas Avenue, Barangay San Antonio', NULL, NULL, 1, '1600', 'home', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, '654 Ayala Avenue, Barangay Bel-Air', NULL, NULL, 1, '1200', 'home', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, '987 Taft Avenue, Barangay Malate', NULL, NULL, 1, '1004', 'home', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, '147 BGC High Street, Barangay Fort Bonifacio', NULL, NULL, 1, '1630', 'home', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, '258 Commonwealth Avenue, Barangay Batasan Hills', NULL, NULL, 1, '1126', 'home', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, '369 Alabang-Zapote Road, Barangay Alabang', NULL, NULL, 1, '1780', 'home', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, '741 Katipunan Avenue, Barangay Loyola Heights', NULL, NULL, 1, '1108', 'home', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE address_line = VALUES(address_line);
 
 -- Emails
 INSERT INTO emails (email_id, customer_id, email, is_primary, created_at) VALUES
-(1, 1, 'juan.reyes@email.com', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, 'maria.santos@email.com', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, 'jose.cruz@email.com', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, 'anna.lopez@email.com', TRUE, NOW() - INTERVAL 40 DAY),
-(5, 5, 'roberto.garcia@email.com', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, 'ricardo.villanueva@evergreen.com', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, 'maria.fernandez@evergreen.com', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, 'jose.torres@evergreen.com', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, 'ana.delacruz@evergreen.com', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, 'roberto.mendoza@evergreen.com', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, 'cristina.bautista@evergreen.com', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, 'michael.aquino@evergreen.com', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, 'patricia.reyes@evergreen.com', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, 'daniel.gonzales@evergreen.com', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, 'jennifer.lim@evergreen.com', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 -- Phones
 INSERT INTO phones (phone_id, customer_id, phone_number, phone_type, is_primary, created_at) VALUES
-(1, 1, '09171234111', 'mobile', TRUE, NOW() - INTERVAL 85 DAY),
-(2, 2, '09171234112', 'mobile', TRUE, NOW() - INTERVAL 70 DAY),
-(3, 3, '09171234113', 'mobile', TRUE, NOW() - INTERVAL 55 DAY),
-(4, 4, '09171234114', 'mobile', TRUE, NOW() - INTERVAL 40 DAY),
-(5, 5, '09171234115', 'mobile', TRUE, NOW() - INTERVAL 25 DAY)
+(1, 1, '09171234567', 'mobile', TRUE, NOW() - INTERVAL 115 DAY),
+(2, 2, '09171234568', 'mobile', TRUE, NOW() - INTERVAL 90 DAY),
+(3, 3, '09171234569', 'mobile', TRUE, NOW() - INTERVAL 75 DAY),
+(4, 4, '09171234570', 'mobile', TRUE, NOW() - INTERVAL 60 DAY),
+(5, 5, '09171234571', 'mobile', TRUE, NOW() - INTERVAL 45 DAY),
+(6, 6, '09171234572', 'mobile', TRUE, NOW() - INTERVAL 35 DAY),
+(7, 7, '09171234573', 'mobile', TRUE, NOW() - INTERVAL 30 DAY),
+(8, 8, '09171234574', 'mobile', TRUE, NOW() - INTERVAL 25 DAY),
+(9, 9, '09171234575', 'mobile', TRUE, NOW() - INTERVAL 20 DAY),
+(10, 10, '09171234576', 'mobile', TRUE, NOW() - INTERVAL 15 DAY)
 ON DUPLICATE KEY UPDATE phone_number = VALUES(phone_number);
 
 -- Customer Accounts
 INSERT INTO customer_accounts (account_id, customer_id, account_number, account_type_id, interest_rate, last_interest_date, is_locked, created_at, created_by_employee_id) VALUES
-(1, 1, 'SA-001-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 80 DAY, 1),
-(2, 2, 'CA-002-2024', 2, 1.00, '2025-11-30', FALSE, NOW() - INTERVAL 65 DAY, 1),
-(3, 3, 'TD-003-2024', 3, 3.50, '2025-11-30', FALSE, NOW() - INTERVAL 50 DAY, 2),
-(4, 4, 'SA-004-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 35 DAY, 2),
-(5, 5, 'CA-005-2024', 4, 1.50, '2025-11-30', FALSE, NOW() - INTERVAL 20 DAY, 3)
+(1, 1, 'SA-0001-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 80 DAY, 1),
+(2, 2, 'CHA-0002-2024', 2, 1.00, '2025-11-30', FALSE, NOW() - INTERVAL 65 DAY, 1),
+(3, 3, 'SA-0003-2024', 1, 3.50, '2025-11-30', FALSE, NOW() - INTERVAL 50 DAY, 2),
+(4, 4, 'SA-0004-2024', 1, 2.50, '2025-11-30', FALSE, NOW() - INTERVAL 35 DAY, 2),
+(5, 5, 'CHA-0005-2024', 2, 1.50, '2025-11-30', FALSE, NOW() - INTERVAL 20 DAY, 3)
 ON DUPLICATE KEY UPDATE account_number = VALUES(account_number);
 
 -- Customer Linked Accounts
@@ -1228,19 +1656,50 @@ INSERT INTO transaction_types (transaction_type_id, type_name, description) VALU
 (4, 'Interest Credit', 'Interest payment credited'),
 (5, 'Service Charge', 'Bank service fee charged'),
 (6, 'Loan Disbursement', 'Loan amount disbursed to account'),
-(7, 'Loan Payment', 'Loan payment received')
+(7, 'Loan Payment', 'Loan payment received'),
+(8, 'Transfer Out', 'Sending funds to another account'),
+(9, 'Transfer In', 'Receiving funds from another account')
 ON DUPLICATE KEY UPDATE type_name = VALUES(type_name);
+
+INSERT INTO employment_statuses (status_name, description) VALUES
+('Employed', 'Regular employee working for a company or organization'),
+('Self-Employed', 'Individual running their own business or working as a freelancer'),
+('Unemployed', 'Currently not employed'),
+('Retired', 'No longer in active employment due to retirement'),
+('Student', 'Currently pursuing education'),
+('Homemaker', 'Managing household responsibilities')
+ON DUPLICATE KEY UPDATE description = VALUES(description);
+
+-- Insert default source of funds
+INSERT INTO source_of_funds (source_name, description, requires_proof) VALUES
+('Employment', 'Income from regular employment or salary', 1),
+('Business', 'Income from business operations or entrepreneurship', 1),
+('Investment', 'Returns from investments, stocks, or securities', 1),
+('Savings', 'Personal savings accumulated over time', 0),
+('Inheritance', 'Funds received through inheritance', 1),
+('Gift', 'Monetary gifts from family or friends', 1),
+('Pension', 'Retirement pension or benefits', 1),
+('Remittance', 'Money sent from abroad by family members', 0),
+('Other', 'Other legitimate sources of funds', 1)
+ON DUPLICATE KEY UPDATE description = VALUES(description), requires_proof = VALUES(requires_proof);
 
 -- Bank Transactions
 INSERT INTO bank_transactions (transaction_id, transaction_ref, account_id, transaction_type_id, amount, related_account_id, description, employee_id, created_at) VALUES
-(1, 'TXN-2025-001', 1, 1, 50000.00, NULL, 'Initial deposit', 1, NOW() - INTERVAL 75 DAY),
-(2, 'TXN-2025-002', 2, 1, 100000.00, NULL, 'Salary deposit', 1, NOW() - INTERVAL 60 DAY),
-(3, 'TXN-2025-003', 1, 2, 5000.00, NULL, 'Cash withdrawal', 1, NOW() - INTERVAL 70 DAY),
-(4, 'TXN-2025-004', 3, 1, 500000.00, NULL, 'Time deposit opening', 2, NOW() - INTERVAL 45 DAY),
-(5, 'TXN-2025-005', 1, 4, 125.00, NULL, 'Monthly interest credit', 1, NOW() - INTERVAL 30 DAY),
-(6, 'TXN-2025-006', 2, 2, 25000.00, NULL, 'Withdrawal', 1, NOW() - INTERVAL 55 DAY),
-(7, 'TXN-2025-007', 1, 3, 10000.00, 2, 'Transfer to checking account', 1, NOW() - INTERVAL 65 DAY),
-(8, 'TXN-2025-008', 5, 5, 100.00, NULL, 'Monthly service charge', 3, NOW() - INTERVAL 15 DAY)
+(1, 'TXN-2024-001', 1, 1, 75000.00, NULL, 'Initial savings account deposit', 1, NOW() - INTERVAL 115 DAY),
+(2, 'TXN-2024-002', 2, 1, 125000.00, NULL, 'Monthly salary deposit', 1, NOW() - INTERVAL 90 DAY),
+(3, 'TXN-2024-003', 1, 2, 15000.00, NULL, 'ATM cash withdrawal', 1, NOW() - INTERVAL 105 DAY),
+(4, 'TXN-2024-004', 3, 1, 750000.00, NULL, 'Time deposit account opening', 2, NOW() - INTERVAL 75 DAY),
+(5, 'TXN-2024-005', 1, 4, 187.50, NULL, 'Monthly interest credit - Savings', 1, NOW() - INTERVAL 25 DAY),
+(6, 'TXN-2024-006', 2, 2, 35000.00, NULL, 'Fund transfer to personal account', 1, NOW() - INTERVAL 85 DAY),
+(7, 'TXN-2024-007', 1, 3, 25000.00, 2, 'Internal transfer to checking account', 1, NOW() - INTERVAL 95 DAY),
+(8, 'TXN-2024-008', 5, 5, 150.00, NULL, 'Monthly maintenance fee', 3, NOW() - INTERVAL 18 DAY),
+(9, 'TXN-2024-009', 4, 1, 50000.00, NULL, 'Additional savings deposit', 1, NOW() - INTERVAL 60 DAY),
+(10, 'TXN-2024-010', 2, 1, 125000.00, NULL, 'Salary deposit - November', 1, NOW() - INTERVAL 30 DAY),
+(11, 'TXN-2024-011', 3, 4, 2187.50, NULL, 'Quarterly interest credit - Time Deposit', 2, NOW() - INTERVAL 10 DAY),
+(12, 'TXN-2024-012', 1, 2, 8000.00, NULL, 'Online payment transfer', 1, NOW() - INTERVAL 5 DAY),
+(13, 'TXN-2024-013', 5, 1, 100000.00, NULL, 'Business account deposit', 1, NOW() - INTERVAL 45 DAY),
+(14, 'TXN-2024-014', 3, 1, 200000.00, NULL, 'Investment account deposit', 2, NOW() - INTERVAL 40 DAY),
+(15, 'TXN-2024-015', 4, 2, 12000.00, NULL, 'Bill payment withdrawal', 1, NOW() - INTERVAL 12 DAY)
 ON DUPLICATE KEY UPDATE transaction_ref = VALUES(transaction_ref);
 
 -- Payroll Payslips (Alternative payslip table using employee_id)
@@ -1262,35 +1721,143 @@ ON DUPLICATE KEY UPDATE attendance_summary = VALUES(attendance_summary);
 -- 4G. BANKING MODULE - MISSIONS & BANK USERS
 -- ========================================
 
+INSERT INTO `account_applications` (`application_id`, `application_number`, `application_status`, `first_name`, `middle_name`, `last_name`, `email`, `phone_number`, `date_of_birth`, `gender`, `civil_status`, `nationality`, `street_address`, `barangay_id`, `city_id`, `province_id`, `postal_code`, `id_type`, `id_number`, `employment_status`, `employer_name`, `occupation`, `annual_income`, `source_of_funds`, `account_type`, `terms_accepted`, `privacy_acknowledged`, `submitted_at`, `reviewed_at`) VALUES
+(1, 'APP-2025-00001', 'pending', 'John', NULL, 'Doe', 'john.doe@example.com', '(555) 123-4567', '1990-01-15', 'Male', 'Single', 'American', '123 Main Street', NULL, NULL, NULL, '10001', 'Driver\'s License', 'DL123456', 'Employed', 'Tech Corp', 'Software Engineer', 75000.00, 'Employment', 'Savings Account', 1, 1, '2025-11-25 01:23:11', NULL),
+(2, 'APP-2025-00002', 'pending', 'Johsua', NULL, 'Nambio', 'nambio.johsua.agustin@gmail.com', '09611021573', '2005-10-10', 'Male', 'Single', 'Filipino', '#66 Pasong Tamo QC', NULL, NULL, NULL, '123123', 'Driver\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'Employment', 'Checking Account', 1, 1, '2025-11-25 01:24:21', NULL),
+(3, 'APP-2025-00003', 'pending', 'Johsua', NULL, 'Nambio', 'karmaajoshh@gmail.com', '09611021573', '2004-10-01', 'Male', 'Single', 'Filipino', '#66 Pasong Tamo', NULL, NULL, NULL, '1107', 'Driver\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'Employment', 'Savings Account', 1, 1, '2025-11-25 01:32:46', NULL),
+(4, 'APP-2025-00004', 'pending', 'Johsua', NULL, 'Nambio', 'karmaajoshh@gmail.com', '09611021573', '2000-10-10', 'Male', 'Single', 'Filipino', '66 Durian Street', NULL, NULL, NULL, '1116', 'Driver\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'Employment', 'Savings Account', 1, 1, '2025-11-25 01:45:01', NULL),
+(5, 'APP-2025-00005', 'pending', 'Johsua', NULL, 'Nambio', 'nambio.johsua.agustin@gmail.com', '09611021573', '2004-10-10', 'Male', 'Single', 'Filipino', '#66 Pasong Tamo QC', NULL, NULL, NULL, '1007', 'Driver\'s License', '123123', 'Employed', 'Charles', 'Cashier', 10000.00, 'Employment', 'Savings Account', 1, 1, '2025-11-25 16:28:05', NULL)
+ON DUPLICATE KEY UPDATE 
+    application_status = VALUES(application_status),
+    first_name = VALUES(first_name),
+    middle_name = VALUES(middle_name),
+    last_name = VALUES(last_name),
+    email = VALUES(email),
+    phone_number = VALUES(phone_number),
+    date_of_birth = VALUES(date_of_birth),
+    gender = VALUES(gender),
+    civil_status = VALUES(civil_status),
+    nationality = VALUES(nationality),
+    street_address = VALUES(street_address),
+    barangay_id = VALUES(barangay_id),
+    city_id = VALUES(city_id),
+    province_id = VALUES(province_id),
+    postal_code = VALUES(postal_code),
+    id_type = VALUES(id_type),
+    id_number = VALUES(id_number),
+    employment_status = VALUES(employment_status),
+    employer_name = VALUES(employer_name),
+    occupation = VALUES(occupation),
+    annual_income = VALUES(annual_income),
+    source_of_funds = VALUES(source_of_funds),
+    account_type = VALUES(account_type),
+    terms_accepted = VALUES(terms_accepted),
+    privacy_acknowledged = VALUES(privacy_acknowledged),
+    submitted_at = VALUES(submitted_at),
+    reviewed_at = VALUES(reviewed_at);
+
+
 -- Missions (Banking rewards/missions)
 INSERT INTO missions (id, mission_text, points_value, created_at) VALUES
-(1, 'Complete your first transaction', 100.00, NOW() - INTERVAL 90 DAY),
-(2, 'Maintain minimum balance for 3 months', 500.00, NOW() - INTERVAL 60 DAY),
-(3, 'Refer a friend to open an account', 1000.00, NOW() - INTERVAL 45 DAY),
-(4, 'Use mobile banking 10 times', 300.00, NOW() - INTERVAL 30 DAY),
-(5, 'Set up automatic bill payment', 200.00, NOW() - INTERVAL 20 DAY)
+(1, 'Refer your first friend to EVERGREEN', 50.00, '2025-11-12 06:24:53'),
+(2, 'Successfully refer 3 friends', 150.00, '2025-11-12 06:24:53'),
+(3, 'Reach 5 successful referrals', 250.00, '2025-11-12 06:24:53'),
+(4, 'Refer 10 friends and unlock premium rewards', 500.00, '2025-11-12 06:24:53'),
+(5, 'Achieve 15 referrals milestone', 750.00, '2025-11-12 06:24:53'),
+(6, 'Become a referral champion with 20 friends', 1000.00, '2025-11-12 06:24:53'),
+(7, 'Share your referral code on social media', 30.00, '2025-11-12 06:24:53'),
+(8, 'Have 3 friends use your referral code in one week', 200.00, '2025-11-12 06:24:53'),
+(9, 'Reach 25 total referrals - Elite status', 1500.00, '2025-11-12 06:24:53'),
+(10, 'Ultimate referrer - 50 successful referrals', 3000.00, '2025-11-12 06:24:53'),
+(11, 'Refer a friend and earn bonus points', 20.00, '2025-11-11 15:50:20'),
+(12, 'Use a referral code to get started', 10.00, '2025-11-11 15:50:20')
 ON DUPLICATE KEY UPDATE mission_text = VALUES(mission_text);
 
 -- Bank Users (Banking system users - different from employee users)
 INSERT INTO bank_users (id, first_name, middle_name, last_name, address, city_province, email, contact_number, birthday, password, verification_code, bank_id, total_points, created_at, is_verified) VALUES
-(1, 'Juan', 'Dela', 'Reyes', '123 Main Street, Barangay San Antonio', 'Makati City, Metro Manila', 'juan.reyes@bank.com', '09171234111', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER001', 'BANK-001', 1500.00, NOW() - INTERVAL 85 DAY, TRUE),
-(2, 'Maria', 'Garcia', 'Santos', '456 Rizal Avenue', 'Quezon City, Metro Manila', 'maria.santos@bank.com', '09171234112', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER002', 'BANK-002', 800.00, NOW() - INTERVAL 70 DAY, TRUE),
-(3, 'Jose', 'Ramos', 'Cruz', '789 EDSA Extension', 'Mandaluyong City, Metro Manila', 'jose.cruz@bank.com', '09171234113', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER003', 'BANK-003', 2000.00, NOW() - INTERVAL 55 DAY, TRUE)
+(1, 'Ricardo', 'Santos', 'Villanueva', '123 P. Burgos Street, Barangay Poblacion', 'Makati City, Metro Manila', 'ricardo.villanueva@evergreen.com', '09171234111', '1985-05-15', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER001', 'BANK-001', 2500.00, NOW() - INTERVAL 120 DAY, TRUE),
+(2, 'Maria', 'Cruz', 'Fernandez', '456 Rizal Avenue Extension, Barangay Kamuning', 'Quezon City, Metro Manila', 'maria.fernandez@evergreen.com', '09171234112', '1988-03-20', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER002', 'BANK-002', 1800.00, NOW() - INTERVAL 95 DAY, TRUE),
+(3, 'Jose', 'Reyes', 'Torres', '789 EDSA Corner Shaw Boulevard', 'Mandaluyong City, Metro Manila', 'jose.torres@evergreen.com', '09171234113', '1990-08-10', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER003', 'BANK-003', 3200.00, NOW() - INTERVAL 80 DAY, TRUE),
+(4, 'Ana', 'Lopez', 'Dela Cruz', '321 Ortigas Avenue, Barangay San Antonio', 'Pasig City, Metro Manila', 'ana.delacruz@evergreen.com', '09171234114', '1992-11-25', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER004', 'BANK-004', 950.00, NOW() - INTERVAL 65 DAY, TRUE),
+(5, 'Roberto', 'Garcia', 'Mendoza', '654 Ayala Avenue, Barangay Bel-Air', 'Makati City, Metro Manila', 'roberto.mendoza@evergreen.com', '09171234115', '1987-07-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER005', 'BANK-005', 1500.00, NOW() - INTERVAL 50 DAY, TRUE),
+(6, 'Cristina', 'Ramos', 'Bautista', '987 Taft Avenue, Barangay Malate', 'Manila City, Metro Manila', 'cristina.bautista@evergreen.com', '09171234116', '1991-02-14', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER006', 'BANK-006', 2200.00, NOW() - INTERVAL 40 DAY, TRUE),
+(7, 'Michael', 'Santos', 'Aquino', '147 BGC High Street, Barangay Fort Bonifacio', 'Taguig City, Metro Manila', 'michael.aquino@evergreen.com', '09171234117', '1989-09-18', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER007', 'BANK-007', 1800.00, NOW() - INTERVAL 35 DAY, TRUE),
+(8, 'Patricia', 'Cruz', 'Reyes', '258 Commonwealth Avenue, Barangay Batasan Hills', 'Quezon City, Metro Manila', 'patricia.reyes@evergreen.com', '09171234118', '1993-06-22', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER008', 'BANK-008', 1100.00, NOW() - INTERVAL 30 DAY, TRUE),
+(9, 'Daniel', 'Villanueva', 'Gonzales', '369 Alabang-Zapote Road, Barangay Alabang', 'Muntinlupa City, Metro Manila', 'daniel.gonzales@evergreen.com', '09171234119', '1986-12-05', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER009', 'BANK-009', 2800.00, NOW() - INTERVAL 25 DAY, TRUE),
+(10, 'Jennifer', 'Fernandez', 'Lim', '741 Katipunan Avenue, Barangay Loyola Heights', 'Quezon City, Metro Manila', 'jennifer.lim@evergreen.com', '09171234120', '1994-04-30', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'VER010', 'BANK-010', 750.00, NOW() - INTERVAL 20 DAY, TRUE)
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 -- User Missions (Banking mission completions)
-INSERT INTO user_missions (id, user_id, mission_id, points_earned, completed_at) VALUES
-(1, 1, 1, 100.00, NOW() - INTERVAL 80 DAY),
-(2, 1, 2, 500.00, NOW() - INTERVAL 60 DAY),
-(3, 1, 4, 300.00, NOW() - INTERVAL 30 DAY),
-(4, 2, 1, 100.00, NOW() - INTERVAL 65 DAY),
-(5, 2, 5, 200.00, NOW() - INTERVAL 15 DAY),
-(6, 3, 1, 100.00, NOW() - INTERVAL 50 DAY),
-(7, 3, 2, 500.00, NOW() - INTERVAL 45 DAY),
-(8, 3, 3, 1000.00, NOW() - INTERVAL 40 DAY),
-(9, 3, 4, 300.00, NOW() - INTERVAL 25 DAY),
-(10, 3, 5, 200.00, NOW() - INTERVAL 20 DAY)
-ON DUPLICATE KEY UPDATE points_earned = VALUES(points_earned);
+INSERT INTO user_missions (user_id, mission_id, points_earned, status, completed_at) VALUES
+(1, 1, 100.00, 'collected', NOW() - INTERVAL 115 DAY),
+(1, 2, 500.00, 'collected', NOW() - INTERVAL 90 DAY),
+(1, 3, 1000.00, 'collected', NOW() - INTERVAL 75 DAY),
+(1, 4, 300.00, 'collected', NOW() - INTERVAL 50 DAY),
+(1, 5, 200.00, 'collected', NOW() - INTERVAL 30 DAY),
+(2, 1, 100.00, 'collected', NOW() - INTERVAL 90 DAY),
+(2, 2, 500.00, 'collected', NOW() - INTERVAL 70 DAY),
+(2, 4, 300.00, 'collected', NOW() - INTERVAL 40 DAY),
+(2, 5, 200.00, 'collected', NOW() - INTERVAL 20 DAY),
+(3, 1, 100.00, 'collected', NOW() - INTERVAL 75 DAY),
+(3, 2, 500.00, 'collected', NOW() - INTERVAL 65 DAY),
+(3, 3, 1000.00, 'collected', NOW() - INTERVAL 55 DAY),
+(3, 4, 300.00, 'collected', NOW() - INTERVAL 35 DAY),
+(3, 5, 200.00, 'collected', NOW() - INTERVAL 15 DAY),
+(4, 1, 100.00, 'collected', NOW() - INTERVAL 60 DAY),
+(4, 4, 300.00, 'collected', NOW() - INTERVAL 30 DAY),
+(5, 1, 100.00, 'collected', NOW() - INTERVAL 45 DAY),
+(5, 2, 500.00, 'collected', NOW() - INTERVAL 35 DAY),
+(6, 1, 100.00, 'collected', NOW() - INTERVAL 35 DAY),
+(6, 3, 1000.00, 'collected', NOW() - INTERVAL 25 DAY),
+(7, 1, 100.00, 'collected', NOW() - INTERVAL 30 DAY),
+(7, 2, 500.00, 'collected', NOW() - INTERVAL 20 DAY),
+(8, 1, 100.00, 'collected', NOW() - INTERVAL 25 DAY),
+(9, 1, 100.00, 'collected', NOW() - INTERVAL 20 DAY),
+(9, 2, 500.00, 'collected', NOW() - INTERVAL 10 DAY),
+(10, 1, 100.00, 'collected', NOW() - INTERVAL 15 DAY)
+ON DUPLICATE KEY UPDATE points_earned = VALUES(points_earned), status = VALUES(status);
+
+-- Points History (Rewards System - Mission Rewards and Redemptions)
+INSERT INTO points_history (user_id, points, description, transaction_type, created_at) VALUES
+-- Mission Rewards (Positive Points)
+(1, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 115 DAY),
+(1, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 90 DAY),
+(1, 1000.00, 'Refer a friend to open an account', 'mission', NOW() - INTERVAL 75 DAY),
+(1, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 50 DAY),
+(1, 200.00, 'Set up automatic bill payment', 'mission', NOW() - INTERVAL 30 DAY),
+(1, 100.00, 'Referral bonus - Friend signed up', 'referral', NOW() - INTERVAL 70 DAY),
+(2, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 90 DAY),
+(2, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 70 DAY),
+(2, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 40 DAY),
+(2, 200.00, 'Set up automatic bill payment', 'mission', NOW() - INTERVAL 20 DAY),
+(3, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 75 DAY),
+(3, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 65 DAY),
+(3, 1000.00, 'Refer a friend to open an account', 'mission', NOW() - INTERVAL 55 DAY),
+(3, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 35 DAY),
+(3, 200.00, 'Set up automatic bill payment', 'mission', NOW() - INTERVAL 15 DAY),
+(3, 100.00, 'Referral bonus - Friend signed up', 'referral', NOW() - INTERVAL 50 DAY),
+(4, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 60 DAY),
+(4, 300.00, 'Use mobile banking 10 times', 'mission', NOW() - INTERVAL 30 DAY),
+(5, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 45 DAY),
+(5, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 35 DAY),
+(6, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 35 DAY),
+(6, 1000.00, 'Refer a friend to open an account', 'mission', NOW() - INTERVAL 25 DAY),
+(7, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 30 DAY),
+(7, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 20 DAY),
+(8, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 25 DAY),
+(9, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 20 DAY),
+(9, 500.00, 'Maintain minimum balance for 3 months', 'mission', NOW() - INTERVAL 10 DAY),
+(10, 100.00, 'Complete your first transaction', 'mission', NOW() - INTERVAL 15 DAY),
+-- Reward Redemptions (Negative Points)
+(1, -500.00, 'Redeemed: ₱500 Gift Card', 'redemption', NOW() - INTERVAL 45 DAY),
+(1, -300.00, 'Redeemed: Mobile Phone Load', 'redemption', NOW() - INTERVAL 20 DAY),
+(2, -200.00, 'Redeemed: ₱200 Gift Card', 'redemption', NOW() - INTERVAL 25 DAY),
+(3, -1000.00, 'Redeemed: ₱1000 Shopping Voucher', 'redemption', NOW() - INTERVAL 30 DAY),
+(3, -500.00, 'Redeemed: ₱500 Gift Card', 'redemption', NOW() - INTERVAL 10 DAY),
+(6, -800.00, 'Redeemed: ₱800 Shopping Voucher', 'redemption', NOW() - INTERVAL 12 DAY),
+(7, -300.00, 'Redeemed: Mobile Phone Load', 'redemption', NOW() - INTERVAL 8 DAY),
+(9, -200.00, 'Redeemed: ₱200 Gift Card', 'redemption', NOW() - INTERVAL 5 DAY)
+ON DUPLICATE KEY UPDATE points = VALUES(points);
 
 -- ========================================
 -- 5. BANK ACCOUNTS
@@ -1864,31 +2431,35 @@ ON DUPLICATE KEY UPDATE principal_amount = VALUES(principal_amount);
 -- ========================================
 
 INSERT IGNORE INTO loan_applications (
-    id, full_name, account_number, contact_number, email, job, monthly_salary, 
+    id, loan_type_id, full_name, account_number, contact_number, email, job, monthly_salary, 
     user_email, loan_type, loan_terms, loan_amount, purpose, monthly_payment, 
     due_date, status, remarks, file_name, created_at, approved_by, approved_at, 
     next_payment_due, rejected_by, rejected_at, rejection_remarks, 
-    proof_of_income, coe_document, pdf_path
+    proof_of_income, coe_document, pdf_path, pdf_approved, pdf_active, pdf_rejected
 ) VALUES
-(24, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', NULL, NULL, 'kurtrealisan@gmail.com', 'Home Loan', '24 Months', 5000.00, '0', NULL, NULL, 'Active', 'sdfsdfsdfsd', 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', '2025-11-01 17:18:39', 'Jerome Malunes', '2025-11-02 17:55:21', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(25, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, 'kurtrealisan@gmail.com', 'Home Loan', '12 Months', 60000.00, 'For house building purposes', 5558.07, '2026-11-02', 'Rejected', 'Invalid ID', 'uploads/download.jpg', '2025-11-02 04:00:24', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-02 17:29:08', 'Invalid ID', NULL, NULL, NULL),
-(26, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Car Loan', '24 Months', 50000.00, 'For personal car purposes ', 2544.79, '2027-11-02', 'Active', 'Thank You!', 'uploads/download.jpg', '2025-11-02 10:44:49', 'Jerome Malunes', '2025-11-02 17:15:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(27, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '24 Months', 7000.00, 'For family house ni Carspeso', 356.27, '2027-11-02', 'Rejected', 'The ID is not valid', 'uploads/images.jpg', '2025-11-02 10:55:26', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(28, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Personal Loan', '6 Months', 6000.00, 'For study purposes ', 1059.14, '2026-05-02', 'Rejected', 'sffsdfsd', 'uploads/Jespic.jpg', '2025-11-02 12:45:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(29, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '30 Months', 6000.00, 'For housing purposes', 255.78, '2028-05-02', 'Active', 'Thank You!', 'uploads/Jespic.jpg', '2025-11-02 12:47:59', 'Jerome Malunes', '2025-11-02 16:44:48', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(30, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 5000.00, 'For multi purpose only', 882.61, '2026-05-02', 'Approved', 'sdfsdfsd', 'uploads/Jespic.jpg', '2025-11-02 13:38:07', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(31, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For purposes only', 1235.66, '2026-05-02', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-02 17:01:28', 'Jerome Malunes', '2025-11-03 01:04:11', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(32, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '6 Months', 10000.00, 'For purposes', 1765.23, '2026-05-02', 'Rejected', 'Invalid ID', 'uploads/Jespic.jpg', '2025-11-02 21:29:52', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-03 05:30:50', 'Invalid ID', NULL, NULL, NULL),
-(33, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '6 Months', 5000.00, 'For buying house parts', 882.61, '2026-05-02', 'Active', 'Thank you!', 'uploads/Jespic.jpg', '2025-11-02 21:47:34', 'Jerome Malunes', '2025-11-03 05:48:14', '2025-12-03', NULL, NULL, NULL, NULL, NULL, NULL),
-(34, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For investment', 1235.66, '2026-05-02', 'Active', 'Thank you for applying loans!! Please pay on the exact time', 'uploads/Jespic.jpg', '2025-11-02 22:24:57', 'Jerome Malunes', '2025-11-03 06:38:36', '2025-12-03', NULL, NULL, NULL, NULL, NULL, 'uploads/loan_approved_34_20251106141556.pdf'),
-(35, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Personal Loan', '12 Months', 30000.00, 'For funds ', 2779.04, '2026-11-06', 'Rejected', 'Please input a clear picture of valid ID', 'uploads/Jespic.jpg', '2025-11-06 10:56:13', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 19:06:39', 'Please input a clear picture of valid ID', 'uploads/Lord, I pray for this (2).png', 'uploads/download.jpg', 'uploads/loan_rejected_35_20251106141541.pdf'),
-(36, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 9000.00, 'Bahay namin maliit lamang', 458.06, '2027-11-06', 'Active', 'Congratulations!!', 'uploads/Jespic.jpg', '2025-11-06 11:20:08', 'Jerome Malunes', '2025-11-06 19:57:54', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD (1).png', 'uploads/loan_approved_36_20251106140535.pdf'),
-(37, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '36 Months', 100000.00, 'For family planning', 3716.36, '2028-11-06', 'Active', 'Please be advised', 'uploads/Jespic.jpg', '2025-11-06 13:52:07', 'Jerome Malunes', '2025-11-06 21:52:50', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD.png', 'uploads/loan_approved_37_20251106145455.pdf'),
-(38, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '24 Months', 7000.00, 'pautang ssob', 356.27, '2027-11-06', 'Rejected', 'Please upload a clear picture of ID', 'uploads/Jespic.jpg', '2025-11-06 14:01:54', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 22:27:53', 'Please upload a clear picture of ID', 'uploads/Lord, I pray for this (3).png', 'uploads/images.jpg', 'uploads/loan_rejected_38_20251106153300.pdf'),
-(39, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '12 Months', 8000.00, 'Bahay Kubo', 741.08, '2026-11-06', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-06 14:39:43', 'Jerome Malunes', '2025-11-06 22:42:16', '2025-12-06', NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', 'uploads/loan_approved_39_20251106155223.pdf'),
-(40, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Multi-Purpose Loan', '12 Months', 6000.00, 'For purpose', 555.81, '2026-11-07', 'Pending', NULL, 'uploads/Jespic.jpg', '2025-11-07 13:48:14', NULL, NULL, NULL, NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', NULL),
-(41, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 40000.00, 'oh when the saints , ipaghiganti mo ang iglesiaaaaaaaaaaaa', 2035.83, '2027-11-07', 'Active', 'Maureene', 'uploads/Jespic.jpg', '2025-11-07 17:11:58', 'Jerome Malunes', '2025-11-08 01:15:36', '2025-12-08', NULL, NULL, NULL, 'uploads/images.jpg', 'uploads/633f1770-3587-4d69-99c3-a9871b0818b9.jpg', 'uploads/loan_approved_41_20251107181558.pdf')
+(24, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', NULL, NULL, 'kurtrealisan@gmail.com', 'Home Loan', '24 Months', 5000.00, '0', NULL, NULL, 'Active', 'sdfsdfsdfsd', 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', '2025-11-01 17:18:39', 'Jerome Malunes', '2025-11-02 17:55:21', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(25, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, 'kurtrealisan@gmail.com', 'Home Loan', '12 Months', 60000.00, 'For house building purposes', 5558.07, '2026-11-02', 'Rejected', 'Invalid ID', 'uploads/download.jpg', '2025-11-02 04:00:24', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-02 17:29:08', 'Invalid ID', NULL, NULL, NULL, NULL, NULL, NULL),
+(26, 2, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Car Loan', '24 Months', 50000.00, 'For personal car purposes ', 2544.79, '2027-11-02', 'Active', 'Thank You!', 'uploads/download.jpg', '2025-11-02 10:44:49', 'Jerome Malunes', '2025-11-02 17:15:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(27, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '24 Months', 7000.00, 'For family house ni Carspeso', 356.27, '2027-11-02', 'Rejected', 'The ID is not valid', 'uploads/images.jpg', '2025-11-02 10:55:26', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(28, 1, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Personal Loan', '6 Months', 6000.00, 'For study purposes ', 1059.14, '2026-05-02', 'Rejected', 'sffsdfsd', 'uploads/Jespic.jpg', '2025-11-02 12:45:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(29, 3, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Home Loan', '30 Months', 6000.00, 'For housing purposes', 255.78, '2028-05-02', 'Active', 'Thank You!', 'uploads/Jespic.jpg', '2025-11-02 12:47:59', 'Jerome Malunes', '2025-11-02 16:44:48', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(30, 4, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 5000.00, 'For multi purpose only', 882.61, '2026-05-02', 'Approved', 'sdfsdfsd', 'uploads/Jespic.jpg', '2025-11-02 13:38:07', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(31, 4, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For purposes only', 1235.66, '2026-05-02', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-02 17:01:28', 'Jerome Malunes', '2025-11-03 01:04:11', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(32, 2, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '6 Months', 10000.00, 'For purposes', 1765.23, '2026-05-02', 'Rejected', 'Invalid ID', 'uploads/Jespic.jpg', '2025-11-02 21:29:52', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-03 05:30:50', 'Invalid ID', NULL, NULL, NULL, NULL, NULL, NULL),
+(33, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '6 Months', 5000.00, 'For buying house parts', 882.61, '2026-05-02', 'Active', 'Thank you!', 'uploads/Jespic.jpg', '2025-11-02 21:47:34', 'Jerome Malunes', '2025-11-03 05:48:14', '2025-12-03', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(34, 4, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 7000.00, 'For investment', 1235.66, '2026-05-02', 'Active', 'Thank you for applying loans!! Please pay on the exact time', 'uploads/Jespic.jpg', '2025-11-02 22:24:57', 'Jerome Malunes', '2025-11-03 06:38:36', '2025-12-03', NULL, NULL, NULL, NULL, NULL, 'uploads/loan_approved_34_20251106141556.pdf', NULL, NULL, NULL),
+(35, 1, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Personal Loan', '12 Months', 30000.00, 'For funds ', 2779.04, '2026-11-06', 'Rejected', 'Please input a clear picture of valid ID', 'uploads/Jespic.jpg', '2025-11-06 10:56:13', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 19:06:39', 'Please input a clear picture of valid ID', 'uploads/Lord, I pray for this (2).png', 'uploads/download.jpg', 'uploads/loan_rejected_35_20251106141541.pdf', NULL, NULL, NULL),
+(36, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 9000.00, 'Bahay namin maliit lamang', 458.06, '2027-11-06', 'Active', 'Congratulations!!', 'uploads/Jespic.jpg', '2025-11-06 11:20:08', 'Jerome Malunes', '2025-11-06 19:57:54', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD (1).png', 'uploads/loan_approved_36_20251106140535.pdf', NULL, NULL, NULL),
+(37, 4, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Multi-Purpose Loan', '36 Months', 100000.00, 'For family planning', 3716.36, '2028-11-06', 'Active', 'Please be advised', 'uploads/Jespic.jpg', '2025-11-06 13:52:07', 'Jerome Malunes', '2025-11-06 21:52:50', '2025-12-06', NULL, NULL, NULL, 'uploads/the-dark-knight-mixed-art-fvy9jfrmv7np7z0r.jpg', 'uploads/ERD.png', 'uploads/loan_approved_37_20251106145455.pdf', NULL, NULL, NULL),
+(38, 2, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Car Loan', '24 Months', 7000.00, 'pautang ssob', 356.27, '2027-11-06', 'Rejected', 'Please upload a clear picture of ID', 'uploads/Jespic.jpg', '2025-11-06 14:01:54', NULL, NULL, NULL, 'Jerome Malunes', '2025-11-06 22:27:53', 'Please upload a clear picture of ID', 'uploads/Lord, I pray for this (3).png', 'uploads/images.jpg', 'uploads/loan_rejected_38_20251106153300.pdf', NULL, NULL, NULL),
+(39, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '12 Months', 8000.00, 'Bahay Kubo', 741.08, '2026-11-06', 'Active', 'OK', 'uploads/Jespic.jpg', '2025-11-06 14:39:43', 'Jerome Malunes', '2025-11-06 22:42:16', '2025-12-06', NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', 'uploads/loan_approved_39_20251106155223.pdf', NULL, NULL, NULL),
+(40, 4, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Multi-Purpose Loan', '12 Months', 6000.00, 'For purpose', 555.81, '2026-11-07', 'Pending', NULL, 'uploads/Jespic.jpg', '2025-11-07 13:48:14', NULL, NULL, NULL, NULL, NULL, NULL, 'uploads/download.jpg', 'uploads/images.jpg', NULL, NULL, NULL, NULL),
+(41, 3, 'Clarence Carpeso', '1006789012', '09678901234', 'clarencecarpeso@gmail.com', 'Crossfire Developer', 20000.00, '', 'Home Loan', '24 Months', 40000.00, 'oh when the saints , ipaghiganti mo ang iglesiaaaaaaaaaaaa', 2035.83, '2027-11-07', 'Active', 'Maureene', 'uploads/Jespic.jpg', '2025-11-07 17:11:58', 'Jerome Malunes', '2025-11-08 01:15:36', '2025-12-08', NULL, NULL, NULL, 'uploads/images.jpg', 'uploads/633f1770-3587-4d69-99c3-a9871b0818b9.jpg', 'uploads/loan_approved_41_20251107181558.pdf', NULL, NULL, NULL),
+(61, 2, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Car Loan', '12 Months', 7000.00, 'For purposes only', 648.44, '2026-11-29', 'Active', 'Dear Mike Beringuela,\n\nYour loan is now ACTIVE!\n\nPayment Details:\n- Monthly Payment: ₱648.44\n- First Payment Due: December 29, 2025\n- Final Payment: November 29, 2026\n\nActivated by: Jerome Malunes\nDate: 2025-11-29 09:45:59', 'uploads/692a5017799e3_loan_rejected_60_1764379593.pdf', '2025-11-29 01:44:55', 'Jerome Malunes', '2025-11-29 09:45:25', '2025-12-29', NULL, NULL, NULL, 'uploads/692a5017799e7_loan_active_58_1764379377.pdf', 'uploads/692a5017799e8_SIA_DOCU_Final.pdf', NULL, 'uploads/loan_approved_61_1764380731.pdf', 'uploads/loan_active_61_1764380782.pdf', NULL),
+(62, 3, 'Mike Beringuela', '1004567890', '09456789012', 'mikeberinguela@gmail.com', 'Project Manager', 70000.00, '', 'Home Loan', '12 Months', 9000.00, 'For purposes only', 833.71, '2026-11-29', 'Pending', NULL, 'uploads/692a50d714171_Gemini_Generated_Image_ija02cija02cija0.png', '2025-11-29 01:48:07', NULL, NULL, '2025-12-29', NULL, NULL, NULL, 'uploads/692a50d714176_Gemini_Generated_Image_ija02cija02cija0.png', 'uploads/692a50d714178_loan_notification_approved_53_20251129010635.pdf', NULL, NULL, NULL, NULL),
+(63, 4, 'Kurt Realisan', '1001234567', '09123456789', 'kurtrealisan@gmail.com', 'Data Analyst', 20000.00, '', 'Multi-Purpose Loan', '6 Months', 9000.00, 'For', 1588.71, '2026-05-29', 'Approved', 'Dear Kurt Realisan,\n\nCongratulations! Your loan application for ₱9,000.00 has been APPROVED.\n\nPlease visit our bank within 30 days to claim your loan.\n\nLoan Details:\n- Amount: ₱9,000.00\n- Term: 6 Months\n- Monthly Payment: ₱1,588.71\n\nApproved by: Jerome Malunes\nDate: 2025-11-29 09:50:14', 'uploads/692a51462fa0b_loan_active_61_1764380782.pdf', '2025-11-29 01:49:58', 'Jerome Malunes', '2025-11-29 09:50:14', '2025-12-29', NULL, NULL, NULL, 'uploads/692a51462fa11_loan_approved_61_1764380731.pdf', 'uploads/692a51462fa13_loan_active_58_1764379377.pdf', NULL, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE 
+    loan_type_id = VALUES(loan_type_id),
     full_name = VALUES(full_name),
     account_number = VALUES(account_number),
     contact_number = VALUES(contact_number),
@@ -1913,8 +2484,30 @@ ON DUPLICATE KEY UPDATE
     rejection_remarks = VALUES(rejection_remarks),
     proof_of_income = VALUES(proof_of_income),
     coe_document = VALUES(coe_document),
-    pdf_path = VALUES(pdf_path);
+    pdf_path = VALUES(pdf_path),
+    pdf_approved = VALUES(pdf_approved),
+    pdf_active = VALUES(pdf_active),
+    pdf_rejected = VALUES(pdf_rejected);
 
+INSERT INTO `loan_application_types` (`id`, `name`) VALUES
+(2, 'Car Loan'),
+(3, 'Home Loan'),
+(4, 'Multi-Purpose Loan'),
+(1, 'Personal Loan');
+
+INSERT INTO `loan_valid_id` (`id`, `valid_id_type`) VALUES
+(1, 'Driver\'s License'),
+(2, 'Postal Id'),
+(3, 'GSIS'),
+(4, 'NBI Clearance'),
+(5, 'Passport'),
+(6, 'National Id'),
+(7, 'UMId'),
+(8, 'Voter\'s ID'),
+(9, 'PRC ID'),
+(10, 'Postal ID'),
+(11, 'PhilHealth ID'),
+(12, 'Senior Citizen ID');
 -- ========================================
 -- 11. LOAN PAYMENTS DATA
 -- ========================================
@@ -2536,4 +3129,3 @@ ORDER BY total_employees DESC;
 
 SELECT '=== ALL DATA SUCCESSFULLY INSERTED ===' AS final_status;
 SELECT '=== ACCOUNTING & FINANCE SYSTEM IS READY FOR TESTING ===' AS ready_status;
-

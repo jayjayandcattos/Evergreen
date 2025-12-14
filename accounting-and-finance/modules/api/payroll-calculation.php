@@ -24,10 +24,32 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     
     // Get employee_id from external_employee_no (format: EMP001 -> 1, EMP002 -> 2, etc.)
     $employee_id_from_external = null;
+    
+    // First, try to extract from external_employee_no format (EMP001, EMP002, etc.)
     if (preg_match('/EMP(\d+)/i', $employee_external_no, $matches)) {
         $employee_id_from_external = intval($matches[1]);
     } else {
-        $employee_id_from_external = is_numeric($employee_external_no) ? intval($employee_external_no) : null;
+        // Try direct match if it's already a number
+        if (is_numeric($employee_external_no)) {
+            $employee_id_from_external = intval($employee_external_no);
+        } else {
+            // Fallback: Try to get employee_id from employee_refs or employee table
+            $fallback_query = "SELECT e.employee_id 
+                              FROM employee e 
+                              LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                              WHERE er.external_employee_no = ? OR CONCAT('EMP', LPAD(e.employee_id, 3, '0')) = ?
+                              LIMIT 1";
+            $fallback_stmt = $conn->prepare($fallback_query);
+            if ($fallback_stmt) {
+                $fallback_stmt->bind_param("ss", $employee_external_no, $employee_external_no);
+                $fallback_stmt->execute();
+                $fallback_result = $fallback_stmt->get_result();
+                if ($fallback_row = $fallback_result->fetch_assoc()) {
+                    $employee_id_from_external = intval($fallback_row['employee_id']);
+                }
+                $fallback_stmt->close();
+            }
+        }
     }
     
     // Get attendance data for the period from BOTH HRIS attendance AND employee_attendance tables
@@ -191,41 +213,61 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     $hourly_rate = 0;
     $base_salary = 0;
     
-    // Get employee base salary directly from employee_refs table
-    $employee_data = null;
+    // Get employee base salary - MATCH ACCOUNTING SYSTEM: prioritize contract salary first, then employee_refs
+    // We need employee_id to join with contract table, so we'll query using the extracted employee_id
+    $base_salary = 0;
     
-    // Try prepared statement first
-    $employee_query = "SELECT base_monthly_salary FROM employee_refs WHERE external_employee_no = ? LIMIT 1";
-    $emp_stmt = $conn->prepare($employee_query);
-    
-    if ($emp_stmt === false) {
-        // If prepare fails (likely column doesn't exist or SQL error), use fallback query
-        $escaped_emp_no = $conn->real_escape_string($employee_external_no);
-        $fallback_query = "SELECT base_monthly_salary FROM employee_refs WHERE external_employee_no = '$escaped_emp_no' LIMIT 1";
-        $fallback_result = $conn->query($fallback_query);
+    if ($employee_id_from_external) {
+        // Query with priority: contract salary first, then employee_refs base_monthly_salary
+        $employee_query = "SELECT 
+                            c.salary as contract_salary,
+                            er.base_monthly_salary
+                          FROM employee e
+                          LEFT JOIN contract c ON e.contract_id = c.contract_id
+                          LEFT JOIN employee_refs er ON er.external_employee_no = CONCAT('EMP', LPAD(e.employee_id, 3, '0'))
+                          WHERE e.employee_id = ?
+                          LIMIT 1";
+        $emp_stmt = $conn->prepare($employee_query);
         
-        if ($fallback_result === false) {
-            // If that also fails, try SELECT * to check if table exists at all
-            $fallback_query2 = "SELECT * FROM employee_refs WHERE external_employee_no = '$escaped_emp_no' LIMIT 1";
-            $fallback_result2 = $conn->query($fallback_query2);
-            $employee_data = $fallback_result2 ? $fallback_result2->fetch_assoc() : null;
-        } else {
-            $employee_data = $fallback_result->fetch_assoc();
+        if ($emp_stmt) {
+            $emp_stmt->bind_param("i", $employee_id_from_external);
+            $emp_stmt->execute();
+            $emp_result = $emp_stmt->get_result();
+            $employee_data = $emp_result->fetch_assoc();
+            $emp_stmt->close();
+            
+            // MATCH ACCOUNTING SYSTEM PRIORITY: contract salary first, then employee_refs base_monthly_salary
+            if ($employee_data) {
+                // First try HRIS contract salary (priority 1)
+                if (!empty($employee_data['contract_salary']) && floatval($employee_data['contract_salary']) > 0) {
+                    $base_salary = floatval($employee_data['contract_salary']);
+                } elseif (isset($employee_data['base_monthly_salary']) && floatval($employee_data['base_monthly_salary']) > 0) {
+                    // Then try employee_refs base_monthly_salary (priority 2)
+                    $base_salary = floatval($employee_data['base_monthly_salary']);
+                }
+            }
         }
-    } else {
-        $emp_stmt->bind_param("s", $employee_external_no);
-        $emp_stmt->execute();
-        $emp_result = $emp_stmt->get_result();
-        $employee_data = $emp_result->fetch_assoc();
-        $emp_stmt->close();
     }
     
-    // Get base salary from employee_refs table (Philippine market rates)
-    if ($employee_data && isset($employee_data['base_monthly_salary'])) {
-        $base_salary = floatval($employee_data['base_monthly_salary']);
+    // Fallback: Try employee_refs directly if we couldn't get employee_id
+    if ($base_salary == 0) {
+        $emp_query_fallback = "SELECT base_monthly_salary FROM employee_refs WHERE external_employee_no = ? LIMIT 1";
+        $emp_stmt_fallback = $conn->prepare($emp_query_fallback);
+        
+        if ($emp_stmt_fallback) {
+            $emp_stmt_fallback->bind_param("s", $employee_external_no);
+            $emp_stmt_fallback->execute();
+            $emp_result_fallback = $emp_stmt_fallback->get_result();
+            $employee_data_fallback = $emp_result_fallback->fetch_assoc();
+            $emp_stmt_fallback->close();
+            
+            if ($employee_data_fallback && isset($employee_data_fallback['base_monthly_salary'])) {
+                $base_salary = floatval($employee_data_fallback['base_monthly_salary']);
+            }
+        }
     }
     
-    // Fallback to base salary components if employee salary not found
+    // Final fallback: base salary components if employee salary not found
     if ($base_salary == 0 && !empty($base_salary_components)) {
         foreach ($base_salary_components as $component) {
             if (isset($component['code']) && $component['code'] === 'BASIC') {
@@ -251,16 +293,21 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
         // Prorate based on actual period days vs full month
         $days_in_month = (int)$end_date->format('t'); // Last day of the month
         $prorated_base_salary = ($base_salary / $days_in_month) * $period_days;
-    }
-    
-    if ($prorated_base_salary > 0) {
-        // Calculate daily rate based on prorated salary and period days
+        // For bi-monthly: calculate daily rate based on prorated salary and period days
         $daily_rate = $prorated_base_salary / $period_days;
         $hourly_rate = $daily_rate / $hours_per_day;
-    } else if ($base_salary > 0) {
-        // Fallback to monthly calculation
+    } else {
+        // Full month: use standard 22 working days (not calendar days)
+        // No proration needed for full month
+        $prorated_base_salary = $base_salary;
         $daily_rate = $base_salary / $working_days_per_month;
         $hourly_rate = $daily_rate / $hours_per_day;
+    }
+    
+    // Fallback if base_salary is 0
+    if ($base_salary == 0) {
+        $daily_rate = 0;
+        $hourly_rate = 0;
     }
     
     // Overtime rate is 125% of hourly rate (Philippine standard)
@@ -290,13 +337,12 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
         $leave_types = "";
         
         // For period-based: check if leave overlaps with period
+        // Improved overlap logic: leave overlaps if it starts before period ends AND ends after period starts
         $leave_query .= " AND (
                             (lr.start_date <= ? AND lr.end_date >= ?)
-                            OR (lr.start_date BETWEEN ? AND ?)
-                            OR (lr.end_date BETWEEN ? AND ?)
                         )";
-        $leave_params = [$employee_id_from_external, $period_end, $period_start, $period_start, $period_end, $period_start, $period_end];
-        $leave_types = "issssss"; // 1 integer + 6 strings = 7 parameters
+        $leave_params = [$employee_id_from_external, $period_end, $period_start];
+        $leave_types = "iss"; // 1 integer + 2 strings = 3 parameters
         
         $leave_stmt = $conn->prepare($leave_query);
         if ($leave_stmt) {
@@ -483,40 +529,144 @@ function calculatePayrollFromAttendance($conn, $employee_external_no, $period_st
     
     $stmt->close();
     
-    // Calculate adjusted salary
+    // Round all adjustments
     $calculation['salary_adjustments']['basic_salary'] = round($calculation['salary_adjustments']['basic_salary'], 2);
     $calculation['salary_adjustments']['absent_deduction'] = round($calculation['salary_adjustments']['absent_deduction'], 2);
     $calculation['salary_adjustments']['half_day_deduction'] = round($calculation['salary_adjustments']['half_day_deduction'], 2);
     $calculation['salary_adjustments']['late_penalty'] = round($calculation['salary_adjustments']['late_penalty'], 2);
     $calculation['salary_adjustments']['overtime_pay'] = round($calculation['salary_adjustments']['overtime_pay'], 2);
     
-    // Adjusted salary = Base salary - absent deductions - half day deductions - late penalties + overtime
-    // Use prorated base salary for bi-monthly periods
-    $base_salary_for_calculation = isset($prorated_base_salary) ? $prorated_base_salary : $base_salary;
-    $expected_days = $calculation['attendance_summary']['total_days'];
+    // Calculate Gross Salary = basic_salary (earned from present days) + overtime_pay
+    $gross_salary = $calculation['salary_adjustments']['basic_salary'] + $calculation['salary_adjustments']['overtime_pay'];
+    $calculation['salary_adjustments']['gross_salary'] = round($gross_salary, 2);
     
-    if ($expected_days > 0) {
-        // Pro-rated based on attendance
-        $attendance_rate = $calculation['attendance_summary']['present_days'] / $expected_days;
-        $adjusted_base = $base_salary_for_calculation * $attendance_rate;
-        
-        // Apply adjustments
-        $calculation['salary_adjustments']['adjusted_salary'] = round(
-            $adjusted_base 
-            - $calculation['salary_adjustments']['absent_deduction']
-            - $calculation['salary_adjustments']['half_day_deduction'] 
-            - $calculation['salary_adjustments']['late_penalty']
-            + $calculation['salary_adjustments']['overtime_pay']
-        , 2);
-    } else {
-        // If no attendance days, use prorated base salary as starting point
-        $calculation['salary_adjustments']['adjusted_salary'] = round($base_salary_for_calculation, 2);
-    }
+    // Calculate Net Salary = Gross Salary - absent deductions - half day deductions - late penalties
+    // Note: Mandatory contributions and withholding tax are calculated separately in the payroll management page
+    $net_salary_before_tax = $gross_salary 
+        - $calculation['salary_adjustments']['absent_deduction']
+        - $calculation['salary_adjustments']['half_day_deduction']
+        - $calculation['salary_adjustments']['late_penalty'];
+    $calculation['salary_adjustments']['net_salary_before_tax'] = round($net_salary_before_tax, 2);
+    
+    // Keep adjusted_salary for backward compatibility (same as net_salary_before_tax)
+    $calculation['salary_adjustments']['adjusted_salary'] = round($net_salary_before_tax, 2);
     
     // Store the prorated base salary for reference
+    $base_salary_for_calculation = isset($prorated_base_salary) ? $prorated_base_salary : $base_salary;
     $calculation['salary_adjustments']['prorated_base_salary'] = round($base_salary_for_calculation, 2);
     
+    // Store daily rate and hourly rate for reference
+    $calculation['salary_adjustments']['daily_rate'] = round($daily_rate, 2);
+    $calculation['salary_adjustments']['hourly_rate'] = round($hourly_rate, 2);
+    
     return $calculation;
+}
+
+/**
+ * Calculate SSS Contribution (2025 Rates)
+ * Employee: 5.5%, Employer: 9.5%
+ * Monthly Salary Credit (MSC) range: ₱5,000 - ₱35,000
+ * 
+ * @param float $monthly_salary Monthly basic salary
+ * @return array ['employee' => float, 'employer' => float]
+ */
+function calculateSSSContribution($monthly_salary) {
+    // Apply MSC limits
+    $msc_min = 5000;
+    $msc_max = 35000;
+    
+    // Clamp salary to MSC range
+    $msc = max($msc_min, min($msc_max, $monthly_salary));
+    
+    // 2025 rates: Employee 5.5%, Employer 9.5%
+    $employee_contribution = $msc * 0.055;
+    $employer_contribution = $msc * 0.095;
+    
+    return [
+        'employee' => round($employee_contribution, 2),
+        'employer' => round($employer_contribution, 2),
+        'msc' => $msc
+    ];
+}
+
+/**
+ * Calculate PhilHealth Contribution (2025 Rates)
+ * Total: 5% (2.5% employee, 2.5% employer)
+ * Income ceiling: ₱100,000
+ * 
+ * @param float $monthly_salary Monthly basic salary
+ * @return array ['employee' => float, 'employer' => float]
+ */
+function calculatePhilHealthContribution($monthly_salary) {
+    // Apply income ceiling
+    $income_ceiling = 100000;
+    $base_salary = min($monthly_salary, $income_ceiling);
+    
+    // 2025 rates: 2.5% each (5% total)
+    $employee_contribution = $base_salary * 0.025;
+    $employer_contribution = $base_salary * 0.025;
+    
+    return [
+        'employee' => round($employee_contribution, 2),
+        'employer' => round($employer_contribution, 2)
+    ];
+}
+
+/**
+ * Calculate Pag-IBIG (HDMF) Contribution (2025 Rates)
+ * Employee: 2%, Employer: 2%
+ * Maximum contribution base: ₱5,000 (resulting in ₱100 max contribution each)
+ * 
+ * @param float $monthly_salary Monthly basic salary
+ * @return array ['employee' => float, 'employer' => float]
+ */
+function calculatePagIBIGContribution($monthly_salary) {
+    // Maximum contribution base is ₱5,000
+    $contribution_base = min($monthly_salary, 5000);
+    
+    // 2% each
+    $employee_contribution = $contribution_base * 0.02;
+    $employer_contribution = $contribution_base * 0.02;
+    
+    return [
+        'employee' => round($employee_contribution, 2),
+        'employer' => round($employer_contribution, 2)
+    ];
+}
+
+/**
+ * Calculate BIR Withholding Tax (2025 Progressive Rates)
+ * Based on taxable income (gross salary minus SSS, PhilHealth, Pag-IBIG)
+ * 
+ * @param float $taxable_income Taxable income after mandatory deductions
+ * @return float Withholding tax amount
+ */
+function calculateBIRWithholdingTax($taxable_income) {
+    $tax = 0;
+    
+    // BIR 2025 Progressive Tax Brackets (Revised Withholding Tax Table effective January 1, 2023)
+    // Reference: https://taxcalculatorphilippines.com/
+    if ($taxable_income <= 20833) {
+        // ₱0 - ₱20,833: 0%
+        $tax = 0;
+    } elseif ($taxable_income <= 33332) {
+        // ₱20,833 - ₱33,332: 0.00 + 15% over ₱20,833
+        $tax = ($taxable_income - 20833) * 0.15;
+    } elseif ($taxable_income <= 66666) {
+        // ₱33,333 - ₱66,666: ₱2,500.00 + 20% over ₱33,333
+        $tax = 2500.00 + (($taxable_income - 33333) * 0.20);
+    } elseif ($taxable_income <= 166666) {
+        // ₱66,667 - ₱166,666: ₱10,833.33 + 25% of excess over ₱66,667
+        $tax = 10833.33 + (($taxable_income - 66667) * 0.25);
+    } elseif ($taxable_income <= 666666) {
+        // ₱166,667 - ₱666,666: ₱40,833.33 + 30% of excess over ₱166,667
+        $tax = 40833.33 + (($taxable_income - 166667) * 0.30);
+    } else {
+        // Above ₱666,666: ₱200,833.33 + 35% of excess over ₱666,667
+        $tax = 200833.33 + (($taxable_income - 666667) * 0.35);
+    }
+    
+    return round(max(0, $tax), 2);
 }
 
 /**

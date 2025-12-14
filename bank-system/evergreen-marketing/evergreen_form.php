@@ -4,6 +4,81 @@
        'cookie_secure' => isset($_SERVER['HTTPS']),
        'use_strict_mode' => true
     ]);
+
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['email'])) {
+        header("Location: login.php");
+        exit;
+    }
+
+    // Include database connection
+    include("db_connect.php");
+
+    // Fetch user data from database with address from addresses table
+    $user_id = $_SESSION['user_id'];
+    $userData = [];
+    $userBirthday = '';
+    $userProvince = '';
+    $userCity = '';
+    $userBarangay = '';
+    $userStreetAddress = '';
+    $userZipCode = '';
+    $userProvinceId = 0;
+    $userCityId = 0;
+    $userBarangayId = 0;
+    
+    // Get customer data
+    $sql = "SELECT bc.first_name, bc.middle_name, bc.last_name, bc.email, bc.contact_number,
+                   cp.date_of_birth,
+                   a.address_line, a.province_id, a.city_id, a.barangay_id, a.postal_code,
+                   p.province_name,
+                   c.city_name,
+                   b.barangay_name
+            FROM bank_customers bc
+            LEFT JOIN customer_profiles cp ON bc.customer_id = cp.customer_id
+            LEFT JOIN addresses a ON bc.customer_id = a.customer_id AND a.is_primary = 1
+            LEFT JOIN provinces p ON a.province_id = p.province_id
+            LEFT JOIN cities c ON a.city_id = c.city_id
+            LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
+            WHERE bc.customer_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result && $result->num_rows === 1) {
+        $userData = $result->fetch_assoc();
+        
+        // Debug: Log what we got from database
+        error_log("User data fetched for customer_id: " . $user_id);
+        error_log("Province ID: " . ($userData['province_id'] ?? 'NULL'));
+        error_log("City ID: " . ($userData['city_id'] ?? 'NULL'));
+        error_log("Barangay ID: " . ($userData['barangay_id'] ?? 'NULL'));
+        error_log("Address line: " . ($userData['address_line'] ?? 'NULL'));
+        error_log("Postal code from DB: '" . ($userData['postal_code'] ?? 'NULL') . "'");
+        error_log("Full userData: " . print_r($userData, true));
+        
+        // Format birthday for date input (YYYY-MM-DD)
+        if (!empty($userData['date_of_birth'])) {
+            $userBirthday = date('Y-m-d', strtotime($userData['date_of_birth']));
+        }
+        
+        // Get address data
+        $userStreetAddress = $userData['address_line'] ?? '';
+        $userProvince = $userData['province_name'] ?? '';
+        $userCity = $userData['city_name'] ?? '';
+        $userBarangay = $userData['barangay_name'] ?? '';
+        $userZipCode = $userData['postal_code'] ?? '';  // postal_code from addresses table
+        $userProvinceId = $userData['province_id'] ?? 0;
+        $userCityId = $userData['city_id'] ?? 0;
+        $userBarangayId = $userData['barangay_id'] ?? 0;
+        
+        // Debug: Log zip code value
+        error_log("Zip code value set: '" . $userZipCode . "'");
+    } else {
+        error_log("No user data found for customer_id: " . $user_id . " (rows: " . $result->num_rows . ")");
+    }
+    $stmt->close();
 ?>
 
 <html>
@@ -163,9 +238,15 @@
         flex-direction: column;
       }
 
-      .upper-input-wrap, .lower-input-wrap, .city-input-wrap{
+      .upper-input-wrap, .lower-input-wrap{
         display: flex;
         gap: 20px;
+      }
+
+      .city-input-wrap {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
       }
 
       .input-wrap {
@@ -232,11 +313,132 @@
         color: #8C8C8C;
       }
 
+      /* ID Upload Section Styles */
+      .id-upload-section {
+        margin-top: 15px;
+      }
+
+      .upload-container {
+        width: 100%;
+      }
+
+      .upload-area {
+        border: 2px dashed #C4C4C4;
+        border-radius: 10px;
+        padding: 30px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f9f9f9;
+        margin-top: 5px;
+        display: block;
+      }
+
+      .upload-area:hover {
+        border-color: #003631;
+        background: #f0f7f6;
+      }
+
+      .upload-area.dragover {
+        border-color: #003631;
+        background: #e8f5e9;
+        transform: scale(1.02);
+      }
+
+      .upload-icon {
+        font-size: 40px;
+        margin-bottom: 10px;
+      }
+
+      .upload-text {
+        font-size: 14px;
+        color: #003631;
+        font-weight: 500;
+        margin: 0 0 5px 0;
+      }
+
+      .upload-hint {
+        font-size: 12px;
+        color: #8C8C8C;
+        margin: 0;
+      }
+
+      .upload-preview {
+        border: 1px solid #C4C4C4;
+        border-radius: 10px;
+        padding: 15px;
+        background: #f9f9f9;
+        margin-top: -10px;
+      }
+
+      .upload-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        display: block;
+        margin: 0 auto 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+
+      .preview-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 10px;
+        border-top: 1px solid #E6E6E6;
+      }
+
+      .preview-info #file-name {
+        font-size: 13px;
+        color: #003631;
+        font-weight: 500;
+        max-width: 70%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .remove-file {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .remove-file:hover {
+        background: #c82333;
+      }
+
+      /* PDF preview placeholder */
+      .pdf-preview {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        background: #fff;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+
+      .pdf-preview .pdf-icon {
+        font-size: 50px;
+        margin-bottom: 10px;
+      }
+
+      .pdf-preview .pdf-text {
+        font-size: 14px;
+        color: #003631;
+      }
+
       .two-col-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
-        align-items: center;
+        align-items: start;
       }
 
       .full-width {
@@ -252,7 +454,7 @@
       /* FORM - Button */
       .btn-container {
         display: flex;
-        justify-content: flex-start;
+        justify-content: space-between;
       }
 
       .button-action {
@@ -284,7 +486,7 @@
 
       .account-type-cards {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 12px;
       }
 
@@ -296,14 +498,21 @@
         cursor: pointer;
         text-align: left;
         transition: 0.2s;
+        position: relative;
       }
 
-      .acct-card h4 {
+      .acct-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .acct-card .card-content h4 {
         margin: 0 0 6px 0;
         font-size: 14px;
       }
 
-      .acct-card p {
+      .acct-card .card-content p {
         margin: 0;
         font-size: 12px;
         color: #8C8C8C;
@@ -316,9 +525,67 @@
         border-color: #003631;
         transition: 0.2s;
       }
+      
+      .selected .card-content p {
+        color: #FFFFFF;
+      }
 
-      .selected h4 {
+      .selected h4, .selected p {
         color: white;
+      }
+
+      /* Card selection options */
+      .card-option {
+        border: 2px solid #E6E6E6;
+        border-radius: 8px;
+        padding: 14px;
+        background: #FFFFFF;
+        cursor: pointer;
+        text-align: left;
+        transition: 0.2s;
+        position: relative;
+      }
+
+      .card-option h4 {
+        margin: 0 0 6px 0;
+        font-size: 14px;
+        color: #003631;
+      }
+
+      .card-option p {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        color: #8C8C8C;
+      }
+
+      .card-option:hover {
+        border-color: #003631;
+        box-shadow: 0 2px 8px rgba(0, 54, 49, 0.1);
+      }
+
+      .card-option .card-checkbox {
+        margin: 0;
+        cursor: pointer;
+      }
+
+      .card-option.card-selected {
+        background-color: #f0f8f7;
+        border-color: #003631;
+      }
+
+      select.inp-credentials {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 35px;
+        cursor: pointer;
+      }
+
+      select.inp-credentials:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: #f5f5f5;
       }
 
       .services-grid {
@@ -354,97 +621,430 @@
         border-color: #D43F3A;
       }
 
-      /* Review Modal */
+      /* Review Modal - Modern Design */
       .modal-container {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 54, 49, 0.6);
+        backdrop-filter: blur(8px);
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 1000;
+        padding: 20px;
       }
 
       .details-review {
-        background-color: white;
-        border-radius: 10px;
-        padding: 20px;
-        width: 50%;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafa 100%);
+        border-radius: 24px;
+        padding: 0;
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 54, 49, 0.25),
+                    0 0 0 1px rgba(0, 54, 49, 0.05);
         display: flex;
-        justify-content: center;
         flex-direction: column;
+      }
+
+      .modal-header {
+        background: linear-gradient(135deg, #003631 0%, #005a50 100%);
+        padding: 28px 32px;
+        border-radius: 24px 24px 0 0;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .modal-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        border-radius: 50%;
+      }
+
+      .modal-header h2 {
+        color: white;
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .modal-header p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        margin: 0;
+        position: relative;
+        z-index: 1;
       }
 
       .details-contains {
-        display: flex;
-        gap: 40px;
-        padding: 20px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        padding: 0;
       }
 
-      .content-group {
-        display: flex;
-        gap: 15px;
+      .review-section {
+        padding: 24px 28px;
+        border-bottom: 1px solid #e8eeee;
       }
 
-      .left, .right {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+      .review-section:nth-child(odd) {
+        border-right: 1px solid #e8eeee;
       }
 
-      .btn-container {
+      .review-section:last-child,
+      .review-section:nth-last-child(2):nth-child(odd) {
+        border-bottom: none;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      .section-icon.personal {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        color: #2e7d32;
+      }
+
+      .section-icon.address {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        color: #1565c0;
+      }
+
+      .section-icon.identity {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        color: #ef6c00;
+      }
+
+      .section-icon.employment {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        color: #7b1fa2;
+      }
+
+      .section-header h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #003631;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .review-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .review-grid.single-col {
+        grid-template-columns: 1fr;
+      }
+
+      .review-item {
+        background: white;
+        border-radius: 12px;
+        padding: 14px 16px;
+        border: 1px solid #e8eeee;
+        transition: all 0.2s ease;
+      }
+
+      .review-item:hover {
+        border-color: #003631;
+        box-shadow: 0 4px 12px rgba(0, 54, 49, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .review-item.full-width {
+        grid-column: span 2;
+      }
+
+      .review-item label {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: #6b7f7d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+
+      .review-item .value {
+        font-size: 15px;
+        font-weight: 600;
+        color: #003631;
+        margin: 0;
+        word-break: break-word;
+      }
+
+      .review-item .value.highlight {
+        color: #005a50;
+      }
+
+      .modal-footer {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        padding: 20px 28px;
+        background: #f8fafa;
+        border-radius: 0 0 24px 24px;
+        border-top: 1px solid #e8eeee;
       }
 
-      #ok {
-        background-color: #003631;
-        color: white;
-        padding: 10px;
-        border-radius: 15px;
-        width: 80px;
-        border: none;
+      .modal-footer .disclaimer {
+        font-size: 12px;
+        color: #6b7f7d;
+        max-width: 400px;
+      }
+
+      .modal-footer .btn-group {
+        display: flex;
+        gap: 12px;
       }
 
       #cancel {
-        color: black;
-        padding: 10px;
-        border-radius: 15px;
-        width: 80px;
-        border: none;
+        background: white;
+        color: #003631;
+        padding: 12px 28px;
+        border-radius: 12px;
+        border: 2px solid #e8eeee;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
-      /* Success modal */
+      #cancel:hover {
+        background: #f8fafa;
+        border-color: #003631;
+      }
+
+      #ok {
+        background: linear-gradient(135deg, #003631 0%, #005a50 100%);
+        color: white;
+        padding: 12px 32px;
+        border-radius: 12px;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(0, 54, 49, 0.3);
+      }
+
+      #ok:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 54, 49, 0.4);
+      }
+
+      #ok:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Location badge styling */
+      .location-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .location-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f0f7f6;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        color: #003631;
+      }
+
+      .location-badge .badge-label {
+        font-weight: 400;
+        color: #6b7f7d;
+      }
+
+      .location-badge .badge-value {
+        font-weight: 600;
+      }
+
+      /* Responsive modal */
+      @media (max-width: 768px) {
+        .details-review {
+          width: 95%;
+          max-height: 95vh;
+        }
+
+        .details-contains {
+          grid-template-columns: 1fr;
+        }
+
+        .review-section:nth-child(odd) {
+          border-right: none;
+        }
+
+        .review-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .review-item.full-width {
+          grid-column: span 1;
+        }
+
+        .modal-footer {
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .modal-footer .disclaimer {
+          text-align: center;
+          max-width: none;
+        }
+
+        .modal-footer .btn-group {
+          width: 100%;
+        }
+
+        #cancel, #ok {
+          flex: 1;
+        }
+      }
+
+      /* Success modal - Modern Design */
       .successful-modal {
-        background-color: white;
-        border-radius: 10px;
-        padding: 30px;
-        width: 40%;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafa 100%);
+        border-radius: 24px;
+        padding: 48px 40px;
+        width: 90%;
+        max-width: 480px;
+        box-shadow: 0 25px 50px -12px rgba(0, 54, 49, 0.25);
         display: flex;
         justify-content: center;
         flex-direction: column;
         align-items: center;
-        gap: 15px;
+        gap: 24px;
+        text-align: center;
+      }
+
+      .success-icon-wrap {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .success-icon-wrap::before {
+        content: '';
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(46, 125, 50, 0.1) 0%, rgba(46, 125, 50, 0.05) 100%);
+        animation: pulse-ring 2s ease-out infinite;
+      }
+
+      @keyframes pulse-ring {
+        0% { transform: scale(0.9); opacity: 1; }
+        100% { transform: scale(1.2); opacity: 0; }
+      }
+
+      .check {
+        width: 50px;
+        height: 50px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .success-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .head-text {
+        font-size: 28px;
+        font-weight: 700;
+        color: #003631;
+        margin: 0;
+      }
+
+      .sub-text {
+        font-size: 16px;
+        color: #6b7f7d;
+        margin: 0;
+        max-width: 320px;
+        line-height: 1.5;
       }
 
       .s-wrap {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
         align-items: center;
+        background: #f0f7f6;
+        padding: 16px 24px;
+        border-radius: 12px;
+        width: 100%;
+      }
+
+      .s-wrap .grey-text {
+        font-size: 13px;
+        color: #6b7f7d;
+        margin: 0;
+      }
+
+      .s-wrap .grey-text strong {
+        color: #003631;
+        font-weight: 600;
       }
 
       #confirm-btn {
-        background-color: #003631;
+        background: linear-gradient(135deg, #003631 0%, #005a50 100%);
         color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
+        padding: 16px 48px;
+        border-radius: 12px;
         border: none;
+        font-size: 16px;
+        font-weight: 600;
         cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px rgba(0, 54, 49, 0.3);
+        width: 100%;
+        max-width: 280px;
+      }
+
+      #confirm-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 54, 49, 0.4);
       }
 
       /* Back button */
@@ -725,10 +1325,14 @@
         }
 
         .upper-input-wrap,
-        .lower-input-wrap,
-        .city-input-wrap {
+        .lower-input-wrap {
           flex-direction: column;
           gap: 15px;
+        }
+
+        .city-input-wrap {
+          grid-template-columns: 1fr;
+          gap: 12px;
         }
 
         .inp-credentials {
@@ -747,7 +1351,7 @@
 
         .two-col-row {
           grid-template-columns: 1fr;
-          gap: 12px;
+          gap: 15px;
         }
 
         .account-type-cards {
@@ -853,8 +1457,12 @@
         }
 
         .upper-input-wrap,
-        .lower-input-wrap,
+        .lower-input-wrap {
+          gap: 12px;
+        }
+
         .city-input-wrap {
+          grid-template-columns: 1fr;
           gap: 12px;
         }
 
@@ -894,17 +1502,18 @@
 
         .account-type-cards {
           gap: 8px;
+          grid-template-columns: 1fr;
         }
 
         .acct-card {
           padding: 12px;
         }
 
-        .acct-card h4 {
+        .acct-card .card-content h4 {
           font-size: 13px;
         }
 
-        .acct-card p {
+        .acct-card .card-content p {
           font-size: 11px;
         }
 
@@ -1084,11 +1693,11 @@
           padding: 10px;
         }
 
-        .acct-card h4 {
+        .acct-card .card-content h4 {
           font-size: 12px;
         }
 
-        .acct-card p {
+        .acct-card .card-content p {
           font-size: 10px;
         }
 
@@ -1176,11 +1785,11 @@
           font-size: 12px;
         }
 
-        .acct-card h4 {
+        .acct-card .card-content h4 {
           font-size: 11px;
         }
 
-        .acct-card p {
+        .acct-card .card-content p {
           font-size: 9px;
         }
 
@@ -1262,7 +1871,7 @@
   </head>
   <body>
     <nav>
-      <img src="images/svgviewer-output.svg" alt="logo" class="logo">
+      <img src="images/loginlogo.png" alt="logo" class="logo">
       <div class="wrap-nav">
         <h1 id="title-page">EVERGREEN</h1>
         <P class="motto">Secure, Invest, Achieve</P>
@@ -1302,57 +1911,68 @@
 
         <!-- this will be the replaceable panel -->
         <div class="fillup-change">
+          <!-- Hidden fields for customer profile data (set to empty/null if not available) -->
+          <input type="hidden" id="customer-gender" value="">
+          <input type="hidden" id="customer-nationality" value="">
+          <input type="hidden" id="customer-place-of-birth" value="">
+          <input type="hidden" id="customer-civil-status" value="">
+          <input type="hidden" id="customer-source-of-funds" value="">
           
           <!-- Personal info part -->
           <div class="personal-info-panel">
             <div class="upper-input-wrap">
               <div class="input-wrap">
                 <label for="f-name">First Name<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="f-name">
+                <input type="text" class="inp-credentials" id="f-name" value="<?php echo htmlspecialchars($userData['first_name'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="l-name">Last Name<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="l-name">
+                <input type="text" class="inp-credentials" id="l-name" value="<?php echo htmlspecialchars($userData['last_name'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
             </div>
 
             <div class="lower-input-wrap">
               <div class="input-wrap">
                 <label for="e-mail">Email Address<span style="color: red;">*</span></label>
-                <input type="email" class="inp-credentials" id="e-mail">
+                <input type="email" class="inp-credentials" id="e-mail" value="<?php echo htmlspecialchars($userData['email'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="phone-number">Phone Number<span style="color: red;">*</span></label>
-                <input type="tel" class="inp-credentials" id="phone-number" placeholder="(123) 456-7890">
+                <input type="tel" class="inp-credentials" id="phone-number" value="<?php echo htmlspecialchars($userData['contact_number'] ?? ''); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
             </div>
           </div>
 
           <div class="date-input-wrap">
               <div class="input-wrap">
                 <label for="date-of-birth">Date of Birth<span style="color: red;">*</span></label>
-                <input type="date" class="inp-credentials" id="date-of-birth">
-              </div>
-            </div>
-
-            <div class="street-input-wrap">
-              <div class="input-wrap">
-                <label for="street-address">Street Address<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="street-address">
+                <input type="date" class="inp-credentials" id="date-of-birth" value="<?php echo htmlspecialchars($userBirthday); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
+                <span class="helper-text" style="font-size: 11px; color: #666; margin-top: 4px;">Based on your account registration</span>
               </div>
             </div>
 
             <div class="city-input-wrap">
               <div class="input-wrap">
-                <label for="city">City<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="city">
+                <label for="state">Province<span style="color: red;">*</span></label>
+                <input type="text" class="inp-credentials" id="state" value="<?php echo htmlspecialchars($userProvince); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
-                <label for="state">State<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="state">
+                <label for="city">City/Municipality<span style="color: red;">*</span></label>
+                <input type="text" class="inp-credentials" id="city" value="<?php echo htmlspecialchars($userCity); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
+              </div>
+              <div class="input-wrap">
+                <label for="barangay">Barangay<span style="color: red;">*</span></label>
+                <input type="text" class="inp-credentials" id="barangay" value="<?php echo htmlspecialchars($userBarangay); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
+              </div>
+            </div>
+
+            <div class="street-input-wrap">
+              <div class="input-wrap">
+                <label for="street-address">Street Address / House No.<span style="color: red;">*</span></label>
+                <input type="text" class="inp-credentials" id="street-address" value="<?php echo htmlspecialchars($userStreetAddress); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
               <div class="input-wrap">
                 <label for="zip-code">Zip Code<span style="color: red;">*</span></label>
-                <input type="text" class="inp-credentials" id="zip-code">
+                <input type="text" class="inp-credentials" id="zip-code" value="<?php echo htmlspecialchars($userZipCode); ?>" readonly style="background-color: #f0f0f0; cursor: not-allowed;">
               </div>
             </div>
           </div>
@@ -1363,29 +1983,97 @@
   
   <div class="ssn-wrap">
     <div class="input-wrap">
-      <label for="ssn">Social Security Number<span style="color: red;">*</span></label>
-      <input type="text" id="ssn" class="inp-credentials" placeholder="123-45-6789">
+      <label for="ssn">TIN (Tax Identification Number)<span style="color: red;">*</span></label>
+      <input type="text" id="ssn" class="inp-credentials" placeholder="123-456-789-000" maxlength="15">
     </div>
-    <div class="helper-text">Your SSN is securely encrypted and never shared with third parties.</div>
+    <div class="helper-text">Your TIN is securely encrypted and never shared with third parties.</div>
   </div>
 
   <div class="two-col-row">
     <div class="input-wrap">
-      <label for="id-type">ID Type<span style="color: red;">*</span></label>
+      <label for="id-type">Valid Government ID<span style="color: red;">*</span></label>
       <select id="id-type" class="inp-credentials">
-        <option>Driver's License</option>
-        <option>Passport</option>
-        <option>State ID</option>
+        <option value="">Select ID Type</option>
+        <option value="philippine_passport">Philippine Passport</option>
+        <option value="drivers_license">Driver's License (LTO)</option>
+        <option value="umid">UMID (Unified Multi-Purpose ID)</option>
+        <option value="philhealth">PhilHealth ID</option>
+        <option value="sss">SSS ID</option>
+        <option value="gsis">GSIS ID</option>
+        <option value="prc">PRC ID (Professional Regulation Commission)</option>
+        <option value="postal">Postal ID</option>
+        <option value="voters">Voter's ID / COMELEC Registration</option>
+        <option value="national_id">Philippine National ID (PhilSys)</option>
+        <option value="senior_citizen">Senior Citizen ID</option>
+        <option value="pwd">PWD ID</option>
+        <option value="nbi">NBI Clearance</option>
+        <option value="police">Police Clearance</option>
+        <option value="barangay">Barangay ID / Certificate</option>
+        <option value="tin_card">TIN Card</option>
+        <option value="school_id">School ID (with current registration)</option>
+        <option value="company_id">Company ID</option>
+        <option value="ofw">OFW ID</option>
+        <option value="seaman_book">Seaman's Book</option>
+        <option value="ibp">IBP ID (Integrated Bar of the Philippines)</option>
+        <option value="owwa">OWWA ID</option>
       </select>
     </div>
     <div class="input-wrap">
       <label for="id-number">ID Number<span style="color: red;">*</span></label>
-      <input type="text" id="id-number" class="inp-credentials">
+      <input type="text" id="id-number" class="inp-credentials" placeholder="Enter your ID number">
+      <span class="helper-text" id="id-format-hint" style="font-size: 11px; color: #666; margin-top: 4px;"></span>
+    </div>
+  </div>
+
+  <!-- ID Upload Section -->
+  <div class="id-upload-section" style="margin-top: 20px;">
+    <div class="input-wrap">
+      <label>Upload ID Photo (Front)<span style="color: red;">*</span></label>
+      <div class="upload-container" id="upload-container-front">
+        <input type="file" id="id-upload-front" name="id-upload-front" accept="image/jpeg,image/png,image/jpg" onchange="handleIdUploadFront(this)" style="position: absolute; opacity: 0; width: 0; height: 0;">
+        <label for="id-upload-front" class="upload-area" id="upload-area-front">
+          <div class="upload-icon">📄</div>
+          <p class="upload-text">Click or drag to upload ID front</p>
+          <p class="upload-hint">Accepted formats: JPG, PNG (Max 5MB)</p>
+        </label>
+        <div class="upload-preview" id="upload-preview-front" style="display: none;">
+          <img id="preview-image-front" src="" alt="ID Front Preview">
+          <div class="preview-info">
+            <span id="file-name-front"></span>
+            <button type="button" class="remove-file" onclick="removeIdFileFront()">✕ Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="helper-text" style="margin-top: 8px;">
+        Upload a clear photo of the <strong>front</strong> of your valid ID
+      </div>
+    </div>
+    
+    <div class="input-wrap" style="margin-top: 20px;">
+      <label>Upload ID Photo (Back)<span style="color: red;">*</span></label>
+      <div class="upload-container" id="upload-container-back">
+        <input type="file" id="id-upload-back" name="id-upload-back" accept="image/jpeg,image/png,image/jpg" onchange="handleIdUploadBack(this)" style="position: absolute; opacity: 0; width: 0; height: 0;">
+        <label for="id-upload-back" class="upload-area" id="upload-area-back">
+          <div class="upload-icon">📄</div>
+          <p class="upload-text">Click or drag to upload ID back</p>
+          <p class="upload-hint">Accepted formats: JPG, PNG (Max 5MB)</p>
+        </label>
+        <div class="upload-preview" id="upload-preview-back" style="display: none;">
+          <img id="preview-image-back" src="" alt="ID Back Preview">
+          <div class="preview-info">
+            <span id="file-name-back"></span>
+            <button type="button" class="remove-file" onclick="removeIdFileBack()">✕ Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="helper-text" style="margin-top: 8px;">
+        Upload a clear photo of the <strong>back</strong> of your valid ID
+      </div>
     </div>
   </div>
 
   <!-- Employment Section -->
-  <h3 class="section-title">Employment Information</h3>
+  <h3 class="section-title" style="margin-top: 25px;">Employment Information</h3>
 
   <div class="emp-wrap">
     <div class="input-wrap">
@@ -1421,27 +2109,51 @@
               <h3 class="section-title">Account Preferences</h3>
 
               <div class="account-type-cards">
-                <div class="acct-card" id="acct-checking">
-                  <h4>Checking</h4>
-                  <p>Everyday banking</p>
-                </div>
-                <div class="acct-card" id="acct-savings">
-                  <h4>Savings</h4>
-                  <p>Earn interest</p>
-                </div>
-                <div class="acct-card" id="acct-both">
-                  <h4>Both</h4>
-                  <p>Complete package</p>
+                <label class="acct-card" for="acct-savings">
+                  <input type="radio" name="account_type" id="acct-savings" value="Savings Account" required>
+                  <div class="card-content">
+                    <h4>Savings Account</h4>
+                    <p>Earn interest on your deposits</p>
+                  </div>
+                </label>
+                <label class="acct-card" for="acct-checking">
+                  <input type="radio" name="account_type" id="acct-checking" value="Checking Account" required>
+                  <div class="card-content">
+                    <h4>Checking Account</h4>
+                    <p>Everyday banking transactions</p>
+                  </div>
+                </label>
+              </div>
+
+              <div>
+                <h3 class="section-title">Card Selection</h3>
+                <p style="margin:8px 0 12px 0; font-size:13px; color:#666;">Choose the cards you want to apply for</p>
+                <div class="account-type-cards">
+                  <div class="card-option" data-card="debit">
+                    <h4>Debit Card</h4>
+                    <p>Access your funds instantly</p>
+                    <input type="checkbox" value="debit" class="card-checkbox" style="accent-color: #003631">
+                  </div>
+                  <div class="card-option" data-card="credit">
+                    <h4>Credit Card</h4>
+                    <p>Build credit & earn rewards</p>
+                    <input type="checkbox" value="credit" class="card-checkbox" style="accent-color: #003631">
+                  </div>
+                  <div class="card-option" data-card="prepaid">
+                    <h4>Prepaid Card</h4>
+                    <p>Control your spending</p>
+                    <input type="checkbox" value="prepaid" class="card-checkbox" style="accent-color: #003631">
+                  </div>
                 </div>
               </div>
 
               <div>
                 <p style="margin:8px 0 6px 0; font-size:13px; color:#003631;">Additional Services (Optional)</p>
                 <div class="services-grid">
-                  <label><input type="checkbox" value="debit" style="accent-color: #003631"> Debit Card</label>
                   <label><input type="checkbox" value="online" style="accent-color: #003631"> Online Banking</label>
                   <label><input type="checkbox" value="mobile" style="accent-color: #003631">Mobile Banking</label>
                   <label><input type="checkbox" value="overdraft" style="accent-color: #003631"> Overdraft Protection</label>
+                  <label><input type="checkbox" value="alerts" style="accent-color: #003631"> SMS Alerts</label>
                 </div>
               </div>
 
@@ -1465,99 +2177,294 @@
       </div>
     </main>
 
-    <!-- Review Modal -->
+    <!-- Review Modal - Modern Design -->
     <div class="modal-container" style="display: none;">
       <div class="details-review">
-        <h2 class="confirm-title">Please confirm the details below</h2>
-        <div class="details-contains">
-          <div class="left">
-            <div class="content-wrap">
-              <label for="rev-f-name">First Name</label>
-              <h4 class="rev-f-name">None</h4>          <!-- Content will be dynamically injected here -->
-            </div>
-            <div class="content-wrap">
-              <label for="rev-l-name">Last Name</label>
-              <h4 class="rev-l-name">None</h4>           <!-- Content will be dynamically injected here -->
-            </div>
-            <div class="content-wrap">
-              <label for="rev-birth">Birthday</label>
-              <h4 class="rev-birth">0/00/0000</h4>           <!-- Content will be dynamically injected here -->
-            </div>
-            <div class="content-wrap">
-              <label for="rev-street">Street Address</label>
-              <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
-            </div>
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h2>📋 Review Your Application</h2>
+          <p>Please verify all information is correct before submitting</p>
+        </div>
 
-            <div class="content-group">
-              <div class="content-wrap">
-                <label for="rev-city">City</label>
-                <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
+        <div class="details-contains">
+          <!-- Personal Information Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon personal">👤</div>
+              <h3>Personal Information</h3>
+            </div>
+            <div class="review-grid">
+              <div class="review-item">
+                <label>First Name</label>
+                <p class="value rev-f-name">—</p>
               </div>
-              <div class="content-wrap">
-                <label for="rev-state">State</label>
-                <h4 class="rev-state">None</h4>           <!-- Content will be dynamically injected here -->
+              <div class="review-item">
+                <label>Last Name</label>
+                <p class="value rev-l-name">—</p>
               </div>
-              <div class="content-wrap">
-                <label for="rev-zip">Zip Code</label>
-                <h4 class="rev-street">None</h4>           <!-- Content will be dynamically injected here -->
+              <div class="review-item">
+                <label>Date of Birth</label>
+                <p class="value rev-birth">—</p>
               </div>
-          </div>       
+              <div class="review-item">
+                <label>Email Address</label>
+                <p class="value rev-email">—</p>
+              </div>
+              <div class="review-item full-width">
+                <label>Phone Number</label>
+                <p class="value rev-phone">—</p>
+              </div>
+            </div>
           </div>
-          <div class="right">
-          <div class="content-wrap">
-            <label for="rev-ssn">Social Security Number</label>
-            <h4 class="rev-ssn">000-00-0000</h4>           <!-- Content will be dynamically injected here -->
+
+          <!-- Address Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon address">📍</div>
+              <h3>Address Details</h3>
+            </div>
+            <div class="review-grid single-col">
+              <div class="review-item">
+                <label>Street Address</label>
+                <p class="value rev-street">—</p>
+              </div>
+              <div class="review-item">
+                <label>Location</label>
+                <div class="location-badges">
+                  <span class="location-badge">
+                    <span class="badge-label">Brgy:</span>
+                    <span class="badge-value rev-barangay">—</span>
+                  </span>
+                  <span class="location-badge">
+                    <span class="badge-label">City:</span>
+                    <span class="badge-value rev-city">—</span>
+                  </span>
+                </div>
+              </div>
+              <div class="review-item">
+                <label>Region & Province</label>
+                <div class="location-badges">
+                  <span class="location-badge">
+                    <span class="badge-value rev-region">—</span>
+                  </span>
+                  <span class="location-badge">
+                    <span class="badge-value rev-state">—</span>
+                  </span>
+                  <span class="location-badge">
+                    <span class="badge-label">ZIP:</span>
+                    <span class="badge-value rev-zip">—</span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="content-wrap">
-            <label for="rev-id-type">ID Type</label>
-            <h4 class="rev-id-type">None</h4>           <!-- Content will be dynamically injected here -->
+
+          <!-- Identity Verification Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon identity">🔐</div>
+              <h3>Identity Verification</h3>
+            </div>
+            <div class="review-grid">
+              <div class="review-item full-width">
+                <label>TIN (Tax Identification Number)</label>
+                <p class="value highlight rev-ssn">•••-•••-•••-•••</p>
+              </div>
+              <div class="review-item full-width">
+                <label>ID Document Uploaded</label>
+                <p class="value rev-id-upload" style="color: #28a745;">✓ Document uploaded</p>
+              </div>
+              <div class="review-item">
+                <label>ID Type</label>
+                <p class="value rev-id-type">—</p>
+              </div>
+              <div class="review-item">
+                <label>ID Number</label>
+                <p class="value rev-id-number">—</p>
+              </div>
+            </div>
           </div>
-          <div class="content-wrap">
-            <label for="rev-id-number">ID Number</label>
-            <h4 class="rev-id-number">0000</h4>           <!-- Content will be dynamically injected here -->
+
+          <!-- Employment Section -->
+          <div class="review-section">
+            <div class="section-header">
+              <div class="section-icon employment">💼</div>
+              <h3>Employment Details</h3>
+            </div>
+            <div class="review-grid">
+              <div class="review-item full-width">
+                <label>Employment Status</label>
+                <p class="value rev-employment-status">—</p>
+              </div>
+              <div class="review-item">
+                <label>Employer Name</label>
+                <p class="value rev-employer-name">—</p>
+              </div>
+              <div class="review-item">
+                <label>Job Title</label>
+                <p class="value rev-job-title">—</p>
+              </div>
+              <div class="review-item full-width">
+                <label>Annual Income</label>
+                <p class="value highlight rev-annual-income">—</p>
+              </div>
+            </div>
           </div>
-          <div class="content-wrap">
-            <label for="rev-employment-status">Employment Status</label>
-            <h4 class="rev-employment-status">None</h4> <!-- Content will be dynamically injected here -->
-          </div>
-          <div class="content-wrap">
-            <label for="rev-employer-name">Employer Name</label>
-            <h4 class="rev-employer-name">None</h4><!-- Content will be dynamically injected here -->
-          </div>
-          <div class="content-wrap">
-            <label for="rev-job-title">Job Title</label>
-            <h4 class="rev-job-title">None</h4>  <!-- Content will be dynamically injected here -->
-          </div>
-          <div class="content-wrap">
-            <label for="rev-annual-income">Annual Income</label>
-            <h4 class="rev-annual-income">$00,000</h4> <!-- Content will be dynamically injected here -->
         </div>
-      
+
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <p class="disclaimer">By clicking "Submit Application", you confirm that all information provided is accurate and complete.</p>
+          <div class="btn-group">
+            <button id="cancel">← Go Back</button>
+            <button id="ok">Submit Application ✓</button>
           </div>
-        </div>
-        <div class="btn-container">
-          <button id="cancel" class="action-button">Cancel</button>
-          <button id="ok" class="action-button">Ok</button>
         </div>
       </div>
     </div>
 
-    <!-- Successful Modal -->
-     <div class="modal-container" id="success-modal=container" style="display: none;">
+    <!-- Successful Modal - Modern Design -->
+    <div class="modal-container" id="success-modal=container" style="display: none;">
       <div class="successful-modal">
-        <img src="images/circle-check-filled.png" alt="success" class="check">
-        <h2 class="head-text">Success!</h2>
-        <h3 class="sub-text">Your application has been successfully submitted.</h3>
-        <div class="s-wrap">
-          <p class="grey-text" id="ref-id">0000</p><!-- make this dynamic/random -->
-          <p class="grey-text" id="date-submitted">0/00/0000</p>
+        <div class="success-icon-wrap">
+          <svg class="check" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-        <button class="action-button" id="confirm-btn">CONFIRM</button>
+        <div class="success-content">
+          <h2 class="head-text">Application Submitted!</h2>
+          <p class="sub-text">Your bank account application has been received. We'll review your information and contact you within 2-3 business days.</p>
+        </div>
+        <div class="s-wrap">
+          <p class="grey-text"><strong>Reference Number:</strong> <span id="ref-id">EG-000000</span></p>
+          <p class="grey-text"><strong>Submitted:</strong> <span id="date-submitted">—</span></p>
+        </div>
+        <button id="confirm-btn">Done</button>
       </div>
-     </div>
-  </body>
+    </div>
     <script>
     // panels
+    // ========================================
+    // GLOBAL ID UPLOAD FUNCTIONS (called by inline handlers)
+    // ========================================
+    let uploadedIdFileFront = null;
+    let uploadedIdFileBack = null;
+    
+    function handleIdUploadFront(input) {
+      console.log('handleIdUploadFront called');
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        console.log('File:', file.name, file.type, file.size);
+        
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('File size must be less than 5MB');
+          input.value = '';
+          return;
+        }
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert('Please upload an image file (JPG, PNG)');
+          input.value = '';
+          return;
+        }
+        
+        uploadedIdFileFront = file;
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const uploadArea = document.getElementById('upload-area-front');
+          const uploadPreview = document.getElementById('upload-preview-front');
+          const previewImage = document.getElementById('preview-image-front');
+          const fileNameSpan = document.getElementById('file-name-front');
+          
+          previewImage.src = e.target.result;
+          fileNameSpan.textContent = file.name;
+          uploadArea.style.display = 'none';
+          uploadPreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function handleIdUploadBack(input) {
+      console.log('handleIdUploadBack called');
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        console.log('File:', file.name, file.type, file.size);
+        
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('File size must be less than 5MB');
+          input.value = '';
+          return;
+        }
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert('Please upload an image file (JPG, PNG)');
+          input.value = '';
+          return;
+        }
+        
+        uploadedIdFileBack = file;
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const uploadArea = document.getElementById('upload-area-back');
+          const uploadPreview = document.getElementById('upload-preview-back');
+          const previewImage = document.getElementById('preview-image-back');
+          const fileNameSpan = document.getElementById('file-name-back');
+          
+          previewImage.src = e.target.result;
+          fileNameSpan.textContent = file.name;
+          uploadArea.style.display = 'none';
+          uploadPreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function removeIdFileFront() {
+      console.log('removeIdFileFront called');
+      uploadedIdFileFront = null;
+      
+      const uploadInput = document.getElementById('id-upload-front');
+      const uploadArea = document.getElementById('upload-area-front');
+      const uploadPreview = document.getElementById('upload-preview-front');
+      const previewImage = document.getElementById('preview-image-front');
+      const fileNameSpan = document.getElementById('file-name-front');
+      
+      if (uploadInput) uploadInput.value = '';
+      if (previewImage) previewImage.src = '';
+      if (fileNameSpan) fileNameSpan.textContent = '';
+      if (uploadPreview) uploadPreview.style.display = 'none';
+      if (uploadArea) uploadArea.style.display = 'block';
+    }
+    
+    function removeIdFileBack() {
+      console.log('removeIdFileBack called');
+      uploadedIdFileBack = null;
+      
+      const uploadInput = document.getElementById('id-upload-back');
+      const uploadArea = document.getElementById('upload-area-back');
+      const uploadPreview = document.getElementById('upload-preview-back');
+      const previewImage = document.getElementById('preview-image-back');
+      const fileNameSpan = document.getElementById('file-name-back');
+      
+      if (uploadInput) uploadInput.value = '';
+      if (previewImage) previewImage.src = '';
+      if (fileNameSpan) fileNameSpan.textContent = '';
+      if (uploadPreview) uploadPreview.style.display = 'none';
+      if (uploadArea) uploadArea.style.display = 'block';
+    }
+    
+    // ========================================
+    // PANELS AND NAVIGATION
+    // ========================================
     let personalInfoPanel = document.querySelector(".personal-info-panel");
     let verificationPanel = document.querySelector(".verification-part");
     let reviewPanel = document.querySelector(".review-part");
@@ -1615,25 +2522,43 @@
     function isNumeric(val) { return /^\d+(?:\.\d+)?$/.test(String(val).trim()); }
     function isSSN(val) { return /^(\d{3}-?\d{2}-?\d{4})$/.test(String(val).trim()); }
 
+    // Age validation helper
+    function isAtLeast18(dateString) {
+      const birthDate = new Date(dateString);
+      const today = new Date();
+      
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      return age >= 18;
+    }
+
     // Per-step validation
     function validatePersonal() {
       let valid = true;
-      const required = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','city','state','zip-code'];
-      required.forEach(id => {
+      
+      // Validate all read-only fields have values (from database)
+      const readOnlyFields = ['f-name','l-name','e-mail','phone-number','date-of-birth','street-address','state','city','barangay','zip-code'];
+      readOnlyFields.forEach(id => {
         const el = document.getElementById(id);
+        if (!el) {
+          console.warn('Element not found:', id);
+          return;
+        }
         if (!isNotEmpty(el.value)) {
-          showFieldError(el, 'This field is required');
+          showFieldError(el, 'This field is required - please update your profile');
           valid = false;
         } else {
           clearFieldError(el);
         }
       });
 
-      const emailEl = document.getElementById('e-mail');
-      if (isNotEmpty(emailEl.value) && !isEmail(emailEl.value)) {
-        showFieldError(emailEl, 'Enter a valid email address');
-        valid = false;
-      }
+      // Email validation skipped - already validated during signup and is read-only
+      // Age validation skipped - already validated during signup and is read-only
 
       return valid;
     }
@@ -1669,19 +2594,40 @@
       const errTnc = document.getElementById('error-tnc');
       const errPrivacy = document.getElementById('error-privacy');
 
-      if (!tnc.checked) { errTnc.style.display = 'block'; valid = false; } else { errTnc.style.display = 'none'; }
-      if (!privacy.checked) { errPrivacy.style.display = 'block'; valid = false; } else { errPrivacy.style.display = 'none'; }
+      if (tnc && errTnc) {
+        if (!tnc.checked) { errTnc.style.display = 'block'; valid = false; } else { errTnc.style.display = 'none'; }
+      }
+      if (privacy && errPrivacy) {
+        if (!privacy.checked) { errPrivacy.style.display = 'block'; valid = false; } else { errPrivacy.style.display = 'none'; }
+      }
 
       return valid;
     }
 
-    // account type selection (toggle single selection)
-    document.querySelector('.account-type-cards').addEventListener('click', function(e) {
-      let card = e.target.closest('.acct-card');
-      if (!card) return;
-      document.querySelectorAll('.acct-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      acctType = card.id;
+    // account type selection (radio button - single selection only)
+    document.querySelectorAll('.acct-card').forEach(card => {
+      card.addEventListener('click', function() {
+        // Remove selection from all cards
+        document.querySelectorAll('.acct-card').forEach(c => c.classList.remove('selected'));
+        // Add selection to clicked card
+        this.classList.add('selected');
+        
+        // Check the radio button inside this card
+        const radio = this.querySelector('input[type="radio"]');
+        if (radio) {
+          radio.checked = true;
+          acctType = radio.value; // Get value from radio button
+        }
+      });
+    });
+
+    // Also handle when radio is clicked directly
+    document.querySelectorAll('input[name="account_type"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        document.querySelectorAll('.acct-card').forEach(c => c.classList.remove('selected'));
+        this.closest('.acct-card').classList.add('selected');
+        acctType = this.value;
+      });
     });
 
     // Confetti animation
@@ -1728,20 +2674,41 @@
       if (step === 3) {
         if (!validateReview()) return;
         
+        // Validate account type selection
+        const accountTypeRadio = document.querySelector('input[name="account_type"]:checked');
+        if (!accountTypeRadio) {
+          alert('Please select an account type (Savings or Checking)');
+          return;
+        }
+        
         // Add loading state to button
         nextBtn.classList.add('submitting');
         nextBtn.disabled = true;
         
         // Simulate processing time
         setTimeout(() => {
-          // Gather data
+          // Gather data - all location fields are now read-only inputs
+          // Get hidden profile data
+          const gender = document.getElementById('customer-gender')?.value || '';
+          const nationality = document.getElementById('customer-nationality')?.value || '';
+          const placeOfBirth = document.getElementById('customer-place-of-birth')?.value || '';
+          const civilStatus = document.getElementById('customer-civil-status')?.value || '';
+          const sourceOfFunds = document.getElementById('customer-source-of-funds')?.value || '';
+          
           let injector = {
             firstName: document.getElementById('f-name').value,
+            middleName: '<?php echo addslashes($userData['middle_name'] ?? ''); ?>',
             lastName: document.getElementById('l-name').value,
             email: document.getElementById('e-mail').value,
             phoneNumber: document.getElementById('phone-number').value,
             dateOfBirth: document.getElementById('date-of-birth').value,
+            gender: gender,
+            nationality: nationality,
+            placeOfBirth: placeOfBirth,
+            civilStatus: civilStatus,
+            sourceOfFunds: sourceOfFunds,
             streetAddress: document.getElementById('street-address').value,
+            barangay: document.getElementById('barangay').value,
             city: document.getElementById('city').value,
             state: document.getElementById('state').value,
             zipCode: document.getElementById('zip-code').value,
@@ -1752,25 +2719,38 @@
             employerName: document.getElementById('employer-name').value,
             jobTitle: document.getElementById('job-title').value,
             annualIncome: document.getElementById('annual-income').value,
-            accountType: acctType,
+            accountType: accountTypeRadio.value,
           };
           infoData = [injector];
           
           // Populate review modal
           displayCred('rev-f-name', injector.firstName);
           displayCred('rev-l-name', injector.lastName);
-          displayCred('rev-birth', injector.dateOfBirth);
+          displayCred('rev-birth', formatDate(injector.dateOfBirth));
+          displayCred('rev-email', injector.email);
+          displayCred('rev-phone', injector.phoneNumber);
           displayCred('rev-street', injector.streetAddress);
-          displayCred('rev-city', injector.city);
           displayCred('rev-state', injector.state);
+          displayCred('rev-city', injector.city);
+          displayCred('rev-barangay', injector.barangay);
           displayCred('rev-zip', injector.zipCode);
-          displayCred('rev-ssn', injector.socialSecurityNumber);
-          displayCred('rev-id-type', injector.idType);
+          displayCred('rev-ssn', maskTIN(injector.socialSecurityNumber));
+          displayCred('rev-id-type', getIdTypeName(injector.idType));
           displayCred('rev-id-number', injector.idNumber);
+          
+          // Update ID upload status in review
+          const uploadStatus = document.querySelector('.rev-id-upload');
+          if (uploadStatus && (uploadedIdFileFront || uploadedIdFileBack)) {
+            const files = [];
+            if (uploadedIdFileFront) files.push(uploadedIdFileFront.name);
+            if (uploadedIdFileBack) files.push(uploadedIdFileBack.name);
+            uploadStatus.textContent = '✓ ' + files.join(', ');
+            uploadStatus.style.color = '#28a745';
+          }
           displayCred('rev-employment-status', injector.employmentStatus);
           displayCred('rev-employer-name', injector.employerName);
           displayCred('rev-job-title', injector.jobTitle);
-          displayCred('rev-annual-income', '$' + injector.annualIncome);
+          displayCred('rev-annual-income', formatCurrency(injector.annualIncome));
 
           // Remove loading state
           nextBtn.classList.remove('submitting');
@@ -1783,19 +2763,94 @@
     });
 
     okBtn.addEventListener('click', function() {
-      // Close review modal with animation
-      modalContainer.classList.add('closing');
+      // Disable button to prevent double submission
+      okBtn.disabled = true;
+      okBtn.textContent = 'Processing...';
       
-      setTimeout(() => {
-        modalContainer.style.display = 'none';
-        modalContainer.classList.remove('closing');
-        
-        // Show success modal
-        successModal.style.display = 'flex';
-        
-        // Trigger confetti
-        createConfetti();
-      }, 300);
+      // Use FormData for file upload support
+      const formData = new FormData();
+      
+      // Add all application data
+      formData.append('firstName', infoData[0].firstName);
+      formData.append('middleName', infoData[0].middleName || '');
+      formData.append('lastName', infoData[0].lastName);
+      formData.append('email', infoData[0].email);
+      formData.append('phoneNumber', infoData[0].phoneNumber);
+      formData.append('dateOfBirth', infoData[0].dateOfBirth);
+      formData.append('gender', infoData[0].gender || '');
+      formData.append('nationality', infoData[0].nationality || '');
+      formData.append('placeOfBirth', infoData[0].placeOfBirth || '');
+      formData.append('civilStatus', infoData[0].civilStatus || '');
+      formData.append('sourceOfFunds', infoData[0].sourceOfFunds || '');
+      formData.append('streetAddress', infoData[0].streetAddress);
+      formData.append('barangay', infoData[0].barangay);
+      formData.append('city', infoData[0].city);
+      formData.append('state', infoData[0].state);
+      formData.append('zipCode', infoData[0].zipCode);
+      formData.append('socialSecurityNumber', infoData[0].socialSecurityNumber);
+      formData.append('idType', infoData[0].idType);
+      formData.append('idNumber', infoData[0].idNumber);
+      formData.append('employmentStatus', infoData[0].employmentStatus);
+      formData.append('employerName', infoData[0].employerName);
+      formData.append('jobTitle', infoData[0].jobTitle);
+      formData.append('annualIncome', infoData[0].annualIncome);
+      formData.append('accountType', infoData[0].accountType || '');
+      
+      // Selected cards and services (optional)
+      formData.append('selectedCards', JSON.stringify(getSelectedCards()));
+      formData.append('additionalServices', JSON.stringify(getSelectedServices()));
+      
+      // Terms
+      const tncCheckbox = document.getElementById('term-tnc');
+      const privacyCheckbox = document.getElementById('term-privacy');
+      formData.append('termsAccepted', tncCheckbox && tncCheckbox.checked ? '1' : '0');
+      formData.append('privacyAcknowledged', privacyCheckbox && privacyCheckbox.checked ? '1' : '0');
+      formData.append('marketingConsent', '0');
+      
+      // Add the uploaded ID images (front and back separately)
+      if (uploadedIdFileFront) {
+        formData.append('id_front_image', uploadedIdFileFront);
+      }
+      if (uploadedIdFileBack) {
+        formData.append('id_back_image', uploadedIdFileBack);
+      }
+      
+      // Submit to backend with FormData
+      fetch('submit_account_application.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Update reference ID with actual application number
+          document.getElementById('ref-id').textContent = data.application_number;
+          
+          // Close review modal with animation
+          modalContainer.classList.add('closing');
+          
+          setTimeout(() => {
+            modalContainer.style.display = 'none';
+            modalContainer.classList.remove('closing');
+            
+            // Show success modal
+            successModal.style.display = 'flex';
+            
+            // Trigger confetti
+            createConfetti();
+          }, 300);
+        } else {
+          alert('Error: ' + data.message);
+          okBtn.disabled = false;
+          okBtn.textContent = 'Submit Application ✓';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while submitting your application. Please try again.');
+        okBtn.disabled = false;
+        okBtn.textContent = 'Submit Application ✓';
+      });
     });
 
     cancelBtn.addEventListener('click', function() {
@@ -1814,17 +2869,89 @@
       }, 300);
     });
 
-    // Display ref id and date submitted
-    let refId = Math.floor(1000 + Math.random() * 9000);
-    document.getElementById('ref-id').textContent = 'Reference ID: ' + refId;
+    // Display date submitted with better formatting
     let currentDate = new Date();
-    let formattedDate = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear();
-    document.getElementById('date-submitted').textContent = 'Date Submitted: ' + formattedDate;
+    let dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    let formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
+    document.getElementById('date-submitted').textContent = formattedDate;
+    
+    // Helper function to get selected services
+    function getSelectedServices() {
+      const services = [];
+      document.querySelectorAll('.services-grid input[type="checkbox"]:checked').forEach(cb => {
+        services.push(cb.value);
+      });
+      return services;
+    }
+
+    // Format date to readable format
+    function formatDate(dateString) {
+      if (!dateString) return '—';
+      const date = new Date(dateString);
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    }
+
+    // Mask TIN for display (show only last 3 digits)
+    function maskTIN(tin) {
+      if (!tin) return '•••-•••-•••-•••';
+      const cleaned = tin.replace(/\D/g, '');
+      if (cleaned.length >= 3) {
+        return '•••-•••-•••-' + cleaned.slice(-3);
+      }
+      return '•••-•••-•••-•••';
+    }
+    
+    // Alias for backward compatibility
+    function maskSSN(ssn) {
+      return maskTIN(ssn);
+    }
+    
+    // Get readable ID type name
+    function getIdTypeName(idTypeValue) {
+      const idTypeNames = {
+        'philippine_passport': 'Philippine Passport',
+        'drivers_license': "Driver's License (LTO)",
+        'umid': 'UMID (Unified Multi-Purpose ID)',
+        'philhealth': 'PhilHealth ID',
+        'sss': 'SSS ID',
+        'gsis': 'GSIS ID',
+        'prc': 'PRC ID',
+        'postal': 'Postal ID',
+        'voters': "Voter's ID / COMELEC",
+        'national_id': 'Philippine National ID (PhilSys)',
+        'senior_citizen': 'Senior Citizen ID',
+        'pwd': 'PWD ID',
+        'nbi': 'NBI Clearance',
+        'police': 'Police Clearance',
+        'barangay': 'Barangay ID / Certificate',
+        'tin_card': 'TIN Card',
+        'school_id': 'School ID',
+        'company_id': 'Company ID',
+        'ofw': 'OFW ID',
+        'seaman_book': "Seaman's Book",
+        'ibp': 'IBP ID',
+        'owwa': 'OWWA ID'
+      };
+      return idTypeNames[idTypeValue] || idTypeValue || '—';
+    }
+
+    // Format currency
+    function formatCurrency(amount) {
+      if (!amount) return '—';
+      const num = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(num);
+    }
 
     // Display credentials in review modal
     function displayCred(name, value) {
       let elements = document.getElementsByClassName(name);
-      for (let i = 0; i < elements.length; i++) { elements[i].textContent = value; }
+      for (let i = 0; i < elements.length; i++) { elements[i].textContent = value || '—'; }
     }
 
     function updateStepUI() {
@@ -1864,5 +2991,236 @@
 
     // Initialize UI
     updateStepUI();
-</script>
+
+    // ========================================
+    // AUTO-POPULATE ZIP CODE ON PAGE LOAD
+    // ========================================
+    
+    // Zip code is now loaded from the database (addresses.postal_code)
+    // No need to fetch from API since it's readonly and already populated
+    console.log('Zip code loaded from database:', document.getElementById('zip-code')?.value);
+
+    // ========================================
+    // CARD SELECTION
+    // ========================================
+    
+    // Handle card selection checkboxes
+    document.querySelectorAll('.card-option').forEach(option => {
+      const checkbox = option.querySelector('.card-checkbox');
+      
+      // Click on card option to toggle checkbox
+      option.addEventListener('click', function(e) {
+        if (e.target !== checkbox) {
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event('change'));
+        }
+      });
+      
+      // Update visual state when checkbox changes
+      checkbox.addEventListener('change', function() {
+        if (this.checked) {
+          option.classList.add('card-selected');
+        } else {
+          option.classList.remove('card-selected');
+        }
+      });
+    });
+
+    // Helper function to get selected cards
+    function getSelectedCards() {
+      const cards = [];
+      document.querySelectorAll('.card-checkbox:checked').forEach(cb => {
+        cards.push(cb.value);
+      });
+      return cards;
+    }
+
+    // ========================================
+    // AUTO-SELECT LOCATION FROM USER DATA
+    // ========================================
+    
+    // User's stored location data from PHP (for display only - fields are readonly)
+    const storedCity = "<?php echo addslashes($userCity); ?>";
+    const storedProvince = "<?php echo addslashes($userProvince); ?>";
+    const storedBarangay = "<?php echo addslashes($userBarangay); ?>";
+    const storedZipCode = "<?php echo addslashes($userZipCode); ?>";
+    
+    console.log('User location data:', { storedCity, storedProvince, storedBarangay, storedZipCode });
+    console.log('Zip code from PHP:', storedZipCode);
+
+    // Location fields are read-only, no need to load regions dynamically
+
+    // ========================================
+    // PHILIPPINE ID TYPE HANDLING
+    // ========================================
+    
+    // ID format hints for different Philippine IDs
+    const idFormatHints = {
+      'philippine_passport': 'Format: P1234567A (Letter + 7 digits + Letter)',
+      'drivers_license': 'Format: N01-23-456789 (LTO License Number)',
+      'umid': 'Format: 0123-4567890-1 (CRN Number)',
+      'philhealth': 'Format: 01-234567890-1 (PhilHealth ID Number)',
+      'sss': 'Format: 01-2345678-9 (SSS Number)',
+      'gsis': 'Format: 123456789012 (GSIS BP Number)',
+      'prc': 'Format: 0123456 (PRC License Number)',
+      'postal': 'Format: 01-2345678 (Postal ID Number)',
+      'voters': 'Format: 1234-5678A-B1234CDE56789 (VIN)',
+      'national_id': 'Format: 1234-5678-9012-3456 (PhilSys Number)',
+      'senior_citizen': 'Format: Varies by LGU',
+      'pwd': 'Format: Varies by LGU',
+      'nbi': 'Format: 2024-A1234567 (NBI Clearance Number)',
+      'police': 'Format: Varies by station',
+      'barangay': 'Format: Varies by barangay',
+      'tin_card': 'Format: 123-456-789-000 (TIN)',
+      'school_id': 'Format: Student ID Number',
+      'company_id': 'Format: Employee ID Number',
+      'ofw': 'Format: OFW ID Number',
+      'seaman_book': 'Format: Seaman\'s Book Number',
+      'ibp': 'Format: IBP Number',
+      'owwa': 'Format: OWWA ID Number'
+    };
+
+    // Update ID format hint when ID type changes
+    document.getElementById('id-type').addEventListener('change', function() {
+      const hint = document.getElementById('id-format-hint');
+      const selectedValue = this.value;
+      
+      if (selectedValue && idFormatHints[selectedValue]) {
+        hint.textContent = idFormatHints[selectedValue];
+        hint.style.display = 'block';
+      } else {
+        hint.textContent = '';
+        hint.style.display = 'none';
+      }
+    });
+
+    // ========================================
+    // UPDATE VALIDATION FOR VERIFICATION STEP
+    // ========================================
+    
+    // Override validateVerification to include ID upload check
+    const originalValidateVerification = validateVerification;
+    validateVerification = function() {
+      let valid = true;
+      
+      // TIN validation
+      const ssnEl = document.getElementById('ssn');
+      const tinValue = ssnEl.value.replace(/\D/g, '');
+      if (!tinValue || tinValue.length < 9) {
+        showFieldError(ssnEl, 'Enter a valid TIN (e.g. 123-456-789-000)');
+        valid = false;
+      } else { 
+        clearFieldError(ssnEl); 
+      }
+
+      // ID Type validation
+      const idTypeEl = document.getElementById('id-type');
+      if (!idTypeEl.value) {
+        showFieldError(idTypeEl, 'Please select an ID type');
+        valid = false;
+      } else {
+        clearFieldError(idTypeEl);
+      }
+
+      // ID Number validation
+      const idNum = document.getElementById('id-number');
+      if (!isNotEmpty(idNum.value)) { 
+        showFieldError(idNum, 'ID number is required'); 
+        valid = false; 
+      } else { 
+        clearFieldError(idNum); 
+      }
+
+      // ID Upload validation - Front
+      if (!uploadedIdFileFront) {
+        const uploadContainer = document.getElementById('upload-container-front');
+        let uploadError = document.getElementById('upload-error-front');
+        if (!uploadError) {
+          uploadError = document.createElement('div');
+          uploadError.id = 'upload-error-front';
+          uploadError.className = 'field-error';
+          uploadError.style.display = 'block';
+          uploadError.style.marginTop = '5px';
+          uploadContainer.parentNode.appendChild(uploadError);
+        }
+        uploadError.textContent = 'Please upload front of your ID';
+        uploadError.style.display = 'block';
+        valid = false;
+      } else {
+        const uploadError = document.getElementById('upload-error-front');
+        if (uploadError) uploadError.style.display = 'none';
+      }
+      
+      // ID Upload validation - Back
+      if (!uploadedIdFileBack) {
+        const uploadContainer = document.getElementById('upload-container-back');
+        let uploadError = document.getElementById('upload-error-back');
+        if (!uploadError) {
+          uploadError = document.createElement('div');
+          uploadError.id = 'upload-error-back';
+          uploadError.className = 'field-error';
+          uploadError.style.display = 'block';
+          uploadError.style.marginTop = '5px';
+          uploadContainer.parentNode.appendChild(uploadError);
+        }
+        uploadError.textContent = 'Please upload back of your ID';
+        uploadError.style.display = 'block';
+        valid = false;
+      } else {
+        const uploadError = document.getElementById('upload-error-back');
+        if (uploadError) uploadError.style.display = 'none';
+      }
+
+      // Employment validation
+      const employer = document.getElementById('employer-name');
+      const job = document.getElementById('job-title');
+      const income = document.getElementById('annual-income');
+      const employment = document.getElementById('employment-status');
+
+      if (!isNotEmpty(employment.value)) { 
+        showFieldError(employment, 'Select employment status'); 
+        valid = false; 
+      } else { 
+        clearFieldError(employment); 
+      }
+      
+      if (!isNotEmpty(employer.value)) { 
+        showFieldError(employer, 'Employer is required'); 
+        valid = false; 
+      } else { 
+        clearFieldError(employer); 
+      }
+      
+      if (!isNotEmpty(job.value)) { 
+        showFieldError(job, 'Job title required'); 
+        valid = false; 
+      } else { 
+        clearFieldError(job); 
+      }
+      
+      if (!isNotEmpty(income.value) || !isNumeric(income.value)) { 
+        showFieldError(income, 'Enter numeric income'); 
+        valid = false; 
+      } else { 
+        clearFieldError(income); 
+      }
+
+      return valid;
+    };
+
+    // Format TIN as user types
+    document.getElementById('ssn').addEventListener('input', function(e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 12) value = value.slice(0, 12);
+      
+      // Format as 123-456-789-000
+      let formatted = '';
+      for (let i = 0; i < value.length; i++) {
+        if (i === 3 || i === 6 || i === 9) formatted += '-';
+        formatted += value[i];
+      }
+      e.target.value = formatted;
+    });
+    </script>
+  </body>
 </html>

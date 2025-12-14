@@ -28,11 +28,23 @@ try {
         ]);
         exit();
     }
+    
+    // Check if at least step 2 is completed
+    $currentStep = $_SESSION['customer_onboarding']['step'] ?? 0;
+    if ($currentStep < 2) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Please complete previous steps first',
+            'current_step' => $currentStep
+        ]);
+        exit();
+    }
 
     // Return session data
     echo json_encode([
         'success' => true,
-        'data' => $_SESSION['customer_onboarding']['data']
+        'data' => $_SESSION['customer_onboarding']['data'],
+        'step' => $currentStep
     ]);
 
 } catch (Exception $e) {

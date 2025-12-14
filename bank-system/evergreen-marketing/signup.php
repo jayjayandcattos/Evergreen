@@ -33,8 +33,8 @@ function generateUniqueReferralCode($conn) {
             $code .= rand(0, 9); // 0-9
         }
         
-        // Check if code already exists in bank_users table
-        $sql = "SELECT id FROM bank_users WHERE bank_id = ?";
+        // Check if code already exists
+        $sql = "SELECT customer_id FROM bank_customers WHERE referral_code = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $code);
         $stmt->execute();
@@ -59,42 +59,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $first_name = trim($_POST['first_name']);
     $middle_name = trim($_POST['middle_name']);
     $last_name = trim($_POST['last_name']);
-    $address = trim($_POST['address']);
-    $city_province = trim($_POST['city_province']);
+    $address_line = trim($_POST['address_line']);
+    $province_id = isset($_POST['province_id']) ? (int)$_POST['province_id'] : 0;
+    $city_id = isset($_POST['city_id']) ? (int)$_POST['city_id'] : 0;
+    $barangay_id = isset($_POST['barangay_id']) ? (int)$_POST['barangay_id'] : 0;
+    $zip_code = trim($_POST['zip_code']);
     $email = trim($_POST['email']);
     $contact_number = trim($_POST['contact_number']);
     $birthday = $_POST['birthday'];
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
-    $used_referral_code = trim($_POST['referral_code'] ?? ''); // Optional referral code
     $terms_accepted = isset($_POST['terms']) ? true : false;
 
     if (empty($first_name) || empty($middle_name) || empty($last_name) || 
-        empty($address) || empty($city_province) || empty($email) || 
-        empty($contact_number) || empty($birthday) || empty($password) || 
-        empty($confirm_password)) {
+        empty($address_line) || $province_id == 0 || $city_id == 0 || 
+        $barangay_id == 0 || empty($zip_code) || empty($email) || empty($contact_number) || empty($birthday) || 
+        empty($password) || empty($confirm_password)) {
         $error = "Please fill in all required fields.";
     } elseif (!$terms_accepted) {
         $error = "You must agree to the Terms and Conditions.";
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match!";
     } else {
-        // Check if email already exists in bank_users table
-        $check_sql = "SELECT id FROM bank_users WHERE email = ?";
+        $check_sql = "SELECT customer_id FROM bank_customers WHERE email = ?";
         $check_stmt = $conn->prepare($check_sql);
-        
-        if ($check_stmt === false) {
-            // If prepare fails, log error and show generic message
-            error_log("Database prepare error: " . $conn->error);
-            $error = "Database error. Please try again later.";
-        } else {
-            $check_stmt->bind_param("s", $email);
-            $check_stmt->execute();
-            $check_result = $check_stmt->get_result();
+        $check_stmt->bind_param("s", $email);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
 
-            if ($check_result->num_rows > 0) {
-                $error = "Email already registered.";
-            } else {
+        if ($check_result->num_rows > 0) {
+    $error = "Email already registered.";
+} else 
+    $check_sql = "SELECT customer_id FROM bank_customers WHERE email = ?";
+    $check_stmt = $conn->prepare($check_sql);
+    $check_stmt->bind_param("s", $email);
+    $check_stmt->execute();
+    $check_result = $check_stmt->get_result();
+
+    if ($check_result->num_rows > 0) {
+        $error = "Email already registered.";
+    } else {
         // Generate verification code and bank ID
         $verification_code = sprintf("%06d", rand(0, 999999));
         $bank_id = sprintf("%04d", mt_rand(0, 9999));
@@ -112,47 +116,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Validate referral code if provided
-        if (!empty($used_referral_code)) {
-            $check_ref_sql = "SELECT id FROM bank_users WHERE referral_code = ?";
-            $check_ref_stmt = $conn->prepare($check_ref_sql);
-            $check_ref_stmt->bind_param("s", $used_referral_code);
-            $check_ref_stmt->execute();
-            $check_ref_result = $check_ref_stmt->get_result();
-            
-            if ($check_ref_result->num_rows === 0) {
-                $error = "Invalid referral code. Please check and try again.";
-                $check_ref_stmt->close();
-                // Don't proceed with registration
-                $check_stmt->close();
-                // Skip to form display
-                goto skip_registration;
-            }
-            $check_ref_stmt->close();
-        }
+        // Get zip code from POST (populated by JavaScript from barangay selection)
+        $zip_code = isset($_POST['zip_code']) ? trim($_POST['zip_code']) : '';
         
         // Store user data in session
         $_SESSION['temp_registration'] = [
             'first_name' => $first_name,
             'middle_name' => $middle_name,
             'last_name' => $last_name,
-            'address' => $address,
-            'city_province' => $city_province,
+            'address_line' => $address_line,
+            'province_id' => $province_id,
+            'city_id' => $city_id,
+            'barangay_id' => $barangay_id,
+            'zip_code' => $zip_code,
             'email' => $email,
             'contact_number' => $contact_number,
             'birthday' => $birthday,
             'password' => $hashed_password,
             'verification_code' => $verification_code,
             'bank_id' => $bank_id,
-            'referral_code' => $referral_code,
-            'used_referral_code' => $used_referral_code // Store the referral code they used
+            'referral_code' => $referral_code
         ];
         
         // Verify the code was stored
         error_log("Stored in session - Referral code: " . $_SESSION['temp_registration']['referral_code']);
-        if (!empty($used_referral_code)) {
-            error_log("User used referral code: " . $used_referral_code);
-        }
         
         // Send verification email
         $mail = new PHPMailer(true);
@@ -219,14 +206,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 header("Location: verify.php");
                 exit;
             }
-            }
-            $check_stmt->close();
         }
+        $check_stmt->close();
     }
 }
 
-// Label for skipping registration when referral code is invalid
-skip_registration:
+
+// Example usage in your registration process:
+/*
+$referral_code = generateUniqueReferralCode($conn);
+
+$sql = "INSERT INTO users (first_name, last_name, email, password, referral_code, total_points) 
+        VALUES (?, ?, ?, ?, ?, 0.00)";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("sssss", $first_name, $last_name, $email, $hashed_password, $referral_code);
+$stmt->execute();
+*/
 
 ?>
 
@@ -402,7 +397,7 @@ skip_registration:
       to { opacity: 1; }
     }
 
-    input.error {
+    input.error, select.error {
       border-color: #dc3545 !important;
       background: #fff5f5 !important;
     }
@@ -620,6 +615,48 @@ skip_registration:
 
     input:hover:not(:focus) {
       border-color: #d0d5dd;
+    }
+
+    select {
+      width: 100%;
+      padding: 14px 18px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      font-size: 14px;
+      background: #f8f9fa;
+      color: #333;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 18px center;
+      padding-right: 45px;
+    }
+
+    select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background-color: #e9ecef;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #0d3d38;
+      background-color: white;
+      box-shadow: 0 0 0 4px rgba(13, 61, 56, 0.1);
+      transform: translateY(-2px);
+    }
+
+    select:hover:not(:focus):not(:disabled) {
+      border-color: #d0d5dd;
+    }
+
+    select option {
+      padding: 10px;
+      background: white;
+      color: #333;
     }
 
     .checkbox-wrapper {
@@ -1008,21 +1045,48 @@ skip_registration:
 
       <div class="form-row">
         <div class="input-wrapper" style="grid-column: span 2;">
-          <label class="input-label">House number/Street/Brgy</label>
-          <input type="text" name="address" id="address" placeholder="29 Simforosa st. Brgy. Nagkaisang" 
-                 value="<?php echo isset($_POST['address']) ? htmlspecialchars($_POST['address']) : ''; ?>">
-          <span class="error-message" id="address_error">This field is required</span>
+          <label class="input-label">House number/Street</label>
+          <input type="text" name="address_line" id="address_line" placeholder="29 Simforosa st." 
+                 value="<?php echo isset($_POST['address_line']) ? htmlspecialchars($_POST['address_line']) : ''; ?>">
+          <span class="error-message" id="address_line_error">This field is required</span>
         </div>
       </div>
 
       <div class="form-row">
         <div class="input-wrapper">
-          <label class="input-label">City/Province</label>
-          <input type="text" name="city_province" id="city_province" placeholder="Metro Manila" 
-                 value="<?php echo isset($_POST['city_province']) ? htmlspecialchars($_POST['city_province']) : ''; ?>">
-          <span class="error-message" id="city_province_error">This field is required</span>
+          <label class="input-label">Province</label>
+          <select name="province_id" id="province_id" required>
+            <option value="">Select Province</option>
+          </select>
+          <span class="error-message" id="province_id_error">This field is required</span>
         </div>
         <div class="input-wrapper">
+          <label class="input-label">City/Municipality</label>
+          <select name="city_id" id="city_id" required disabled>
+            <option value="">Select City/Municipality</option>
+          </select>
+          <span class="error-message" id="city_id_error">This field is required</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="input-wrapper">
+          <label class="input-label">Barangay</label>
+          <select name="barangay_id" id="barangay_id" required disabled>
+            <option value="">Select Barangay</option>
+          </select>
+          <span class="error-message" id="barangay_id_error">This field is required</span>
+        </div>
+        <div class="input-wrapper">
+          <label class="input-label">Zip Code</label>
+          <input type="text" name="zip_code" id="zip_code" placeholder="1000" maxlength="10"
+                 value="<?php echo isset($_POST['zip_code']) ? htmlspecialchars($_POST['zip_code']) : ''; ?>">
+          <span class="error-message" id="zip_code_error">This field is required</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="input-wrapper" style="grid-column: span 2;">
           <label class="input-label">Email</label>
           <input type="email" name="email" id="email" placeholder="example@gmail.com" 
                  value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
@@ -1081,7 +1145,7 @@ skip_registration:
         <div class="input-wrapper">
           <label class="input-label">Confirm Password</label>
           <div class="password-container">
-            <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password">
+            <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" oncopy="return false" onpaste="return false" oncut="return false">
             <button type="button" class="eye-icon" onclick="togglePassword('confirm_password')"></button>
           </div>
           <span class="error-message" id="confirm_password_error">This field is required</span>
@@ -1089,17 +1153,6 @@ skip_registration:
             <span id="match-text"></span>
           </div>
         </div>
-      </div>
-
-      <div class="input-wrapper full">
-        <label class="input-label">Referral Code (Optional)</label>
-        <input type="text" name="referral_code" id="referral_code" placeholder="Enter referral code (e.g., ABC123)" 
-               value="<?php echo isset($_POST['referral_code']) ? htmlspecialchars($_POST['referral_code']) : ''; ?>"
-               style="text-transform: uppercase;" maxlength="20">
-        <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">Have a referral code? Enter it to earn 10 bonus points!</small>
-      </div>
-
-      <div class="form-row" style="display: none;">
       </div>
 
       <div class="checkbox-wrapper">
@@ -1399,8 +1452,6 @@ skip_registration:
         }
   </style>
   <script>
-          termsVisible();
-
       function termsVisible() {
         const modalCont = document.querySelector(".modal-container");
         const termsBtn = document.querySelector(".terms-vis");
@@ -1448,6 +1499,131 @@ skip_registration:
         eyeIcons.forEach(icon => {
           icon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>'; // Start with regular eye
         });
+
+        // Load provinces on page load
+        loadProvinces();
+      });
+
+      // ========================================
+      // PHILIPPINE LOCATION DROPDOWNS FROM DATABASE
+      // ========================================
+      
+      // Load all provinces on page load
+      function loadProvinces() {
+        const provinceSelect = document.getElementById('province_id');
+        
+        if (!provinceSelect) {
+          console.error('Province select element not found!');
+          return;
+        }
+        
+        console.log('Loading provinces...');
+        provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+        
+        fetch('get_locations_db.php?action=get_provinces')
+          .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+          })
+          .then(provinces => {
+            console.log('Provinces loaded:', provinces.length);
+            provinceSelect.innerHTML = '<option value="">Select Province</option>';
+            
+            if (provinces.length > 0) {
+              provinces.forEach(province => {
+                const option = document.createElement('option');
+                option.value = province.id;
+                option.textContent = province.name;
+                provinceSelect.appendChild(option);
+              });
+            } else {
+              provinceSelect.innerHTML = '<option value="">No provinces available</option>';
+            }
+          })
+          .catch(error => {
+            console.error('Error loading provinces:', error);
+            provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
+            alert('Failed to load provinces. Please refresh the page. Error: ' + error.message);
+          });
+      }
+
+      // Load cities when province is selected
+      document.getElementById('province_id').addEventListener('change', function() {
+        const provinceId = this.value;
+        const citySelect = document.getElementById('city_id');
+        const barangaySelect = document.getElementById('barangay_id');
+        
+        // Clear and disable subsequent dropdowns
+        citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        barangaySelect.disabled = true;
+        
+        if (provinceId) {
+          citySelect.disabled = false;
+          citySelect.innerHTML = '<option value="">Loading cities...</option>';
+          
+          fetch(`get_locations_db.php?action=get_cities&province_id=${provinceId}`)
+            .then(response => response.json())
+            .then(cities => {
+              citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+              
+              if (cities.length > 0) {
+                cities.forEach(city => {
+                  const option = document.createElement('option');
+                  option.value = city.id;
+                  option.textContent = city.name;
+                  citySelect.appendChild(option);
+                });
+              } else {
+                citySelect.innerHTML = '<option value="">No cities available</option>';
+              }
+            })
+            .catch(error => {
+              console.error('Error loading cities:', error);
+              citySelect.innerHTML = '<option value="">Error loading cities</option>';
+            });
+        } else {
+          citySelect.disabled = true;
+        }
+      });
+
+      // Load barangays when city is selected
+      document.getElementById('city_id').addEventListener('change', function() {
+        const cityId = this.value;
+        const barangaySelect = document.getElementById('barangay_id');
+        
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        
+        if (cityId) {
+          barangaySelect.disabled = false;
+          barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+          
+          fetch(`get_locations_db.php?action=get_barangays&city_id=${cityId}`)
+            .then(response => response.json())
+            .then(barangays => {
+              barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+              
+              if (barangays.length > 0) {
+                barangays.forEach(barangay => {
+                  const option = document.createElement('option');
+                  option.value = barangay.id;
+                  option.textContent = barangay.name;
+                  if (barangay.zip_code) {
+                    option.dataset.zipCode = barangay.zip_code;
+                  }
+                  barangaySelect.appendChild(option);
+                });
+              } else {
+                barangaySelect.innerHTML = '<option value="">No barangays available</option>';
+              }
+            })
+            .catch(error => {
+              console.error('Error loading barangays:', error);
+              barangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
+            });
+        } else {
+          barangaySelect.disabled = true;
+        }
       });
 
       // Password strength checker with requirements
@@ -1547,6 +1723,17 @@ skip_registration:
       // Password match checker
       if (confirmPassword) {
         confirmPassword.addEventListener('input', checkPasswordMatch);
+        
+        // Prevent drag and drop into confirm password field
+        confirmPassword.addEventListener('drop', function(e) {
+          e.preventDefault();
+          return false;
+        });
+        
+        confirmPassword.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          return false;
+        });
       }
 
       function checkPasswordMatch() {
@@ -1569,7 +1756,33 @@ skip_registration:
         }
       }
 
-      // Signup Form Validation - THIS IS THE KEY FIX
+      // Function to validate age
+      function isAtLeast18(birthdayString) {
+        const birthday = new Date(birthdayString);
+        const today = new Date();
+        
+        let age = today.getFullYear() - birthday.getFullYear();
+        const monthDiff = today.getMonth() - birthday.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthday.getDate())) {
+          age--;
+        }
+        
+        return age >= 18;
+      }
+
+      // Function to check if password is strong
+      function isPasswordStrong(passwordValue) {
+        const hasLength = passwordValue.length >= 8;
+        const hasUpperCase = /[A-Z]/.test(passwordValue);
+        const hasLowerCase = /[a-z]/.test(passwordValue);
+        const hasNumber = /[0-9]/.test(passwordValue);
+        const hasSpecialChar = /[^a-zA-Z0-9]/.test(passwordValue);
+        
+        return hasLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+      }
+
+      // Signup Form Validation - UPDATED VERSION
       document.getElementById('signupForm').addEventListener('submit', function(e) {
         // ALWAYS prevent form submission first
         e.preventDefault();
@@ -1581,8 +1794,11 @@ skip_registration:
           'first_name',
           'middle_name',
           'last_name', 
-          'address', 
-          'city_province', 
+          'address_line',
+          'province_id',
+          'city_id',
+          'barangay_id',
+          'zip_code',
           'email', 
           'contact_number', 
           'birthday', 
@@ -1590,7 +1806,6 @@ skip_registration:
           'confirm_password'
         ];
         
-        // Validate ALL required fields
         requiredFields.forEach(fieldId => {
           const field = document.getElementById(fieldId);
           const errorMsg = document.getElementById(fieldId + '_error');
@@ -1621,6 +1836,24 @@ skip_registration:
           }
         }
         
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+        const birthday = document.getElementById('birthday');
+        
+        // Validate password strength - NEW VALIDATION
+        if (password && password.value) {
+          const passwordError = document.getElementById('password_error');
+          if (!isPasswordStrong(password.value)) {
+            password.classList.add('error');
+            passwordError.textContent = '⚠ Password must be strong (8+ chars, uppercase, lowercase, number, special character)';
+            passwordError.classList.add('show');
+            isValid = false;
+          } else {
+            password.classList.remove('error');
+            passwordError.classList.remove('show');
+          }
+        }
+        
         // Validate password match
         if (password && confirmPassword && password.value && confirmPassword.value) {
           if (password.value !== confirmPassword.value) {
@@ -1629,10 +1862,28 @@ skip_registration:
             confirmError.textContent = 'Passwords do not match';
             confirmError.classList.add('show');
             isValid = false;
+          } else {
+            confirmPassword.classList.remove('error');
+            const confirmError = document.getElementById('confirm_password_error');
+            confirmError.classList.remove('show');
           }
         }
         
-        // Validate terms checkbox - THIS RUNS REGARDLESS
+        // Validate age (must be 18+) - NEW VALIDATION
+        if (birthday && birthday.value) {
+          const birthdayError = document.getElementById('birthday_error');
+          if (!isAtLeast18(birthday.value)) {
+            birthday.classList.add('error');
+            birthdayError.textContent = '⚠ You must be at least 18 years old to create an account';
+            birthdayError.classList.add('show');
+            isValid = false;
+          } else {
+            birthday.classList.remove('error');
+            birthdayError.classList.remove('show');
+          }
+        }
+        
+        // Validate terms checkbox
         const terms = document.getElementById('terms');
         const termsError = document.getElementById('terms_error');
         if (terms && termsError) {
@@ -1673,6 +1924,19 @@ skip_registration:
       document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="password"], input[type="date"]').forEach(input => {
         input.addEventListener('input', function() {
           if (this.value.trim()) {
+            this.classList.remove('error');
+            const errorMsg = document.getElementById(this.id + '_error');
+            if (errorMsg) {
+              errorMsg.classList.remove('show');
+            }
+          }
+        });
+      });
+
+      // Remove error styling on select change
+      document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', function() {
+          if (this.value) {
             this.classList.remove('error');
             const errorMsg = document.getElementById(this.id + '_error');
             if (errorMsg) {

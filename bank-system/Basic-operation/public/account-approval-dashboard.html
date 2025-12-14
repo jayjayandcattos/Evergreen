@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account Approval Dashboard - Evergreen Bank</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+    <link
+      rel="stylesheet"
+      href="../assets/css/account-approval-dashboard.css"
+    />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container-fluid">
+        <a
+          class="navbar-brand d-flex align-items-center"
+          href="employee-dashboard.html"
+        >
+          <img
+            src="../assets/img/evergreen_icon2.png"
+            alt="Logo"
+            class="logo"
+          />
+          <span class="brand-text">EVERGREEN</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="navbarNav"
+        >
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="employee-dashboard.html">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="employee-transaction.html"
+                >Transactions</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="transaction-history.html"
+                >Transaction History</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="account-opening.html"
+                >Account Opening</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="account-approval-dashboard.html"
+                >Approval Dashboard</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="reports.html">Reports</a>
+            </li>
+          </ul>
+        </div>
+        <div class="d-flex align-items-center ms-auto gap-3">
+          <span class="username-text me-2" id="employeeName">Employee</span>
+          <div class="user-avatar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" fill="#003631" />
+              <circle cx="12" cy="9" r="3" fill="white" />
+              <path
+                d="M6 18.5C6 16.5 8.5 15 12 15C15.5 15 18 16.5 18 18.5"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <button class="btn-logout" id="logoutBtn" title="Logout">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid px-4 py-4">
+      <!-- Header Section -->
+      <div class="page-header mb-4">
+        <h1 class="page-title">Account Approval Dashboard</h1>
+        <p class="page-subtitle">
+          Review and approve pending account applications
+        </p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="stat-card pending-stat">
+            <div class="stat-icon">
+              <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-pending">0</div>
+              <div class="stat-label">Pending</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card approved-stat">
+            <div class="stat-icon">
+              <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-approved">0</div>
+              <div class="stat-label">Approved Today</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card rejected-stat">
+            <div class="stat-icon">
+              <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-rejected">0</div>
+              <div class="stat-label">Rejected Today</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card total-stat">
+            <div class="stat-icon">
+              <i class="bi bi-list-check"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-total">0</div>
+              <div class="stat-label">Total Applications</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters and Search -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Search</label>
+              <div class="input-group">
+                <span class="input-group-text"
+                  ><i class="bi bi-search"></i
+                ></span>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="searchInput"
+                  placeholder="Search by name, application number..."
+                />
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="filterStatus">
+                <option value="">All Status</option>
+                <option value="pending" selected>Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Account Type</label>
+              <select class="form-select" id="filterAccountType">
+                <option value="">All Types</option>
+                <option value="Savings">Savings Account</option>
+                <option value="Checking">Checking Account</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">&nbsp;</label>
+              <button class="btn btn-secondary w-100" id="clearFilters">
+                <i class="bi bi-arrow-counterclockwise"></i> Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Applications List -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Pending Applications</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" id="applicationsTable">
+              <thead>
+                <tr>
+                  <th>Application #</th>
+                  <th>Applicant Name</th>
+                  <th>Account Type</th>
+                  <th>Submitted Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="applicationsTableBody">
+                <tr>
+                  <td colspan="6" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading applications...</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application Details Modal -->
+    <div
+      class="modal fade"
+      id="applicationModal"
+      data-bs-backdrop="static"
+      data-bs-keyboard="false"
+      tabindex="-1"
+    >
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-file-earmark-text me-2"></i>Application Details
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div id="applicationDetails">
+              <!-- Application details will be loaded here -->
+            </div>
+          </div>
+          <div class="modal-footer" id="modalFooter">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+            <button type="button" class="btn btn-danger" id="rejectBtn">
+              <i class="bi bi-x-circle me-1"></i>Reject
+            </button>
+            <button type="button" class="btn btn-success" id="approveBtn">
+              <i class="bi bi-check-circle me-1"></i>Approve
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rejection Reason Modal -->
+    <div class="modal fade" id="rejectionModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Rejection Reason</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <label class="form-label"
+              >Please provide a reason for rejection:</label
+            >
+            <textarea
+              class="form-control"
+              id="rejectionReason"
+              rows="4"
+              placeholder="Enter rejection reason..."
+              required
+            ></textarea>
+            <div class="invalid-feedback">
+              Please provide a rejection reason.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn btn-danger" id="confirmRejectBtn">
+              <i class="bi bi-x-circle me-1"></i>Confirm Rejection
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approval Confirmation Modal -->
+    <div class="modal fade" id="approvalConfirmModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div
+          class="modal-content border-0 shadow-lg"
+          style="border-radius: 20px"
+        >
+          <div class="modal-body text-center p-5">
+            <div class="confirm-icon-wrapper mb-4">
+              <div class="confirm-icon">
+                <i class="bi bi-question-circle"></i>
+              </div>
+            </div>
+            <h4 class="fw-bold mb-3" style="color: #003631">
+              Approve Application?
+            </h4>
+            <p class="text-muted mb-4" style="font-size: 0.95rem">
+              Are you sure you want to approve this application?<br />
+              <small class="text-secondary"
+                >This will create a new bank account for the customer.</small
+              >
+            </p>
+            <div class="d-flex gap-2 justify-content-center">
+              <button
+                type="button"
+                class="btn btn-outline-secondary px-4"
+                data-bs-dismiss="modal"
+                style="border-radius: 10px; min-width: 120px"
+              >
+                <i class="bi bi-x-circle me-1"></i>Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-success px-4"
+                id="confirmApproveBtn"
+                style="
+                  background-color: #10b981;
+                  border-color: #10b981;
+                  border-radius: 10px;
+                  min-width: 120px;
+                "
+              >
+                <i class="bi bi-check-circle me-1"></i>Yes, Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Modal (Approval) -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-body text-center py-5 px-4">
+            <div class="success-animation mb-4">
+              <div class="success-circle">
+                <i class="bi bi-check-lg text-white"></i>
+              </div>
+            </div>
+            <h4 class="fw-bold mb-2" style="color: #003631">Success!</h4>
+            <p class="text-muted mb-4" id="successMessage">
+              Action completed successfully!
+            </p>
+            <div id="successDetails" class="mb-4" style="display: none">
+              <div class="card bg-light border-0">
+                <div class="card-body py-3">
+                  <div class="row g-2 text-start">
+                    <div class="col-12">
+                      <small class="text-muted d-block">Account Number</small>
+                      <strong id="successAccountNumber" style="color: #003631"
+                        >-</strong
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-success px-5"
+              data-bs-dismiss="modal"
+              style="background-color: #003631; border-color: #003631"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rejection Success Modal -->
+    <div class="modal fade" id="rejectionSuccessModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div
+          class="modal-content border-0 shadow-lg"
+          style="border-radius: 20px"
+        >
+          <div class="modal-body text-center py-5 px-4">
+            <div class="rejection-animation mb-4">
+              <div class="rejection-circle">
+                <i class="bi bi-x-lg text-white"></i>
+              </div>
+            </div>
+            <h4 class="fw-bold mb-2" style="color: #003631">
+              Application Rejected
+            </h4>
+            <p class="text-muted mb-4">
+              The application has been rejected successfully.<br />
+              <small class="text-secondary"
+                >The applicant will be notified of the decision.</small
+              >
+            </p>
+            <button
+              type="button"
+              class="btn btn-primary px-5"
+              data-bs-dismiss="modal"
+              style="
+                background-color: #003631;
+                border-color: #003631;
+                border-radius: 10px;
+              "
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .success-circle {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        animation: scaleIn 0.5s ease-out;
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+      }
+
+      .success-circle i {
+        font-size: 2.5rem;
+        animation: checkmark 0.8s ease-in-out 0.3s both;
+      }
+
+      @keyframes scaleIn {
+        0% {
+          transform: scale(0);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      @keyframes checkmark {
+        0% {
+          transform: scale(0);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      .modal-content {
+        border-radius: 15px;
+      }
+
+      /* Approval Confirmation Modal Styles */
+      .confirm-icon-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+
+      .confirm-icon {
+        width: 90px;
+        height: 90px;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        animation: pulseGlow 2s ease-in-out infinite;
+        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
+        position: relative;
+      }
+
+      .confirm-icon::before {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 3px solid rgba(245, 158, 11, 0.3);
+        animation: ripple 2s ease-out infinite;
+      }
+
+      .confirm-icon i {
+        font-size: 3rem;
+        color: white;
+        animation: bounceIcon 1s ease-in-out infinite;
+      }
+
+      @keyframes pulseGlow {
+        0%,
+        100% {
+          box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
+        }
+        50% {
+          box-shadow: 0 10px 40px rgba(245, 158, 11, 0.6);
+        }
+      }
+
+      @keyframes ripple {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1.4);
+          opacity: 0;
+        }
+      }
+
+      @keyframes bounceIcon {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+
+      #approvalConfirmModal .btn-success:hover {
+        background-color: #059669 !important;
+        border-color: #059669 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+        transition: all 0.3s ease;
+      }
+
+      #approvalConfirmModal .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
+      }
+
+      /* Rejection Success Modal Styles */
+      .rejection-circle {
+        width: 90px;
+        height: 90px;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        animation: scaleIn 0.5s ease-out;
+        box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+        position: relative;
+      }
+
+      .rejection-circle::before {
+        content: "";
+        position: absolute;
+        width: 120%;
+        height: 120%;
+        border-radius: 50%;
+        border: 3px solid rgba(239, 68, 68, 0.2);
+        animation: ripple 1.5s ease-out infinite;
+      }
+
+      .rejection-circle i {
+        font-size: 3rem;
+        animation: checkmark 0.8s ease-in-out 0.3s both;
+      }
+
+      #rejectionSuccessModal .btn-primary:hover {
+        background-color: #002621 !important;
+        border-color: #002621 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 54, 49, 0.3);
+        transition: all 0.3s ease;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/auth-helper.js"></script>
+    <script src="../assets/js/account-approval-dashboard.js"></script>
+  </body>
+</html>

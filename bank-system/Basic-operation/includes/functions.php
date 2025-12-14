@@ -224,9 +224,10 @@ function logActivity($pdo, $action, $details, $employeeId = null) {
 function generateAccountNumber($pdo, $accountType = 'Savings') {
     // Determine prefix based on account type
     $prefix = 'SA'; // Default to Savings
-    if (strtolower($accountType) === 'checking') {
+    $accountTypeLower = strtolower($accountType);
+    if (strpos($accountTypeLower, 'checking') !== false) {
         $prefix = 'CHA';
-    } elseif (strtolower($accountType) === 'savings') {
+    } elseif (strpos($accountTypeLower, 'savings') !== false) {
         $prefix = 'SA';
     }
     

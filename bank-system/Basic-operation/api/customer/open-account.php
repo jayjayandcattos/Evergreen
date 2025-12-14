@@ -7,6 +7,12 @@
 // Start session before any output
 session_start();
 
+// Enable error logging
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Don't display errors in response
+ini_set('log_errors', 1);
+error_log("=== Account Opening API Called ===");
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -23,19 +29,13 @@ require_once '../../config/database.php';
 require_once '../../includes/functions.php';
 
 try {
-    // Check if user is logged in
-    if (!isset($_SESSION['customer_id'])) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'You must be logged in to open an account. Please log in first.'
-        ]);
-        exit();
-    }
-
-    // Get JSON input
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Get form data (multipart/form-data for file upload)
+    $input = $_POST;
+    error_log("POST data: " . print_r($input, true));
+    error_log("FILES data: " . print_r($_FILES, true));
     
-    if (!$input) {
+    if (empty($input)) {
+        error_log("ERROR: Empty input data");
         echo json_encode([
             'success' => false,
             'message' => 'Invalid request data'
@@ -53,8 +53,42 @@ try {
     
     if (empty($input['account_type'])) {
         $errors['account_type'] = 'Account type is required';
-    } elseif (!in_array($input['account_type'], ['Savings', 'Checking'])) {
-        $errors['account_type'] = 'Invalid account type. Must be Savings or Checking';
+    } else {
+        // Normalize incoming type to canonical names
+        $typeRaw = trim($input['account_type']);
+        $typeNormalized = $typeRaw;
+        if (strcasecmp($typeRaw, 'Savings') === 0) {
+            $typeNormalized = 'Savings Account';
+        } elseif (strcasecmp($typeRaw, 'Checking') === 0) {
+            $typeNormalized = 'Checking Account';
+        }
+
+        // Accept both canonical and short forms
+        $allowed = ['Savings', 'Checking', 'Savings Account', 'Checking Account'];
+        if (!in_array($typeRaw, $allowed, true) && !in_array($typeNormalized, ['Savings Account', 'Checking Account'], true)) {
+            $errors['account_type'] = 'Invalid account type. Must be Savings Account or Checking Account';
+        } else {
+            // Overwrite input with normalized canonical name for downstream usage
+            $input['account_type'] = $typeNormalized;
+        }
+    }
+
+    // Validate ID fields
+    if (empty($input['id_type'])) {
+        $errors['id_type'] = 'ID type is required';
+    }
+    
+    if (empty($input['id_number'])) {
+        $errors['id_number'] = 'ID number is required';
+    }
+
+    // Validate ID image uploads
+    if (!isset($_FILES['id_front_image']) || $_FILES['id_front_image']['error'] !== UPLOAD_ERR_OK) {
+        $errors['id_front_image'] = 'Front image of ID is required';
+    }
+    
+    if (!isset($_FILES['id_back_image']) || $_FILES['id_back_image']['error'] !== UPLOAD_ERR_OK) {
+        $errors['id_back_image'] = 'Back image of ID is required';
     }
 
     // Validate initial deposit if provided
@@ -62,7 +96,7 @@ try {
     $depositSource = null;
     $sourceAccountNumber = null;
     
-    if (isset($input['initial_deposit']) && $input['initial_deposit'] !== null) {
+    if (isset($input['initial_deposit']) && $input['initial_deposit'] !== null && $input['initial_deposit'] !== '') {
         $initialDeposit = floatval($input['initial_deposit']);
         if ($initialDeposit < 0) {
             $errors['initial_deposit'] = 'Initial deposit cannot be negative';
@@ -93,8 +127,7 @@ try {
         exit();
     }
 
-    // Get customer ID from session
-    $customerId = $_SESSION['customer_id'];
+    // account_type now holds canonical name; do not re-append
     $accountTypeName = $input['account_type'];
 
     // Connect to database
@@ -107,44 +140,35 @@ try {
         exit();
     }
 
-    // Verify customer exists
-    $stmt = $db->prepare("SELECT customer_id FROM bank_customers WHERE customer_id = :customer_id");
-    $stmt->bindParam(':customer_id', $customerId);
-    $stmt->execute();
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$customer) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Customer not found. Please log in again.'
-        ]);
-        exit();
+    // Get customer_id from existing account number OR from form data
+    $customerId = null;
+    
+    // First check if customer_id was passed from frontend
+    if (!empty($input['customer_id'])) {
+        $customerId = intval($input['customer_id']);
+        error_log("Using customer_id from form: " . $customerId);
     }
-
-    // Verify existing account number belongs to the customer
-    if (!empty($input['existing_account_number'])) {
+    
+    // If not provided, fetch it from the account number
+    if (!$customerId && !empty($input['existing_account_number'])) {
         $existingAccountNumber = trim($input['existing_account_number']);
         
         $stmt = $db->prepare("
             SELECT ca.account_id, ca.account_number, ca.customer_id, ca.is_locked
             FROM customer_accounts ca
-            INNER JOIN customer_linked_accounts cla ON ca.account_id = cla.account_id
-            WHERE ca.account_number = :account_number 
-            AND cla.customer_id = :customer_id 
-            AND cla.is_active = 1
+            WHERE ca.account_number = :account_number
             LIMIT 1
         ");
         $stmt->bindParam(':account_number', $existingAccountNumber);
-        $stmt->bindParam(':customer_id', $customerId);
         $stmt->execute();
         $existingAccount = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$existingAccount) {
             echo json_encode([
                 'success' => false,
-                'message' => 'The existing account number does not belong to you. Please enter a valid account number.',
+                'message' => 'The existing account number was not found in the system.',
                 'errors' => [
-                    'existing_account_number' => 'This account number does not belong to you or does not exist.'
+                    'existing_account_number' => 'This account number does not exist.'
                 ]
             ]);
             exit();
@@ -154,12 +178,75 @@ try {
         if ($existingAccount['is_locked']) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Your existing account is locked. Please contact customer service.',
+                'message' => 'The existing account is locked. Please contact customer service.',
                 'errors' => [
                     'existing_account_number' => 'This account is locked and cannot be used for verification.'
                 ]
             ]);
             exit();
+        }
+        
+        // Get customer_id from the existing account
+        $customerId = $existingAccount['customer_id'];
+    }
+
+    // Fetch customer information from existing account's application
+    $existingApplication = null;
+    if (!empty($input['existing_account_number'])) {
+        $existingAccountNumber = trim($input['existing_account_number']);
+        
+        $stmt = $db->prepare("
+            SELECT aa.*
+            FROM customer_accounts ca
+            INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
+            INNER JOIN account_applications aa ON bc.application_id = aa.application_id
+            WHERE ca.account_number = :account_number
+            LIMIT 1
+        ");
+        $stmt->bindParam(':account_number', $existingAccountNumber);
+        $stmt->execute();
+        $existingApplication = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$existingApplication) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Could not retrieve customer information from existing account',
+                'errors' => [
+                    'existing_account_number' => 'Unable to fetch customer data from this account'
+                ]
+            ]);
+            exit();
+        }
+    }
+
+    // Handle file uploads for ID images
+    $uploadDir = '../../uploads/id_images/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $idFrontPath = null;
+    $idBackPath = null;
+
+    // Upload front image
+    if (isset($_FILES['id_front_image']) && $_FILES['id_front_image']['error'] === UPLOAD_ERR_OK) {
+        $ext = pathinfo($_FILES['id_front_image']['name'], PATHINFO_EXTENSION);
+        $fileName = 'id_front_' . $customerId . '_' . time() . '.' . $ext;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['id_front_image']['tmp_name'], $targetPath)) {
+            $idFrontPath = 'uploads/id_images/' . $fileName;
+        }
+    }
+
+    // Upload back image
+    if (isset($_FILES['id_back_image']) && $_FILES['id_back_image']['error'] === UPLOAD_ERR_OK) {
+        $ext = pathinfo($_FILES['id_back_image']['name'], PATHINFO_EXTENSION);
+        $fileName = 'id_back_' . $customerId . '_' . time() . '.' . $ext;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['id_back_image']['tmp_name'], $targetPath)) {
+            $idBackPath = 'uploads/id_images/' . $fileName;
         }
     }
 
@@ -167,286 +254,144 @@ try {
     $db->beginTransaction();
 
     try {
-        // Get account type ID
-        $stmt = $db->prepare("SELECT account_type_id FROM bank_account_types WHERE type_name = :type_name LIMIT 1");
-        $stmt->bindParam(':type_name', $accountTypeName);
-        $stmt->execute();
-        $accountType = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Get employee ID from session (if available) or default to NULL
+        $employeeId = $_SESSION['employee_id'] ?? null;
         
-        // If account type doesn't exist, create it
-        if (!$accountType) {
-            $stmt = $db->prepare("INSERT INTO bank_account_types (type_name, description) VALUES (:type_name, :description)");
-            $description = $accountTypeName . ' Account';
-            $stmt->bindParam(':type_name', $accountTypeName);
-            $stmt->bindParam(':description', $description);
+        // Generate unique application number
+        $applicationNumber = 'APP-' . date('Ymd') . '-' . str_pad(rand(1, 99999), 4, '0', STR_PAD_LEFT);
+        
+        // Verify application number is unique
+        $stmt = $db->prepare("SELECT application_id FROM account_applications WHERE application_number = :app_num");
+        $stmt->bindParam(':app_num', $applicationNumber);
+        $stmt->execute();
+        while ($stmt->fetch()) {
+            // Generate new number if conflict
+            $applicationNumber = 'APP-' . date('Ymd') . '-' . str_pad(rand(1, 99999), 4, '0', STR_PAD_LEFT);
             $stmt->execute();
-            $accountTypeId = $db->lastInsertId();
-        } else {
-            $accountTypeId = $accountType['account_type_id'];
         }
         
-        // Set interest rate: 0.5% (0.50) for Savings accounts, NULL for Checking accounts
-        $interestRate = (strtolower($accountTypeName) === 'savings') ? 0.50 : NULL;
-        
-        // Generate unique account number
-        $accountNumber = generateAccountNumber($db, $accountTypeName);
-        
-        // Get employee ID from session (if available) or default to 1
-        $employeeId = $_SESSION['employee_id'] ?? 1;
-        
-        // Insert new account
-        $stmt = $db->prepare("
-            INSERT INTO customer_accounts (
-                customer_id, 
-                account_number, 
-                account_type_id, 
-                interest_rate, 
-                created_by_employee_id,
-                created_at
-            ) VALUES (
-                :customer_id, 
-                :account_number, 
-                :account_type_id, 
-                :interest_rate, 
-                :employee_id,
-                NOW()
-            )
-        ");
-        
-        $stmt->bindParam(':customer_id', $customerId);
-        $stmt->bindParam(':account_number', $accountNumber);
-        $stmt->bindParam(':account_type_id', $accountTypeId);
-        $stmt->bindParam(':interest_rate', $interestRate);
-        $stmt->bindParam(':employee_id', $employeeId);
-        $stmt->execute();
-        
-        $accountId = $db->lastInsertId();
-        
-        // If initial deposit is provided, handle it based on deposit source
-        if ($initialDeposit && $initialDeposit > 0) {
-            if ($depositSource === 'transfer' && $sourceAccountNumber) {
-                // Transfer from existing account
-                // 1. Get source account details
-                $stmt = $db->prepare("
-                    SELECT account_id, customer_id 
-                    FROM customer_accounts 
-                    WHERE account_number = :account_number
-                    FOR UPDATE
-                ");
-                $stmt->bindParam(':account_number', $sourceAccountNumber);
-                $stmt->execute();
-                $sourceAccount = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$sourceAccount) {
-                    throw new Exception('Source account not found');
-                }
-                
-                // Verify source account belongs to the same customer
-                if ($sourceAccount['customer_id'] != $customerId) {
-                    throw new Exception('Source account does not belong to you');
-                }
-                
-                // Check if source account is locked
-                $stmt = $db->prepare("SELECT is_locked FROM customer_accounts WHERE account_id = :account_id");
-                $stmt->bindParam(':account_id', $sourceAccount['account_id']);
-                $stmt->execute();
-                $locked = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($locked && $locked['is_locked']) {
-                    throw new Exception('Source account is locked');
-                }
-                
-                // Calculate source account balance
-                $stmt = $db->prepare("
-                    SELECT
-                        SUM(
-                            CASE tt.type_name
-                                WHEN 'Deposit' THEN t.amount
-                                WHEN 'Transfer In' THEN t.amount
-                                WHEN 'Interest Payment' THEN t.amount
-                                WHEN 'Loan Disbursement' THEN t.amount
-                                WHEN 'Withdrawal' THEN -t.amount
-                                WHEN 'Transfer Out' THEN -t.amount
-                                WHEN 'Service Charge' THEN -t.amount
-                                WHEN 'Loan Payment' THEN -t.amount
-                                ELSE 0
-                            END
-                        ) as current_balance
-                    FROM bank_transactions t
-                    INNER JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id
-                    WHERE t.account_id = :account_id
-                ");
-                $stmt->bindParam(':account_id', $sourceAccount['account_id']);
-                $stmt->execute();
-                $balanceResult = $stmt->fetch(PDO::FETCH_ASSOC);
-                $sourceBalance = (float) ($balanceResult['current_balance'] ?? 0.00);
-                
-                // Check sufficient balance
-                if ($sourceBalance < $initialDeposit) {
-                    throw new Exception('Insufficient balance in source account. Available: ' . number_format($sourceBalance, 2));
-                }
-                
-                // Get transaction types
-                $stmt = $db->prepare("SELECT transaction_type_id FROM transaction_types WHERE type_name = 'Transfer Out' LIMIT 1");
-                $stmt->execute();
-                $transferOutType = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                $stmt = $db->prepare("SELECT transaction_type_id FROM transaction_types WHERE type_name = 'Transfer In' LIMIT 1");
-                $stmt->execute();
-                $transferInType = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$transferOutType || !$transferInType) {
-                    throw new Exception('Transfer transaction types not found in database');
-                }
-                
-                $transferOutTypeId = $transferOutType['transaction_type_id'];
-                $transferInTypeId = $transferInType['transaction_type_id'];
-                
-                // Generate transaction references
-                $transferRef = 'TF' . date('Ymd') . str_pad($sourceAccount['account_id'], 6, '0', STR_PAD_LEFT) . rand(1000, 9999);
-                
-                // 2. Create Transfer Out transaction on source account
-                $stmt = $db->prepare("
-                    INSERT INTO bank_transactions (
-                        transaction_ref,
-                        account_id,
-                        transaction_type_id,
-                        amount,
-                        related_account_id,
-                        description,
-                        employee_id,
-                        created_at
-                    ) VALUES (
-                        :transaction_ref,
-                        :account_id,
-                        :transaction_type_id,
-                        :amount,
-                        :related_account_id,
-                        :description,
-                        :employee_id,
-                        NOW()
-                    )
-                ");
-                
-                $description = 'Transfer to new account ' . $accountNumber;
-                $stmt->bindParam(':transaction_ref', $transferRef);
-                $stmt->bindParam(':account_id', $sourceAccount['account_id']);
-                $stmt->bindParam(':transaction_type_id', $transferOutTypeId);
-                $stmt->bindParam(':amount', $initialDeposit);
-                $stmt->bindParam(':related_account_id', $accountId);
-                $stmt->bindParam(':description', $description);
-                $stmt->bindParam(':employee_id', $employeeId);
-                $stmt->execute();
-                
-                // 3. Create Transfer In transaction on new account
-                $stmt = $db->prepare("
-                    INSERT INTO bank_transactions (
-                        transaction_ref,
-                        account_id,
-                        transaction_type_id,
-                        amount,
-                        related_account_id,
-                        description,
-                        employee_id,
-                        created_at
-                    ) VALUES (
-                        :transaction_ref,
-                        :account_id,
-                        :transaction_type_id,
-                        :amount,
-                        :related_account_id,
-                        :description,
-                        :employee_id,
-                        NOW()
-                    )
-                ");
-                
-                $description = 'Initial deposit - Transfer from ' . $sourceAccountNumber;
-                $stmt->bindParam(':transaction_ref', $transferRef);
-                $stmt->bindParam(':account_id', $accountId);
-                $stmt->bindParam(':transaction_type_id', $transferInTypeId);
-                $stmt->bindParam(':amount', $initialDeposit);
-                $stmt->bindParam(':related_account_id', $sourceAccount['account_id']);
-                $stmt->bindParam(':description', $description);
-                $stmt->bindParam(':employee_id', $employeeId);
-                $stmt->execute();
-                
-            } else {
-                // Cash deposit
-                // Get 'Deposit' transaction type ID
-                $stmt = $db->prepare("SELECT transaction_type_id FROM transaction_types WHERE type_name = 'Deposit' LIMIT 1");
-                $stmt->execute();
-                $depositType = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($depositType) {
-                    $depositTypeId = $depositType['transaction_type_id'];
-                    
-                    // Generate transaction reference
-                    $transactionRef = 'DP' . date('Ymd') . str_pad($accountId, 6, '0', STR_PAD_LEFT) . rand(1000, 9999);
-                    
-                    // Insert deposit transaction
-                    $stmt = $db->prepare("
-                        INSERT INTO bank_transactions (
-                            transaction_ref,
-                            account_id,
-                            transaction_type_id,
-                            amount,
-                            description,
-                            employee_id,
-                            created_at
-                        ) VALUES (
-                            :transaction_ref,
-                            :account_id,
-                            :transaction_type_id,
-                            :amount,
-                            :description,
-                            :employee_id,
-                            NOW()
-                        )
-                    ");
-                    
-                    $description = 'Initial deposit - Account opening';
-                    $stmt->bindParam(':transaction_ref', $transactionRef);
-                    $stmt->bindParam(':account_id', $accountId);
-                    $stmt->bindParam(':transaction_type_id', $depositTypeId);
-                    $stmt->bindParam(':amount', $initialDeposit);
-                    $stmt->bindParam(':description', $description);
-                    $stmt->bindParam(':employee_id', $employeeId);
-                    $stmt->execute();
-                }
-            }
-        }
-        
-        // Link account to customer if not already linked
-        $stmt = $db->prepare("
-            SELECT link_id FROM customer_linked_accounts 
-            WHERE customer_id = :customer_id AND account_id = :account_id
-        ");
-        $stmt->bindParam(':customer_id', $customerId);
-        $stmt->bindParam(':account_id', $accountId);
-        $stmt->execute();
-        $link = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$link) {
+        // Create a pending account_applications record with data from existing application + new ID info
+        if ($existingApplication && $idFrontPath && $idBackPath) {
+            
             $stmt = $db->prepare("
-                INSERT INTO customer_linked_accounts (customer_id, account_id, is_active, linked_at)
-                VALUES (:customer_id, :account_id, 1, NOW())
+                INSERT INTO account_applications (
+                    application_number,
+                    application_status,
+                    customer_id,
+                    first_name,
+                    middle_name,
+                    last_name,
+                    date_of_birth,
+                    place_of_birth,
+                    gender,
+                    civil_status,
+                    nationality,
+                    email,
+                    phone_number,
+                    street_address,
+                    barangay_id,
+                    city_id,
+                    province_id,
+                    postal_code,
+                    id_type,
+                    id_number,
+                    employment_status,
+                    employer_name,
+                    occupation,
+                    annual_income,
+                    account_type,
+                    terms_accepted,
+                    privacy_acknowledged,
+                    submitted_at
+                ) VALUES (
+                    :application_number,
+                    'pending',
+                    :customer_id,
+                    :first_name,
+                    :middle_name,
+                    :last_name,
+                    :date_of_birth,
+                    :place_of_birth,
+                    :gender,
+                    :civil_status,
+                    :nationality,
+                    :email,
+                    :phone_number,
+                    :street_address,
+                    :barangay_id,
+                    :city_id,
+                    :province_id,
+                    :postal_code,
+                    :id_type,
+                    :id_number,
+                    :employment_status,
+                    :employer_name,
+                    :occupation,
+                    :annual_income,
+                    :account_type,
+                    1,
+                    1,
+                    NOW()
+                )
             ");
+            
+            $stmt->bindParam(':application_number', $applicationNumber);
             $stmt->bindParam(':customer_id', $customerId);
-            $stmt->bindParam(':account_id', $accountId);
+            $stmt->bindValue(':first_name', $existingApplication['first_name']);
+            $stmt->bindValue(':middle_name', $existingApplication['middle_name']);
+            $stmt->bindValue(':last_name', $existingApplication['last_name']);
+            $stmt->bindValue(':date_of_birth', $existingApplication['date_of_birth']);
+            $stmt->bindValue(':place_of_birth', $existingApplication['place_of_birth']);
+            $stmt->bindValue(':gender', $existingApplication['gender']);
+            $stmt->bindValue(':civil_status', $existingApplication['civil_status']);
+            $stmt->bindValue(':nationality', $existingApplication['nationality']);
+            $stmt->bindValue(':email', $existingApplication['email']);
+            $stmt->bindValue(':phone_number', $existingApplication['phone_number']);
+            $stmt->bindValue(':street_address', $existingApplication['street_address']);
+            $stmt->bindValue(':barangay_id', $existingApplication['barangay_id']);
+            $stmt->bindValue(':city_id', $existingApplication['city_id']);
+            $stmt->bindValue(':province_id', $existingApplication['province_id']);
+            $stmt->bindValue(':postal_code', $existingApplication['postal_code']);
+            $stmt->bindParam(':id_type', $input['id_type']);
+            $stmt->bindParam(':id_number', $input['id_number']);
+            $stmt->bindValue(':employment_status', $existingApplication['employment_status']);
+            $stmt->bindValue(':employer_name', $existingApplication['employer_name']);
+            $stmt->bindValue(':occupation', $existingApplication['occupation']);
+            $stmt->bindValue(':annual_income', $existingApplication['annual_income']);
+            $stmt->bindParam(':account_type', $input['account_type']);
             $stmt->execute();
+            
+            $newApplicationId = $db->lastInsertId();
+            
+            // Insert ID documents into application_documents table
+            $docStmt = $db->prepare("
+                INSERT INTO application_documents (
+                    application_id,
+                    document_type,
+                    file_path,
+                    uploaded_at
+                ) VALUES 
+                (:app_id, 'id_front', :id_front, NOW()),
+                (:app_id2, 'id_back', :id_back, NOW())
+            ");
+            $docStmt->bindParam(':app_id', $newApplicationId);
+            $docStmt->bindParam(':app_id2', $newApplicationId);
+            $docStmt->bindParam(':id_front', $idFrontPath);
+            $docStmt->bindParam(':id_back', $idBackPath);
+            $docStmt->execute();
         }
         
         // Commit transaction
         $db->commit();
         
-        // Return success with account number
+        // Return success with application number
         echo json_encode([
             'success' => true,
-            'message' => 'Account opened successfully',
-            'account_number' => $accountNumber,
-            'account_type' => $accountTypeName,
-            'account_id' => $accountId,
-            'initial_deposit' => $initialDeposit
+            'message' => 'Account application submitted successfully! Your application is pending approval.',
+            'application_number' => $applicationNumber,
+            'application_id' => $newApplicationId,
+            'account_type' => $input['account_type'],
+            'status' => 'pending'
         ]);
         
     } catch (Exception $e) {
@@ -461,9 +406,8 @@ try {
     
     echo json_encode([
         'success' => false,
-        'message' => 'An error occurred while opening your account. Please try again.',
+        'message' => 'An error occurred while submitting your application. Please try again.',
         'debug' => $e->getMessage()
     ]);
 }
-?>
 

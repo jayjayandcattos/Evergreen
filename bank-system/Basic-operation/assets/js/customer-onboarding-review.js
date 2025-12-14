@@ -7,27 +7,27 @@
 function getApiBaseUrl() {
   // Get the current page path
   const currentPath = window.location.pathname;
-  
+
   // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Fallback: construct from known structure
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
-console.log('API Base URL:', API_BASE_URL);
+console.log("API Base URL:", API_BASE_URL);
 let sessionData = null;
 let editMode = {};
 let originalValues = {};
@@ -54,17 +54,22 @@ function setupEventListeners() {
   }
 
   // Edit buttons for each section
-  const editButtons = document.querySelectorAll(".btn-edit-icon");
+  const editButtons = document.querySelectorAll(".btn-edit-icon[data-section]");
+  console.log("Found", editButtons.length, "edit buttons");
+
   editButtons.forEach((btn) => {
-    btn.addEventListener("click", function () {
-      const section = this.closest(".detail-section");
-      if (section) {
-        const sectionId = section
-          .querySelector(".section-subtitle")
-          .textContent.trim()
-          .toLowerCase()
-          .replace(/\s+/g, "-");
-        editSection(sectionId);
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      const sectionId = this.getAttribute("data-section");
+      console.log("Edit button clicked for section:", sectionId);
+
+      if (sectionId) {
+        enableEditMode(
+          sectionId,
+          document.querySelector(`#section-${sectionId}`)
+        );
+      } else {
+        console.error("Could not find section ID");
       }
     });
   });
@@ -83,7 +88,7 @@ function setupEventListeners() {
 }
 
 /**
- * Load session data from backend
+ * Load session data from sessionStorage
  */
 async function loadSessionData() {
   // Prevent multiple simultaneous calls
@@ -91,37 +96,55 @@ async function loadSessionData() {
     console.log("Already loading session data, skipping...");
     return;
   }
-  
+
   isLoadingData = true;
-  
+
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/customer/get-session-data.php`,
-      {
-        method: "GET",
-        credentials: "include",
-      }
-    );
+    // Get data from sessionStorage instead of API
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    const step2Data = sessionStorage.getItem("onboarding_step2");
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    console.log("Step 1 data from sessionStorage:", step1Data);
+    console.log("Step 2 data from sessionStorage:", step2Data);
 
-    const result = await response.json();
-    
-    console.log("Session data loaded:", result);
-
-    if (result.success && result.data) {
-      sessionData = result.data;
-      populateReviewData(sessionData);
-      isLoadingData = false;
-    } else {
-      isLoadingData = false;
+    if (!step1Data) {
+      console.error("No step 1 data found in sessionStorage");
       showGlobalError("Session expired. Please start from the beginning.");
       setTimeout(() => {
         window.location.href = "customer-onboarding-details.html";
       }, 2000);
+      isLoadingData = false;
+      return;
     }
+
+    // Parse the data
+    const parsedStep1 = JSON.parse(step1Data);
+    const parsedStep2 = step2Data ? JSON.parse(step2Data) : {};
+
+    // Combine step 1 and step 2 data
+    const combinedData = {
+      ...parsedStep1,
+      ...parsedStep2,
+    };
+
+    console.log("Combined session data:", combinedData);
+
+    // Check if we have minimum required data from step 1
+    if (!combinedData.first_name || !combinedData.last_name) {
+      console.error("Missing required step 1 data");
+      showGlobalError(
+        "Missing required information. Please start from the beginning."
+      );
+      setTimeout(() => {
+        window.location.href = "customer-onboarding-details.html";
+      }, 2000);
+      isLoadingData = false;
+      return;
+    }
+
+    sessionData = combinedData;
+    populateReviewData(sessionData);
+    isLoadingData = false;
   } catch (error) {
     isLoadingData = false;
     console.error("Error loading session data:", error);
@@ -136,60 +159,187 @@ async function loadSessionData() {
  * Populate review fields with session data
  */
 function populateReviewData(data) {
-  // Personal Information - Full Name
-  const fullName = `${data.first_name || ""} ${data.middle_name || ""} ${
-    data.last_name || ""
-  }`.trim();
-  setFieldValue("review-full-name", fullName);
+  console.log("Populating review with data:", data);
 
-  // Map field names from Step 1 form to review display
-  setFieldValue(
-    "review-birth-date",
-    formatDate(data.date_of_birth || data.birth_date)
-  );
-  setFieldValue("review-birth-place", data.place_of_birth || data.birth_place);
-  setFieldValue("review-gender", data.gender);
-  setFieldValue(
-    "review-civil-status",
-    data.marital_status || data.civil_status
-  );
-  setFieldValue("review-nationality", data.nationality);
+  try {
+    // Personal Information - Name fields
+    setFieldValue("review-first-name", data.first_name || "");
+    setFieldValue("review-middle-name", data.middle_name || "");
+    setFieldValue("review-last-name", data.last_name || "");
 
-  // Address fields
-  setFieldValue("review-address", data.address_line || data.street);
-  setFieldValue("review-city", data.city);
-  setFieldValue("review-province", data.province || data.province_name);
-  setFieldValue("review-postal-code", data.postal_code);
+    // Map field names from Step 1 form to review display
+    setFieldValue(
+      "review-birth-date",
+      formatDate(data.date_of_birth || data.birth_date)
+    );
+    setFieldValue(
+      "review-birth-place",
+      data.place_of_birth || data.birth_place
+    );
+    setFieldValue("review-gender", data.gender);
+    setFieldValue(
+      "review-civil-status",
+      data.marital_status || data.civil_status
+    );
+    setFieldValue("review-nationality", data.nationality);
 
-  // Contact Information - handle arrays from Step 1
-  const email =
-    Array.isArray(data.emails) && data.emails.length > 0
-      ? data.emails[0]
-      : data.email || "";
-  const mobile =
-    data.mobile_number ||
-    (Array.isArray(data.phones) && data.phones.length > 0
-      ? data.phones[0]
-      : "");
+    // Address fields - now using IDs from dropdowns
+    setFieldValue("review-address", data.address_line || data.street);
 
-  // Email is shown in both Contact Details and Account Security sections
-  setFieldValue("review-email", email);
-  setFieldValue("review-mobile", formatPhoneNumber(mobile));
+    // Fetch city, province, and barangay names from IDs
+    fetchLocationNames(data.city_id, data.province_id, data.barangay_id);
 
-  // Employment Information - handle different field names
-  const occupation = data.occupation || data.employment_status || "";
-  const employer = data.employer_name || "";
-  const income = data.annual_income || data.source_of_funds || "";
+    setFieldValue("review-postal-code", data.postal_code); // Contact Information - handle arrays from Step 1
+    const email =
+      Array.isArray(data.emails) && data.emails.length > 0
+        ? data.emails[0]
+        : data.email || data.verified_email || data.email_verification || "";
+    const mobile =
+      data.mobile_number ||
+      (Array.isArray(data.phones) && data.phones.length > 0
+        ? data.phones[0]
+        : "");
 
-  setFieldValue("review-occupation", occupation);
-  setFieldValue("review-employer", employer);
-  setFieldValue("review-annual-income", formatCurrency(income));
+    // Email is shown in both Contact Details and Account Security sections
+    setFieldValue("review-email", email);
+    // Only set mobile if it exists (might not exist if email verification was used)
+    if (mobile) {
+      setFieldValue("review-mobile", formatPhoneNumber(mobile));
+    } else {
+      setFieldValue("review-mobile", "N/A");
+    }
 
-  // Account Type
-  const accountType = data.account_type || "Savings";
-  setFieldValue("review-account-type", accountType + " Account");
-  
-  // Note: Email is already set above and will be shown in Account Security section as username
+    // Employment Information - now using IDs from dropdowns
+    fetchEmploymentAndFundsNames(data.employment_status, data.source_of_funds);
+
+    const employer = data.employer_name || "";
+    setFieldValue("review-employer", employer);
+
+    // Account Type
+    const accountType = data.account_type || "Savings";
+    setFieldValue("review-account-type", accountType + " Account");
+
+    // Document Verification - ID Type and ID Number from step 2
+    setFieldValue("review-id-type", data.id_type || "-");
+    setFieldValue("review-id-number", data.id_number || "-");
+
+    // Documents Uploaded status
+    if (data.documents_uploaded) {
+      setFieldValue("review-documents", "ID Front & Back");
+    } else {
+      setFieldValue("review-documents", "Not uploaded");
+    }
+
+    // Note: Email is already set above and will be shown in Account Security section as username
+  } catch (error) {
+    console.error("Error populating review data:", error);
+    showGlobalError(
+      "Error displaying your information. Some fields may be missing."
+    );
+  }
+}
+
+/**
+ * Fetch location names from IDs
+ */
+async function fetchLocationNames(cityId, provinceId, barangayId) {
+  try {
+    const API_BASE_URL = getApiBaseUrl();
+
+    // Fetch province name
+    if (provinceId) {
+      const provinceResponse = await fetch(
+        `${API_BASE_URL}/location/get-provinces.php`
+      );
+      const provinceResult = await provinceResponse.json();
+      if (provinceResult.success && provinceResult.data) {
+        const province = provinceResult.data.find(
+          (p) => p.province_id == provinceId
+        );
+        if (province) {
+          setFieldValue("review-province", province.province_name);
+        }
+      }
+    }
+
+    // Fetch city name
+    if (cityId) {
+      const cityResponse = await fetch(
+        `${API_BASE_URL}/location/get-cities.php?province_id=${provinceId}`
+      );
+      const cityResult = await cityResponse.json();
+      if (cityResult.success && cityResult.data) {
+        const city = cityResult.data.find((c) => c.city_id == cityId);
+        if (city) {
+          setFieldValue("review-city", city.city_name);
+        }
+      }
+    }
+
+    // Fetch barangay name
+    if (barangayId && cityId) {
+      const barangayResponse = await fetch(
+        `${API_BASE_URL}/location/get-barangays.php?city_id=${cityId}`
+      );
+      const barangayResult = await barangayResponse.json();
+      if (barangayResult.success && barangayResult.data) {
+        const barangay = barangayResult.data.find(
+          (b) => b.barangay_id == barangayId
+        );
+        if (barangay) {
+          setFieldValue("review-barangay", barangay.barangay_name);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching location names:", error);
+  }
+}
+
+/**
+ * Fetch employment status and source of funds names from IDs
+ */
+async function fetchEmploymentAndFundsNames(
+  employmentStatusId,
+  sourceOfFundsId
+) {
+  try {
+    const API_BASE_URL = getApiBaseUrl();
+
+    // Fetch employment status name
+    if (employmentStatusId) {
+      const employmentResponse = await fetch(
+        `${API_BASE_URL}/common/get-employment-statuses.php`
+      );
+      const employmentResult = await employmentResponse.json();
+      if (employmentResult.success && employmentResult.data) {
+        const employment = employmentResult.data.find(
+          (e) => e.employment_status_id == employmentStatusId
+        );
+        if (employment) {
+          setFieldValue("review-occupation", employment.status_name);
+        }
+      }
+    }
+
+    // Fetch source of funds name
+    if (sourceOfFundsId) {
+      const fundsResponse = await fetch(
+        `${API_BASE_URL}/common/get-source-of-funds.php`
+      );
+      const fundsResult = await fundsResponse.json();
+      if (fundsResult.success && fundsResult.data) {
+        const funds = fundsResult.data.find(
+          (f) => f.source_id == sourceOfFundsId
+        );
+        if (funds) {
+          setFieldValue("review-annual-income", funds.source_name);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching employment/funds names:", error);
+  }
 }
 
 /**
@@ -219,10 +369,26 @@ function formatDate(dateString) {
 function formatPhoneNumber(phoneNumber) {
   if (!phoneNumber) return "Not provided";
 
+  // Convert to string if it's not already (handle objects/arrays)
+  let phoneStr = phoneNumber;
+  if (typeof phoneNumber === "object") {
+    // If it's an object with a phone property, use that
+    if (phoneNumber.phone) {
+      phoneStr = phoneNumber.phone;
+    } else if (phoneNumber.number) {
+      phoneStr = phoneNumber.number;
+    } else {
+      // Convert object to string as fallback
+      phoneStr = JSON.stringify(phoneNumber);
+    }
+  } else if (typeof phoneNumber !== "string") {
+    phoneStr = String(phoneNumber);
+  }
+
   // If it starts with +, format it nicely
-  if (phoneNumber.startsWith("+")) {
+  if (phoneStr.startsWith("+")) {
     // Format as +XX XXX XXX XXXX
-    const cleaned = phoneNumber.replace(/\D/g, "");
+    const cleaned = phoneStr.replace(/\D/g, "");
     if (cleaned.length >= 10) {
       return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(
         5,
@@ -231,7 +397,7 @@ function formatPhoneNumber(phoneNumber) {
     }
   }
 
-  return phoneNumber;
+  return phoneStr;
 }
 
 /**
@@ -348,22 +514,20 @@ function enableEditMode(sectionId, section) {
       // Civil Status dropdown
       inputElement = document.createElement("select");
       inputElement.className = "form-select form-select-sm";
+      const lowerCurrentValue = currentValue.toLowerCase();
       inputElement.innerHTML = `
           <option value="">Select Civil Status</option>
-          <option value="Single" ${
-            currentValue === "Single" ? "selected" : ""
+          <option value="single" ${
+            lowerCurrentValue === "single" ? "selected" : ""
           }>Single</option>
-          <option value="Married" ${
-            currentValue === "Married" ? "selected" : ""
+          <option value="married" ${
+            lowerCurrentValue === "married" ? "selected" : ""
           }>Married</option>
-          <option value="Widowed" ${
-            currentValue === "Widowed" ? "selected" : ""
+          <option value="widowed" ${
+            lowerCurrentValue === "widowed" ? "selected" : ""
           }>Widowed</option>
-          <option value="Separated" ${
-            currentValue === "Separated" ? "selected" : ""
-          }>Separated</option>
-          <option value="Divorced" ${
-            currentValue === "Divorced" ? "selected" : ""
+          <option value="divorced" ${
+            lowerCurrentValue === "divorced" ? "selected" : ""
           }>Divorced</option>
         `;
     } else if (id === "review-nationality") {
@@ -402,27 +566,294 @@ function enableEditMode(sectionId, section) {
           }>Other</option>
         `;
     } else if (id === "review-occupation") {
-      // Occupation/Employment Status dropdown
+      // Occupation/Employment Status dropdown - fetch from API
       inputElement = document.createElement("select");
       inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch employment statuses from API
+      fetch(`${API_BASE_URL}/common/get-employment-statuses.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML =
+              '<option value="">Select Employment Status</option>';
+            result.data.forEach((status) => {
+              const option = document.createElement("option");
+              option.value = status.employment_status_id;
+              option.textContent = status.status_name;
+              if (status.status_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+          }
+        })
+        .catch((error) =>
+          console.error("Error loading employment statuses:", error)
+        );
+    } else if (id === "review-annual-income") {
+      // Source of Funds dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch source of funds from API
+      fetch(`${API_BASE_URL}/common/get-source-of-funds.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML =
+              '<option value="">Select Source of Funds</option>';
+            result.data.forEach((source) => {
+              const option = document.createElement("option");
+              option.value = source.source_id;
+              option.textContent = source.source_name;
+              if (source.source_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+          }
+        })
+        .catch((error) =>
+          console.error("Error loading source of funds:", error)
+        );
+    } else if (id === "review-account-type") {
+      // Account Type dropdown
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      const currentAccountType = currentValue.replace(" Account", "");
       inputElement.innerHTML = `
-          <option value="">Select Employment Status</option>
-          <option value="Employed" ${
-            currentValue === "Employed" ? "selected" : ""
-          }>Employed</option>
-          <option value="Self-Employed" ${
-            currentValue === "Self-Employed" ? "selected" : ""
-          }>Self-Employed</option>
-          <option value="Unemployed" ${
-            currentValue === "Unemployed" ? "selected" : ""
-          }>Unemployed</option>
-          <option value="Student" ${
-            currentValue === "Student" ? "selected" : ""
-          }>Student</option>
-          <option value="Retired" ${
-            currentValue === "Retired" ? "selected" : ""
-          }>Retired</option>
+          <option value="">Select Account Type</option>
+          <option value="Savings" ${
+            currentAccountType === "Savings" ? "selected" : ""
+          }>Savings Account</option>
+          <option value="Checking" ${
+            currentAccountType === "Checking" ? "selected" : ""
+          }>Checking Account</option>
         `;
+    } else if (id === "review-province") {
+      // Province dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch provinces from API
+      fetch(`${API_BASE_URL}/location/get-provinces.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML =
+              '<option value="">Select Province</option>';
+            result.data.forEach((province) => {
+              const option = document.createElement("option");
+              option.value = province.province_id;
+              option.textContent = province.province_name;
+              if (province.province_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+
+            // Add change event listener to update city dropdown
+            inputElement.addEventListener("change", function () {
+              const selectedProvinceId = this.value;
+              const cityDropdown = document.getElementById("edit-review-city");
+              const barangayDropdown = document.getElementById(
+                "edit-review-barangay"
+              );
+
+              if (cityDropdown) {
+                if (selectedProvinceId) {
+                  cityDropdown.innerHTML =
+                    '<option value="">Loading...</option>';
+                  cityDropdown.disabled = false;
+
+                  fetch(
+                    `${API_BASE_URL}/location/get-cities.php?province_id=${selectedProvinceId}`
+                  )
+                    .then((response) => response.json())
+                    .then((result) => {
+                      if (result.success && result.data) {
+                        cityDropdown.innerHTML =
+                          '<option value="">Select City</option>';
+                        result.data.forEach((city) => {
+                          const option = document.createElement("option");
+                          option.value = city.city_id;
+                          option.textContent = city.city_name;
+                          cityDropdown.appendChild(option);
+                        });
+                      }
+                    })
+                    .catch((error) =>
+                      console.error("Error loading cities:", error)
+                    );
+                } else {
+                  cityDropdown.innerHTML =
+                    '<option value="">Select Province First</option>';
+                  cityDropdown.disabled = true;
+                }
+              }
+
+              // Reset barangay dropdown
+              if (barangayDropdown) {
+                barangayDropdown.innerHTML =
+                  '<option value="">Select City First</option>';
+                barangayDropdown.disabled = true;
+              }
+            });
+          }
+        })
+        .catch((error) => console.error("Error loading provinces:", error));
+    } else if (id === "review-city") {
+      // City dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Get province ID from session data or from province dropdown if it exists
+      const provinceDropdown = document.getElementById("edit-review-province");
+      const provinceId = provinceDropdown
+        ? provinceDropdown.value
+        : sessionData.province_id;
+
+      if (provinceId) {
+        fetch(
+          `${API_BASE_URL}/location/get-cities.php?province_id=${provinceId}`
+        )
+          .then((response) => response.json())
+          .then((result) => {
+            if (result.success && result.data) {
+              inputElement.innerHTML = '<option value="">Select City</option>';
+              result.data.forEach((city) => {
+                const option = document.createElement("option");
+                option.value = city.city_id;
+                option.textContent = city.city_name;
+                if (city.city_name === currentValue) {
+                  option.selected = true;
+                }
+                inputElement.appendChild(option);
+              });
+
+              // Add change event listener to update barangay dropdown
+              inputElement.addEventListener("change", function () {
+                const selectedCityId = this.value;
+                const barangayDropdown = document.getElementById(
+                  "edit-review-barangay"
+                );
+
+                if (barangayDropdown) {
+                  if (selectedCityId) {
+                    barangayDropdown.innerHTML =
+                      '<option value="">Loading...</option>';
+                    barangayDropdown.disabled = false;
+
+                    fetch(
+                      `${API_BASE_URL}/location/get-barangays.php?city_id=${selectedCityId}`
+                    )
+                      .then((response) => response.json())
+                      .then((result) => {
+                        if (result.success && result.data) {
+                          barangayDropdown.innerHTML =
+                            '<option value="">Select Barangay</option>';
+                          result.data.forEach((barangay) => {
+                            const option = document.createElement("option");
+                            option.value = barangay.barangay_id;
+                            option.textContent = barangay.barangay_name;
+                            barangayDropdown.appendChild(option);
+                          });
+                        }
+                      })
+                      .catch((error) =>
+                        console.error("Error loading barangays:", error)
+                      );
+                  } else {
+                    barangayDropdown.innerHTML =
+                      '<option value="">Select City First</option>';
+                    barangayDropdown.disabled = true;
+                  }
+                }
+              });
+            }
+          })
+          .catch((error) => console.error("Error loading cities:", error));
+      } else {
+        inputElement.innerHTML =
+          '<option value="">Select Province First</option>';
+        inputElement.disabled = true;
+      }
+    } else if (id === "review-barangay") {
+      // Barangay dropdown - fetch from API
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Get city ID from session data or from city dropdown if it exists
+      const cityDropdown = document.getElementById("edit-review-city");
+      const cityId = cityDropdown ? cityDropdown.value : sessionData.city_id;
+
+      if (cityId) {
+        fetch(`${API_BASE_URL}/location/get-barangays.php?city_id=${cityId}`)
+          .then((response) => response.json())
+          .then((result) => {
+            if (result.success && result.data) {
+              inputElement.innerHTML =
+                '<option value="">Select Barangay</option>';
+              result.data.forEach((barangay) => {
+                const option = document.createElement("option");
+                option.value = barangay.barangay_id;
+                option.textContent = barangay.barangay_name;
+                if (barangay.barangay_name === currentValue) {
+                  option.selected = true;
+                }
+                inputElement.appendChild(option);
+              });
+            }
+          })
+          .catch((error) => console.error("Error loading barangays:", error));
+      } else {
+        inputElement.innerHTML = '<option value="">Select City First</option>';
+        inputElement.disabled = true;
+      }
+    } else if (id === "review-birth-place") {
+      // Place of Birth dropdown - fetch all cities
+      inputElement = document.createElement("select");
+      inputElement.className = "form-select form-select-sm";
+      inputElement.id = `edit-${id}`;
+      inputElement.style.width = "100%";
+      inputElement.innerHTML = '<option value="">Loading...</option>';
+
+      // Fetch all cities for birth place
+      fetch(`${API_BASE_URL}/location/get-all-cities.php`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            inputElement.innerHTML = '<option value="">Select City</option>';
+            result.data.forEach((city) => {
+              const option = document.createElement("option");
+              option.value = city.city_name;
+              option.textContent = city.city_name;
+              if (city.city_name === currentValue) {
+                option.selected = true;
+              }
+              inputElement.appendChild(option);
+            });
+          }
+        })
+        .catch((error) =>
+          console.error("Error loading cities for birth place:", error)
+        );
     } else if (id === "review-birth-date") {
       // Date input
       inputElement = document.createElement("input");
@@ -573,8 +1004,14 @@ async function saveSection(sectionId) {
     const fieldId = input.id.replace("edit-", "");
     let newValue = input.value.trim();
 
-    // Validate that non-password fields are not empty
-    if (!newValue || (input.tagName === "SELECT" && newValue === "")) {
+    // Validate required fields (all fields except middle name and employer name)
+    const optionalFields = ["review-middle-name", "review-employer"];
+    const isRequired = !optionalFields.includes(fieldId);
+
+    if (
+      isRequired &&
+      (!newValue || (input.tagName === "SELECT" && newValue === ""))
+    ) {
       hasError = true;
       // Add visual feedback
       input.classList.add("is-invalid");
@@ -598,22 +1035,28 @@ async function saveSection(sectionId) {
 
     // Map field IDs to session data keys
     const fieldMap = {
-      "review-full-name": "full_name",
+      "review-first-name": "first_name",
+      "review-middle-name": "middle_name",
+      "review-last-name": "last_name",
       "review-birth-date": "date_of_birth",
       "review-birth-place": "place_of_birth",
       "review-gender": "gender",
       "review-civil-status": "marital_status",
       "review-nationality": "nationality",
       "review-address": "address_line",
-      "review-city": "city",
-      "review-province": "province",
+      "review-city": "city_id",
+      "review-province": "province_id",
+      "review-barangay": "barangay_id",
       "review-postal-code": "postal_code",
       "review-email": "email",
       "review-mobile": "mobile_number",
       "review-occupation": "employment_status",
       "review-employer": "employer_name",
-      "review-annual-income": "annual_income",
+      "review-annual-income": "source_of_funds",
+      "review-account-type": "account_type",
       "review-username": "username",
+      "review-id-type": "id_type",
+      "review-id-number": "id_number",
     };
 
     const dataKey = fieldMap[fieldId];
@@ -629,43 +1072,75 @@ async function saveSection(sectionId) {
   }
 
   try {
-    // Update session data
-    const response = await fetch(
-      `${API_BASE_URL}/customer/update-session.php`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(updatedData),
-      }
-    );
+    // Update sessionStorage directly instead of API call
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    const step2Data = sessionStorage.getItem("onboarding_step2");
 
-    const result = await response.json();
+    let parsedStep1 = step1Data ? JSON.parse(step1Data) : {};
+    let parsedStep2 = step2Data ? JSON.parse(step2Data) : {};
 
-    if (result.success) {
-      // Update the displayed values without reloading all session data
-      // (reloading can cause loops if there are issues)
-      
-      // Reload session data to get latest values (only if needed)
-      // await loadSessionData();
-
-      // Exit edit mode
-      disableEditMode(sectionId, section);
-
-      // Show success message instead of alert
-      showSuccessMessage("Changes saved successfully! Refreshing page...", "success", section);
-      
-      // Reload page after a delay to show updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      showSuccessMessage(
-        "Error: " + (result.message || "Unknown error"),
-        "error",
-        section
-      );
+    // Get current data based on section
+    let currentData = {};
+    if (
+      sectionId === "personal-details" ||
+      sectionId === "contact-details" ||
+      sectionId === "financial-details"
+    ) {
+      currentData = parsedStep1;
+    } else if (sectionId === "document-verification") {
+      currentData = parsedStep2;
     }
+
+    // Check if any changes were actually made
+    let hasChanges = false;
+    for (const key in updatedData) {
+      if (updatedData[key] !== currentData[key]) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    // If no changes, show info message and exit edit mode
+    if (!hasChanges) {
+      disableEditMode(sectionId, section);
+      showSuccessMessage("No changes were made.", "info", section);
+      return;
+    }
+
+    // Merge updated data into the appropriate step
+    // Personal, Contact, and Financial details go to step1
+    if (
+      sectionId === "personal-details" ||
+      sectionId === "contact-details" ||
+      sectionId === "financial-details"
+    ) {
+      parsedStep1 = { ...parsedStep1, ...updatedData };
+      sessionStorage.setItem("onboarding_step1", JSON.stringify(parsedStep1));
+    }
+    // Document verification goes to step2
+    else if (sectionId === "document-verification") {
+      parsedStep2 = { ...parsedStep2, ...updatedData };
+      sessionStorage.setItem("onboarding_step2", JSON.stringify(parsedStep2));
+    }
+
+    // Update the global sessionData
+    sessionData = { ...parsedStep1, ...parsedStep2 };
+
+    // Exit edit mode
+    disableEditMode(sectionId, section);
+
+    // Show success message
+    showSuccessMessage("Changes saved successfully!", "success", section);
+
+    // Refresh the display with updated data
+    setTimeout(() => {
+      populateReviewData(sessionData);
+      // Remove success message after refresh
+      const existingMsg = section.querySelector(".edit-message");
+      if (existingMsg) {
+        existingMsg.remove();
+      }
+    }, 1000);
   } catch (error) {
     console.error("Error saving changes:", error);
     showSuccessMessage(
@@ -677,7 +1152,7 @@ async function saveSection(sectionId) {
 }
 
 /**
- * Show success/error message inline
+ * Show success/error/info message inline
  */
 function showSuccessMessage(message, type = "success", section) {
   // Remove any existing message
@@ -686,11 +1161,17 @@ function showSuccessMessage(message, type = "success", section) {
     existingMsg.remove();
   }
 
+  // Map type to Bootstrap alert class
+  let alertClass = "success";
+  if (type === "error") {
+    alertClass = "danger";
+  } else if (type === "info") {
+    alertClass = "info";
+  }
+
   // Create message element
   const msgEl = document.createElement("div");
-  msgEl.className = `edit-message alert alert-${
-    type === "success" ? "success" : "danger"
-  } mt-2`;
+  msgEl.className = `edit-message alert alert-${alertClass} mt-2`;
   msgEl.style.padding = "0.5rem 1rem";
   msgEl.style.fontSize = "0.9rem";
   msgEl.textContent = message;
@@ -699,8 +1180,8 @@ function showSuccessMessage(message, type = "success", section) {
   const header = section.querySelector(".section-header-inline");
   header.parentNode.insertBefore(msgEl, header.nextSibling);
 
-  // Auto-remove after 3 seconds for success messages
-  if (type === "success") {
+  // Auto-remove after 3 seconds for success/info messages
+  if (type === "success" || type === "info") {
     setTimeout(() => {
       msgEl.remove();
     }, 3000);
@@ -713,10 +1194,15 @@ function showSuccessMessage(message, type = "success", section) {
 function cancelEdit(sectionId) {
   const section = document.querySelector(`#section-${sectionId}`);
 
-  // Restore original values
+  // Restore original values by removing input elements and restoring text
   Object.keys(originalValues[sectionId] || {}).forEach((id) => {
     const el = document.getElementById(id);
     if (el) {
+      // Remove all child elements (inputs/selects)
+      while (el.firstChild) {
+        el.removeChild(el.firstChild);
+      }
+      // Restore the original text content
       el.textContent = originalValues[sectionId][id];
     }
   });
@@ -804,7 +1290,7 @@ async function submitApplication() {
     console.error("Submit button not found!");
     return;
   }
-  
+
   const btnText = submitBtn.querySelector(".btn-text");
   const spinner = submitBtn.querySelector(".spinner-border");
 
@@ -814,11 +1300,96 @@ async function submitApplication() {
     btnText.classList.add("d-none");
     spinner.classList.remove("d-none");
 
+    // Get data from sessionStorage and send it to the API
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    const step2Data = sessionStorage.getItem("onboarding_step2");
+
+    if (!step1Data) {
+      throw new Error("Session data missing. Please start from the beginning.");
+    }
+
+    // Combine step 1 and step 2 data
+    const step1Parsed = JSON.parse(step1Data);
+    const step2Parsed = step2Data ? JSON.parse(step2Data) : {};
+
+    console.log("🔍 Step2 Data:", step2Parsed);
+    console.log("🔍 id_type from step2:", step2Parsed.id_type);
+    console.log("🔍 id_number from step2:", step2Parsed.id_number);
+
+    // Create FormData to handle file uploads
+    const formData = new FormData();
+
+    // Add all step 1 fields
+    for (const [key, value] of Object.entries(step1Parsed)) {
+      if (value !== null && value !== undefined) {
+        formData.append(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : value
+        );
+      }
+    }
+
+    // Add step 2 fields (excluding file data)
+    for (const [key, value] of Object.entries(step2Parsed)) {
+      if (
+        key.endsWith("_data") ||
+        key === "id_front_name" ||
+        key === "id_back_name" ||
+        key === "id_front_type" ||
+        key === "id_back_type"
+      ) {
+        continue; // Skip file data fields for now
+      }
+      if (value !== null && value !== undefined) {
+        console.log(`✅ Adding step2 field: ${key} = ${value}`);
+        formData.append(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : value
+        );
+      }
+    }
+
+    // Convert base64 files back to Blob and add to FormData
+    if (step2Parsed.id_front_data) {
+      const frontBlob = await fetch(step2Parsed.id_front_data).then((r) =>
+        r.blob()
+      );
+      formData.append(
+        "id_front_image",
+        frontBlob,
+        step2Parsed.id_front_name || "id_front.jpg"
+      );
+    }
+
+    if (step2Parsed.id_back_data) {
+      const backBlob = await fetch(step2Parsed.id_back_data).then((r) =>
+        r.blob()
+      );
+      formData.append(
+        "id_back_image",
+        backBlob,
+        step2Parsed.id_back_name || "id_back.jpg"
+      );
+    }
+
+    console.log("Sending form data to API with files");
+
     const response = await fetch(`${API_BASE_URL}/customer/create-final.php`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       credentials: "include",
+      body: formData,
     });
+
+    // Check if response is ok and content-type is JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // Response is not JSON, likely a PHP error
+      const text = await response.text();
+      console.error("Non-JSON response from server:", text);
+      throw new Error(
+        "Server returned an error. Please check if XAMPP is running and the database is accessible."
+      );
+    }
 
     const result = await response.json();
 
@@ -875,14 +1446,14 @@ function showSuccessModal(accountNumber) {
 }
 
 /**
- * Go to login page
+ * Go to employee dashboard (after successful account creation)
  */
 function goToLogin() {
   // Clear session storage
   sessionStorage.clear();
 
-  // Redirect to login (update this URL as needed)
-  window.location.href = "../index.html";
+  // Redirect to employee dashboard
+  window.location.href = "employee-dashboard.html";
 }
 
 /**

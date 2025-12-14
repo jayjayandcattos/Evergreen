@@ -1,47 +1,40 @@
 /**
- * Customer Onboarding - Security & Credentials (Step 2)
- * Handles form validation, mobile verification, and navigation
+ * Customer Onboarding - Document Verification (Step 2)
+ * Handles file uploads, document validation, and navigation
  */
 
 // Detect API path dynamically based on current page location
 function getApiBaseUrl() {
-  // Get the current page path
   const currentPath = window.location.pathname;
-  
-  // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
-  // Fallback: construct from known structure
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
-  // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
-console.log('API Base URL:', API_BASE_URL);
+console.log("API Base URL:", API_BASE_URL);
 
 // State management
-let isCodeSent = false;
-let isCodeVerified = false;
-let canResend = true;
-let resendTimer = null;
-let verificationTimer = null;
-let countryCodes = [];
-let verificationSessionId = null; // Store session ID from send-code response
+let uploadedFiles = {
+  id_front: null,
+  id_back: null,
+};
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", function () {
-  loadCountryCodes();
   setupFormHandlers();
+  setupFileUploadHandlers();
   checkSessionData();
 });
 
@@ -49,8 +42,6 @@ document.addEventListener("DOMContentLoaded", function () {
  * Check if step 1 is completed
  */
 function checkSessionData() {
-  // In a real application, you would validate session on backend
-  // For now, we'll just check if we came from step 1
   const urlParams = new URLSearchParams(window.location.search);
   if (!urlParams.has("from") && !sessionStorage.getItem("step1_completed")) {
     // Optionally redirect to step 1
@@ -59,350 +50,196 @@ function checkSessionData() {
 }
 
 /**
- * Load country codes from API
+ * Setup file upload handlers
  */
-async function loadCountryCodes() {
-  try {
-    const apiUrl = `${API_BASE_URL}/common/get-country-codes.php`;
-    console.log("Loading country codes from:", apiUrl);
-    
-    const response = await fetch(apiUrl);
+function setupFileUploadHandlers() {
+  const fileInputs = document.querySelectorAll(".file-input");
 
-    console.log("Country codes response status:", response.status);
+  fileInputs.forEach((input) => {
+    // Handle file selection
+    input.addEventListener("change", function (e) {
+      handleFileSelect(e.target);
+    });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    // Handle drag and drop
+    const label = input.nextElementSibling;
 
-    // Check content type
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      const text = await response.text();
-      console.error("Expected JSON but got:", text.substring(0, 200));
-      throw new Error("Server returned non-JSON response");
-    }
-
-    const result = await response.json();
-    console.log("Country codes result:", result);
-
-    if (result.success && result.data && result.data.length > 0) {
-      countryCodes = result.data;
-      console.log("Loaded", countryCodes.length, "country codes");
-      populateCountryCodeDropdown();
-    } else {
-      console.warn("No country codes in response, using fallback");
-      throw new Error(result.message || "No country codes returned");
-    }
-  } catch (error) {
-    console.error("Error loading country codes:", error);
-    // Fallback to default country codes
-    countryCodes = [
-      {
-        country_code_id: 1,
-        country_name: "Philippines",
-        phone_code: "+63",
-        iso_code: "PH",
-      },
-      {
-        country_code_id: 2,
-        country_name: "United States",
-        phone_code: "+1",
-        iso_code: "US",
-      },
-      {
-        country_code_id: 3,
-        country_name: "United Kingdom",
-        phone_code: "+44",
-        iso_code: "GB",
-      },
-      {
-        country_code_id: 4,
-        country_name: "Singapore",
-        phone_code: "+65",
-        iso_code: "SG",
-      },
-      {
-        country_code_id: 5,
-        country_name: "Malaysia",
-        phone_code: "+60",
-        iso_code: "MY",
-      },
-    ];
-    console.log("Using fallback country codes:", countryCodes.length);
-    populateCountryCodeDropdown();
-  }
-}
-
-/**
- * Populate country code dropdown
- */
-function populateCountryCodeDropdown() {
-  const select = document.querySelector(".phone-country-code");
-  console.log("Populating country code dropdown, found select:", !!select);
-  
-  if (!select) {
-    console.error("Country code select element not found!");
-    return;
-  }
-  
-  if (countryCodes.length === 0) {
-    console.error("No country codes available to populate!");
-    return;
-  }
-  
-  const options = countryCodes
-    .map(
-      (cc) =>
-        `<option value="${cc.country_code_id}" ${
-          cc.iso_code === "PH" ? "selected" : ""
-        }>
-      ${cc.phone_code} ${cc.country_name}
-    </option>`
-    )
-    .join("");
-  
-  select.innerHTML = options;
-  console.log("Populated dropdown with", countryCodes.length, "options");
-  
-  // Verify dropdown is populated
-  if (select.options.length === 0) {
-    console.error("Dropdown is still empty after population!");
-  } else {
-    console.log("Dropdown has", select.options.length, "options");
-  }
-}
-
-/**
- * Setup all form handlers
- */
-function setupFormHandlers() {
-  const form = document.getElementById("securityForm");
-  const sendCodeBtn = document.querySelector(".btn-send-code");
-  const resendLink = document.querySelector(".resend-link");
-  const backBtn = document.querySelector(".btn-back");
-  const codeInputs = document.querySelectorAll(".code-box");
-
-  // Send code button
-  if (sendCodeBtn) {
-    sendCodeBtn.addEventListener("click", handleSendCode);
-  }
-
-  // Resend code link
-  if (resendLink) {
-    resendLink.addEventListener("click", function (e) {
+    label.addEventListener("dragover", function (e) {
       e.preventDefault();
-      if (canResend) {
-        handleSendCode();
+      e.stopPropagation();
+      this.style.borderColor = "#1a6b62";
+      this.style.backgroundColor = "#f0f7f5";
+    });
+
+    label.addEventListener("dragleave", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.style.borderColor = "#ccc";
+      this.style.backgroundColor = "#fafafa";
+    });
+
+    label.addEventListener("drop", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.style.borderColor = "#ccc";
+      this.style.backgroundColor = "#fafafa";
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        input.files = files;
+        handleFileSelect(input);
       }
     });
+  });
+}
+
+/**
+ * Handle file selection
+ */
+function handleFileSelect(input) {
+  const file = input.files[0];
+  const fieldName = input.name;
+  const wrapper = input.closest(".file-upload-wrapper");
+  const label = input.nextElementSibling;
+  const fileNameSpan = label.querySelector(".file-name");
+  const previewDiv = document.getElementById(`preview_${fieldName}`);
+
+  if (!file) {
+    wrapper.classList.remove("has-file");
+    fileNameSpan.textContent = "";
+    if (previewDiv) {
+      previewDiv.classList.remove("show");
+      previewDiv.innerHTML = "";
+    }
+    uploadedFiles[fieldName] = null;
+    return;
   }
 
-  // Back button - navigate to step 1
-  if (backBtn) {
-    backBtn.addEventListener("click", function () {
-      window.location.href = "customer-onboarding-details.html";
-    });
+  // Validate file
+  const validation = validateFile(file);
+  if (!validation.valid) {
+    showError(validation.message);
+    input.value = "";
+    return;
   }
+
+  // Update UI
+  wrapper.classList.add("has-file");
+  fileNameSpan.textContent = file.name;
+  uploadedFiles[fieldName] = file;
+
+  // Show preview for images
+  if (file.type.startsWith("image/")) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      previewDiv.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+      previewDiv.classList.add("show");
+    };
+    reader.readAsDataURL(file);
+  } else if (file.type === "application/pdf") {
+    previewDiv.innerHTML = `
+      <div style="padding: 15px; background: #f0f7f5; border-radius: 8px; text-align: center;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1a6b62" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #1a6b62; font-weight: 600;">PDF Document</p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">${file.name}</p>
+      </div>
+    `;
+    previewDiv.classList.add("show");
+  }
+
+  console.log(`File selected for ${fieldName}:`, file.name);
+}
+
+/**
+ * Validate file
+ */
+function validateFile(file) {
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  const allowedTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "application/pdf",
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      message: "Invalid file type. Please upload JPG, PNG, or PDF files only.",
+    };
+  }
+
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      message: "File size exceeds 5MB. Please upload a smaller file.",
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Setup form handlers
+ */
+function setupFormHandlers() {
+  const form = document.getElementById("documentForm");
+  const backButton = document.querySelector(".btn-back");
 
   // Form submission
   if (form) {
     form.addEventListener("submit", handleFormSubmit);
   }
 
-  // Auto-verify when all code boxes are filled
-  if (codeInputs.length === 4) {
-    codeInputs.forEach((input, index) => {
-      input.addEventListener("input", function () {
-        if (index === 3 && getAllCodeDigits().length === 4) {
-          // Auto-verify when 4th digit is entered
-          handleVerifyCode();
-        }
-      });
+  // Back button
+  if (backButton) {
+    backButton.addEventListener("click", function () {
+      window.location.href = "customer-onboarding-details.html";
     });
   }
 
-  // Real-time password validation
-  const passwordInput = document.querySelector('input[name="password"]');
-  const confirmPasswordInput = document.querySelector(
-    'input[name="confirm_password"]'
-  );
-
-  if (passwordInput) {
-    passwordInput.addEventListener("input", function () {
-      validatePasswordStrength(this.value);
-    });
-  }
-
-  if (confirmPasswordInput) {
-    confirmPasswordInput.addEventListener("blur", function () {
-      validatePasswordMatch();
+  // SSN formatting
+  const ssnInput = document.getElementById("ssn");
+  if (ssnInput) {
+    ssnInput.addEventListener("input", function (e) {
+      formatSSN(e.target);
     });
   }
 }
 
 /**
- * Handle send verification code
+ * Format SSN input
  */
-async function handleSendCode() {
-  const mobileInput = document.querySelector('input[name="mobile_number"]');
-  const countryCodeSelect = document.querySelector(".phone-country-code");
-  const sendCodeBtn = document.querySelector(".btn-send-code");
+function formatSSN(input) {
+  let value = input.value.replace(/\D/g, ""); // Remove non-digits
 
-  if (!mobileInput || !mobileInput.value) {
-    showError(mobileInput, "Please enter your mobile number");
-    return;
-  }
-
-  if (!countryCodeSelect || !countryCodeSelect.value) {
-    showError(mobileInput, "Please select country code");
-    return;
-  }
-
-  const mobileNumber = mobileInput.value.trim();
-  const countryCode = countryCodes.find(
-    (cc) => cc.country_code_id == countryCodeSelect.value
-  );
-
-  if (!countryCode) {
-    showError(mobileInput, "Invalid country code");
-    return;
-  }
-
-  const fullPhoneNumber = countryCode.phone_code + mobileNumber;
-
-  // Disable button
-  sendCodeBtn.disabled = true;
-  sendCodeBtn.textContent = "Sending...";
-
-  try {
-    console.log("Sending verification code to:", fullPhoneNumber);
-
-    const response = await fetch(
-      `${API_BASE_URL}/customer/send-verification-code.php`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number: fullPhoneNumber }),
-      }
-    );
-
-    console.log("Response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Server error response:", errorText);
-      throw new Error(`Server returned ${response.status}: ${errorText}`);
+  // Format as XXX-XX-XXXX or XXX-XXX-XXX-XXX (Philippine TIN)
+  if (value.length <= 9) {
+    // US SSN format: XXX-XX-XXXX
+    if (value.length > 5) {
+      value =
+        value.slice(0, 3) + "-" + value.slice(3, 5) + "-" + value.slice(5);
+    } else if (value.length > 3) {
+      value = value.slice(0, 3) + "-" + value.slice(3);
     }
-
-    const result = await response.json();
-    console.log("Server response:", result);
-
-    if (result.success) {
-      isCodeSent = true;
-      sendCodeBtn.textContent = "Code Sent";
-      sendCodeBtn.classList.add("btn-success");
-
-      // Store session ID for verification
-      if (result.session_id) {
-        verificationSessionId = result.session_id;
-        console.log("Stored session ID:", verificationSessionId);
-      }
-
-      // Show success message
-      showSuccess(
-        mobileInput,
-        "Verification code sent! Check your mobile phone."
-      );
-
-      // Enable code input boxes
-      enableCodeInputs();
-
-      // Start resend timer
-      startResendTimer(30);
-
-      // Always show bank_id if available (for login purposes)
-      if (result.bank_id) {
-        console.log("Bank ID generated:", result.bank_id);
-        // Show bank_id display even if not in dev mode
-        showBankIdDisplay(result.bank_id);
-      }
-      
-      // For development/testing: show code in mock display
-      if (result.dev_code) {
-        console.log("DEV MODE - Verification code:", result.dev_code);
-        showMockCode(result.dev_code, result.bank_id);
-      }
-    } else {
-      showError(mobileInput, result.message || "Failed to send code");
-      sendCodeBtn.disabled = false;
-      sendCodeBtn.textContent = "Send Code";
+  } else {
+    // Philippine TIN format: XXX-XXX-XXX-XXX
+    if (value.length > 9) {
+      value =
+        value.slice(0, 3) +
+        "-" +
+        value.slice(3, 6) +
+        "-" +
+        value.slice(6, 9) +
+        "-" +
+        value.slice(9, 12);
     }
-  } catch (error) {
-    console.error("Error sending code:", error);
-    showError(mobileInput, "Error: " + error.message);
-    sendCodeBtn.disabled = false;
-    sendCodeBtn.textContent = "Send Code";
-  }
-}
-
-/**
- * Handle verify code
- */
-async function handleVerifyCode() {
-  const mobileInput = document.querySelector('input[name="mobile_number"]');
-  const countryCodeSelect = document.querySelector(".phone-country-code");
-  const code = getAllCodeDigits();
-
-  if (code.length !== 4) {
-    showCodeError("Please enter the complete 4-digit code");
-    return;
   }
 
-  const mobileNumber = mobileInput.value.trim();
-  const countryCode = countryCodes.find(
-    (cc) => cc.country_code_id == countryCodeSelect.value
-  );
-
-  if (!countryCode) {
-    showCodeError("Invalid country code");
-    return;
-  }
-
-  const fullPhoneNumber = countryCode.phone_code + mobileNumber;
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/customer/verify-code.php`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone_number: fullPhoneNumber,
-        code: code,
-        session_id: verificationSessionId, // Include session ID from send-code
-      }),
-    });
-
-    const result = await response.json();
-
-    if (result.success && result.verified) {
-      isCodeVerified = true;
-      showCodeSuccess("Code verified successfully! ✓");
-      disableCodeInputs();
-
-      // Add visual feedback
-      document.querySelectorAll(".code-box").forEach((box) => {
-        box.classList.add("verified");
-        box.style.borderColor = "#28a745";
-        box.style.backgroundColor = "#d4edda";
-      });
-    } else {
-      isCodeVerified = false;
-      showCodeError(result.message || "Invalid verification code");
-      clearCodeInputs();
-    }
-  } catch (error) {
-    console.error("Error verifying code:", error);
-    showCodeError("An error occurred. Please try again.");
-  }
+  input.value = value;
 }
 
 /**
@@ -411,103 +248,130 @@ async function handleVerifyCode() {
 async function handleFormSubmit(e) {
   e.preventDefault();
 
-  // Clear previous errors
-  clearAllErrors();
-
-  // Get form data
-  const formData = collectFormData();
-
-  // Validate before submission
-  if (!validateForm(formData)) {
+  // Validate form
+  if (!validateForm()) {
     return;
   }
 
-  // Check if mobile is verified
-  if (!isCodeVerified) {
-    showCodeError("Please verify your mobile number first");
-    return;
-  }
+  // Show loading state
+  const submitButton = document.querySelector(".btn-continue");
+  const originalText = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = "Uploading...";
 
   try {
-    const response = await fetch(`${API_BASE_URL}/customer/create-step2.php`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    // Prepare form data
+    const formData = new FormData();
 
-    const result = await response.json();
-
-    if (result.success) {
-      // Store step completion in session storage
-      sessionStorage.setItem("step2_completed", "true");
-
-      // Redirect to step 3 (review)
-      window.location.href =
-        result.redirect || "customer-onboarding-review.html";
-    } else {
-      // Show validation errors
-      if (result.errors) {
-        displayErrors(result.errors);
-      } else {
-        alert(result.message || "An error occurred");
-      }
+    // Add files
+    if (uploadedFiles.id_front) {
+      formData.append("id_front", uploadedFiles.id_front);
     }
+    if (uploadedFiles.id_back) {
+      formData.append("id_back", uploadedFiles.id_back);
+    }
+
+    // Add form fields
+    const idType = document.getElementById("id_type").value;
+    const idNumber = document.getElementById("id_number").value;
+
+    console.log("🔍 Step 2 - idType value:", idType);
+    console.log("🔍 Step 2 - idNumber value:", idNumber);
+
+    formData.append("id_type", idType);
+    formData.append("id_number", idNumber);
+
+    // Get step 1 data from session storage
+    const step1Data = sessionStorage.getItem("onboarding_step1");
+    if (step1Data) {
+      formData.append("step1_data", step1Data);
+    }
+
+    // Convert files to base64 for storage in sessionStorage
+    const filePromises = [];
+    const step2Data = {
+      id_type: idType,
+      id_number: idNumber,
+      documents_uploaded: true,
+    };
+
+    if (uploadedFiles.id_front) {
+      filePromises.push(
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            step2Data.id_front_data = e.target.result;
+            step2Data.id_front_name = uploadedFiles.id_front.name;
+            step2Data.id_front_type = uploadedFiles.id_front.type;
+            resolve();
+          };
+          reader.readAsDataURL(uploadedFiles.id_front);
+        })
+      );
+    }
+
+    if (uploadedFiles.id_back) {
+      filePromises.push(
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            step2Data.id_back_data = e.target.result;
+            step2Data.id_back_name = uploadedFiles.id_back.name;
+            step2Data.id_back_type = uploadedFiles.id_back.type;
+            resolve();
+          };
+          reader.readAsDataURL(uploadedFiles.id_back);
+        })
+      );
+    }
+
+    // Wait for all files to be converted
+    await Promise.all(filePromises);
+
+    console.log("🔍 Step 2 - Saving to sessionStorage:", step2Data);
+    sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
+    console.log("Document verification data prepared with files");
+
+    sessionStorage.setItem("step2_completed", "true");
+    window.location.href = "customer-onboarding-review.html?from=security";
   } catch (error) {
     console.error("Error submitting form:", error);
-    alert("An error occurred while submitting the form");
+    showError("An error occurred while uploading documents. Please try again.");
+    submitButton.disabled = false;
+    submitButton.textContent = originalText;
   }
 }
 
 /**
- * Collect form data
+ * Validate form
  */
-function collectFormData() {
-  const passwordInput = document.querySelector('input[name="password"]');
-  const confirmPasswordInput = document.querySelector(
-    'input[name="confirm_password"]'
-  );
-  const mobileInput = document.querySelector('input[name="mobile_number"]');
-  const countryCodeSelect = document.querySelector(".phone-country-code");
-
-  // Get full phone number with country code
-  let fullPhoneNumber = "";
-  if (mobileInput && countryCodeSelect) {
-    const countryCode = countryCodes.find(
-      (cc) => cc.country_code_id == countryCodeSelect.value
-    );
-    if (countryCode) {
-      fullPhoneNumber = countryCode.phone_code + mobileInput.value.trim();
-    }
-  }
-
-  return {
-    password: passwordInput?.value || "",
-    confirm_password: confirmPasswordInput?.value || "",
-    mobile_number: fullPhoneNumber,
-  };
-}
-
-/**
- * Validate form before submission
- */
-function validateForm(data) {
+function validateForm() {
   let isValid = true;
 
-  // Validate password
-  if (!data.password) {
-    showFieldError("password", "Password is required");
+  // Validate ID type
+  const idType = document.getElementById("id_type");
+  if (!idType.value) {
+    showFieldError(idType, "Please select an ID type");
     isValid = false;
   }
 
-  // Validate confirm password
-  if (data.password !== data.confirm_password) {
-    showFieldError("confirm_password", "Passwords do not match");
+  // Validate ID Number
+  const idNumber = document.getElementById("id_number");
+  if (!idNumber || !idNumber.value.trim()) {
+    if (idNumber) showFieldError(idNumber, "ID Number is required");
     isValid = false;
   }
 
-  // Validate mobile
-  if (!data.mobile_number) {
-    showFieldError("mobile_number", "Mobile number is required");
+  // Validate files
+  const idFront = document.getElementById("id_front");
+  if (!idFront.files || idFront.files.length === 0) {
+    showError("Please upload the front of your ID");
+    isValid = false;
+  }
+
+  const idBack = document.getElementById("id_back");
+  if (!idBack.files || idBack.files.length === 0) {
+    showError("Please upload the back of your ID");
     isValid = false;
   }
 
@@ -515,358 +379,121 @@ function validateForm(data) {
 }
 
 /**
- * Validate password strength
+ * Show field error
  */
-function validatePasswordStrength(password) {
-  const input = document.querySelector('input[name="password"]');
-  const messages = [];
+function showFieldError(field, message) {
+  field.style.borderColor = "#dc3545";
 
-  if (password.length < 8) {
-    messages.push("at least 8 characters");
+  // Create or update error message
+  let errorDiv = field.parentElement.querySelector(".error-message");
+  if (!errorDiv) {
+    errorDiv = document.createElement("div");
+    errorDiv.className = "error-message";
+    errorDiv.style.color = "#dc3545";
+    errorDiv.style.fontSize = "12px";
+    errorDiv.style.marginTop = "5px";
+    field.parentElement.appendChild(errorDiv);
   }
-  if (!/[A-Z]/.test(password)) {
-    messages.push("one uppercase letter");
-  }
-  if (!/[a-z]/.test(password)) {
-    messages.push("one lowercase letter");
-  }
-  if (!/[0-9]/.test(password)) {
-    messages.push("one number");
-  }
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    messages.push("one special character");
-  }
+  errorDiv.textContent = message;
+  errorDiv.style.display = "block";
 
-  if (messages.length > 0) {
-    showError(input, "Password must contain " + messages.join(", "));
-    return false;
-  }
-
-  hideError(input);
-  return true;
-}
-
-/**
- * Validate password match
- */
-function validatePasswordMatch() {
-  const passwordInput = document.querySelector('input[name="password"]');
-  const confirmInput = document.querySelector('input[name="confirm_password"]');
-
-  if (passwordInput.value !== confirmInput.value) {
-    showError(confirmInput, "Passwords do not match");
-    return false;
-  }
-
-  hideError(confirmInput);
-  return true;
-}
-
-/**
- * Get all code digits
- */
-function getAllCodeDigits() {
-  const codeInputs = document.querySelectorAll(".code-box");
-  return Array.from(codeInputs)
-    .map((input) => input.value)
-    .join("");
-}
-
-/**
- * Clear code inputs
- */
-function clearCodeInputs() {
-  const codeInputs = document.querySelectorAll(".code-box");
-  codeInputs.forEach((input) => {
-    input.value = "";
-  });
-  codeInputs[0]?.focus();
-}
-
-/**
- * Enable code inputs
- */
-function enableCodeInputs() {
-  const codeInputs = document.querySelectorAll(".code-box");
-  codeInputs.forEach((input) => {
-    input.disabled = false;
-  });
-  codeInputs[0]?.focus();
-}
-
-/**
- * Disable code inputs
- */
-function disableCodeInputs() {
-  const codeInputs = document.querySelectorAll(".code-box");
-  codeInputs.forEach((input) => {
-    input.disabled = true;
-  });
-}
-
-/**
- * Start resend timer
- */
-function startResendTimer(seconds) {
-  canResend = false;
-  let remaining = seconds;
-
-  const timerText = document.querySelector(".timer-text");
-  const resendLink = document.querySelector(".resend-link");
-
-  if (resendLink) {
-    resendLink.style.pointerEvents = "none";
-    resendLink.style.opacity = "0.5";
-  }
-
-  resendTimer = setInterval(() => {
-    remaining--;
-    if (timerText) {
-      timerText.textContent = `(You can request a new code in ${remaining} seconds)`;
-    }
-
-    if (remaining <= 0) {
-      clearInterval(resendTimer);
-      canResend = true;
-      if (timerText) {
-        timerText.textContent = "";
+  // Remove error on input
+  field.addEventListener(
+    "input",
+    function () {
+      field.style.borderColor = "";
+      if (errorDiv) {
+        errorDiv.style.display = "none";
       }
-      if (resendLink) {
-        resendLink.style.pointerEvents = "auto";
-        resendLink.style.opacity = "1";
-      }
-    }
-  }, 1000);
+    },
+    { once: true }
+  );
 }
 
 /**
- * Show error message for a field
+ * Show error message
  */
-function showError(inputElement, message) {
-  inputElement.classList.add("error");
-  const parent = inputElement.closest(".form-group");
-  if (parent) {
-    let errorDiv = parent.querySelector(".error-message");
-    if (!errorDiv) {
-      errorDiv = document.createElement("div");
-      errorDiv.className = "error-message";
-      errorDiv.style.color = "#dc3545";
-      errorDiv.style.fontSize = "12px";
-      errorDiv.style.marginTop = "4px";
-      parent.appendChild(errorDiv);
-    }
-    errorDiv.textContent = message;
-    errorDiv.style.display = "block";
-  }
-}
+function showError(message) {
+  // Create toast notification
+  const toast = document.createElement("div");
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #dc3545;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    max-width: 400px;
+    animation: slideIn 0.3s ease;
+  `;
+  toast.textContent = message;
 
-/**
- * Hide error message
- */
-function hideError(inputElement) {
-  inputElement.classList.remove("error");
-  const parent = inputElement.closest(".form-group");
-  if (parent) {
-    const errorDiv = parent.querySelector(".error-message");
-    if (errorDiv) {
-      errorDiv.style.display = "none";
-    }
-  }
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.animation = "slideOut 0.3s ease";
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, 5000);
 }
 
 /**
  * Show success message
  */
-function showSuccess(inputElement, message) {
-  const parent = inputElement.closest(".form-group");
-  if (parent) {
-    let successDiv = parent.querySelector(".success-message");
-    if (!successDiv) {
-      successDiv = document.createElement("div");
-      successDiv.className = "success-message";
-      successDiv.style.color = "#28a745";
-      successDiv.style.fontSize = "12px";
-      successDiv.style.marginTop = "4px";
-      parent.appendChild(successDiv);
-    }
-    successDiv.textContent = message;
-    successDiv.style.display = "block";
+function showSuccess(message) {
+  const toast = document.createElement("div");
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #28a745;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    max-width: 400px;
+    animation: slideIn 0.3s ease;
+  `;
+  toast.textContent = message;
 
-    // Hide after 5 seconds
-    setTimeout(() => {
-      successDiv.style.display = "none";
-    }, 5000);
-  }
-}
+  document.body.appendChild(toast);
 
-/**
- * Show code error
- */
-function showCodeError(message) {
-  const codeGroup = document.querySelector(".code-inputs").parentElement;
-  let errorDiv = codeGroup.querySelector(".code-error");
-  if (!errorDiv) {
-    errorDiv = document.createElement("div");
-    errorDiv.className = "code-error";
-    errorDiv.style.color = "#dc3545";
-    errorDiv.style.fontSize = "12px";
-    errorDiv.style.marginTop = "8px";
-    codeGroup.appendChild(errorDiv);
-  }
-  errorDiv.textContent = message;
-  errorDiv.style.display = "block";
-}
-
-/**
- * Show code success
- */
-function showCodeSuccess(message) {
-  const codeGroup = document.querySelector(".code-inputs").parentElement;
-  let successDiv = codeGroup.querySelector(".code-success");
-  if (!successDiv) {
-    successDiv = document.createElement("div");
-    successDiv.className = "code-success";
-    successDiv.style.color = "#28a745";
-    successDiv.style.fontSize = "12px";
-    successDiv.style.marginTop = "8px";
-    successDiv.style.fontWeight = "bold";
-    codeGroup.appendChild(successDiv);
-  }
-  successDiv.textContent = message;
-  successDiv.style.display = "block";
-
-  // Hide code error if exists
-  const errorDiv = codeGroup.querySelector(".code-error");
-  if (errorDiv) {
-    errorDiv.style.display = "none";
-  }
-}
-
-/**
- * Show field error by field name
- */
-function showFieldError(fieldName, message) {
-  const input = document.querySelector(`input[name="${fieldName}"]`);
-  if (input) {
-    showError(input, message);
-  }
-}
-
-/**
- * Display validation errors from server
- */
-function displayErrors(errors) {
-  for (let [field, message] of Object.entries(errors)) {
-    showFieldError(field, message);
-  }
-}
-
-/**
- * Show bank ID display (always visible)
- */
-function showBankIdDisplay(bankId) {
-  const bankIdDisplay = document.getElementById("bankIdDisplay");
-  const bankIdValue = document.getElementById("bankIdValue");
-
-  if (bankIdDisplay && bankIdValue && bankId) {
-    bankIdValue.textContent = bankId;
-    bankIdDisplay.style.display = "block";
-    
-    console.log("Displaying Bank ID for login:", bankId);
-
-    // Add click to copy functionality for bank ID
-    bankIdValue.addEventListener("click", function () {
-      navigator.clipboard
-        .writeText(bankId)
-        .then(() => {
-          const originalText = bankIdValue.textContent;
-          bankIdValue.textContent = "✓ Copied!";
-          bankIdValue.style.color = "#28a745";
-          setTimeout(() => {
-            bankIdValue.textContent = originalText;
-            bankIdValue.style.color = "#1a6b62";
-          }, 2000);
-        })
-        .catch((err) => {
-          console.error("Failed to copy:", err);
-          // Fallback: select text
-          const range = document.createRange();
-          range.selectNode(bankIdValue);
-          window.getSelection().removeAllRanges();
-          window.getSelection().addRange(range);
-        });
-    });
-  }
-}
-
-/**
- * Show mock code display for testing
- */
-function showMockCode(code, bankId) {
-  const mockDisplay = document.getElementById("mockCodeDisplay");
-  const mockCodeValue = document.getElementById("mockCodeValue");
-
-  if (mockDisplay && mockCodeValue) {
-    // Display verification code
-    mockCodeValue.textContent = code;
-    mockDisplay.style.display = "block";
-
-    // Add click to copy functionality for verification code
-    mockCodeValue.addEventListener("click", function () {
-      // Copy to clipboard
-      navigator.clipboard
-        .writeText(code)
-        .then(() => {
-          const originalText = mockCodeValue.textContent;
-          mockCodeValue.textContent = "✓ Copied!";
-          setTimeout(() => {
-            mockCodeValue.textContent = originalText;
-          }, 1000);
-        })
-        .catch((err) => {
-          console.error("Failed to copy:", err);
-        });
-    });
-
-    // Auto-fill code after 2 seconds
-    setTimeout(() => {
-      if (confirm("Auto-fill verification code? (Test Mode Only)")) {
-        autoFillCode(code);
-      }
-    }, 2000);
-  }
-}
-
-/**
- * Auto-fill verification code (testing only)
- */
-function autoFillCode(code) {
-  const codeInputs = document.querySelectorAll(".code-box");
-  const digits = code.split("");
-
-  codeInputs.forEach((input, index) => {
-    if (digits[index]) {
-      input.value = digits[index];
-    }
-  });
-
-  // Trigger verification
   setTimeout(() => {
-    handleVerifyCode();
-  }, 500);
+    toast.style.animation = "slideOut 0.3s ease";
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, 3000);
 }
 
-/**
- * Clear all errors
- */
-function clearAllErrors() {
-  document
-    .querySelectorAll(".form-control")
-    .forEach((el) => el.classList.remove("error"));
-  document.querySelectorAll(".error-message").forEach((el) => {
-    el.style.display = "none";
-  });
-  document.querySelectorAll(".success-message").forEach((el) => {
-    el.style.display = "none";
-  });
-}
+// Add animations
+const style = document.createElement("style");
+style.textContent = `
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+  }
+`;
+document.head.appendChild(style);

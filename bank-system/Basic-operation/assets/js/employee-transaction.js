@@ -2,30 +2,46 @@
 function getApiBaseUrl() {
   // Get the current page path
   const currentPath = window.location.pathname;
-  
+
   // If we're in /public/, go up one level to find /api/
-  if (currentPath.includes('/public/')) {
-    const basePath = currentPath.substring(0, currentPath.indexOf('/public/'));
-    return window.location.origin + basePath + '/api';
+  if (currentPath.includes("/public/")) {
+    const basePath = currentPath.substring(0, currentPath.indexOf("/public/"));
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Fallback: construct from known structure
-  const pathParts = currentPath.split('/');
-  const basicOpIndex = pathParts.indexOf('Basic-operation');
+  const pathParts = currentPath.split("/");
+  const basicOpIndex = pathParts.indexOf("Basic-operation");
   if (basicOpIndex !== -1) {
-    const basePath = pathParts.slice(0, basicOpIndex + 1).join('/');
-    return window.location.origin + basePath + '/api';
+    const basePath = pathParts.slice(0, basicOpIndex + 1).join("/");
+    return window.location.origin + basePath + "/api";
   }
-  
+
   // Final fallback
-  return window.location.origin + '/Evergreen/bank-system/Basic-operation/api';
+  return window.location.origin + "/Evergreen/bank-system/Basic-operation/api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
+console.log("employee-transaction.js loaded, API_BASE_URL:", API_BASE_URL);
 
 // Track current transaction type
 let currentTransactionType = "withdraw";
 let accountData = null;
+
+// Initialize page
+document.addEventListener("DOMContentLoaded", async function () {
+  console.log("First DOMContentLoaded fired - initializing authentication");
+  // Check authentication and update employee display
+  const employee = await checkAuthentication();
+  console.log("Authentication check complete, employee:", employee);
+  if (employee) {
+    updateEmployeeDisplay(employee);
+  }
+
+  // Initialize the page
+  setCurrentDateTime();
+  console.log("First DOMContentLoaded setup complete");
+});
 
 // Set current date and time
 function setCurrentDateTime() {
@@ -111,21 +127,21 @@ async function lookupAccount() {
 
   const allowedPrefixes = ["CHA", "SA"];
   const isValidFormat = (accNum) => {
-      const parts = accNum.split('-');
-      if (parts.length !== 3) return false;
-      if (!allowedPrefixes.includes(parts[0])) return false;
-      if (!/^\d{4}$/.test(parts[1])) return false;
-      if (!/^\d{4}$/.test(parts[2])) return false;
-      return true;
+    const parts = accNum.split("-");
+    if (parts.length !== 3) return false;
+    if (!allowedPrefixes.includes(parts[0])) return false;
+    if (!/^\d{4}$/.test(parts[1])) return false;
+    if (!/^\d{4}$/.test(parts[2])) return false;
+    return true;
   };
 
   if (!isValidFormat(accountNumber)) {
     showError(
-        "Invalid account number format. Use CHA-1234-5678 or SA-1234-5678.",
-        "accountNumber"
+      "Invalid account number format. Use CHA-1234-5678 or SA-1234-5678.",
+      "accountNumber"
     );
     return;
-}
+  }
 
   try {
     const response = await fetch(
@@ -160,6 +176,7 @@ async function lookupAccount() {
 
 // Form validation and submission
 async function validateForm(e) {
+  console.log("validateForm called, event:", e);
   e.preventDefault();
   clearErrors();
 
@@ -169,20 +186,20 @@ async function validateForm(e) {
 
   const allowedPrefixes = ["CHA", "SA"];
   const isValidFormat = (accNum) => {
-      const parts = accNum.split('-');
-      if (parts.length !== 3) return false;
-      if (!allowedPrefixes.includes(parts[0])) return false;
-      if (!/^\d{4}$/.test(parts[1])) return false;
-      if (!/^\d{4}$/.test(parts[2])) return false;
-      return true;
+    const parts = accNum.split("-");
+    if (parts.length !== 3) return false;
+    if (!allowedPrefixes.includes(parts[0])) return false;
+    if (!/^\d{4}$/.test(parts[1])) return false;
+    if (!/^\d{4}$/.test(parts[2])) return false;
+    return true;
   };
 
   if (!isValidFormat(accountNumber)) {
-      showError(
-          "Please enter a valid account number (e.g., CHA-XXXX-XXXX or SA-XXXX-XXXX).",
-          "accountNumber"
-      );
-      return false;
+    showError(
+      "Please enter a valid account number (e.g., CHA-XXXX-XXXX or SA-XXXX-XXXX).",
+      "accountNumber"
+    );
+    return false;
   }
 
   if (!name || !accountData) {
@@ -224,8 +241,56 @@ async function validateForm(e) {
       );
       return false;
     }
+
+    // Check if withdrawal will bring balance below minimum (500)
+    const remainingBalance = currentBalance - amount;
+    const minimumBalance = 500;
+
+    if (remainingBalance < minimumBalance && remainingBalance >= 0) {
+      // Show warning modal instead of blocking
+      showLowBalanceWarning(remainingBalance);
+      return false; // Prevent immediate submission, wait for modal confirmation
+    }
   }
 
+  // Process the transaction
+  await processTransaction(accountNumber, amount);
+  return false;
+}
+
+// Show low balance warning modal
+function showLowBalanceWarning(remainingBalance) {
+  const modal = new bootstrap.Modal(
+    document.getElementById("lowBalanceWarningModal")
+  );
+  document.getElementById("remainingBalanceWarning").textContent =
+    "PHP " +
+    remainingBalance.toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  // Remove any existing event listeners
+  const confirmBtn = document.getElementById("confirmLowBalanceBtn");
+  const newConfirmBtn = confirmBtn.cloneNode(true);
+  confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+  // Add new event listener for confirmation
+  newConfirmBtn.addEventListener("click", async function () {
+    modal.hide();
+    const accountNumber = document.getElementById("accountNumber").value.trim();
+    const withdrawAmount = document.getElementById("withdrawAmount").value;
+    const amount = parseFloat(withdrawAmount.replace(/[^\d.]/g, ""));
+
+    // Process the transaction after confirmation
+    await processTransaction(accountNumber, amount);
+  });
+
+  modal.show();
+}
+
+// Process transaction (extracted to separate function)
+async function processTransaction(accountNumber, amount) {
   const submitBtn = document.querySelector(".submit-btn");
   submitBtn.disabled = true;
   submitBtn.innerHTML =
@@ -271,8 +336,6 @@ async function validateForm(e) {
     submitBtn.disabled = false;
     submitBtn.textContent = "Submit";
   }
-
-  return false;
 }
 
 // Cancel button handler
@@ -280,13 +343,13 @@ function handleCancel() {
   if (
     confirm("Are you sure you want to cancel? All entered data will be lost.")
   ) {
-    document.getElementById("transactionForm").reset();
-    setCurrentDateTime();
+    window.location.href = "employee-dashboard.html";
   }
 }
 
 // Transaction type switching
 function switchTransactionType(type) {
+  console.log("switchTransactionType called with type:", type);
   currentTransactionType = type;
   const buttons = document.querySelectorAll(".transaction-btn");
   buttons.forEach((btn) => btn.classList.remove("active"));
@@ -311,13 +374,26 @@ function switchTransactionType(type) {
 
 // Event listeners
 document.addEventListener("DOMContentLoaded", function () {
+  console.log("Second DOMContentLoaded fired - setting up event listeners");
+
+  // Check URL parameter for transaction type
+  const urlParams = new URLSearchParams(window.location.search);
+  const typeParam = urlParams.get("type");
+
+  if (typeParam === "deposit") {
+    switchTransactionType("deposit");
+  } else if (typeParam === "withdraw") {
+    switchTransactionType("withdraw");
+  }
+
   // Set initial date/time
   setCurrentDateTime();
 
   // Account number input
   const accountInput = document.getElementById("accountNumber");
+  console.log("Account input element:", accountInput);
   accountInput.addEventListener("input", function () {
-    let rawValue = this.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); // Only allow alphanumeric
+    let rawValue = this.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); // Only allow alphanumeric
     const allowedPrefixes = ["CHA", "SA"];
     const prefixLength = 3;
     let formattedValue = "";
@@ -357,7 +433,10 @@ document.addEventListener("DOMContentLoaded", function () {
     this.value = formattedValue.slice(0, 13); // Enforce total length including hyphens
 
     // Trigger lookup when the full formatted length is reached and a prefix is present
-    if (this.value.length === 13 && allowedPrefixes.includes(this.value.substring(0, prefixLength))) {
+    if (
+      this.value.length === 13 &&
+      allowedPrefixes.includes(this.value.substring(0, prefixLength))
+    ) {
       lookupAccount();
     } else {
       document.getElementById("name").value = "";
@@ -366,7 +445,6 @@ document.addEventListener("DOMContentLoaded", function () {
       clearErrors();
     }
   });
-
 
   accountInput.addEventListener("blur", lookupAccount);
   accountInput.addEventListener("focus", clearErrors);
@@ -387,18 +465,32 @@ document.addEventListener("DOMContentLoaded", function () {
   document
     .getElementById("transactionForm")
     .addEventListener("submit", validateForm);
+  console.log("Form submit listener attached");
 
   // Cancel button
   document.querySelector(".cancel-btn").addEventListener("click", handleCancel);
+  console.log("Cancel button listener attached");
 
   // Transaction type buttons
   const transactionButtons = document.querySelectorAll(".transaction-btn");
-  transactionButtons[0].addEventListener("click", () =>
-    switchTransactionType("withdraw")
-  );
-  transactionButtons[1].addEventListener("click", () =>
-    switchTransactionType("deposit")
-  );
+  console.log("Transaction buttons found:", transactionButtons.length);
+
+  if (transactionButtons.length >= 2) {
+    transactionButtons[0].addEventListener("click", () => {
+      console.log("Withdraw button clicked");
+      switchTransactionType("withdraw");
+    });
+    transactionButtons[1].addEventListener("click", () => {
+      console.log("Deposit button clicked");
+      switchTransactionType("deposit");
+    });
+    console.log("Transaction button listeners attached");
+  } else {
+    console.error(
+      "ERROR: Transaction buttons not found! Expected 2, found:",
+      transactionButtons.length
+    );
+  }
 
   // Navbar Transactions link - refresh page
   const navbarTransactionsLink = document.getElementById(
@@ -410,4 +502,8 @@ document.addEventListener("DOMContentLoaded", function () {
       window.location.href = "employee-transaction.html";
     });
   }
+
+  console.log(
+    "Second DOMContentLoaded setup complete - all event listeners attached"
+  );
 });

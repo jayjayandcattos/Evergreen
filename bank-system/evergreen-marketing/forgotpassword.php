@@ -60,10 +60,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 try {
                     // Server settings
                     $mail->isSMTP();
-                    $mail->Host       = 'smtp.gmail.com';
+                    $mail->Host       = 'smtp.gmail.com'; // Change to your SMTP host
                     $mail->SMTPAuth   = true;
-                    $mail->Username   = 'evrgrn.64@gmail.com';
-                    $mail->Password   = 'dourhhbymvjejuct'; 
+                    $mail->Username   = 'evrgrn.64@gmail.com'; // Your email
+                    $mail->Password   = 'dourhhbymvjejuct'; // Your app password
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                     $mail->Port       = 587;
                     
@@ -151,7 +151,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $user_id = $_SESSION['reset_user_id'];
                 
-                $sql = "UPDATE bank_customers SET password = ? WHERE customer_id = ?";
+                $sql = "UPDATE bank_customers SET password_hash = ? WHERE customer_id = ?";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("si", $hashed_password, $user_id);
                 

@@ -1,5 +1,7 @@
 <?php
 session_start();
+
+// Include database configuration
 require_once 'config/database.php';
 
 // 🔒 If already logged in, redirect to correct dashboard
@@ -18,39 +20,41 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    $selectedRole = $_POST['role'] ?? 'client';
-
-    $user = null;
     
-    // Verify based on selected role
-    if ($selectedRole === 'admin') {
-        $user = verifyAdminPassword($email, $password);
-    } else {
-        $user = verifyUserPassword($email, $password);
+
+    $admin = verifyAdminPassword($email, $password);
+    
+    if ($admin) {
+        // Admin authenticated
+        $_SESSION['user_email'] = $admin['email'];
+        $_SESSION['user_name'] = $admin['full_name'] ?? $admin['display_name'];
+        $_SESSION['user_role'] = 'admin';
+        $_SESSION['loan_officer_id'] = $admin['loan_officer_id'] ?? ('LO-' . str_pad($admin['id'], 4, '0', STR_PAD_LEFT));
+        $_SESSION['customer_id'] = null;
+
+        header('Location: adminindex.php');
+        exit();
+    }
+         // -------------------------------
+    // 2. If not admin, try client login
+    // -------------------------------
+    $client = verifyUserPassword($email, $password);
+
+    if ($client) {
+        $_SESSION['customer_id'] = $client['id'] ?? null;
+        $_SESSION['account_number'] = $client['account_number'] ?? null;
+        $_SESSION['contact_number'] = $client['contact_number'] ?? null;
+
+        $_SESSION['user_email'] = $client['email'];
+        $_SESSION['user_name'] = $client['full_name'] ?? $client['display_name'];
+        $_SESSION['user_role'] = 'client';
+
+        header('Location: index.php');
+        exit();
     }
 
-    if ($user) {
-        // 🔑 Role must match
-        if ($user['role'] !== $selectedRole) {
-            $error = "Invalid role selection. Please select the correct role.";
-        } else {
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_name'] = $user['display_name'] ?? $user['full_name'];
-            $_SESSION['user_role'] = $user['role'];
-            $_SESSION['user_id'] = $user['id'];
-            
-            if ($user['role'] === 'admin') {
-                $_SESSION['loan_officer_id'] = $user['loan_officer_id'] ?? 'LO-0123';
-                header('Location: adminindex.php');
-                exit();
-            } else {
-                header('Location: index.php');
-                exit();
-            }
-        }
-    } else {
-        $error = "Invalid email or password.";
-    }
+    // If both fail:
+    $error = "Invalid email or password.";
 }
 ?>
 
@@ -207,14 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="password" id="password" name="password" required autocomplete="current-password" />
       </div>
 
-      <div class="role-selector">
-        <label>
-          <input type="radio" name="role" value="client" <?= (($_POST['role'] ?? 'client') === 'client') ? 'checked' : '' ?>> Client
-        </label>
-        <label>
-          <input type="radio" name="role" value="admin" <?= (($_POST['role'] ?? 'client') === 'admin') ? 'checked' : '' ?>> Admin
-        </label>
-      </div>
+     
 
       <button type="submit" class="btn-login">Login</button>
     </form>

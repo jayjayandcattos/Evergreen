@@ -84,6 +84,22 @@ class AuthController extends Controller{
         $this->view('auth/login', $data);
   }
 
+  public function account() {
+    // This method redirects to the customer account page
+    // Used when accessing /auth/account
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    if(isset($_SESSION['customer_id'])){
+      header('Location: ' .URLROOT. '/customer/account');
+      exit;
+    } else {
+      header('Location: ' .URLROOT. '/auth/login');
+      exit;
+    }
+  }
+
   public function logout() {
     if (session_status() === PHP_SESSION_NONE) {
         session_start();

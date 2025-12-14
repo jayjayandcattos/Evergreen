@@ -36,8 +36,49 @@ function ensureSoftDeleteColumnsExist($conn) {
     }
 }
 
+// Ensure soft delete columns exist in loan_applications table
+function ensureApplicationSoftDeleteColumnsExist($conn) {
+    try {
+        // Check if deleted_at column exists
+        $checkSql = "SHOW COLUMNS FROM loan_applications LIKE 'deleted_at'";
+        $result = $conn->query($checkSql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Add deleted_at column
+            $alterSql = "ALTER TABLE loan_applications ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL";
+            if (!$conn->query($alterSql)) {
+                error_log("Failed to add deleted_at column to loan_applications: " . $conn->error);
+            }
+        }
+        
+        // Check if deleted_by column exists
+        $checkSql = "SHOW COLUMNS FROM loan_applications LIKE 'deleted_by'";
+        $result = $conn->query($checkSql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Add deleted_by column
+            $alterSql = "ALTER TABLE loan_applications ADD COLUMN deleted_by INT NULL DEFAULT NULL";
+            if (!$conn->query($alterSql)) {
+                error_log("Failed to add deleted_by column to loan_applications: " . $conn->error);
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error ensuring soft delete columns exist for loan_applications: " . $e->getMessage());
+    }
+}
+
 // Ensure columns exist before querying
 ensureSoftDeleteColumnsExist($conn);
+ensureApplicationSoftDeleteColumnsExist($conn);
+
+// Check if deleted_at column exists in loan_applications
+$hasAppDeletedAtColumn = false;
+try {
+    $checkResult = $conn->query("SHOW COLUMNS FROM loan_applications LIKE 'deleted_at'");
+    $hasAppDeletedAtColumn = $checkResult && $checkResult->num_rows > 0;
+} catch (Exception $e) {
+    $hasAppDeletedAtColumn = false;
+}
 
 // Get filter parameters
 $dateFrom = $_GET['date_from'] ?? '';
@@ -54,19 +95,86 @@ $applyFilters = isset($_GET['apply_filters']);
 $showOnlyApplications = true;
 
 if ($showOnlyApplications) {
+    // Build WHERE conditions
+    $whereConditions = [];
+    $params = [];
+    $types = '';
+    
+    // Soft delete filter
+    if ($hasAppDeletedAtColumn) {
+        $whereConditions[] = "(la.deleted_at IS NULL OR la.deleted_at = '')";
+    }
+    
+    // Apply filters
+    if ($applyFilters) {
+        if (!empty($dateFrom)) {
+            $whereConditions[] = "la.created_at >= ?";
+            $params[] = $dateFrom;
+            $types .= 's';
+        }
+        
+        if (!empty($dateTo)) {
+            $whereConditions[] = "la.created_at <= ?";
+            $params[] = $dateTo . ' 23:59:59';
+            $types .= 's';
+        }
+        
+        if (!empty($status)) {
+            if (strtolower($status) === 'pending') {
+                // Handle "Pending" case-insensitively for both applications and loans
+                $whereConditions[] = "LOWER(la.status) = ?";
+                $params[] = 'pending';
+                $types .= 's';
+            } else {
+                // Match exact status (case-sensitive for Approved, Rejected; case-insensitive for others)
+                if (in_array($status, ['Approved', 'Rejected'])) {
+                    $whereConditions[] = "la.status = ?";
+                    $params[] = $status;
+                    $types .= 's';
+                } else {
+                    // Case-insensitive match for active, paid, defaulted, cancelled
+                    $whereConditions[] = "LOWER(la.status) = ?";
+                    $params[] = strtolower($status);
+                    $types .= 's';
+                }
+            }
+        }
+        
+        if (!empty($accountNumber)) {
+            $whereConditions[] = "(CONCAT('APP-', la.id) LIKE ? OR la.account_number LIKE ? OR la.full_name LIKE ?)";
+            $searchTerm = "%{$accountNumber}%";
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $types .= 'sss';
+        }
+    }
+    
+    // Build WHERE clause
+    $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+    
     $sql = "SELECT 
             la.id,
             CONCAT('APP-', la.id) as loan_number,
             la.full_name as borrower_name,
             la.loan_amount as loan_amount,
-            0 as interest_rate,
+            COALESCE(lt.interest_rate * 100, 20.00) as interest_rate,
             0 as loan_term,
             la.created_at as start_date,
             la.due_date as maturity_date,
-            0.00 as outstanding_balance,
+            CASE 
+                WHEN la.loan_id IS NOT NULL AND l.id IS NOT NULL THEN 
+                    COALESCE(la.loan_amount, 0.00) - COALESCE((
+                        SELECT SUM(lp.principal_amount) 
+                        FROM loan_payments lp 
+                        WHERE lp.loan_id = la.loan_id
+                    ), 0.00)
+                WHEN la.loan_id IS NULL AND LOWER(la.status) IN ('approved', 'active') THEN COALESCE(la.loan_amount, 0.00)
+                ELSE 0.00
+            END as outstanding_balance,
             la.status,
             'application' as record_type,
-            la.loan_type as loan_type_name,
+            COALESCE(lt.name, la.loan_type, 'N/A') as loan_type_name,
             la.account_number,
             la.created_at,
             la.approved_by as created_by_name,
@@ -91,7 +199,9 @@ if ($showOnlyApplications) {
             la.pdf_path,
             la.id as application_id
         FROM loan_applications la
-        WHERE 1=1
+        LEFT JOIN loans l ON la.loan_id = l.id AND (l.deleted_at IS NULL OR l.deleted_at = '')
+        LEFT JOIN loan_types lt ON la.loan_type_id = lt.id
+        $whereClause
         ORDER BY la.id DESC";
 } else {
 $sql = "SELECT 
@@ -99,7 +209,7 @@ $sql = "SELECT
             l.loan_no as loan_number,
             l.borrower_external_no as borrower_name,
             l.principal_amount as loan_amount,
-            l.interest_rate,
+            COALESCE(l.interest_rate * 100, COALESCE(lt.interest_rate * 100, 20.00)) as interest_rate,
             l.term_months as loan_term,
             l.start_date,
             DATE_ADD(l.start_date, INTERVAL l.term_months MONTH) as maturity_date,
@@ -116,6 +226,19 @@ $sql = "SELECT
             NULL as monthly_salary,
             NULL as user_email,
             NULL as purpose,
+            l.monthly_payment,
+            NULL as due_date,
+            l.next_payment_due,
+            NULL as approved_by,
+            NULL as approved_at,
+            NULL as rejected_by,
+            NULL as rejected_at,
+            NULL as rejection_remarks,
+            NULL as remarks,
+            NULL as file_name,
+            NULL as proof_of_income,
+            NULL as coe_document,
+            NULL as pdf_path,
             NULL as application_id
         FROM loans l
         LEFT JOIN loan_types lt ON l.loan_type_id = lt.id
@@ -130,7 +253,7 @@ $sql = "SELECT
             CONCAT('APP-', la.id) as loan_number,
             COALESCE(la.full_name, la.user_email) as borrower_name,
             COALESCE(la.loan_amount, 0) as loan_amount,
-            COALESCE(lt_app.interest_rate, 0) as interest_rate,
+            COALESCE(lt_app.interest_rate * 100, 20.00) as interest_rate,
             CASE 
                 WHEN la.loan_terms LIKE '%6%' OR la.loan_terms LIKE '%6 Months%' THEN 6
                 WHEN la.loan_terms LIKE '%12%' OR la.loan_terms LIKE '%12 Months%' THEN 12
@@ -141,7 +264,16 @@ $sql = "SELECT
             END as loan_term,
             la.created_at as start_date,
             la.due_date as maturity_date,
-            0.00 as outstanding_balance,
+            CASE 
+                WHEN la.loan_id IS NOT NULL THEN 
+                    COALESCE(la.loan_amount, 0.00) - COALESCE((
+                        SELECT SUM(lp.principal_amount) 
+                        FROM loan_payments lp 
+                        WHERE lp.loan_id = la.loan_id
+                    ), 0.00)
+                WHEN LOWER(la.status) IN ('approved', 'active') THEN COALESCE(la.loan_amount, 0.00)
+                ELSE 0.00
+            END as outstanding_balance,
             la.status,
             'application' as record_type,
             COALESCE(lt_app.name, la.loan_type, 'N/A') as loan_type_name,
@@ -171,82 +303,14 @@ $sql = "SELECT
         FROM loan_applications la
         LEFT JOIN loan_types lt_app ON la.loan_type_id = lt_app.id
         LEFT JOIN users u_app ON la.approved_by_user_id = u_app.id
-        WHERE 1=1"; // Show all loan applications (matching adminindex.php)
+        " . ($hasAppDeletedAtColumn ? "WHERE (la.deleted_at IS NULL OR la.deleted_at = '')" : "WHERE 1=1"); // Exclude soft-deleted applications
 }
 
-$params = [];
-$types = '';
-$loanConditions = [];
-$appConditions = [];
-
-// Apply filters - separate conditions for loans and applications
-if ($applyFilters) {
-    if (!empty($dateFrom)) {
-        if (!$showOnlyApplications) {
-        $loanConditions[] = "l.start_date >= ?";
-        $params[] = $dateFrom;
-            $types .= 's';
-        }
-        $sql = str_replace("WHERE 1=1", "WHERE la.created_at >= '$dateFrom'", $sql);
-    }
-    
-    if (!empty($dateTo)) {
-        if (!$showOnlyApplications) {
-        $loanConditions[] = "l.start_date <= ?";
-        $params[] = $dateTo;
-            $types .= 's';
-        }
-        if (strpos($sql, "WHERE la.created_at >=") !== false) {
-            $sql = str_replace("WHERE la.created_at >=", "WHERE la.created_at >= '$dateFrom' AND la.created_at <=", $sql);
-            $sql = str_replace("WHERE 1=1", "WHERE 1=1 AND la.created_at <= '$dateTo'", $sql);
-        } else {
-            $sql = str_replace("WHERE 1=1", "WHERE la.created_at <= '$dateTo'", $sql);
-        }
-    }
-    
-    if (!empty($status)) {
-        if (!$showOnlyApplications) {
-        $loanConditions[] = "l.status = ?";
-        $params[] = $status;
-            $types .= 's';
-        }
-        $sql = str_replace("WHERE 1=1", "WHERE la.status = '$status'", $sql);
-        $sql = str_replace("ORDER BY", "AND la.status = '$status' ORDER BY", $sql);
-    }
-    
-    if (!empty($accountNumber)) {
-        if (!$showOnlyApplications) {
-        $loanConditions[] = "l.loan_no LIKE ?";
-            $searchTerm = "%{$accountNumber}%";
-            $params[] = $searchTerm;
-            $types .= 's';
-        }
-        $searchTerm = "%{$accountNumber}%";
-        $sql = str_replace("WHERE 1=1", "WHERE (CONCAT('APP-', la.id) LIKE '$searchTerm' OR la.account_number LIKE '$searchTerm' OR la.full_name LIKE '$searchTerm')", $sql);
-    }
-}
-
-// Add conditions to loans query
-if (!empty($loanConditions)) {
-    $sql = str_replace("WHERE (l.deleted_at IS NULL OR l.deleted_at = '')", 
-                       "WHERE (l.deleted_at IS NULL OR l.deleted_at = '') AND " . implode(" AND ", $loanConditions), $sql);
-}
-
-// Add conditions to applications query (need to find the second WHERE clause in UNION)
-if (!$showOnlyApplications && !empty($appConditions)) {
-    // Find the position after UNION ALL and before the second SELECT
-    $unionPos = strpos($sql, "UNION ALL");
-    if ($unionPos !== false) {
-        // Find WHERE 1=1 in the applications part (after UNION ALL)
-        $appPart = substr($sql, $unionPos);
-        $wherePos = strpos($appPart, "WHERE 1=1");
-        if ($wherePos !== false) {
-            // Replace WHERE 1=1 with WHERE 1=1 AND conditions
-            $beforeWhere = substr($sql, 0, $unionPos + $wherePos);
-            $afterWhere = substr($sql, $unionPos + $wherePos + 8); // 8 = length of "WHERE 1=1"
-            $sql = $beforeWhere . "WHERE 1=1 AND " . implode(" AND ", $appConditions) . $afterWhere;
-        }
-    }
+// Filter parameters are already set above if showOnlyApplications is true
+// For UNION queries (when showOnlyApplications is false), we need to handle filters differently
+if (!$showOnlyApplications) {
+    // Filter parameters for UNION query would go here if needed
+    // For now, keeping existing logic
 }
 
 // Wrap in subquery for proper ordering (only if using UNION)
@@ -276,14 +340,23 @@ if ($conn) {
             CONCAT('APP-', la.id) as loan_number,
             la.full_name as borrower_name,
             la.loan_amount,
-            0 as interest_rate,
+            COALESCE(lt.interest_rate * 100, 20.00) as interest_rate,
             0 as loan_term,
             la.created_at as start_date,
             la.due_date as maturity_date,
-            0.00 as outstanding_balance,
+            CASE 
+                WHEN la.loan_id IS NOT NULL THEN 
+                    COALESCE(la.loan_amount, 0.00) - COALESCE((
+                        SELECT SUM(lp.principal_amount) 
+                        FROM loan_payments lp 
+                        WHERE lp.loan_id = la.loan_id
+                    ), 0.00)
+                WHEN LOWER(la.status) IN ('approved', 'active') THEN COALESCE(la.loan_amount, 0.00)
+                ELSE 0.00
+            END as outstanding_balance,
             la.status,
             'application' as record_type,
-            la.loan_type as loan_type_name,
+            COALESCE(lt.name, la.loan_type, 'N/A') as loan_type_name,
             la.account_number,
             la.created_at,
             la.approved_by as created_by_name,
@@ -308,6 +381,7 @@ if ($conn) {
             la.pdf_path,
             la.id as application_id
         FROM loan_applications la
+        LEFT JOIN loan_types lt ON la.loan_type_id = lt.id
         ORDER BY la.id DESC";
         
         $stmt = $conn->prepare($fallbackSql);
@@ -347,8 +421,9 @@ if ($conn) {
     }
 }
 
-// Calculate statistics
-$totalLoans = count($loans); // Total count of all records
+// Calculate statistics based on filtered results
+// This automatically adjusts when filters are applied since $loans array contains only filtered records
+$totalLoans = count($loans); // Total count of filtered records
 $totalApplications = 0;
 $totalAmount = 0;
 $totalOutstanding = 0;
@@ -356,25 +431,117 @@ $activeLoans = 0;
 $pendingApplications = 0;
 $actualLoanCount = 0; // Actual loans (not applications)
 
+// Calculate statistics from filtered results
 foreach ($loans as $loan) {
-    $totalAmount += floatval($loan['loan_amount']);
+    $loanStatus = strtolower($loan['status'] ?? '');
+    $loanAmount = floatval($loan['loan_amount'] ?? 0);
+    $outstandingBalance = floatval($loan['outstanding_balance'] ?? 0);
+    
+    // Add to total amount
+    $totalAmount += $loanAmount;
     
     if ($loan['record_type'] === 'loan') {
+        // This is an actual loan record
         $actualLoanCount++;
-        $totalOutstanding += floatval($loan['outstanding_balance']);
-        if (strtolower($loan['status']) === 'active') {
+        $totalOutstanding += $outstandingBalance;
+        if ($loanStatus === 'active') {
             $activeLoans++;
         }
     } else {
         // This is an application
         $totalApplications++;
-        if (strtolower($loan['status']) === 'pending') {
+        
+        // Count pending applications
+        if ($loanStatus === 'pending') {
             $pendingApplications++;
         }
+        
         // Count approved/active applications as active loans
-        if (in_array(strtolower($loan['status']), ['approved', 'active'])) {
+        if (in_array($loanStatus, ['approved', 'active'])) {
             $activeLoans++;
+            // Add outstanding balance for approved/active applications only
+            $totalOutstanding += $outstandingBalance;
         }
+    }
+}
+
+// Since showOnlyApplications is true, all records are applications
+// Ensure statistics are accurate for applications mode with filtered data
+if ($showOnlyApplications) {
+    // All records are applications
+    $totalApplications = count($loans);
+    
+    // Recalculate statistics from filtered results to ensure accuracy
+    // This ensures statistics automatically adjust based on active filters
+    $pendingApplications = 0;
+    $activeLoans = 0;
+    $totalOutstanding = 0;
+    
+    foreach ($loans as $loan) {
+        $loanStatus = strtolower($loan['status'] ?? '');
+        
+        // Count pending applications (from filtered results)
+        if ($loanStatus === 'pending') {
+            $pendingApplications++;
+        }
+        
+        // Count approved/active applications as active loans (from filtered results)
+        if (in_array($loanStatus, ['approved', 'active'])) {
+            $activeLoans++;
+            // Add outstanding balance for approved/active applications only
+            $totalOutstanding += floatval($loan['outstanding_balance'] ?? 0);
+        }
+    }
+}
+
+// Determine dynamic labels based on selected status filter
+$statusLabel = '';
+$applicationsLabel = 'Loan Applications';
+$activeLoansLabel = 'Active Loans';
+
+if (!empty($status) && $applyFilters) {
+    $statusLower = strtolower($status);
+    switch ($statusLower) {
+        case 'pending':
+            $statusLabel = 'Pending';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Pending Loans';
+            break;
+        case 'approved':
+            $statusLabel = 'Approved';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Approved Loans';
+            break;
+        case 'active':
+            $statusLabel = 'Active';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Active Loans';
+            break;
+        case 'rejected':
+            $statusLabel = 'Rejected';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Rejected Loans';
+            break;
+        case 'paid':
+            $statusLabel = 'Paid';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Paid Loans';
+            break;
+        case 'defaulted':
+            $statusLabel = 'Defaulted';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Defaulted Loans';
+            break;
+        case 'cancelled':
+            $statusLabel = 'Cancelled';
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = 'Cancelled Loans';
+            break;
+        default:
+            $statusLabel = ucfirst($status);
+            $applicationsLabel = 'Total Records';
+            $activeLoansLabel = ucfirst($status) . ' Loans';
+            break;
     }
 }
 ?>
@@ -578,8 +745,8 @@ foreach ($loans as $loan) {
                     </div>
                     <div class="stat-content">
                         <h3><?php echo $totalApplications; ?></h3>
-                        <p>Loan Applications</p>
-                        <?php if ($pendingApplications > 0): ?>
+                        <p><?php echo htmlspecialchars($applicationsLabel); ?></p>
+                        <?php if ($pendingApplications > 0 && empty($status)): ?>
                             <small class="text-warning"><i class="fas fa-clock me-1"></i><?php echo $pendingApplications; ?> Pending</small>
                         <?php endif; ?>
                     </div>
@@ -592,7 +759,7 @@ foreach ($loans as $loan) {
                     </div>
                     <div class="stat-content">
                         <h3><?php echo $activeLoans; ?></h3>
-                        <p>Active Loans</p>
+                        <p><?php echo htmlspecialchars($activeLoansLabel); ?></p>
                     </div>
                 </div>
             </div>
@@ -659,11 +826,9 @@ foreach ($loans as $loan) {
                             <label class="form-label">Status</label>
                             <select class="form-select" name="status">
                                 <option value="">All Status</option>
-                                <option value="Pending" <?php echo $status === 'Pending' ? 'selected' : ''; ?>>Pending (Application)</option>
-                                <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Pending (Loan)</option>
-                                <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Active</option>
-                                <option value="Active" <?php echo $status === 'Active' ? 'selected' : ''; ?>>Active (Application)</option>
+                                <option value="pending" <?php echo (strtolower($status) === 'pending') ? 'selected' : ''; ?>>Pending</option>
                                 <option value="Approved" <?php echo $status === 'Approved' ? 'selected' : ''; ?>>Approved</option>
+                                <option value="active" <?php echo (strtolower($status) === 'active') ? 'selected' : ''; ?>>Active</option>
                                 <option value="Rejected" <?php echo $status === 'Rejected' ? 'selected' : ''; ?>>Rejected</option>
                                 <option value="paid" <?php echo $status === 'paid' ? 'selected' : ''; ?>>Paid</option>
                                 <option value="defaulted" <?php echo $status === 'defaulted' ? 'selected' : ''; ?>>Defaulted</option>
@@ -740,6 +905,7 @@ foreach ($loans as $loan) {
                                 <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Maturity Date</th>
                                 <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Loan Amount</th>
                                 <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Interest Rate</th>
+                                <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Monthly Payment</th>
                                 <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Outstanding</th>
                                 <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Status</th>
                                 <th style="background-color: #f8f9fa; color: #0A3D3D; font-weight: 600;">Actions</th>
@@ -779,10 +945,15 @@ foreach ($loans as $loan) {
                                 <td class="text-end">₱<?php echo number_format($loan['loan_amount'], 2); ?></td>
                                 <td class="text-center"><?php echo number_format($loan['interest_rate'], 2); ?>%</td>
                                 <td class="text-end">
-                                    <?php if ($loan['record_type'] === 'loan'): ?>
+                                    <?php if (!empty($loan['monthly_payment'])): ?>
+                                        ₱<?php echo number_format($loan['monthly_payment'], 2); ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end">
+                                    <?php if (isset($loan['outstanding_balance']) && $loan['outstanding_balance'] !== null): ?>
                                         ₱<?php echo number_format($loan['outstanding_balance'], 2); ?>
-                                    <?php elseif ($loan['record_type'] === 'application' && !empty($loan['monthly_payment'])): ?>
-                                        <small class="text-muted">Monthly: ₱<?php echo number_format($loan['monthly_payment'], 2); ?></small>
                                     <?php else: ?>
                                         <span class="text-muted">-</span>
                                     <?php endif; ?>

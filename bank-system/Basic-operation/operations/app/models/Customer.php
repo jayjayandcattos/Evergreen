@@ -34,11 +34,11 @@ class Customer extends Database{
         $email = null;
         $account_number = $identifier;
     }
-
     $this->db->bind(':emailIdentifier', $email);
     $this->db->bind(':accountIdentifier', $account_number);
     return $this->db->single();
-  } 
+
+    }
 
     public function loginCustomer($identifier, $password) {
         $customer = $this->getCustomerByEmailOrAccountNumber($identifier);
@@ -59,22 +59,22 @@ class Customer extends Database{
     }
 
     public function getAccountsByCustomerId($customer_id) {
-        // --- 1. FIRST QUERY (GET ACCOUNTS AND BALANCES) ---
+        // Get accounts directly owned by the customer or linked via customer_linked_accounts
         $this->db->query("
             SELECT
                 a.account_id,
                 a.account_number,
+                a.account_type_id,
+                act.type_name AS type_name,
                 act.type_name AS account_type,
-                c.first_name,
-                c.last_name,
-                
+                bc.first_name,
+                bc.last_name,
                 COALESCE(SUM(
                     CASE tt.type_name
-                       WHEN 'Deposit' THEN t.amount
+                        WHEN 'Deposit' THEN t.amount
                         WHEN 'Transfer In' THEN t.amount
                         WHEN 'Interest Payment' THEN t.amount
                         WHEN 'Loan Disbursement' THEN t.amount
-                        -- Debits (will show as negative in the SQL result)
                         WHEN 'Withdrawal' THEN -t.amount
                         WHEN 'Transfer Out' THEN -t.amount
                         WHEN 'Service Charge' THEN -t.amount
@@ -82,22 +82,23 @@ class Customer extends Database{
                         ELSE 0
                     END
                 ), 0) AS current_balance
-                
-            FROM 
-                customer_linked_accounts cla
-            INNER JOIN customer_accounts a ON cla.account_id = a.account_id
-            INNER JOIN bank_customers c ON cla.customer_id = c.customer_id
+            FROM customer_accounts a
+            LEFT JOIN customer_linked_accounts cla ON cla.account_id = a.account_id AND cla.is_active = 1
+            LEFT JOIN bank_customers bc ON bc.customer_id = COALESCE(a.customer_id, cla.customer_id)
             LEFT JOIN bank_account_types act ON a.account_type_id = act.account_type_id
             LEFT JOIN bank_transactions t ON a.account_id = t.account_id
             LEFT JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id
-            WHERE 
-                cla.customer_id = :customer_id AND cla.is_active = 1 AND a.is_locked = 0
-            GROUP BY 
-                a.account_id, a.account_number, act.type_name, c.first_name, c.last_name
+            WHERE (
+                a.customer_id = :cid1
+                OR cla.customer_id = :cid2
+            )
+            AND a.is_locked = 0
+            GROUP BY a.account_id, a.account_number, a.account_type_id, act.type_name, bc.first_name, bc.last_name
             ORDER BY a.created_at DESC;
         ");
 
-        $this->db->bind(':customer_id', $customer_id);
+        $this->db->bind(':cid1', $customer_id);
+        $this->db->bind(':cid2', $customer_id);
         $customer_accounts = $this->db->resultSet();
 
         foreach ($customer_accounts as $account) {
@@ -151,37 +152,49 @@ class Customer extends Database{
     }
 
     public function addAccount($data) {
-        // Step 1: Get account_id and account_type by account_number
+        // Input validation
+        if (empty($data['account_number'])) {
+            return ['success' => false, 'error' => 'Account number is required.'];
+        }
+        if (empty($data['account_type'])) {
+            return ['success' => false, 'error' => 'Account type is required.'];
+        }
+        if (empty($data['customer_id'])) {
+            return ['success' => false, 'error' => 'Invalid customer session.'];
+        }
+
+        // Step 1: Get account_id and account_type by account_number AND VERIFY IT BELONGS TO THE CUSTOMER
         $this->db->query("
-            SELECT account_id, account_type_id 
-            FROM customer_accounts 
-            WHERE account_number = :account_number
+            SELECT ca.account_id, ca.account_type_id, ca.customer_id
+            FROM customer_accounts ca
+            WHERE ca.account_number = :account_number
         ");
         $this->db->bind(':account_number', $data['account_number']);
         $account = $this->db->single();
 
         if (!$account) {
-            // No account found with that number
             return ['success' => false, 'error' => 'Account number not found.'];
         }
 
+        // SECURITY CHECK: Verify the account belongs to the logged-in customer
+        if ((int)$account->customer_id !== (int)$data['customer_id']) {
+            return ['success' => false, 'error' => 'You can only add your own accounts.'];
+        }
+
         // Step 2: Verify account type matches user input
-        // Use LIKE to match partial names (e.g., "Savings" matches "Savings Account")
         $this->db->query("
             SELECT account_type_id, type_name 
             FROM bank_account_types 
-            WHERE type_name LIKE :account_type
+            WHERE type_name = :account_type
         ");
-        // Add wildcards for flexible matching
-        $searchTerm = '%' . $data['account_type'] . '%';
-        $this->db->bind(':account_type', $searchTerm);
+        $this->db->bind(':account_type', $data['account_type']);
         $type = $this->db->single();
 
         if (!$type) {
             return ['success' => false, 'error' => 'Invalid account type provided.'];
         }
 
-        if ($account->account_type_id !== $type->account_type_id) {
+        if ((int)$account->account_type_id !== (int)$type->account_type_id) {
             return ['success' => false, 'error' => 'Account type does not match the account number.'];
         }
 
@@ -198,7 +211,8 @@ class Customer extends Database{
         $existing = $this->db->single();
 
         if ($existing) {
-            if ($existing->is_active == 0) {
+            // Account link already exists
+            if ((int)$existing->is_active === 0) {
                 // Step 4: Reactivate if inactive
                 $this->db->query("
                     UPDATE customer_linked_accounts
@@ -207,14 +221,18 @@ class Customer extends Database{
                 ");
                 $this->db->bind(':customer_id', $data['customer_id']);
                 $this->db->bind(':account_id', $account_id);
-                $this->db->execute();
-                return ['success' => true, 'message' => 'Account reactivated successfully.'];
+                
+                if ($this->db->execute()) {
+                    return ['success' => true, 'message' => 'Account reactivated successfully.'];
+                } else {
+                    return ['success' => false, 'error' => 'Failed to reactivate account.'];
+                }
             } else {
                 return ['success' => false, 'error' => 'This account is already linked and active.'];
             }
         }
 
-        // Step 5: Insert new link
+        // Step 5: Insert new link if it doesn't exist
         $this->db->query("
             INSERT INTO customer_linked_accounts (customer_id, account_id, is_active)
             VALUES (:customer_id, :account_id, 1)
@@ -223,7 +241,7 @@ class Customer extends Database{
         $this->db->bind(':account_id', $account_id);
 
         if ($this->db->execute()) {
-            return ['success' => true, 'message' => 'Account linked successfully.'];
+            return ['success' => true, 'message' => 'Account added successfully.'];
         }
 
         return ['success' => false, 'error' => 'Failed to add account.'];
@@ -321,8 +339,8 @@ class Customer extends Database{
                 c.last_name,
                 c.middle_name,
                 -- Account Info
-                (SELECT phone_number FROM phones WHERE customer_id = c.customer_id AND is_primary = 1 LIMIT 1) AS mobile_number,
-                (SELECT email FROM emails WHERE customer_id = c.customer_id AND is_primary = 1 LIMIT 1) AS email_address,
+                c.contact_number AS mobile_number,
+                c.email AS email_address,
                 -- Personal Info
                 cp.date_of_birth,
                 cp.marital_status AS civil_status,
@@ -330,17 +348,21 @@ class Customer extends Database{
                 cp.occupation,
                 cp.company AS name_of_employer,
                 g.gender_name AS gender,
-                -- Address components (separated)
-                (SELECT a.address_line 
+                -- Address parts (Home Address - primary)
+                (SELECT a.address_line FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS address_line,
+                (SELECT a.city_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city_id,
+                (SELECT a.barangay_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS barangay_id,
+                (SELECT ct.city_name FROM addresses a JOIN cities ct ON a.city_id = ct.city_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city_name,
+                (SELECT br.barangay_name FROM addresses a JOIN barangays br ON a.barangay_id = br.barangay_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS barangay_name,
+                (SELECT a.province_id FROM addresses a WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province_id,
+                (SELECT p.province_name FROM addresses a JOIN provinces p ON a.province_id = p.province_id WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province_name,
+                -- Legacy concatenated field for compatibility
+                (SELECT CONCAT(a.address_line, ', ', br.barangay_name, ', ', ct.city_name, ', ', p.province_name, ', Philippines') 
                  FROM addresses a
-                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS address_line,
-                (SELECT a.city 
-                 FROM addresses a
-                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS city,
-                (SELECT p.province_name 
-                 FROM addresses a
-                 JOIN provinces p ON a.province_id = p.province_id
-                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS province
+                 LEFT JOIN barangays br ON a.barangay_id = br.barangay_id
+                 LEFT JOIN cities ct ON a.city_id = ct.city_id
+                 LEFT JOIN provinces p ON a.province_id = p.province_id
+                 WHERE a.customer_id = c.customer_id AND a.is_primary = 1 AND a.address_type = 'home' LIMIT 1) AS home_address
             FROM bank_customers c
             LEFT JOIN customer_profiles cp ON c.customer_id = cp.customer_id
             LEFT JOIN genders g ON cp.gender_id = g.gender_id
@@ -350,6 +372,165 @@ class Customer extends Database{
         $this->db->bind(':customer_id', $customer_id);
         
         return $this->db->single();
+    }
+
+    /**
+     * Get list of provinces
+     * @return array
+     */
+    public function getProvinces() {
+        $this->db->query("SELECT province_id, province_name FROM provinces ORDER BY province_name ASC");
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get list of cities by province
+     * @param int $province_id
+     * @return array
+     */
+    public function getCitiesByProvince($province_id) {
+        $this->db->query("SELECT city_id, city_name, province_id FROM cities WHERE province_id = :province_id ORDER BY city_name ASC");
+        $this->db->bind(':province_id', $province_id);
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get list of barangays by city
+     * @param int $city_id
+     * @return array
+     */
+    public function getBarangaysByCity($city_id) {
+        $this->db->query("SELECT barangay_id, barangay_name, city_id FROM barangays WHERE city_id = :city_id ORDER BY barangay_name ASC");
+        $this->db->bind(':city_id', $city_id);
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get all cities
+     * @return array
+     */
+    public function getAllCities() {
+        $this->db->query("SELECT city_id, city_name, province_id FROM cities ORDER BY city_name ASC");
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get all accounts to process for maintaining balance checks
+     * @return array
+     */
+    public function getAllAccountsForMaintainingProcessing() {
+        $this->db->query("SELECT account_id, account_number, customer_id, maintaining_balance_required, monthly_service_fee, below_maintaining_since, account_status, last_service_fee_date, closure_warning_date, is_locked FROM customer_accounts");
+        return $this->db->resultSet();
+    }
+
+    /**
+     * Get transaction_type_id by name
+     */
+    public function getTransactionTypeId($type_name) {
+        $this->db->query("SELECT transaction_type_id FROM transaction_types WHERE type_name = :type_name LIMIT 1");
+        $this->db->bind(':type_name', $type_name);
+        $row = $this->db->single();
+        return $row ? (int)$row->transaction_type_id : null;
+    }
+
+    /**
+     * Charge service fee: insert bank transaction and service_fee_charges record
+     */
+    public function chargeServiceFee($account_id, $fee_amount, $fee_type = 'monthly_service_fee') {
+        $transactionTypeId = $this->getTransactionTypeId('Service Charge');
+        if (!$transactionTypeId) {
+            // fallback to a default known id (if migration not run)
+            $transactionTypeId = 5; // best-effort
+        }
+
+        $transaction_ref = 'SF-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(3)));
+
+        // Insert bank_transactions record for the fee (debit)
+        $this->db->query("INSERT INTO bank_transactions (transaction_ref, account_id, transaction_type_id, amount, description, created_at) VALUES (:transaction_ref, :account_id, :type_id, :amount, :description, NOW())");
+        $this->db->bind(':transaction_ref', $transaction_ref);
+        $this->db->bind(':account_id', $account_id);
+        $this->db->bind(':type_id', $transactionTypeId);
+        $this->db->bind(':amount', $fee_amount);
+        $this->db->bind(':description', 'Service Charge - ' . $transaction_ref);
+        $this->db->execute();
+
+        $transaction_id = $this->db->lastInsertId();
+
+        // Get balance before and after
+        $this->db->query("SELECT COALESCE(SUM(CASE tt.type_name WHEN 'Deposit' THEN t.amount WHEN 'Transfer In' THEN t.amount WHEN 'Interest Payment' THEN t.amount WHEN 'Loan Disbursement' THEN t.amount WHEN 'Withdrawal' THEN -t.amount WHEN 'Transfer Out' THEN -t.amount WHEN 'Service Charge' THEN -t.amount ELSE 0 END),0) AS balance FROM bank_transactions t LEFT JOIN transaction_types tt ON t.transaction_type_id = tt.transaction_type_id WHERE t.account_id = :account_id");
+        $this->db->bind(':account_id', $account_id);
+        $row = $this->db->single();
+        $balance_after = $row ? (float)$row->balance : 0.00;
+        $balance_before = $balance_after + $fee_amount;
+
+        // Insert into service_fee_charges
+        $this->db->query("INSERT INTO service_fee_charges (account_id, transaction_id, fee_amount, balance_before, balance_after, charge_date, fee_type, created_at) VALUES (:account_id, :transaction_id, :fee_amount, :balance_before, :balance_after, CURDATE(), :fee_type, NOW())");
+        $this->db->bind(':account_id', $account_id);
+        $this->db->bind(':transaction_id', $transaction_id);
+        $this->db->bind(':fee_amount', $fee_amount);
+        $this->db->bind(':balance_before', $balance_before);
+        $this->db->bind(':balance_after', $balance_after);
+        $this->db->bind(':fee_type', $fee_type);
+        $this->db->execute();
+
+        return ['transaction_id' => $transaction_id, 'balance_before' => $balance_before, 'balance_after' => $balance_after];
+    }
+
+    /**
+     * Update account status and write to history
+     */
+    public function setAccountStatus($account_id, $new_status, $balance_at_change = 0.00, $reason = null, $changed_by = null, $extraFields = []) {
+        // fetch previous status
+        $this->db->query("SELECT account_status FROM customer_accounts WHERE account_id = :account_id LIMIT 1");
+        $this->db->bind(':account_id', $account_id);
+        $prev = $this->db->single();
+        $previous_status = $prev ? $prev->account_status : null;
+
+        // Build update query parts
+        $updates = [];
+        $params = [':account_id' => $account_id];
+        if (isset($extraFields['below_maintaining_since'])) {
+            $updates[] = "below_maintaining_since = :below_maintaining_since";
+            $params[':below_maintaining_since'] = $extraFields['below_maintaining_since'];
+        }
+        if (isset($extraFields['last_service_fee_date'])) {
+            $updates[] = "last_service_fee_date = :last_service_fee_date";
+            $params[':last_service_fee_date'] = $extraFields['last_service_fee_date'];
+        }
+        if (isset($extraFields['closure_warning_date'])) {
+            $updates[] = "closure_warning_date = :closure_warning_date";
+            $params[':closure_warning_date'] = $extraFields['closure_warning_date'];
+        }
+        $updates[] = "account_status = :account_status";
+        $params[':account_status'] = $new_status;
+
+        $sql = "UPDATE customer_accounts SET " . implode(', ', $updates) . " WHERE account_id = :account_id";
+        $this->db->query($sql);
+        foreach ($params as $k => $v) {
+            $this->db->bind($k, $v);
+        }
+        $this->db->execute();
+
+        // Insert into account_status_history
+        $this->db->query("INSERT INTO account_status_history (account_id, previous_status, new_status, balance_at_change, reason, changed_by, created_at) VALUES (:account_id, :previous_status, :new_status, :balance_at_change, :reason, :changed_by, NOW())");
+        $this->db->bind(':account_id', $account_id);
+        $this->db->bind(':previous_status', $previous_status);
+        $this->db->bind(':new_status', $new_status);
+        $this->db->bind(':balance_at_change', $balance_at_change);
+        $this->db->bind(':reason', $reason);
+        $this->db->bind(':changed_by', $changed_by);
+        $this->db->execute();
+
+        return true;
+    }
+
+    /**
+     * Get all barangays
+     * @return array
+     */
+    public function getAllBarangays() {
+        $this->db->query("SELECT barangay_id, barangay_name, city_id FROM barangays ORDER BY barangay_name ASC");
+        return $this->db->resultSet();
     }
 
     // --- FOR THE CHANGE PASSWORD ---
@@ -383,114 +564,83 @@ class Customer extends Database{
         try {
             // Update email if provided
             if (isset($profile_data['email_address']) && !empty($profile_data['email_address'])) {
-                // Check if email record exists
-                $this->db->query("SELECT email_id FROM emails WHERE customer_id = :customer_id AND is_primary = 1 LIMIT 1");
+                // Update email directly in bank_customers
+                $this->db->query("
+                    UPDATE bank_customers 
+                    SET email = :email 
+                    WHERE customer_id = :customer_id
+                ");
+                $this->db->bind(':email', $profile_data['email_address']);
                 $this->db->bind(':customer_id', $customer_id);
-                $email_exists = $this->db->single();
-                
-                if ($email_exists) {
-                    // Update existing email
-                    $this->db->query("
-                        UPDATE emails 
-                        SET email = :email 
-                        WHERE customer_id = :customer_id AND is_primary = 1
-                    ");
-                    $this->db->bind(':email', $profile_data['email_address']);
-                    $this->db->bind(':customer_id', $customer_id);
-                    $result = $this->db->execute();
-                    if (!$result) {
-                        error_log("Failed to update email for customer_id: $customer_id");
-                    }
-                    $success = $result && $success;
-                } else {
-                    // Insert new email
-                    $this->db->query("
-                        INSERT INTO emails (customer_id, email, is_primary, created_at)
-                        VALUES (:customer_id, :email, 1, NOW())
-                    ");
-                    $this->db->bind(':customer_id', $customer_id);
-                    $this->db->bind(':email', $profile_data['email_address']);
-                    $result = $this->db->execute();
-                    if (!$result) {
-                        error_log("Failed to insert email for customer_id: $customer_id");
-                    }
-                    $success = $result && $success;
+                $result = $this->db->execute();
+                if (!$result) {
+                    error_log("Failed to update email for customer_id: $customer_id");
                 }
+                $success = $result && $success;
             }
             
             // Update phone if provided
             if (isset($profile_data['mobile_number']) && !empty($profile_data['mobile_number'])) {
-                // Check if phone record exists
-                $this->db->query("SELECT phone_id FROM phones WHERE customer_id = :customer_id AND is_primary = 1 LIMIT 1");
+                // Update contact_number directly in bank_customers
+                $this->db->query("
+                    UPDATE bank_customers 
+                    SET contact_number = :contact_number 
+                    WHERE customer_id = :customer_id
+                ");
+                $this->db->bind(':contact_number', $profile_data['mobile_number']);
                 $this->db->bind(':customer_id', $customer_id);
-                $phone_exists = $this->db->single();
-                
-                if ($phone_exists) {
-                    // Update existing phone
-                    $this->db->query("
-                        UPDATE phones 
-                        SET phone_number = :phone_number 
-                        WHERE customer_id = :customer_id AND is_primary = 1
-                    ");
-                    $this->db->bind(':phone_number', $profile_data['mobile_number']);
-                    $this->db->bind(':customer_id', $customer_id);
-                    $result = $this->db->execute();
-                    if (!$result) {
-                        error_log("Failed to update phone for customer_id: $customer_id");
-                    }
-                    $success = $result && $success;
-                } else {
-                    // Insert new phone
-                    $this->db->query("
-                        INSERT INTO phones (customer_id, phone_number, phone_type, is_primary, created_at)
-                        VALUES (:customer_id, :phone_number, 'mobile', 1, NOW())
-                    ");
-                    $this->db->bind(':customer_id', $customer_id);
-                    $this->db->bind(':phone_number', $profile_data['mobile_number']);
-                    $result = $this->db->execute();
-                    if (!$result) {
-                        error_log("Failed to insert phone for customer_id: $customer_id");
-                    }
-                    $success = $result && $success;
+                $result = $this->db->execute();
+                if (!$result) {
+                    error_log("Failed to update contact_number for customer_id: $customer_id");
                 }
+                $success = $result && $success;
             }
             
-            // Update address if provided (handle separate address components)
-            if (isset($profile_data['address_line']) || isset($profile_data['city']) || isset($profile_data['province'])) {
-                // Build the update query dynamically based on provided fields
-                $update_fields = [];
-                $bind_params = [':customer_id' => $customer_id];
-                
-                if (isset($profile_data['address_line']) && !empty($profile_data['address_line'])) {
-                    $update_fields[] = "address_line = :address_line";
-                    $bind_params[':address_line'] = $profile_data['address_line'];
-                }
-                
-                if (isset($profile_data['city']) && !empty($profile_data['city'])) {
-                    $update_fields[] = "city = :city";
-                    $bind_params[':city'] = $profile_data['city'];
-                }
-                
-                // Handle province - need to get province_id from province name
-                if (isset($profile_data['province']) && !empty($profile_data['province'])) {
-                    $this->db->query("SELECT province_id FROM provinces WHERE province_name = :province_name LIMIT 1");
-                    $this->db->bind(':province_name', $profile_data['province']);
-                    $province_result = $this->db->single();
-                    if ($province_result) {
-                        $update_fields[] = "province_id = :province_id";
-                        $bind_params[':province_id'] = $province_result->province_id;
+            // Update address parts if provided (address_line, city_id, barangay_id, province_id)
+            if (isset($profile_data['address_line']) || isset($profile_data['city_id']) || isset($profile_data['barangay_id']) || isset($profile_data['province_id'])) {
+                $address_line = isset($profile_data['address_line']) ? trim($profile_data['address_line']) : null;
+                $city_id = isset($profile_data['city_id']) ? (is_numeric($profile_data['city_id']) ? (int)$profile_data['city_id'] : null) : null;
+                $barangay_id = isset($profile_data['barangay_id']) ? (is_numeric($profile_data['barangay_id']) ? (int)$profile_data['barangay_id'] : null) : null;
+                $province_id = isset($profile_data['province_id']) ? (is_numeric($profile_data['province_id']) ? (int)$profile_data['province_id'] : null) : null;
+
+                // Check if primary home address exists
+                $this->db->query("SELECT address_id FROM addresses WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home' LIMIT 1");
+                $this->db->bind(':customer_id', $customer_id);
+                $addr_exists = $this->db->single();
+
+                if ($addr_exists) {
+                    // Build update dynamically
+                    $set_clauses = [];
+                    if ($address_line !== null) $set_clauses[] = "address_line = :address_line";
+                    if ($city_id !== null) $set_clauses[] = "city_id = :city_id";
+                    if ($barangay_id !== null) $set_clauses[] = "barangay_id = :barangay_id";
+                    if ($province_id !== null) $set_clauses[] = "province_id = :province_id";
+
+                    if (!empty($set_clauses)) {
+                        $sql = "UPDATE addresses SET " . implode(', ', $set_clauses) . " WHERE address_id = :address_id";
+                        $this->db->query($sql);
+                        if ($address_line !== null) $this->db->bind(':address_line', $address_line);
+                        if ($city_id !== null) $this->db->bind(':city_id', $city_id);
+                        if ($barangay_id !== null) $this->db->bind(':barangay_id', $barangay_id);
+                        if ($province_id !== null) $this->db->bind(':province_id', $province_id);
+                        $this->db->bind(':address_id', $addr_exists->address_id);
+                        $result = $this->db->execute();
+                        if (!$result) error_log("Failed to update address for customer_id: $customer_id");
+                        $success = $result && $success;
                     }
-                }
-                
-                if (!empty($update_fields)) {
-                    $sql = "UPDATE addresses SET " . implode(", ", $update_fields) . 
-                           " WHERE customer_id = :customer_id AND is_primary = 1 AND address_type = 'home'";
-                    $this->db->query($sql);
-                    
-                    foreach ($bind_params as $param => $value) {
-                        $this->db->bind($param, $value);
+                } else {
+                    // Insert new primary home address if at least one part provided
+                    if ($address_line || $city_id || $barangay_id || $province_id) {
+                        $this->db->query("INSERT INTO addresses (customer_id, address_line, city_id, barangay_id, province_id, address_type, is_primary, created_at) VALUES (:customer_id, :address_line, :city_id, :barangay_id, :province_id, 'home', 1, NOW())");
+                        $this->db->bind(':customer_id', $customer_id);
+                        $this->db->bind(':address_line', $address_line);
+                        $this->db->bind(':city_id', $city_id);
+                        $this->db->bind(':barangay_id', $barangay_id);
+                        $this->db->bind(':province_id', $province_id);
+                        $result = $this->db->execute();
+                        if (!$result) error_log("Failed to insert address for customer_id: $customer_id");
+                        $success = $result && $success;
                     }
-                    $success = $this->db->execute() && $success;
                 }
             }
             
@@ -685,8 +835,7 @@ class Customer extends Database{
     }
 
     public function recordTransaction($transaction_ref, $sender, $receiver, $amount, $fee, $message){
-        // for sender - Transfer Out (debit)
-        // Store positive amount, the CASE statement in balance calculation will make it negative
+        // for sender
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -707,14 +856,13 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 8); // Transfer Out - sender sends money
-        $this->db->bind(':amount', $amount); // Store positive, balance calc applies negative
+        $this->db->bind(':transaction_type', 8);
+        $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $receiver);
         $this->db->bind(':message', $message);
         $this->db->execute();
 
-        // For the fee - Service Charge (debit)
-        // Store positive amount, the CASE statement in balance calculation will make it negative
+        // For the fee
         $this->db->query("
         INSERT INTO bank_transactions (
             account_id,
@@ -730,13 +878,12 @@ class Customer extends Database{
         );
         ");
         $this->db->bind(':sender', $sender);
-        $this->db->bind(':transaction_type', 5); // Service Charge type
-        $this->db->bind(':amount', $fee); // Store positive, balance calc applies negative
+        $this->db->bind(':transaction_type', 5);
+        $this->db->bind(':amount', $fee);
         $this->db->bind(':message', 'Transaction Service Charge - ' . $transaction_ref);
         $this->db->execute();
 
-        // for the receiver - Transfer In (credit)
-        // Store positive amount, the CASE statement in balance calculation will keep it positive
+        // for the receiver
         $this->db->query("
         INSERT INTO bank_transactions (
             transaction_ref,
@@ -757,8 +904,8 @@ class Customer extends Database{
         ");
         $this->db->bind(':transaction_ref', $transaction_ref);
         $this->db->bind(':sender', $receiver);
-        $this->db->bind(':transaction_type', 9); // Transfer In - receiver gets money
-        $this->db->bind(':amount', $amount); // Store positive, balance calc keeps positive
+        $this->db->bind(':transaction_type', 9);
+        $this->db->bind(':amount', $amount);
         $this->db->bind(':receiver', $sender);
         $this->db->bind(':message', $message);
         $this->db->execute();
@@ -967,21 +1114,22 @@ class Customer extends Database{
     {
         $this->db->query("
             SELECT
-                ca.account_number,
                 la.id AS application_id,
+                la.account_number,
                 la.loan_type,
-                la.loan_amount AS remaining_balance, -- NULL if no active loan application
-                DATE_FORMAT(la.created_at, '%M %d, %Y') AS application_date
+                la.loan_amount AS remaining_balance,
+                DATE_FORMAT(la.created_at, '%M %d, %Y') AS application_date,
+                la.status
             FROM
-                customer_accounts ca
-            LEFT JOIN
-                loan_applications la 
-                ON ca.account_number = la.account_number
-                AND la.status = 'Approved'       -- Only join to approved applications
+                loan_applications la
+            INNER JOIN
+                customer_accounts ca ON la.account_number = ca.account_number
             WHERE
                 ca.customer_id = :customer_id
+                AND la.status = 'Active'
+                AND la.loan_amount > 0
             ORDER BY
-                ca.account_number, la.loan_amount DESC;
+                la.created_at DESC;
         ");
         $this->db->bind(':customer_id', $customerId);
         return $this->db->resultSet();
@@ -1001,7 +1149,7 @@ class Customer extends Database{
             SELECT la.id, la.loan_amount, la.status
             FROM loan_applications la
             INNER JOIN customer_accounts ca ON la.account_number = ca.account_number
-            WHERE la.id = :application_id AND ca.customer_id = :customer_id AND la.status = 'Approved'
+            WHERE la.id = :application_id AND ca.customer_id = :customer_id AND la.status = 'Active'
         ");
         $this->db->bind(':application_id', $applicationId);
         $this->db->bind(':customer_id', $customerId);
@@ -1422,4 +1570,170 @@ class Customer extends Database{
         return $result ? (float)$result->current_balance : 0.00;
     }
 
+    /**
+     * Calculate interest from a list of transactions using the daily-balance method.
+     *
+     * Assumptions:
+     * - Each transaction's amount is positive for credits (deposits) and negative for debits (withdrawals).
+     * - `opening_balance` is the balance at the start of `start_date` BEFORE transactions on that date are applied.
+     * - Each transaction affects the balance starting on its `date` (inclusive).
+     * - If `start_date` is omitted, calculation starts at the earliest transaction date (or today if none).
+     * - If `end_date` is omitted, calculation runs up to today.
+     *
+     * @param array $transactions Array of ['date' => 'YYYY-MM-DD', 'amount' => float]
+     * @param float $opening_balance Balance at start_date before transactions on that date
+     * @param float $annual_interest_rate e.g. 0.03 for 3%
+     * @param string|null $start_date inclusive, format 'YYYY-MM-DD'
+     * @param string|null $end_date inclusive, format 'YYYY-MM-DD'
+     * @param bool $return_breakdown when true returns per-period breakdown
+     * @return array ['total_interest' => float, 'daily_rate' => float, 'breakdown' => array|null]
+     */
+    public function calculateInterestFromTransactions(array $transactions, float $opening_balance, float $annual_interest_rate, $start_date = null, $end_date = null, $return_breakdown = false) {
+        if ($annual_interest_rate < 0) {
+            throw new InvalidArgumentException('annual_interest_rate must be non-negative');
+        }
+
+        $daily_rate = $annual_interest_rate / 365.0;
+
+        // Aggregate net change per date (YYYY-MM-DD)
+        $net_changes = [];
+        foreach ($transactions as $t) {
+            if (!isset($t['date']) || !isset($t['amount'])) {
+                continue;
+            }
+            try {
+                $d = (new DateTime($t['date']))->format('Y-m-d');
+            } catch (Exception $e) {
+                // Skip invalid dates
+                continue;
+            }
+            $amt = (float)$t['amount'];
+            if (!isset($net_changes[$d])) {
+                $net_changes[$d] = 0.0;
+            }
+            $net_changes[$d] += $amt;
+        }
+
+        if (!empty($net_changes)) {
+            ksort($net_changes);
+        }
+
+        // Determine start and end
+        if ($start_date) {
+            $start = (new DateTime($start_date))->format('Y-m-d');
+        } else {
+            $start = !empty($net_changes) ? array_key_first($net_changes) : date('Y-m-d');
+        }
+
+        if ($end_date) {
+            $end = (new DateTime($end_date))->format('Y-m-d');
+        } else {
+            $end = date('Y-m-d');
+        }
+
+        if ($end < $start) {
+            throw new InvalidArgumentException('end_date must be on or after start_date');
+        }
+
+        // Build the ordered list of dates to process. Each listed date is a day when the balance may change
+        $dates = [$start];
+        foreach ($net_changes as $d => $_) {
+            if ($d >= $start && $d <= $end && $d !== $start) {
+                $dates[] = $d;
+            }
+        }
+
+        // sentinel: the day after end (so periods end on end_date)
+        $end_next = (new DateTime($end))->modify('+1 day')->format('Y-m-d');
+        $dates[] = $end_next;
+
+        // Ensure unique and sorted
+        $dates = array_values(array_unique($dates));
+
+        $current_balance = (float)$opening_balance;
+        $total_interest = 0.0;
+        $breakdown = [];
+
+        for ($i = 0; $i < count($dates) - 1; $i++) {
+            $date = $dates[$i];
+
+            // Apply all transactions that occur on this date (their effect starts on this date)
+            if (isset($net_changes[$date])) {
+                $current_balance += $net_changes[$date];
+            }
+
+            $next_date = $dates[$i + 1];
+            $dt_date = new DateTime($date);
+            $dt_next = new DateTime($next_date);
+            $days = (int)$dt_date->diff($dt_next)->days; // number of days balance is constant
+
+            if ($days > 0) {
+                $interest = $current_balance * $days * $daily_rate;
+                $total_interest += $interest;
+            } else {
+                $interest = 0.0;
+            }
+
+            $period_end = (new DateTime($next_date))->modify('-1 day')->format('Y-m-d');
+
+            $breakdown[] = [
+                'period_start' => $date,
+                'period_end' => $period_end,
+                'days' => $days,
+                'balance' => round($current_balance, 2),
+                'interest' => round($interest, 2),
+            ];
+        }
+
+        return [
+            'total_interest' => round($total_interest, 2),
+            'daily_rate' => $daily_rate,
+            'breakdown' => $return_breakdown ? $breakdown : null,
+        ];
+    }
+
+    /**
+     * Get account applications by customer email
+     * @param string $email Customer email address
+     * @return array|false Array of applications or false on failure
+     */
+    public function getAccountApplicationsByEmail($email) {
+        $this->db->query("
+            SELECT 
+                application_id,
+                application_number,
+                application_status,
+                first_name,
+                last_name,
+                email,
+                phone_number,
+                date_of_birth,
+                street_address,
+                barangay,
+                city,
+                state,
+                zip_code,
+                ssn,
+                id_type,
+                id_number,
+                employment_status,
+                employer_name,
+                job_title,
+                annual_income,
+                account_type,
+                selected_cards,
+                additional_services,
+                terms_accepted,
+                privacy_acknowledged,
+                marketing_consent,
+                submitted_at,
+                reviewed_at
+            FROM account_applications
+            WHERE email = :email
+            ORDER BY submitted_at DESC
+        ");
+        
+        $this->db->bind(':email', $email);
+        return $this->db->resultSet();
+    }
 }

@@ -173,7 +173,19 @@
       flex-direction: column;
       height: 100%;
       justify-content: space-between;
+    }
 
+    /* Ensure anchor tags with loan-card class work properly */
+    a.loan-card {
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+      display: block;
+    }
+
+    a.loan-card:hover {
+      text-decoration: none;
+      transform: translateY(-5px);
     }
 
     .loan-card:hover {

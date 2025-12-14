@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dropdown Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      select {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 16px;
+      }
+      .info {
+        background: #f0f0f0;
+        padding: 10px;
+        margin: 10px 0;
+        border-left: 4px solid #007bff;
+      }
+      .error {
+        background: #ffe6e6;
+        border-left-color: #dc3545;
+      }
+      .success {
+        background: #e6ffe6;
+        border-left-color: #28a745;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Location Dropdown Test</h1>
+
+    <div id="status" class="info">Loading...</div>
+
+    <h3>Province</h3>
+    <select id="province_id">
+      <option value="">Select Province</option>
+    </select>
+
+    <h3>City/Municipality</h3>
+    <select id="city_id" disabled>
+      <option value="">Select Province First</option>
+    </select>
+
+    <h3>Barangay</h3>
+    <select id="barangay_id" disabled>
+      <option value="">Select City First</option>
+    </select>
+
+    <h3>Console Output</h3>
+    <div
+      id="console"
+      style="
+        background: #000;
+        color: #0f0;
+        padding: 10px;
+        font-family: monospace;
+        max-height: 300px;
+        overflow-y: auto;
+      "
+    ></div>
+
+    <script>
+      const consoleDiv = document.getElementById("console");
+      const statusDiv = document.getElementById("status");
+
+      function log(message, type = "info") {
+        console.log(message);
+        const time = new Date().toLocaleTimeString();
+        consoleDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      }
+
+      function updateStatus(message, type = "info") {
+        statusDiv.textContent = message;
+        statusDiv.className = type;
+      }
+
+      // Detect API path
+      const currentPath = window.location.pathname;
+      const basePath = currentPath.substring(
+        0,
+        currentPath.indexOf("/public/")
+      );
+      const API_BASE_URL = window.location.origin + basePath + "/api";
+
+      log("API Base URL: " + API_BASE_URL);
+
+      // Load provinces
+      async function loadProvinces() {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-provinces.php`;
+          log("Fetching from: " + apiUrl);
+          updateStatus("Loading provinces...", "info");
+
+          const response = await fetch(apiUrl);
+          log("Response status: " + response.status);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          log(
+            "Response received: " +
+              JSON.stringify(result).substring(0, 100) +
+              "..."
+          );
+
+          if (result.success && result.data) {
+            const provinceSelect = document.getElementById("province_id");
+            const options = result.data
+              .map(
+                (province) =>
+                  `<option value="${province.province_id}">${province.province_name}</option>`
+              )
+              .join("");
+
+            provinceSelect.innerHTML =
+              '<option value="">Select Province</option>' + options;
+            log(`✓ Loaded ${result.data.length} provinces`);
+            updateStatus(
+              `Successfully loaded ${result.data.length} provinces`,
+              "info success"
+            );
+          } else {
+            throw new Error("Invalid response format");
+          }
+        } catch (error) {
+          log("ERROR: " + error.message);
+          updateStatus(
+            "Error loading provinces: " + error.message,
+            "info error"
+          );
+        }
+      }
+
+      // Load cities
+      async function loadCities(provinceId) {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-cities.php?province_id=${provinceId}`;
+          log("Fetching cities from: " + apiUrl);
+
+          const response = await fetch(apiUrl);
+          const result = await response.json();
+
+          const citySelect = document.getElementById("city_id");
+          const barangaySelect = document.getElementById("barangay_id");
+
+          if (result.success && result.data && result.data.length > 0) {
+            const options = result.data
+              .map(
+                (city) =>
+                  `<option value="${city.city_id}">${city.city_name}</option>`
+              )
+              .join("");
+
+            citySelect.innerHTML =
+              '<option value="">Select City/Municipality</option>' + options;
+            citySelect.disabled = false;
+            log(`✓ Loaded ${result.data.length} cities`);
+
+            barangaySelect.innerHTML =
+              '<option value="">Select City First</option>';
+            barangaySelect.disabled = true;
+          } else {
+            citySelect.innerHTML =
+              '<option value="">No cities available</option>';
+            citySelect.disabled = true;
+          }
+        } catch (error) {
+          log("ERROR loading cities: " + error.message);
+        }
+      }
+
+      // Load barangays
+      async function loadBarangays(cityId) {
+        try {
+          const apiUrl = `${API_BASE_URL}/location/get-barangays.php?city_id=${cityId}`;
+          log("Fetching barangays from: " + apiUrl);
+
+          const response = await fetch(apiUrl);
+          const result = await response.json();
+
+          const barangaySelect = document.getElementById("barangay_id");
+
+          if (result.success && result.data && result.data.length > 0) {
+            const options = result.data
+              .map(
+                (barangay) =>
+                  `<option value="${barangay.barangay_id}">${barangay.barangay_name}</option>`
+              )
+              .join("");
+
+            barangaySelect.innerHTML =
+              '<option value="">Select Barangay</option>' + options;
+            barangaySelect.disabled = false;
+            log(`✓ Loaded ${result.data.length} barangays`);
+          } else {
+            barangaySelect.innerHTML =
+              '<option value="">No barangays available</option>';
+            barangaySelect.disabled = true;
+          }
+        } catch (error) {
+          log("ERROR loading barangays: " + error.message);
+        }
+      }
+
+      // Event handlers
+      document
+        .getElementById("province_id")
+        .addEventListener("change", function () {
+          const provinceId = this.value;
+          if (provinceId) {
+            loadCities(provinceId);
+          } else {
+            document.getElementById("city_id").innerHTML =
+              '<option value="">Select Province First</option>';
+            document.getElementById("city_id").disabled = true;
+            document.getElementById("barangay_id").innerHTML =
+              '<option value="">Select City First</option>';
+            document.getElementById("barangay_id").disabled = true;
+          }
+        });
+
+      document
+        .getElementById("city_id")
+        .addEventListener("change", function () {
+          const cityId = this.value;
+          if (cityId) {
+            loadBarangays(cityId);
+          } else {
+            document.getElementById("barangay_id").innerHTML =
+              '<option value="">Select City First</option>';
+            document.getElementById("barangay_id").disabled = true;
+          }
+        });
+
+      // Load on page load
+      window.addEventListener("DOMContentLoaded", () => {
+        log("Page loaded, starting to load provinces...");
+        loadProvinces();
+      });
+    </script>
+  </body>
+</html>

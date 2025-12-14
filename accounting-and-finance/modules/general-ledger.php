@@ -178,43 +178,44 @@ $current_user = getCurrentUser();
             </div>
 
             <!-- Statistics Cards -->
-            <div class="row g-3 mb-4">
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-list-alt"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="total-accounts">Loading...</h3>
-                                <p>Total Accounts</p>
-                                <a href="#accounts" class="stat-link">View Details</a>
-                            </div>
+            <div class="row g-3 mb-4 stats-cards-row">
+                <div class="col-md-4 col-lg-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-list-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-accounts">Loading...</h3>
+                            <p>Total Accounts</p>
+                            <a href="#accounts" class="stat-link">View Details</a>
                         </div>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="total-transactions">Loading...</h3>
-                                <p>Posted Transactions</p>
-                                <a href="#transactions" class="stat-link">View Details</a>
-                            </div>
+                </div>
+                <div class="col-md-4 col-lg-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-transactions">Loading...</h3>
+                            <p>Posted Transactions</p>
+                            <a href="#transactions" class="stat-link">View Details</a>
                         </div>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-history"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="total-audit">Loading...</h3>
-                                <p>Total Audit Entries</p>
-                                <a href="#audit" class="stat-link">View Details</a>
-                            </div>
+                </div>
+                <div class="col-md-4 col-lg-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-audit">Loading...</h3>
+                            <p>Total Audit Entries</p>
+                            <a href="#audit" class="stat-link">View Details</a>
                         </div>
                     </div>
+                </div>
+            </div>
 
             <!-- Charts Overview -->
             <div class="gl-section">
@@ -239,6 +240,76 @@ $current_user = getCurrentUser();
                 <div class="chart-actions">
                     <button class="btn-chart" onclick="applyChartFilters()">Apply Filters</button>
                     <button class="btn-chart-outline" onclick="viewDrillDown()">View Drill-Down Details</button>
+                </div>
+            </div>
+
+            <!-- Card Applications -->
+            <div class="gl-section" id="pending-applications">
+                <div class="section-header">
+                    <h2>Card Applications</h2>
+                    <p>Review and approve or decline card applications from marketing form</p>
+                </div>
+                <div class="gl-toolbar" role="search" aria-label="Application filters">
+                    <div class="gl-toolbar__field">
+                        <label for="application-search" class="visually-hidden">Search applications</label>
+                        <span class="gl-toolbar__icon"><i class="fas fa-search"></i></span>
+                        <input type="text" class="search-input" placeholder="Search by name, email, or application number" id="application-search" autocomplete="off">
+                    </div>
+                    <div class="gl-toolbar__field">
+                        <label for="application-status-filter" class="visually-hidden">Filter by status</label>
+                        <span class="gl-toolbar__icon"><i class="fas fa-filter"></i></span>
+                        <select class="search-input" id="application-status-filter">
+                            <option value="pending">Pending</option>
+                            <option value="all">All Statuses</option>
+                        </select>
+                    </div>
+                    <div class="gl-toolbar__actions">
+                        <button class="btn-filter" type="button" onclick="applyApplicationFilter()">
+                            <i class="fas fa-filter"></i>
+                            <span>Apply filter</span>
+                        </button>
+                        <button class="btn-reset" type="button" onclick="resetApplicationFilter()">
+                            <i class="fas fa-rotate-left"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="gl-table" id="pending-applications-table">
+                        <thead>
+                            <tr>
+                                <th>Application Number</th>
+                                <th>Applicant Name</th>
+                                <th>Requested Cards</th>
+                                <th>Submission Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center">
+                                    <div class="loading-spinner"></div>
+                                    <p>Loading applications...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-actions-row">
+                    <span class="table-actions-hint" id="applications-hint">Showing applications</span>
+                    <div class="table-actions">
+                        <div class="pagination-controls me-3">
+                            <label for="applications-per-page" class="me-2">Show:</label>
+                            <select id="applications-per-page" class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="changeApplicationsPerPage()">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <button class="btn-action" type="button" onclick="loadPendingApplications()">Refresh</button>
+                    </div>
                 </div>
             </div>
 
@@ -546,6 +617,59 @@ $current_user = getCurrentUser();
                     </button>
                     <button type="button" class="btn btn-danger d-none" id="voidJournalEntryBtn" onclick="voidJournalEntry()">
                         <i class="fas fa-times me-1"></i>Void
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Detail Modal -->
+    <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-labelledby="applicationDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="applicationDetailModalLabel">
+                        <i class="fas fa-file-alt me-2"></i>Application Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="applicationDetailBody">
+                    <p class="text-center text-muted">Loading application details...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger" id="declineApplicationBtn" onclick="showDeclineReasonModal()">
+                        <i class="fas fa-times me-1"></i>Decline
+                    </button>
+                    <button type="button" class="btn btn-success" id="approveApplicationBtn" onclick="confirmApproveApplication()">
+                        <i class="fas fa-check me-1"></i>Approve
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decline Reason Modal -->
+    <div class="modal fade" id="declineReasonModal" tabindex="-1" aria-labelledby="declineReasonModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="declineReasonModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Decline Application
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="rejectionReason" class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="rejectionReason" rows="4" placeholder="Please provide a reason for declining this application..." required></textarea>
+                        <small class="form-text text-muted">This reason will be stored with the application record.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="submitDeclineApplication()">
+                        <i class="fas fa-times me-1"></i>Decline Application
                     </button>
                 </div>
             </div>

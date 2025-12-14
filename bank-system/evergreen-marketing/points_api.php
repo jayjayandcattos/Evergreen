@@ -1,225 +1,191 @@
 <?php
-// Turn off error display and capture errors instead
+// Start output buffering to catch any unexpected output
+ob_start();
+
+// Suppress error display and log errors instead
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-// Set JSON header immediately
-header('Content-Type: application/json');
+session_start();
 
-// Start output buffering to catch any errors
-ob_start();
+// Check database connection first
+include("db_connect.php");
 
-try {
-    session_start();
-    include("db_connect.php");
-} catch (Exception $e) {
-    ob_end_clean();
+// If connection failed, handle it gracefully with JSON
+if (isset($db_connection_error) || !isset($conn) || $conn->connect_error) {
+    header('Content-Type: application/json');
     echo json_encode([
-        'success' => false, 
-        'message' => 'Initialization error: ' . $e->getMessage()
+        'success' => false,
+        'message' => 'Database connection failed: ' . (isset($db_connection_error) ? $db_connection_error : (isset($conn) ? $conn->connect_error : 'Connection not established'))
     ]);
     exit;
 }
 
-// Check if user is logged in - support both session variables
-if (!isset($_SESSION['customer_id']) && !isset($_SESSION['user_id'])) {
-    ob_end_clean();
+header('Content-Type: application/json');
+
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Not logged in']);
     exit;
 }
 
-// Use customer_id if available, fallback to user_id
-$customer_id = $_SESSION['customer_id'] ?? $_SESSION['user_id'];
-
-// Missions array - all missions defined here (matching old-data working version)
-$MISSIONS = [
-    1 => [
-        'id' => 1,
-        'mission_text' => 'Refer your first friend to EVERGREEN',
-        'points_value' => 50.00,
-        'required_referrals' => 1
-    ],
-    2 => [
-        'id' => 2,
-        'mission_text' => 'Successfully refer 3 friends',
-        'points_value' => 150.00,
-        'required_referrals' => 3
-    ],
-    3 => [
-        'id' => 3,
-        'mission_text' => 'Reach 5 successful referrals',
-        'points_value' => 250.00,
-        'required_referrals' => 5
-    ],
-    4 => [
-        'id' => 4,
-        'mission_text' => 'Refer 10 friends and unlock premium rewards',
-        'points_value' => 500.00,
-        'required_referrals' => 10
-    ],
-    5 => [
-        'id' => 5,
-        'mission_text' => 'Achieve 15 referrals milestone',
-        'points_value' => 750.00,
-        'required_referrals' => 15
-    ],
-    6 => [
-        'id' => 6,
-        'mission_text' => 'Become a referral champion with 20 friends',
-        'points_value' => 1000.00,
-        'required_referrals' => 20
-    ],
-    7 => [
-        'id' => 7,
-        'mission_text' => 'Share your referral code on social media',
-        'points_value' => 30.00,
-        'required_referrals' => 0  // Always available
-    ],
-    8 => [
-        'id' => 8,
-        'mission_text' => 'Have 3 friends use your referral code in one week',
-        'points_value' => 200.00,
-        'required_referrals' => 0  // Manual check - always pending
-    ],
-    9 => [
-        'id' => 9,
-        'mission_text' => 'Reach 25 total referrals - Elite status',
-        'points_value' => 1500.00,
-        'required_referrals' => 25
-    ],
-    10 => [
-        'id' => 10,
-        'mission_text' => 'Ultimate referrer - 50 successful referrals',
-        'points_value' => 3000.00,
-        'required_referrals' => 50
-    ],
-    11 => [
-        'id' => 11,
-        'mission_text' => 'Refer a friend and earn bonus points',
-        'points_value' => 20.00,
-        'required_referrals' => 1
-    ],
-    12 => [
-        'id' => 12,
-        'mission_text' => 'Use a referral code to get started',
-        'points_value' => 10.00,
-        'required_referrals' => 0  // Always available
-    ]
-];
-
+$user_id = $_SESSION['user_id'];
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 try {
-    // Clean any output before processing
-    ob_clean();
-
     switch ($action) {
-        case 'get_user_points':
-            getUserPoints($conn, $customer_id);
-            break;
-        
-        case 'get_missions':
-            getMissions($conn, $customer_id);
-            break;
-        
-        case 'collect_mission':
-            collectMission($conn, $customer_id);
-            break;
-        
-        case 'get_point_history':
-            getPointHistory($conn, $customer_id);
-            break;
-        
-        case 'get_completed_missions':
-            getCompletedMissions($conn, $customer_id);
-            break;
-    
-        case 'redeem_reward':
-            $reward_name = $_POST['reward_name'] ?? '';
-            $points_cost = floatval($_POST['points_cost'] ?? 0);
-            
-            if (empty($reward_name) || $points_cost <= 0) {
-                ob_clean();
-                echo json_encode(['success' => false, 'message' => 'Invalid reward data']);
-                exit;
-            }
-            
-            // Get customer's current points from bank_customers table
-            $stmt = $conn->prepare("SELECT total_points FROM bank_customers WHERE customer_id = ?");
-            $stmt->bind_param("i", $customer_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $customer = $result->fetch_assoc();
-            
-            if ($customer['total_points'] < $points_cost) {
-                ob_clean();
-                echo json_encode(['success' => false, 'message' => 'Insufficient points']);
-                exit;
-            }
-            
-            // Deduct points
-            $new_total = $customer['total_points'] - $points_cost;
-            $stmt = $conn->prepare("UPDATE bank_customers SET total_points = ? WHERE customer_id = ?");
-            $stmt->bind_param("di", $new_total, $customer_id);
-            $stmt->execute();
-            
-            // Log the redemption in history (negative points)
-            $description = "Redeemed: " . $reward_name;
-            $negative_points = -$points_cost;
-            $stmt = $conn->prepare("INSERT INTO points_history (user_id, points, description, transaction_type) VALUES (?, ?, ?, 'redemption')");
-            $stmt->bind_param("ids", $customer_id, $negative_points, $description);
-            $stmt->execute();
-            
-            ob_clean();
-            echo json_encode([
-                'success' => true,
-                'new_total' => $new_total,
-                'points_deducted' => $points_cost,
-                'message' => 'Reward redeemed successfully'
-            ]);
+    case 'get_user_points':
+        getUserPoints($conn, $user_id);
         break;
+    
+    case 'get_missions':
+        getMissions($conn, $user_id);
+        break;
+    
+    case 'collect_mission':
+        collectMission($conn, $user_id);
+        break;
+    
+    case 'get_point_history':
+        getPointHistory($conn, $user_id);
+        break;
+    
+    case 'get_completed_missions':
+        getCompletedMissions($conn, $user_id);
+        break;
+    
+    // Add this case in your switch statement
+    case 'redeem_reward':
+        ob_clean(); // Clear any unexpected output
+        header('Content-Type: application/json');
         
-        default:
-            ob_clean();
-            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Not logged in']);
+            ob_end_flush();
+            exit;
+        }
+        
+        $reward_name = $_POST['reward_name'] ?? '';
+        $points_cost = floatval($_POST['points_cost'] ?? 0);
+        
+        if (empty($reward_name) || $points_cost <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid reward data']);
+            ob_end_flush();
+            exit;
+        }
+        
+        // Get user's current points
+        $user_id = $_SESSION['user_id'];
+        $stmt = $conn->prepare("SELECT total_points FROM bank_customers WHERE customer_id = ?");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+            ob_end_flush();
+            exit;
+        }
+        
+        $stmt->bind_param("i", $user_id);
+        if (!$stmt->execute()) {
+            echo json_encode(['success' => false, 'message' => 'Query error: ' . $stmt->error]);
+            $stmt->close();
+            ob_end_flush();
+            exit;
+        }
+        
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
+        
+        if (!$user || $user['total_points'] < $points_cost) {
+            echo json_encode(['success' => false, 'message' => 'Insufficient points']);
+            ob_end_flush();
+            exit;
+        }
+        
+        // Deduct points
+        $new_total = $user['total_points'] - $points_cost;
+        $stmt = $conn->prepare("UPDATE bank_customers SET total_points = ? WHERE customer_id = ?");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+            ob_end_flush();
+            exit;
+        }
+        
+        $stmt->bind_param("di", $new_total, $user_id);
+        if (!$stmt->execute()) {
+            echo json_encode(['success' => false, 'message' => 'Query error: ' . $stmt->error]);
+            $stmt->close();
+            ob_end_flush();
+            exit;
+        }
+        $stmt->close();
+        
+        // Log the redemption in history (negative points)
+        $description = "Redeemed: " . $reward_name;
+        $negative_points = -$points_cost;
+        $stmt = $conn->prepare("INSERT INTO points_history (user_id, points, description, transaction_type) VALUES (?, ?, ?, 'redemption')");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+            ob_end_flush();
+            exit;
+        }
+        
+        $stmt->bind_param("ids", $user_id, $negative_points, $description);
+        if (!$stmt->execute()) {
+            echo json_encode(['success' => false, 'message' => 'Query error: ' . $stmt->error]);
+            $stmt->close();
+            ob_end_flush();
+            exit;
+        }
+        $stmt->close();
+        
+        echo json_encode([
+            'success' => true,
+            'new_total' => $new_total,
+            'points_deducted' => $points_cost,
+            'message' => 'Reward redeemed successfully'
+        ]);
+        ob_end_flush();
+    break;
+    
+    default:
+        ob_clean(); // Clear any unexpected output
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid action']);
+        ob_end_flush();
+        exit;
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     ob_clean();
+    header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => 'Server error: ' . $e->getMessage(),
-        'error_type' => get_class($e),
-        'file' => $e->getFile(),
-        'line' => $e->getLine()
+        'message' => 'An error occurred: ' . $e->getMessage()
     ]);
-} catch (Error $e) {
-    ob_clean();
-    echo json_encode([
-        'success' => false,
-        'message' => 'Fatal error: ' . $e->getMessage(),
-        'error_type' => get_class($e),
-        'file' => $e->getFile(),
-        'line' => $e->getLine()
-    ]);
+    ob_end_flush();
+    exit;
 }
 
-function getUserPoints($conn, $customer_id) {
-    ob_clean();
+function getUserPoints($conn, $user_id) {
+    ob_clean(); // Clear any unexpected output
+    header('Content-Type: application/json');
     
     $sql = "SELECT total_points FROM bank_customers WHERE customer_id = ?";
     $stmt = $conn->prepare($sql);
-    
     if (!$stmt) {
-        echo json_encode([
-            'success' => false, 
-            'message' => 'Database error: ' . $conn->error
-        ]);
+        echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+        ob_end_flush();
         return;
     }
     
-    $stmt->bind_param("i", $customer_id);
-    $stmt->execute();
+    $stmt->bind_param("i", $user_id);
+    if (!$stmt->execute()) {
+        echo json_encode(['success' => false, 'message' => 'Query error: ' . $stmt->error]);
+        $stmt->close();
+        ob_end_flush();
+        return;
+    }
+    
     $result = $stmt->get_result();
     
     if ($row = $result->fetch_assoc()) {
@@ -228,416 +194,261 @@ function getUserPoints($conn, $customer_id) {
             'total_points' => number_format($row['total_points'], 2, '.', '')
         ]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Customer not found']);
+        echo json_encode(['success' => false, 'message' => 'User not found']);
     }
     $stmt->close();
+    ob_end_flush();
 }
 
-function getMissions($conn, $customer_id) {
-    global $MISSIONS;
-    
-    // Debug: Check if $MISSIONS array exists
-    if (!isset($MISSIONS) || empty($MISSIONS)) {
-        ob_clean();
-        echo json_encode([
-            'success' => false,
-            'message' => 'Missions array not found or empty',
-            'missions' => [],
-            'debug' => 'MISSIONS array is not set'
-        ]);
-        return;
-    }
-    
-    // Get bank_users.id from customer_id - try multiple methods
-    $user_id = null;
-    
-    // Method 1: Try via email match
-    $sql = "SELECT bu.id as user_id FROM bank_users bu 
-            INNER JOIN bank_customers bc ON bu.email = bc.email 
-            WHERE bc.customer_id = ?";
-    $stmt = $conn->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param("i", $customer_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user_data = $result->fetch_assoc();
-        if ($user_data) {
-            $user_id = $user_data['user_id'];
-        }
-        $stmt->close();
-    }
-    
-    // Method 2: If not found, check if customer_id IS the user_id
-    if (!$user_id) {
-        $sql = "SELECT id FROM bank_users WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param("i", $customer_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if ($result->num_rows > 0) {
-                $user_id = $customer_id;
-            }
-            $stmt->close();
-        }
-    }
-    
-    // Method 3: Try to find by session email
-    if (!$user_id && isset($_SESSION['email'])) {
-        $sql = "SELECT id FROM bank_users WHERE email = ?";
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param("s", $_SESSION['email']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $user_data = $result->fetch_assoc();
-            if ($user_data) {
-                $user_id = $user_data['id'];
-            }
-            $stmt->close();
-        }
-    }
-    
-    // Final fallback
-    if (!$user_id) {
-        $user_id = $customer_id;
-    }
-    
+function getMissions($conn, $user_id) {
+    // Get user's current referral count (check if referrals table exists)
+    $referral_count = 0;
     try {
-        // Initialize referral count to 0 in case of errors
-        $referral_count = 0;
-        $collected_mission_ids = [];
-        
-        // Get customer's current referral count - try both table names
-        $referral_sql = "SELECT COUNT(*) as referral_count FROM bank_customers WHERE referred_by_customer_id = ?";
+        $referral_sql = "SELECT COUNT(*) as referral_count FROM referrals WHERE referrer_id = ?";
         $stmt = $conn->prepare($referral_sql);
-        
-        if (!$stmt) {
-            // Try alternative table name
-            $referral_sql = "SELECT COUNT(*) as referral_count FROM referrals WHERE referrer_id = ?";
-            $stmt = $conn->prepare($referral_sql);
-        }
-        
         if ($stmt) {
-            $stmt->bind_param("i", $customer_id);
-            if ($stmt->execute()) {
-                $result = $stmt->get_result();
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result) {
                 $referral_data = $result->fetch_assoc();
                 $referral_count = $referral_data ? (int)$referral_data['referral_count'] : 0;
             }
             $stmt->close();
         }
-        
-        // Get collected missions from user_missions table using user_id
-        $collected_sql = "SELECT mission_id FROM user_missions WHERE user_id = ?";
-        $stmt = $conn->prepare($collected_sql);
-        
-        if ($stmt) {
-            $stmt->bind_param("i", $user_id);
-            if ($stmt->execute()) {
-                $result = $stmt->get_result();
-                while ($row = $result->fetch_assoc()) {
-                    $collected_mission_ids[] = (int)$row['mission_id'];
-                }
-            }
-            $stmt->close();
-        }
-        
-        // Build missions array from $MISSIONS array
-        $missions = [];
-        foreach ($MISSIONS as $mission) {
-            // Skip if already collected
-            if (in_array($mission['id'], $collected_mission_ids)) {
-                continue;
-            }
-            
-            // Determine mission status based on requirements
-            $mission_status = 'pending';
-            
-            // Always available missions (7 = social media, 12 = use referral code)
-            if ($mission['id'] == 7 || $mission['id'] == 12) {
-                $mission_status = 'available';
-            } elseif ($mission['id'] == 8) {
-                // Weekly challenge - always pending (manual check)
-                $mission_status = 'pending';
-            } elseif (isset($mission['required_referrals'])) {
-                if ($mission['required_referrals'] == 0) {
-                    // Missions with 0 required referrals are always available
-                    $mission_status = 'available';
-                } elseif ($referral_count >= $mission['required_referrals']) {
-                    // Requirements met
-                    $mission_status = 'available';
-                }
-            }
-            
-            $missions[] = [
-                'id' => $mission['id'],
-                'mission_text' => $mission['mission_text'],
-                'points_value' => $mission['points_value'],
-                'status' => $mission_status,
-                'current_referrals' => $referral_count
-            ];
-        }
-        
-        // Ensure at least mission 7 and 12 are always shown (if not collected)
-        if (count($missions) == 0 && isset($MISSIONS[7]) && !in_array(7, $collected_mission_ids)) {
-            $missions[] = [
-                'id' => $MISSIONS[7]['id'],
-                'mission_text' => $MISSIONS[7]['mission_text'],
-                'points_value' => $MISSIONS[7]['points_value'],
-                'status' => 'available',
-                'current_referrals' => $referral_count
-            ];
-        }
-        
-        ob_clean();
-        echo json_encode([
-            'success' => true,
-            'missions' => $missions,
-            'total_referrals' => $referral_count,
-            'debug' => [
-                'missions_count' => count($MISSIONS),
-                'collected_count' => count($collected_mission_ids),
-                'returned_count' => count($missions)
-            ]
-        ]);
     } catch (Exception $e) {
-        ob_clean();
+        // If referrals table doesn't exist, just use 0
+        $referral_count = 0;
+    }
+    
+    // Get all missions with their completion status
+    $sql = "SELECT 
+                m.id, 
+                m.mission_text, 
+                m.points_value,
+                um.status,
+                CASE 
+                    WHEN m.id = 1 AND ? >= 1 THEN 'available'
+                    WHEN m.id = 2 AND ? >= 3 THEN 'available'
+                    WHEN m.id = 3 AND ? >= 5 THEN 'available'
+                    WHEN m.id = 4 AND ? >= 10 THEN 'available'
+                    WHEN m.id = 5 AND ? >= 15 THEN 'available'
+                    WHEN m.id = 6 AND ? >= 20 THEN 'available'
+                    WHEN m.id = 7 THEN 'available'
+                    WHEN m.id = 8 THEN 'pending'
+                    WHEN m.id = 9 AND ? >= 25 THEN 'available'
+                    WHEN m.id = 10 AND ? >= 50 THEN 'available'
+                    ELSE 'pending'
+                END as mission_status
+            FROM missions m
+            LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_id = ?
+            WHERE um.id IS NULL OR um.status != 'collected'
+            ORDER BY m.id";
+    
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
         echo json_encode([
             'success' => false,
-            'message' => 'Error loading missions: ' . $e->getMessage(),
-            'missions' => [],
-            'debug' => [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine()
-            ]
+            'message' => 'Database error: ' . $conn->error
         ]);
+        return;
     }
+    
+    $stmt->bind_param("iiiiiiiii", 
+        $referral_count, $referral_count, $referral_count, 
+        $referral_count, $referral_count, $referral_count,
+        $referral_count, $referral_count, $user_id
+    );
+    
+    if (!$stmt->execute()) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Query error: ' . $stmt->error
+        ]);
+        $stmt->close();
+        return;
+    }
+    
+    $result = $stmt->get_result();
+    
+    $missions = [];
+    while ($row = $result->fetch_assoc()) {
+        $missions[] = [
+            'id' => $row['id'],
+            'mission_text' => $row['mission_text'],
+            'points_value' => $row['points_value'],
+            'status' => $row['mission_status'],
+            'current_referrals' => $referral_count
+        ];
+    }
+    
+    ob_clean(); // Clear any unexpected output
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'missions' => $missions,
+        'total_referrals' => $referral_count
+    ]);
+    $stmt->close();
+    ob_end_flush();
 }
 
-function collectMission($conn, $customer_id) {
-    global $MISSIONS;
-    
+function collectMission($conn, $user_id) {
     $mission_id = $_POST['mission_id'] ?? 0;
     
     if (!$mission_id) {
-        ob_clean();
         echo json_encode(['success' => false, 'message' => 'Mission ID required']);
         return;
     }
     
-    // Check if mission exists in array
-    if (!isset($MISSIONS[$mission_id])) {
-        ob_clean();
-        echo json_encode(['success' => false, 'message' => 'Mission not found']);
-        return;
-    }
-    
-    // Get bank_users.id from customer_id - try multiple methods
-    $user_id = null;
-    
-    // Method 1: Try via email match
-    $sql = "SELECT bu.id as user_id FROM bank_users bu 
-            INNER JOIN bank_customers bc ON bu.email = bc.email 
-            WHERE bc.customer_id = ?";
-    $stmt = $conn->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param("i", $customer_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user_data = $result->fetch_assoc();
-        if ($user_data) {
-            $user_id = $user_data['user_id'];
-        }
-        $stmt->close();
-    }
-    
-    // Method 2: If not found, check if customer_id IS the user_id
-    if (!$user_id) {
-        $sql = "SELECT id FROM bank_users WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param("i", $customer_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if ($result->num_rows > 0) {
-                $user_id = $customer_id;
-            }
-            $stmt->close();
-        }
-    }
-    
-    // Method 3: Try to find by session email
-    if (!$user_id && isset($_SESSION['email'])) {
-        $sql = "SELECT id FROM bank_users WHERE email = ?";
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param("s", $_SESSION['email']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $user_data = $result->fetch_assoc();
-            if ($user_data) {
-                $user_id = $user_data['id'];
-            }
-            $stmt->close();
-        }
-    }
-    
-    if (!$user_id) {
-        ob_clean();
-        echo json_encode([
-            'success' => false, 
-            'message' => 'User not found',
-            'debug' => [
-                'customer_id' => $customer_id,
-                'session_email' => $_SESSION['email'] ?? 'not set',
-                'session_user_id' => $_SESSION['user_id'] ?? 'not set'
-            ]
-        ]);
-        return;
-    }
-    
-    // Start transaction BEFORE any checks to prevent race conditions
     $conn->begin_transaction();
     
     try {
-        // CRITICAL: Check if already collected INSIDE transaction with FOR UPDATE lock
-        // This prevents race conditions where multiple requests try to collect the same mission
-        $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? FOR UPDATE";
-        $stmt = $conn->prepare($sql);
-        
-        if (!$stmt) {
-            throw new Exception('Database error checking collected missions: ' . $conn->error);
-        }
-        
-        $stmt->bind_param("ii", $user_id, $mission_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            $stmt->close();
-            $conn->rollback();
-            ob_clean();
-            echo json_encode([
-                'success' => false,
-                'message' => 'Mission already collected'
-            ]);
-            return;
-        }
-        $stmt->close();
-        
-        // Get customer's referral count - try both table names
+        // Get user's referral count (check if referrals table exists)
         $referral_count = 0;
-        $sql = "SELECT COUNT(*) as referral_count FROM bank_customers WHERE referred_by_customer_id = ?";
-        $stmt = $conn->prepare($sql);
-        
-        if (!$stmt) {
-            // Try alternative table name
+        try {
             $sql = "SELECT COUNT(*) as referral_count FROM referrals WHERE referrer_id = ?";
             $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("i", $user_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($result) {
+                    $referral_data = $result->fetch_assoc();
+                    $referral_count = $referral_data ? (int)$referral_data['referral_count'] : 0;
+                }
+                $stmt->close();
+            }
+        } catch (Exception $e) {
+            // If referrals table doesn't exist, just use 0
+            $referral_count = 0;
         }
         
+        // Check if mission requirements are met
+        $requirements = [
+            1 => 1,   // 1 referral
+            2 => 3,   // 3 referrals
+            3 => 5,   // 5 referrals
+            4 => 10,  // 10 referrals
+            5 => 15,  // 15 referrals
+            6 => 20,  // 20 referrals
+            7 => 0,   // Social media (always available)
+            8 => 0,   // Weekly challenge (manual check)
+            9 => 25,  // 25 referrals
+            10 => 50  // 50 referrals
+        ];
+        
+        if (isset($requirements[$mission_id]) && $referral_count < $requirements[$mission_id]) {
+            throw new Exception('Mission requirements not met. You need ' . $requirements[$mission_id] . ' referrals.');
+        }
+        
+        // Get mission details
+        $sql = "SELECT points_value, mission_text FROM missions WHERE id = ?";
+        $stmt = $conn->prepare($sql);
         if (!$stmt) {
             throw new Exception('Database error: ' . $conn->error);
         }
         
-        $stmt->bind_param("i", $customer_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $referral_data = $result->fetch_assoc();
-        $referral_count = $referral_data ? (int)$referral_data['referral_count'] : 0;
-        $stmt->close();
+        $stmt->bind_param("i", $mission_id);
+        if (!$stmt->execute()) {
+            throw new Exception('Query error: ' . $stmt->error);
+        }
         
-        // Get mission details from array
-        $mission = $MISSIONS[$mission_id];
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            $stmt->close();
+            throw new Exception('Mission not found');
+        }
+        
+        $mission = $result->fetch_assoc();
         $points = $mission['points_value'];
         $mission_text = $mission['mission_text'];
-        $required_referrals = $mission['required_referrals'];
+        $stmt->close();
         
-        // Check if mission requirements are met (except for special missions)
-        if ($mission_id != 7 && $mission_id != 8 && $required_referrals > 0 && $referral_count < $required_referrals) {
-            throw new Exception('Mission requirements not met. You need ' . $required_referrals . ' referrals.');
-        }
-        
-        // Mission 8 (weekly challenge) should remain pending - manual check required
-        if ($mission_id == 8) {
-            throw new Exception('This mission requires manual verification. Please contact support.');
-        }
-        
-        // Add mission record using user_id (not customer_id)
-        // The UNIQUE constraint on (user_id, mission_id) will prevent duplicates
-        $sql = "INSERT INTO user_missions (user_id, customer_id, mission_id, points_earned, completed_at) 
-                VALUES (?, ?, ?, ?, NOW())";
+        // Check if already collected
+        $sql = "SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? AND status = 'collected'";
         $stmt = $conn->prepare($sql);
-        
         if (!$stmt) {
-            throw new Exception('Database error inserting mission: ' . $conn->error);
+            throw new Exception('Database error: ' . $conn->error);
         }
         
-        $stmt->bind_param("iiid", $user_id, $customer_id, $mission_id, $points);
-        
-        // Execute with duplicate key error handling
+        $stmt->bind_param("ii", $user_id, $mission_id);
         if (!$stmt->execute()) {
-            // Check if it's a duplicate key error (errno 1062)
-            if ($conn->errno == 1062) {
-                $stmt->close();
-                throw new Exception('Mission already collected');
-            } else {
-                $stmt->close();
-                throw new Exception('Database error: ' . $conn->error);
-            }
+            throw new Exception('Query error: ' . $stmt->error);
+        }
+        
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $stmt->close();
+            throw new Exception('Mission already collected');
         }
         $stmt->close();
         
-        // Update customer's total points
+        // Add or update mission record
+        $sql = "INSERT INTO user_missions (user_id, mission_id, points_earned, status) 
+                VALUES (?, ?, ?, 'collected')
+                ON DUPLICATE KEY UPDATE status = 'collected', completed_at = NOW()";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            throw new Exception('Database error: ' . $conn->error);
+        }
+        
+        $stmt->bind_param("iid", $user_id, $mission_id, $points);
+        if (!$stmt->execute()) {
+            throw new Exception('Query error: ' . $stmt->error);
+        }
+        $stmt->close();
+        
+        // Update user's total points
         $sql = "UPDATE bank_customers SET total_points = total_points + ? WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
-        
         if (!$stmt) {
-            throw new Exception('Database error updating points: ' . $conn->error);
+            throw new Exception('Database error: ' . $conn->error);
         }
         
-        $stmt->bind_param("di", $points, $customer_id);
-        $stmt->execute();
+        $stmt->bind_param("di", $points, $user_id);
+        if (!$stmt->execute()) {
+            throw new Exception('Query error: ' . $stmt->error);
+        }
         $stmt->close();
 
-        // Log the mission collection in points_history using user_id
-        $sql = "INSERT INTO points_history (user_id, customer_id, points, description, transaction_type) 
-                VALUES (?, ?, ?, ?, 'mission')";
+        // ✅ ADD THIS: Log the mission collection in points_history
+        $sql = "INSERT INTO points_history (user_id, points, description, transaction_type) 
+                VALUES (?, ?, ?, 'mission')";
         $stmt = $conn->prepare($sql);
-        
         if (!$stmt) {
-            // If points_history table doesn't exist, continue without logging
-            error_log('Warning: points_history table not found, skipping history log');
-        } else {
-            $stmt->bind_param("iids", $user_id, $customer_id, $points, $mission_text);
-            $stmt->execute();
-            $stmt->close();
+            throw new Exception('Database error: ' . $conn->error);
         }
+        
+        $stmt->bind_param("ids", $user_id, $points, $mission_text);
+        if (!$stmt->execute()) {
+            throw new Exception('Query error: ' . $stmt->error);
+        }
+        $stmt->close();
         
         // Get updated total
         $sql = "SELECT total_points FROM bank_customers WHERE customer_id = ?";
         $stmt = $conn->prepare($sql);
-        
         if (!$stmt) {
-            throw new Exception('Database error getting total points: ' . $conn->error);
+            throw new Exception('Database error: ' . $conn->error);
         }
         
-        $stmt->bind_param("i", $customer_id);
-        $stmt->execute();
+        $stmt->bind_param("i", $user_id);
+        if (!$stmt->execute()) {
+            throw new Exception('Query error: ' . $stmt->error);
+        }
+        
         $result = $stmt->get_result();
-        $customer = $result->fetch_assoc();
-        
-        if (!$customer) {
-            throw new Exception('Customer not found after points update');
-        }
-        
-        $total_points = $customer['total_points'];
+        $user = $result->fetch_assoc();
+        $total_points = $user ? $user['total_points'] : 0;
         $stmt->close();
         
         $conn->commit();
         
-        ob_clean();
+        ob_clean(); // Clear any unexpected output
+        header('Content-Type: application/json');
         echo json_encode([
             'success' => true,
             'message' => 'Mission completed! 🎉',
@@ -645,18 +456,21 @@ function collectMission($conn, $customer_id) {
             'total_points' => number_format($total_points, 2, '.', ''),
             'mission_text' => $mission_text
         ]);
+        ob_end_flush();
         
     } catch (Exception $e) {
         $conn->rollback();
-        ob_clean();
+        ob_clean(); // Clear any unexpected output
+        header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
             'message' => $e->getMessage()
         ]);
+        ob_end_flush();
     }
 }
 
-function getPointHistory($conn, $customer_id) {
+function getPointHistory($conn, $user_id) {
     // Query the points_history table to get ALL transactions (missions + redemptions)
     $sql = "SELECT 
                 points, 
@@ -668,8 +482,24 @@ function getPointHistory($conn, $customer_id) {
             ORDER BY created_at DESC";
     
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $customer_id);
-    $stmt->execute();
+    if (!$stmt) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Database error: ' . $conn->error
+        ]);
+        return;
+    }
+    
+    $stmt->bind_param("i", $user_id);
+    if (!$stmt->execute()) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Query error: ' . $stmt->error
+        ]);
+        $stmt->close();
+        return;
+    }
+    
     $result = $stmt->get_result();
     
     $history = [];
@@ -682,68 +512,61 @@ function getPointHistory($conn, $customer_id) {
         ];
     }
     
-    ob_clean();
+    ob_clean(); // Clear any unexpected output
+    header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
         'history' => $history
     ]);
     $stmt->close();
+    ob_end_flush();
 }
 
-function getCompletedMissions($conn, $customer_id) {
-    global $MISSIONS;
-    
-    // Try with status column first, fallback without
-    $sql = "SELECT um.mission_id, um.points_earned, um.completed_at 
+function getCompletedMissions($conn, $user_id) {
+    $sql = "SELECT um.points_earned, m.mission_text, um.completed_at 
             FROM user_missions um
+            JOIN missions m ON um.mission_id = m.id
             WHERE um.user_id = ? AND um.status = 'collected'
             ORDER BY um.completed_at DESC";
+    
     $stmt = $conn->prepare($sql);
-    
     if (!$stmt) {
-        // Try without status column - just get all missions for this user
-        $sql = "SELECT um.mission_id, um.points_earned, um.completed_at 
-                FROM user_missions um
-                WHERE um.user_id = ?
-                ORDER BY um.completed_at DESC";
-        $stmt = $conn->prepare($sql);
-    }
-    
-    if (!$stmt) {
-        ob_clean();
         echo json_encode([
             'success' => false,
-            'message' => 'Database error: ' . $conn->error,
-            'completed' => []
+            'message' => 'Database error: ' . $conn->error
         ]);
         return;
     }
     
-    $stmt->bind_param("i", $customer_id);
-    $stmt->execute();
+    $stmt->bind_param("i", $user_id);
+    if (!$stmt->execute()) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Query error: ' . $stmt->error
+        ]);
+        $stmt->close();
+        return;
+    }
+    
     $result = $stmt->get_result();
     
     $completed = [];
     while ($row = $result->fetch_assoc()) {
-        $mission_id = $row['mission_id'];
-        // Get mission text from array, fallback to generic if not found
-        $mission_text = isset($MISSIONS[$mission_id]) 
-            ? $MISSIONS[$mission_id]['mission_text'] 
-            : 'Mission #' . $mission_id;
-        
         $completed[] = [
             'points' => number_format($row['points_earned'], 2, '.', ''),
-            'description' => $mission_text,
+            'description' => $row['mission_text'],
             'timestamp' => date('F j, Y g:i A', strtotime($row['completed_at']))
         ];
     }
     
-    ob_clean();
+    ob_clean(); // Clear any unexpected output
+    header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
         'completed' => $completed
     ]);
     $stmt->close();
+    ob_end_flush();
 }
 
 ?>

@@ -148,24 +148,24 @@ function applyReferral($conn, $user_id) {
         $stmt->close();
         
         // Get mission IDs properly - FIXED
-        $sql = "SELECT customer_id FROM missions WHERE mission_text LIKE '%Refer a friend%' LIMIT 1";
+        $sql = "SELECT id FROM missions WHERE mission_text LIKE '%Refer a friend%' LIMIT 1";
         $result = $conn->query($sql);
         if ($result && $row = $result->fetch_assoc()) {
-            $referrer_mission_id = $row['customer_id'];
+            $referrer_mission_id = $row['id'];
             
-            $sql = "INSERT IGNORE INTO user_missions (user_id, mission_id, points_earned, completed_at) VALUES (?, ?, ?, NOW())";
+            $sql = "INSERT IGNORE INTO user_missions (user_id, mission_id, points_earned, status, completed_at) VALUES (?, ?, ?, 'collected', NOW())";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("iid", $referrer_id, $referrer_mission_id, $referrer_points);  // FIXED!
             $stmt->execute();
             $stmt->close();
         }
         
-        $sql = "SELECT customer_id FROM missions WHERE mission_text LIKE '%Use a referral code%' LIMIT 1";
+        $sql = "SELECT id FROM missions WHERE mission_text LIKE '%Use a referral code%' LIMIT 1";
         $result = $conn->query($sql);
         if ($result && $row = $result->fetch_assoc()) {
-            $referred_mission_id = $row['customer_id'];
+            $referred_mission_id = $row['id'];
             
-            $sql = "INSERT IGNORE INTO user_missions (user_id, mission_id, points_earned, completed_at) VALUES (?, ?, ?, NOW())";
+            $sql = "INSERT IGNORE INTO user_missions (user_id, mission_id, points_earned, status, completed_at) VALUES (?, ?, ?, 'collected', NOW())";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("iid", $user_id, $referred_mission_id, $referred_points);  // FIXED!
             $stmt->execute();

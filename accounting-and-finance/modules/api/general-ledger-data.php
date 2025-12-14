@@ -1,4 +1,9 @@
 <?php
+// Suppress error display, but log them
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 require_once '../../config/database.php';
 require_once '../../includes/session.php';
 
@@ -80,12 +85,43 @@ try {
             echo json_encode(getBankTransactionDetails());
             break;
             
+        case 'get_pending_applications':
+            echo json_encode(getPendingApplications());
+            break;
+            
+        case 'get_application_details':
+            echo json_encode(getApplicationDetails());
+            break;
+            
+        case 'approve_application':
+            echo json_encode(approveApplication());
+            break;
+            
+        case 'decline_application':
+            echo json_encode(declineApplication());
+            break;
+            break;
+            
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
     
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    error_log("General Ledger API Error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    echo json_encode([
+        'success' => false, 
+        'message' => 'An error occurred: ' . $e->getMessage(),
+        'error_type' => get_class($e)
+    ]);
+} catch (Error $e) {
+    error_log("General Ledger API Fatal Error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    echo json_encode([
+        'success' => false, 
+        'message' => 'A fatal error occurred: ' . $e->getMessage(),
+        'error_type' => get_class($e)
+    ]);
 }
 
 function getStatistics() {
@@ -221,14 +257,27 @@ function getAccounts() {
             $hasTransactionsTable = true;
         }
         
-        // Build balance calculation
+        // Build balance calculation using transaction-type-based logic
+        // All amounts are stored as positive; transaction type determines if credit or debit
         if ($hasTransactionsTable) {
             $balanceCalc = "(SELECT COALESCE(
-                                SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - 
-                                SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END), 
-                                0
+                                SUM(
+                                    CASE tt.type_name
+                                        WHEN 'Deposit' THEN bt.amount
+                                        WHEN 'Transfer In' THEN bt.amount
+                                        WHEN 'Interest Payment' THEN bt.amount
+                                        WHEN 'Loan Disbursement' THEN bt.amount
+                                        -- Debits (subtract from balance)
+                                        WHEN 'Withdrawal' THEN -bt.amount
+                                        WHEN 'Transfer Out' THEN -bt.amount
+                                        WHEN 'Service Charge' THEN -bt.amount
+                                        WHEN 'Loan Payment' THEN -bt.amount
+                                        ELSE 0
+                                    END
+                                ), 0
                             )
-                            FROM bank_transactions bt 
+                            FROM bank_transactions bt
+                            INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
                             WHERE bt.account_id = ca.account_id)";
         } else {
             // Try balance column in accounts table, or default to 0
@@ -1572,13 +1621,28 @@ function getAccountTransactions() {
         }
         
         // Get bank customer account info using ONLY bank-system tables
+        // Use transaction-type-based balance calculation (same as Basic Operation)
         $sql = "SELECT 
                     ca.account_number,
                     CONCAT(COALESCE(bc.first_name, ''), ' ', COALESCE(bc.last_name, '')) as account_name,
                     COALESCE(bat.type_name, 'Unknown') as account_type,
                     COALESCE(
-                        (SELECT SUM(CASE WHEN bt.amount > 0 THEN bt.amount ELSE 0 END) - SUM(CASE WHEN bt.amount < 0 THEN ABS(bt.amount) ELSE 0 END)
-                         FROM bank_transactions bt WHERE bt.account_id = ca.account_id), 
+                        (SELECT SUM(
+                            CASE tt.type_name
+                                WHEN 'Deposit' THEN bt.amount
+                                WHEN 'Transfer In' THEN bt.amount
+                                WHEN 'Interest Payment' THEN bt.amount
+                                WHEN 'Loan Disbursement' THEN bt.amount
+                                WHEN 'Withdrawal' THEN -bt.amount
+                                WHEN 'Transfer Out' THEN -bt.amount
+                                WHEN 'Service Charge' THEN -bt.amount
+                                WHEN 'Loan Payment' THEN -bt.amount
+                                ELSE 0
+                            END
+                        )
+                         FROM bank_transactions bt
+                         INNER JOIN transaction_types tt ON bt.transaction_type_id = tt.transaction_type_id
+                         WHERE bt.account_id = ca.account_id), 
                         0
                     ) as available_balance
                 FROM customer_accounts ca
@@ -1741,6 +1805,786 @@ function getBankTransactionDetails() {
         return [
             'success' => false,
             'message' => $e->getMessage()
+        ];
+    }
+}
+
+// ========================================
+// CARD APPLICATION FUNCTIONS
+// ========================================
+
+function getPendingApplications() {
+    global $conn;
+    
+    try {
+        $statusFilter = $_GET['status_filter'] ?? 'pending'; // 'pending' or 'all'
+        $search = $_GET['search'] ?? '';
+        $limit = (int)($_GET['limit'] ?? 25);
+        $offset = (int)($_GET['offset'] ?? 0);
+        
+        // Build WHERE clause based on status filter
+        $whereClause = "WHERE 1=1";
+        $params = [];
+        $types = '';
+        
+        if ($statusFilter === 'pending') {
+            $whereClause .= " AND aa.application_status = 'pending'";
+        }
+        // If 'all', show all statuses (pending, approved, rejected)
+        
+        if ($search) {
+            $whereClause .= " AND (
+                aa.application_number LIKE ? 
+                OR CONCAT(aa.first_name, ' ', aa.last_name) LIKE ?
+                OR aa.email LIKE ?
+            )";
+            $searchParam = "%$search%";
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $types .= 'sss';
+        }
+        
+        // Main query to get applications with requested cards
+        $sql = "SELECT 
+            aa.application_id,
+            aa.application_number,
+            CONCAT(aa.first_name, ' ', aa.last_name) as applicant_name,
+            aa.first_name,
+            aa.last_name,
+            aa.email,
+            aa.phone_number,
+            aa.application_status,
+            aa.submitted_at,
+            aa.selected_cards,
+            aa.account_type,
+            aa.annual_income,
+            GROUP_CONCAT(DISTINCT 
+                CASE 
+                    WHEN aa.selected_cards LIKE '%debit%' THEN 'Debit Card'
+                    WHEN aa.selected_cards LIKE '%credit%' THEN 'Credit Card'
+                    WHEN aa.selected_cards LIKE '%prepaid%' THEN 'Prepaid Card'
+                END
+                SEPARATOR ', '
+            ) as requested_cards_display
+        FROM account_applications aa
+        $whereClause
+        GROUP BY aa.application_id
+        ORDER BY aa.submitted_at DESC
+        LIMIT ? OFFSET ?";
+        
+        // Get total count for pagination
+        $countSql = "SELECT COUNT(DISTINCT aa.application_id) as total 
+                     FROM account_applications aa 
+                     $whereClause";
+        
+        $countStmt = $conn->prepare($countSql);
+        if (!$countStmt) {
+            throw new Exception("Failed to prepare count query: " . $conn->error);
+        }
+        
+        if (!empty($params)) {
+            $countStmt->bind_param($types, ...$params);
+        }
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $totalCount = $countResult->fetch_assoc()['total'] ?? 0;
+        $countStmt->close();
+        
+        // Execute main query
+        $types .= 'ii';
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            throw new Exception("Failed to prepare query: " . $conn->error);
+        }
+        
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $applications = [];
+        while ($row = $result->fetch_assoc()) {
+            // Parse selected_cards to create readable list
+            $cardsList = [];
+            if (!empty($row['selected_cards'])) {
+                $cards = explode(',', $row['selected_cards']);
+                foreach ($cards as $card) {
+                    $card = trim($card);
+                    if ($card === 'debit') $cardsList[] = 'Debit Card';
+                    elseif ($card === 'credit') $cardsList[] = 'Credit Card';
+                    elseif ($card === 'prepaid') $cardsList[] = 'Prepaid Card';
+                }
+            }
+            
+            $applications[] = [
+                'application_id' => (int)$row['application_id'],
+                'application_number' => $row['application_number'],
+                'applicant_name' => $row['applicant_name'],
+                'requested_cards' => implode(', ', $cardsList),
+                'submission_date' => $row['submitted_at'],
+                'status' => $row['application_status'],
+                'account_type' => $row['account_type'],
+                'annual_income' => (float)$row['annual_income']
+            ];
+        }
+        
+        $stmt->close();
+        
+        return [
+            'success' => true,
+            'data' => $applications,
+            'count' => count($applications),
+            'total' => (int)$totalCount
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Error in getPendingApplications: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Database error: ' . $e->getMessage(),
+            'data' => []
+        ];
+    }
+}
+
+function getApplicationDetails() {
+    global $conn;
+    
+    try {
+        $applicationId = (int)($_GET['application_id'] ?? 0);
+        
+        if (!$applicationId) {
+            return [
+                'success' => false,
+                'message' => 'Application ID is required'
+            ];
+        }
+        
+        $sql = "SELECT 
+            aa.*,
+            aa.selected_cards,
+            aa.additional_services
+        FROM account_applications aa
+        WHERE aa.application_id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            throw new Exception("Failed to prepare query: " . $conn->error);
+        }
+        
+        $stmt->bind_param('i', $applicationId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            $stmt->close();
+            return [
+                'success' => false,
+                'message' => 'Application not found'
+            ];
+        }
+        
+        $row = $result->fetch_assoc();
+        $stmt->close();
+        
+        // Parse selected cards
+        $selectedCards = [];
+        if (!empty($row['selected_cards'])) {
+            $cards = explode(',', $row['selected_cards']);
+            foreach ($cards as $card) {
+                $card = trim($card);
+                if ($card) {
+                    $selectedCards[] = [
+                        'type' => $card,
+                        'name' => ucfirst($card) . ' Card'
+                    ];
+                }
+            }
+        }
+        
+        // Parse additional services (if stored as JSON or comma-separated)
+        $additionalServices = [];
+        if (!empty($row['additional_services'])) {
+            // Try to decode as JSON first
+            $services = json_decode($row['additional_services'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($services)) {
+                $additionalServices = $services;
+            } else {
+                // Fallback to comma-separated
+                $services = explode(',', $row['additional_services']);
+                foreach ($services as $service) {
+                    $service = trim($service);
+                    if ($service) {
+                        $additionalServices[] = $service;
+                    }
+                }
+            }
+        }
+        
+        // Format account type for display
+        $accountTypeDisplay = '';
+        if ($row['account_type'] === 'acct-checking') {
+            $accountTypeDisplay = 'Checking';
+        } elseif ($row['account_type'] === 'acct-savings') {
+            $accountTypeDisplay = 'Savings';
+        } elseif ($row['account_type'] === 'acct-both') {
+            $accountTypeDisplay = 'Both (Checking & Savings)';
+        }
+        
+        return [
+            'success' => true,
+            'data' => [
+                'application_id' => (int)$row['application_id'],
+                'application_number' => $row['application_number'],
+                'application_status' => $row['application_status'],
+                'submitted_at' => $row['submitted_at'],
+                
+                // Personal Information
+                'first_name' => $row['first_name'],
+                'last_name' => $row['last_name'],
+                'email' => $row['email'],
+                'phone_number' => $row['phone_number'],
+                'date_of_birth' => $row['date_of_birth'],
+                
+                // Address
+                'street_address' => $row['street_address'],
+                'barangay' => $row['barangay'] ?? '',
+                'city' => $row['city'],
+                'state' => $row['state'],
+                'zip_code' => $row['zip_code'],
+                
+                // Identity
+                'ssn' => $row['ssn'],
+                'id_type' => $row['id_type'],
+                'id_number' => $row['id_number'],
+                
+                // Employment
+                'employment_status' => $row['employment_status'],
+                'employer_name' => $row['employer_name'] ?? '',
+                'job_title' => $row['job_title'] ?? '',
+                'annual_income' => (float)$row['annual_income'],
+                
+                // Preferences
+                'account_type' => $row['account_type'],
+                'account_type_display' => $accountTypeDisplay,
+                'selected_cards' => $selectedCards,
+                'additional_services' => $additionalServices,
+                
+                // Terms
+                'terms_accepted' => (bool)$row['terms_accepted'],
+                'privacy_acknowledged' => (bool)$row['privacy_acknowledged'],
+                'marketing_consent' => (bool)$row['marketing_consent']
+            ]
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Error in getApplicationDetails: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Database error: ' . $e->getMessage()
+        ];
+    }
+}
+
+function approveApplication() {
+    global $conn;
+    
+    try {
+        // Check if session functions are available
+        if (!function_exists('getCurrentUser')) {
+            require_once '../../includes/session.php';
+        }
+        
+        $applicationId = (int)($_POST['application_id'] ?? 0);
+        $currentUser = getCurrentUser();
+        $userId = $currentUser['id'] ?? null;
+        
+        if (!$applicationId) {
+            return [
+                'success' => false,
+                'message' => 'Application ID is required'
+            ];
+        }
+        
+        if (!$userId) {
+            return [
+                'success' => false,
+                'message' => 'User authentication required'
+            ];
+        }
+        
+        // Start transaction
+        $conn->begin_transaction();
+        
+        // Get application details
+        $sql = "SELECT * FROM account_applications WHERE application_id = ?";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare query: ' . $conn->error
+            ];
+        }
+        $stmt->bind_param('i', $applicationId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            $stmt->close();
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Application not found'
+            ];
+        }
+        
+        $app = $result->fetch_assoc();
+        $stmt->close();
+        
+        // Check if customer already exists by email
+        $checkCustomerSql = "SELECT customer_id FROM bank_customers WHERE email = ? LIMIT 1";
+        $checkStmt = $conn->prepare($checkCustomerSql);
+        if (!$checkStmt) {
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare customer check query: ' . $conn->error
+            ];
+        }
+        $checkStmt->bind_param('s', $app['email']);
+        $checkStmt->execute();
+        $customerResult = $checkStmt->get_result();
+        
+        $customerId = null;
+        if ($customerResult->num_rows > 0) {
+            // Customer exists, use existing ID
+            $customerRow = $customerResult->fetch_assoc();
+            $customerId = $customerRow['customer_id'];
+        } else {
+            // Create new customer
+            // Generate a simple password hash (customer will need to reset)
+            $tempPassword = bin2hex(random_bytes(8));
+            $passwordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
+            
+            // Use minimal fields that are definitely in bank_customers table
+            // Based on the schema, we'll use: first_name, last_name, email, password_hash
+            $insertCustomerSql = "INSERT INTO bank_customers 
+                (first_name, last_name, email, password_hash, created_at)
+                VALUES (?, ?, ?, ?, NOW())";
+            
+            $insertStmt = $conn->prepare($insertCustomerSql);
+            if (!$insertStmt) {
+                $conn->rollback();
+                return [
+                    'success' => false,
+                    'message' => 'Failed to prepare customer insert statement: ' . $conn->error
+                ];
+            }
+            $insertStmt->bind_param('ssss', 
+                $app['first_name'],
+                $app['last_name'],
+                $app['email'],
+                $passwordHash
+            );
+            
+            if (!$insertStmt->execute()) {
+                $insertStmt->close();
+                $conn->rollback();
+                return [
+                    'success' => false,
+                    'message' => 'Failed to create customer: ' . $insertStmt->error
+                ];
+            }
+            
+            $customerId = $insertStmt->insert_id;
+            $insertStmt->close();
+        }
+        
+        $checkStmt->close();
+        
+        // Determine account type ID based on application preference
+        $accountTypeName = 'Savings'; // Default
+        if ($app['account_type'] === 'acct-checking') {
+            $accountTypeName = 'Checking';
+        } elseif ($app['account_type'] === 'acct-both') {
+            $accountTypeName = 'Savings'; // Create Savings first, can add Checking later
+        }
+        
+        // Get account type ID
+        $accountTypeSql = "SELECT account_type_id FROM bank_account_types WHERE type_name = ? LIMIT 1";
+        $accountTypeStmt = $conn->prepare($accountTypeSql);
+        if (!$accountTypeStmt) {
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare account type query: ' . $conn->error
+            ];
+        }
+        $accountTypeStmt->bind_param('s', $accountTypeName);
+        $accountTypeStmt->execute();
+        $accountTypeResult = $accountTypeStmt->get_result();
+        
+        if ($accountTypeResult->num_rows === 0) {
+            // Create account type if it doesn't exist
+            $createTypeSql = "INSERT INTO bank_account_types (type_name, description) VALUES (?, ?)";
+            $createTypeStmt = $conn->prepare($createTypeSql);
+            if (!$createTypeStmt) {
+                $accountTypeStmt->close();
+                $conn->rollback();
+                return [
+                    'success' => false,
+                    'message' => 'Failed to prepare account type insert: ' . $conn->error
+                ];
+            }
+            $description = $accountTypeName . ' Account';
+            $createTypeStmt->bind_param('ss', $accountTypeName, $description);
+            $createTypeStmt->execute();
+            $accountTypeId = $createTypeStmt->insert_id;
+            $createTypeStmt->close();
+        } else {
+            $accountTypeRow = $accountTypeResult->fetch_assoc();
+            $accountTypeId = $accountTypeRow['account_type_id'];
+        }
+        if ($accountTypeStmt) {
+            $accountTypeStmt->close();
+        }
+        
+        // Generate account number
+        $prefix = ($accountTypeName === 'Savings') ? 'SA' : 'CHA';
+        $currentYear = date('Y');
+        $uniqueDigits = str_pad(mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+        $accountNumber = "{$prefix}-{$uniqueDigits}-{$currentYear}";
+        
+        // Check if account number exists, regenerate if needed
+        $checkAccountSql = "SELECT COUNT(*) as count FROM customer_accounts WHERE account_number = ?";
+        $checkAccountStmt = $conn->prepare($checkAccountSql);
+        if (!$checkAccountStmt) {
+            $accountTypeStmt->close();
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare account number check: ' . $conn->error
+            ];
+        }
+        $checkAccountStmt->bind_param('s', $accountNumber);
+        $checkAccountStmt->execute();
+        $accountCheckResult = $checkAccountStmt->get_result();
+        $accountCheckRow = $accountCheckResult->fetch_assoc();
+        
+        if ($accountCheckRow['count'] > 0) {
+            // Regenerate with timestamp
+            $accountNumber = "{$prefix}-{$uniqueDigits}-{$currentYear}-" . time();
+        }
+        $checkAccountStmt->close();
+        
+        // Set interest rate (0.5% for Savings, NULL for Checking)
+        $interestRate = ($accountTypeName === 'Savings') ? 0.50 : null;
+        
+        // Create account
+        $createAccountSql = "INSERT INTO customer_accounts 
+            (customer_id, account_number, account_type_id, interest_rate, is_locked, created_at)
+            VALUES (?, ?, ?, ?, 0, NOW())";
+        
+        $createAccountStmt = $conn->prepare($createAccountSql);
+        if (!$createAccountStmt) {
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare account creation statement: ' . $conn->error
+            ];
+        }
+        $createAccountStmt->bind_param('isid', 
+            $customerId,
+            $accountNumber,
+            $accountTypeId,
+            $interestRate
+        );
+        
+        if (!$createAccountStmt->execute()) {
+            $createAccountStmt->close();
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to create account: ' . $createAccountStmt->error
+            ];
+        }
+        
+        $accountId = $createAccountStmt->insert_id;
+        $createAccountStmt->close();
+        
+        // Check if table exists first
+        $tableCheck = $conn->query("SHOW TABLES LIKE 'account_applications'");
+        if (!$tableCheck || $tableCheck->num_rows === 0) {
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'account_applications table does not exist in the database'
+            ];
+        }
+        
+        // Check what columns exist in the table
+        $columnsCheck = $conn->query("SHOW COLUMNS FROM account_applications");
+        $columnNames = [];
+        if ($columnsCheck) {
+            while ($row = $columnsCheck->fetch_assoc()) {
+                $columnNames[] = $row['Field'];
+            }
+        }
+        $hasDecisionBy = in_array('decision_by', $columnNames);
+        $hasCustomerId = in_array('customer_id', $columnNames);
+        $hasAccountId = in_array('account_id', $columnNames);
+        $hasReviewedAt = in_array('reviewed_at', $columnNames);
+        
+        // Build UPDATE statement based on available columns
+        $updateFields = ["application_status = 'approved'"];
+        if ($hasReviewedAt) {
+            $updateFields[] = "reviewed_at = NOW()";
+        }
+        $params = [];
+        $types = '';
+        
+        if ($hasDecisionBy) {
+            $updateFields[] = "decision_by = ?";
+            $params[] = $userId;
+            $types .= 'i';
+        }
+        if ($hasCustomerId) {
+            $updateFields[] = "customer_id = ?";
+            $params[] = $customerId;
+            $types .= 'i';
+        }
+        if ($hasAccountId) {
+            $updateFields[] = "account_id = ?";
+            $params[] = $accountId;
+            $types .= 'i';
+        }
+        
+        // Add application_id for WHERE clause
+        $params[] = $applicationId;
+        $types .= 'i';
+        
+        $updateAppSql = "UPDATE account_applications 
+            SET " . implode(', ', $updateFields) . "
+            WHERE application_id = ?";
+        
+        $updateAppStmt = $conn->prepare($updateAppSql);
+        if (!$updateAppStmt) {
+            $conn->rollback();
+            $errorMsg = $conn->error;
+            error_log("Approve application prepare error: " . $errorMsg);
+            error_log("SQL: " . $updateAppSql);
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare update statement: ' . $errorMsg . ' (SQL: ' . $updateAppSql . ')'
+            ];
+        }
+        
+        // Bind parameters in correct order
+        $updateAppStmt->bind_param($types, ...$params);
+        
+        if (!$updateAppStmt->execute()) {
+            $updateAppStmt->close();
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to update application: ' . $updateAppStmt->error
+            ];
+        }
+        $updateAppStmt->close();
+        
+        // Log status change (if application_status_history table exists)
+        // Check if table exists first
+        $tableCheck = $conn->query("SHOW TABLES LIKE 'application_status_history'");
+        if ($tableCheck && $tableCheck->num_rows > 0) {
+            $logHistorySql = "INSERT INTO application_status_history 
+                (application_id, old_status, new_status, changed_by, change_reason, changed_at)
+                VALUES (?, 'pending', 'approved', ?, 'Application approved by finance staff', NOW())";
+            
+            $logStmt = $conn->prepare($logHistorySql);
+            if ($logStmt) {
+                $logStmt->bind_param('ii', $applicationId, $userId);
+                $logStmt->execute();
+                $logStmt->close();
+            }
+        }
+        
+        // Commit transaction
+        $conn->commit();
+        
+        return [
+            'success' => true,
+            'message' => 'Application approved successfully. Customer account created.',
+            'customer_id' => $customerId,
+            'account_id' => $accountId,
+            'account_number' => $accountNumber
+        ];
+        
+    } catch (Exception $e) {
+        if ($conn->in_transaction) {
+            $conn->rollback();
+        }
+        error_log("Error in approveApplication: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Error approving application: ' . $e->getMessage()
+        ];
+    }
+}
+
+function declineApplication() {
+    global $conn;
+    
+    try {
+        // Check if session functions are available
+        if (!function_exists('getCurrentUser')) {
+            require_once '../../includes/session.php';
+        }
+        
+        $applicationId = (int)($_POST['application_id'] ?? 0);
+        $rejectionReason = trim($_POST['rejection_reason'] ?? '');
+        $currentUser = getCurrentUser();
+        $userId = $currentUser['id'] ?? null;
+        
+        if (!$applicationId) {
+            return [
+                'success' => false,
+                'message' => 'Application ID is required'
+            ];
+        }
+        
+        if (empty($rejectionReason)) {
+            return [
+                'success' => false,
+                'message' => 'Rejection reason is required'
+            ];
+        }
+        
+        if (!$userId) {
+            return [
+                'success' => false,
+                'message' => 'User authentication required'
+            ];
+        }
+        
+        // Start transaction
+        $conn->begin_transaction();
+        
+        // Check if table exists first
+        $tableCheck = $conn->query("SHOW TABLES LIKE 'account_applications'");
+        if (!$tableCheck || $tableCheck->num_rows === 0) {
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'account_applications table does not exist in the database'
+            ];
+        }
+        
+        
+        // Check what columns exist in the table
+        $columnsCheck = $conn->query("SHOW COLUMNS FROM account_applications");
+        $columnNames = [];
+        if ($columnsCheck) {
+            while ($row = $columnsCheck->fetch_assoc()) {
+                $columnNames[] = $row['Field'];
+            }
+        }
+        $hasDecisionBy = in_array('decision_by', $columnNames);
+        $hasRejectionReason = in_array('rejection_reason', $columnNames);
+        $hasReviewedAt = in_array('reviewed_at', $columnNames);
+        
+        // Update application status - build SQL based on available columns
+        $updateFields = ["application_status = 'rejected'"];
+        if ($hasReviewedAt) {
+            $updateFields[] = "reviewed_at = NOW()";
+        }
+        
+        $params = [];
+        $types = '';
+        
+        if ($hasDecisionBy) {
+            $updateFields[] = "decision_by = ?";
+            $params[] = $userId;
+            $types .= 'i';
+        }
+        
+        if ($hasRejectionReason) {
+            $updateFields[] = "rejection_reason = ?";
+            $params[] = $rejectionReason;
+            $types .= 's';
+        }
+        
+        // Add application_id for WHERE clause
+        $params[] = $applicationId;
+        $types .= 'i';
+        
+        $updateSql = "UPDATE account_applications 
+            SET " . implode(', ', $updateFields) . "
+            WHERE application_id = ?";
+        
+        $stmt = $conn->prepare($updateSql);
+        if (!$stmt) {
+            $conn->rollback();
+            $errorMsg = $conn->error;
+            error_log("Decline application prepare error: " . $errorMsg);
+            error_log("SQL: " . $updateSql);
+            return [
+                'success' => false,
+                'message' => 'Failed to prepare update statement: ' . $errorMsg . ' (SQL: ' . $updateSql . ')'
+            ];
+        }
+        
+        // Bind parameters
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        if (!$stmt->execute()) {
+            $stmt->close();
+            $conn->rollback();
+            return [
+                'success' => false,
+                'message' => 'Failed to decline application: ' . $stmt->error
+            ];
+        }
+        
+        $stmt->close();
+        
+        // Log status change (if application_status_history table exists)
+        // Check if table exists first
+        $tableCheck = $conn->query("SHOW TABLES LIKE 'application_status_history'");
+        if ($tableCheck && $tableCheck->num_rows > 0) {
+            $logHistorySql = "INSERT INTO application_status_history 
+                (application_id, old_status, new_status, changed_by, change_reason, changed_at)
+                VALUES (?, 'pending', 'rejected', ?, ?, NOW())";
+            
+            $logStmt = $conn->prepare($logHistorySql);
+            if ($logStmt) {
+                $logStmt->bind_param('iis', $applicationId, $userId, $rejectionReason);
+                $logStmt->execute();
+                $logStmt->close();
+            }
+        }
+        
+        // Commit transaction
+        $conn->commit();
+        
+        return [
+            'success' => true,
+            'message' => 'Application declined successfully'
+        ];
+        
+    } catch (Exception $e) {
+        if ($conn->in_transaction) {
+            $conn->rollback();
+        }
+        error_log("Error in declineApplication: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Error declining application: ' . $e->getMessage()
         ];
     }
 }

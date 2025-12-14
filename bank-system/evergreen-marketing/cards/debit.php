@@ -849,6 +849,11 @@
             height: 40px;
         }
 
+        .profile-btn img {
+            width: 35px;
+            height: 35px;
+        }
+
         .nav-links {
             order: 3;
             width: 100%;
@@ -916,7 +921,7 @@
         <div class="logo">
             <div class="logo-icon">
                 <a href="viewingpage.php">
-                    <img src="../images/Logo.svg">
+                    <img src="../images/Logo.png.png">
                 </a>
             </div>
             <span>
@@ -937,7 +942,7 @@
                 </div>
             </div>
 
-            <a href="/Evergreen/LoanSubsystem/">Loans</a>
+            <a href="#loans">Loans</a>
             <a href="../about.php">About Us</a>
         </div>
 
@@ -952,8 +957,7 @@
                 </div>
 
                 <div id="profileDropdown" class="profile-dropdown" role="menu" aria-labelledby="profileBtn">
-                    <a href="/Evergreen/bank-system/Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
-                    <a href="../refer.php" role="menuitem">Refer to a friend</a>
+                    <a href="../../Basic-operation/operations/public/customer/profile" role="menuitem">Profile</a>
                     <a href="../cards/points.php" role="menuitem">Missions</a>
                     <a href="viewing.php" role="menuitem" onclick="showSignOutModal(event)">Sign Out</a>
                 </div>

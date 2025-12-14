@@ -146,9 +146,9 @@
             noNotifications.innerHTML = '<small>No new notifications</small>';
             
             const divider = dropdown.querySelector('hr');
-            if (divider && divider.nextSibling) {
+            if (divider && divider.parentNode === dropdown && divider.nextSibling) {
                 dropdown.insertBefore(noNotifications, divider.nextSibling);
-            } else if (divider) {
+            } else if (divider && divider.parentNode === dropdown) {
                 dropdown.insertBefore(noNotifications, divider);
             } else {
                 dropdown.appendChild(noNotifications);
@@ -181,9 +181,9 @@
                 
                 // Insert after first divider (or at the end if no divider)
                 const divider = dropdown.querySelector('hr');
-                if (divider && divider.nextSibling) {
+                if (divider && divider.parentNode === dropdown && divider.nextSibling) {
                     dropdown.insertBefore(listItem, divider.nextSibling);
-                } else if (divider) {
+                } else if (divider && divider.parentNode === dropdown) {
                     dropdown.insertBefore(listItem, divider);
                 } else {
                     dropdown.appendChild(listItem);
@@ -193,7 +193,11 @@
                 if (index < notifications.length - 1) {
                     const itemDivider = document.createElement('li');
                     itemDivider.innerHTML = '<hr class="dropdown-divider">';
-                    dropdown.insertBefore(itemDivider, listItem.nextSibling);
+                    if (listItem.nextSibling && listItem.parentNode === dropdown) {
+                        dropdown.insertBefore(itemDivider, listItem.nextSibling);
+                    } else {
+                        dropdown.appendChild(itemDivider);
+                    }
                 }
             });
         }

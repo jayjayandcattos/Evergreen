@@ -620,9 +620,10 @@
         // Show loading
         showLoading('Moving transaction to bin...');
 
-        // Make AJAX call to delete transaction
+        // Send the FULL transaction ID (e.g., "JE-12") so the API knows it's a journal entry
+        // The API will extract the numeric ID and validate the source
         const url = 'api/transaction-data.php';
-        const data = `action=soft_delete_transaction&transaction_id=${transactionId}`;
+        const data = `action=soft_delete_transaction&transaction_id=${encodeURIComponent(transactionId)}`;
         
         console.log('===== DELETE REQUEST DETAILS =====');
         console.log('Making request to:', url);
@@ -697,10 +698,28 @@
                 
                 showNotification(message, notificationType);
                 
-                // Reload the page to refresh the table
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                // Immediately remove the row from the table (real-time update)
+                const table = document.getElementById('transactionTable');
+                if (table) {
+                    const rowToRemove = table.querySelector(`tr[data-transaction-id="${transactionId}"]`);
+                    if (rowToRemove) {
+                        // If DataTable is initialized, use its API
+                        if (dataTable && typeof dataTable.row === 'function') {
+                            dataTable.row(rowToRemove).remove().draw(false);
+                            console.log('Row removed from DataTable');
+                        } else {
+                            // Remove directly from DOM
+                            rowToRemove.remove();
+                            console.log('Row removed from DOM');
+                        }
+                    } else {
+                        // Fallback: reload page if row not found
+                        console.warn('Row not found, reloading page');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                }
             } else {
                 showNotification('Delete failed: ' + (data.error || 'Unknown error'), 'error');
             }

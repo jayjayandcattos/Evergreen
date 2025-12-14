@@ -1,0 +1,5 @@
+# Ignore all cache files
+*.json
+!.gitignore
+!.htaccess
+
