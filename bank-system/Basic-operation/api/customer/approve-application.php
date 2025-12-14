@@ -83,18 +83,20 @@ try {
         }
         
         // 3. Get account type ID
-        $accountTypeBase = $application['account_type']; // 'Savings' or 'Checking'
+        $accountTypeBase = $application['account_type']; // e.g., 'Savings Account' or 'Checking Account'
         $stmt = $db->prepare("
-            SELECT account_type_id 
+            SELECT account_type_id, type_name
             FROM bank_account_types 
-            WHERE type_name = :type_name
+            WHERE type_name LIKE :type_name
         ");
-        $stmt->bindParam(':type_name', $accountTypeBase);
+        // Use LIKE to match 'Savings' with 'Savings Account' or 'Checking' with 'Checking Account'
+        $searchPattern = '%' . $accountTypeBase . '%';
+        $stmt->bindParam(':type_name', $searchPattern);
         $stmt->execute();
         $accountType = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$accountType) {
-            throw new Exception('Account type not found');
+            throw new Exception('Account type not found: ' . $accountTypeBase);
         }
         
         $accountTypeId = $accountType['account_type_id'];
@@ -103,7 +105,9 @@ try {
         // SA = Savings Account, CHA = Checking Account
         // XXXX = Random 4-digit number
         // YYYY = Current year
-        $prefix = ($accountTypeBase === 'Savings') ? 'SA' : 'CHA';
+        // Check if it's a Savings Account (type_name contains 'Savings')
+        $isSavings = stripos($accountType['type_name'], 'Savings') !== false;
+        $prefix = $isSavings ? 'SA' : 'CHA';
         $randomNumber = str_pad(rand(1000, 9999), 4, '0', STR_PAD_LEFT);
         $year = date('Y');
         $accountNumber = $prefix . '-' . $randomNumber . '-' . $year;

@@ -18,6 +18,11 @@
     $user_id = $_SESSION['user_id'];
     $userData = [];
     $userBirthday = '';
+    $userGender = '';
+    $userNationality = '';
+    $userPlaceOfBirth = '';
+    $userCivilStatus = '';
+    $userSourceOfFunds = '';
     $userProvince = '';
     $userCity = '';
     $userBarangay = '';
@@ -27,20 +32,25 @@
     $userCityId = 0;
     $userBarangayId = 0;
     
-    // Get customer data
+    // Get customer data with profile information
     $sql = "SELECT bc.first_name, bc.middle_name, bc.last_name, bc.email, bc.contact_number,
-                   cp.date_of_birth,
+                   cp.date_of_birth, g.gender_name, cp.nationality, cp.marital_status,
                    a.address_line, a.province_id, a.city_id, a.barangay_id, a.postal_code,
                    p.province_name,
                    c.city_name,
-                   b.barangay_name
+                   b.barangay_name,
+                   aa.place_of_birth, aa.source_of_funds
             FROM bank_customers bc
             LEFT JOIN customer_profiles cp ON bc.customer_id = cp.customer_id
+            LEFT JOIN genders g ON cp.gender_id = g.gender_id
             LEFT JOIN addresses a ON bc.customer_id = a.customer_id AND a.is_primary = 1
             LEFT JOIN provinces p ON a.province_id = p.province_id
             LEFT JOIN cities c ON a.city_id = c.city_id
             LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
-            WHERE bc.customer_id = ?";
+            LEFT JOIN account_applications aa ON bc.customer_id = aa.customer_id
+            WHERE bc.customer_id = ?
+            ORDER BY aa.submitted_at DESC
+            LIMIT 1";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -62,6 +72,13 @@
         if (!empty($userData['date_of_birth'])) {
             $userBirthday = date('Y-m-d', strtotime($userData['date_of_birth']));
         }
+        
+        // Get profile data
+        $userGender = $userData['gender_name'] ?? '';
+        $userNationality = $userData['nationality'] ?? '';
+        $userPlaceOfBirth = $userData['place_of_birth'] ?? '';
+        $userCivilStatus = $userData['marital_status'] ?? '';
+        $userSourceOfFunds = $userData['source_of_funds'] ?? '';
         
         // Get address data
         $userStreetAddress = $userData['address_line'] ?? '';
@@ -1912,11 +1929,11 @@
         <!-- this will be the replaceable panel -->
         <div class="fillup-change">
           <!-- Hidden fields for customer profile data (set to empty/null if not available) -->
-          <input type="hidden" id="customer-gender" value="">
-          <input type="hidden" id="customer-nationality" value="">
-          <input type="hidden" id="customer-place-of-birth" value="">
-          <input type="hidden" id="customer-civil-status" value="">
-          <input type="hidden" id="customer-source-of-funds" value="">
+          <input type="hidden" id="customer-gender" value="<?php echo htmlspecialchars($userGender); ?>">
+          <input type="hidden" id="customer-nationality" value="<?php echo htmlspecialchars($userNationality); ?>">
+          <input type="hidden" id="customer-place-of-birth" value="<?php echo htmlspecialchars($userPlaceOfBirth); ?>">
+          <input type="hidden" id="customer-civil-status" value="<?php echo htmlspecialchars($userCivilStatus); ?>">
+          <input type="hidden" id="customer-source-of-funds" value="<?php echo htmlspecialchars($userSourceOfFunds); ?>">
           
           <!-- Personal info part -->
           <div class="personal-info-panel">
@@ -2100,7 +2117,7 @@
   </div>
 
   <div class="input-wrap">
-    <label for="annual-income">Annual Income (USD)<span style="color: red;">*</span></label>
+    <label for="annual-income">Annual Income (PHP)<span style="color: red;">*</span></label>
     <input type="text" id="annual-income" class="inp-credentials full-width" placeholder="50000">
   </div>
 </div>
@@ -2940,9 +2957,9 @@
     function formatCurrency(amount) {
       if (!amount) return '—';
       const num = parseFloat(amount.replace(/[^0-9.-]+/g, ''));
-      return new Intl.NumberFormat('en-US', {
+      return new Intl.NumberFormat('en-PH', {
         style: 'currency',
-        currency: 'USD',
+        currency: 'PHP',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
       }).format(num);

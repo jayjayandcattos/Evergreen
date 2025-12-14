@@ -190,16 +190,36 @@ try {
         $customerId = $existingAccount['customer_id'];
     }
 
-    // Fetch customer information from existing account's application
+    // Fetch customer information from existing account's bank_customers and application
     $existingApplication = null;
     if (!empty($input['existing_account_number'])) {
         $existingAccountNumber = trim($input['existing_account_number']);
         
+        // Try to get application data, use LEFT JOIN to handle cases where application_id might be NULL
         $stmt = $db->prepare("
-            SELECT aa.*
+            SELECT 
+                COALESCE(aa.first_name, bc.first_name) as first_name,
+                COALESCE(aa.middle_name, bc.middle_name) as middle_name,
+                COALESCE(aa.last_name, bc.last_name) as last_name,
+                COALESCE(aa.date_of_birth, bc.birthday) as date_of_birth,
+                COALESCE(aa.email, bc.email) as email,
+                COALESCE(aa.phone_number, bc.contact_number) as phone_number,
+                COALESCE(aa.street_address, bc.address) as street_address,
+                aa.place_of_birth,
+                aa.gender,
+                aa.civil_status,
+                aa.nationality,
+                aa.barangay_id,
+                aa.city_id,
+                aa.province_id,
+                aa.postal_code,
+                aa.employment_status,
+                aa.employer_name,
+                aa.occupation,
+                aa.annual_income
             FROM customer_accounts ca
             INNER JOIN bank_customers bc ON ca.customer_id = bc.customer_id
-            INNER JOIN account_applications aa ON bc.application_id = aa.application_id
+            LEFT JOIN account_applications aa ON bc.application_id = aa.application_id
             WHERE ca.account_number = :account_number
             LIMIT 1
         ");
@@ -340,24 +360,24 @@ try {
             $stmt->bindValue(':first_name', $existingApplication['first_name']);
             $stmt->bindValue(':middle_name', $existingApplication['middle_name']);
             $stmt->bindValue(':last_name', $existingApplication['last_name']);
-            $stmt->bindValue(':date_of_birth', $existingApplication['date_of_birth']);
-            $stmt->bindValue(':place_of_birth', $existingApplication['place_of_birth']);
-            $stmt->bindValue(':gender', $existingApplication['gender']);
-            $stmt->bindValue(':civil_status', $existingApplication['civil_status']);
-            $stmt->bindValue(':nationality', $existingApplication['nationality']);
+            $stmt->bindValue(':date_of_birth', $existingApplication['date_of_birth'] ?? '2000-01-01');
+            $stmt->bindValue(':place_of_birth', $existingApplication['place_of_birth'] ?? 'N/A');
+            $stmt->bindValue(':gender', $existingApplication['gender'] ?? 'Other');
+            $stmt->bindValue(':civil_status', $existingApplication['civil_status'] ?? 'Single');
+            $stmt->bindValue(':nationality', $existingApplication['nationality'] ?? 'Filipino');
             $stmt->bindValue(':email', $existingApplication['email']);
             $stmt->bindValue(':phone_number', $existingApplication['phone_number']);
             $stmt->bindValue(':street_address', $existingApplication['street_address']);
-            $stmt->bindValue(':barangay_id', $existingApplication['barangay_id']);
-            $stmt->bindValue(':city_id', $existingApplication['city_id']);
-            $stmt->bindValue(':province_id', $existingApplication['province_id']);
-            $stmt->bindValue(':postal_code', $existingApplication['postal_code']);
+            $stmt->bindValue(':barangay_id', $existingApplication['barangay_id'] ?? null);
+            $stmt->bindValue(':city_id', $existingApplication['city_id'] ?? null);
+            $stmt->bindValue(':province_id', $existingApplication['province_id'] ?? null);
+            $stmt->bindValue(':postal_code', $existingApplication['postal_code'] ?? null);
             $stmt->bindParam(':id_type', $input['id_type']);
             $stmt->bindParam(':id_number', $input['id_number']);
-            $stmt->bindValue(':employment_status', $existingApplication['employment_status']);
-            $stmt->bindValue(':employer_name', $existingApplication['employer_name']);
-            $stmt->bindValue(':occupation', $existingApplication['occupation']);
-            $stmt->bindValue(':annual_income', $existingApplication['annual_income']);
+            $stmt->bindValue(':employment_status', $existingApplication['employment_status'] ?? 'Employed');
+            $stmt->bindValue(':employer_name', $existingApplication['employer_name'] ?? 'N/A');
+            $stmt->bindValue(':occupation', $existingApplication['occupation'] ?? 'N/A');
+            $stmt->bindValue(':annual_income', $existingApplication['annual_income'] ?? 0);
             $stmt->bindParam(':account_type', $input['account_type']);
             $stmt->execute();
             
